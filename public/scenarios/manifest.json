@@ -1,9 +1,9 @@
 {
-  "initial": "demo_v01.json",
+  "initial": "scenarios/demo_v01.json",
   "files": [
-    "public/scenarios/demo_v01.json",
-    "public/scenarios/tutorial_v01.json",
-    "public/scenarios/vertical_detour.json",
-    "public/scenarios/static_hollow.json"
+    "scenarios/tutorial_v01.json",
+    "scenarios/static_hollow.json",
+    "scenarios/vertical_detour.json",
+    "scenarios/demo_v01.json"
   ]
 }
