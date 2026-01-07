@@ -1,5 +1,5 @@
 {
-  "initial": "demo_v01",
+  "initial": "demo_v01.json",
   "files": [
     "public/scenarios/demo_v01.json",
     "public/scenarios/tutorial_v01.json",
