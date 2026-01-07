@@ -4,7 +4,7 @@ import { ROW_LENS, posId, enterLayer, revealHex } from "../engine/board";
 
 type Coord = { layer: number; row: number; col: number };
 
-const BUILD_TAG = "BUILD_TAG_TRANSITIONS_V1";
+const BUILD_TAG = "BUILD_TAG_TRANSITIONS_V2_DEBUG";
 
 function idToCoord(id: string): Coord | null {
   const m = /^L(\d+)-R(\d+)-C(\d+)$/.exec(id);
@@ -47,10 +47,13 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   let reachMap: ReachMap = getReachability(state);
   let reachable: Set<string> = new Set(Object.entries(reachMap).filter(([, v]) => v.reachable).map(([k]) => k));
 
-  // Transition highlight state (computed from selectedId)
-  let transitionSources = new Set<string>();          // ids that have outgoing transitions
-  let transitionTargetsSameLayer = new Map<string, string>(); // id -> badge text (▲/▼), only for current layer
-  let outgoingFromSelected: any[] = [];               // transitions from selected hex
+  // Transition index + highlights
+  let transitionsAll: any[] = [];
+  let transitionsByFrom = new Map<string, any[]>();
+  let sourcesAll = new Set<string>();          // all from-ids that have transitions
+  let sourcesOnLayer = new Set<string>();      // from-ids on currentLayer
+  let targetsSameLayer = new Map<string, string>(); // toId -> badge (▲/▼) for selected source only
+  let outgoingFromSelected: any[] = [];
 
   // --------------------------
   // Styles
@@ -63,13 +66,10 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     select,button{padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.22);color:#e8e8e8}
     button{cursor:pointer}
-    button:disabled{opacity:.5;cursor:not-allowed}
     .grid{display:grid;grid-template-columns: 1.55fr .85fr; gap:14px; margin-top:14px}
     .card{border:1px solid rgba(255,255,255,.12); background:rgba(0,0,0,.16); border-radius:18px; padding:14px}
     .meta{display:grid;gap:6px;margin-top:10px}
     .hint{opacity:.85;font-size:13px}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    .tag{padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.18);font-size:12px;opacity:.9}
     pre{margin:0;white-space:pre-wrap;word-break:break-word;line-height:1.3}
 
     .boardHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -83,16 +83,12 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
       background:rgba(0,0,0,.18);
       display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;
     }
-    .banner b{font-weight:700}
 
-    /* Hex rows */
     .hexRow{display:flex;gap:10px;align-items:center}
     .hexRow.offset{padding-left:34px}
 
-    /* Real-ish hex */
     .hex{
-      width:68px;
-      height:60px;
+      width:68px;height:60px;
       clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
       border:1px solid rgba(255,255,255,.18);
       background:rgba(255,255,255,.05);
@@ -110,15 +106,11 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     .hex.missing{background:rgba(120,120,120,.10);opacity:.45}
     .hex.fog{background:rgba(0,0,0,.38);opacity:.6}
 
-    /* NEW: transition visual cues */
-    .hex.trSrc{outline:2px solid rgba(255,152,0,.85)}           /* orange */
-    .hex.trTgt{outline:2px solid rgba(3,169,244,.85)}           /* cyan */
-    .hex.trTgt{animation: pulse 1.4s ease-in-out infinite;}
-    @keyframes pulse {
-      0%   { filter: brightness(1); }
-      50%  { filter: brightness(1.18); }
-      100% { filter: brightness(1); }
-    }
+    /* Transition cues */
+    .hex.trSrc{outline:2px solid rgba(255,152,0,.9)}   /* orange sources */
+    .hex.trTgt{outline:2px solid rgba(3,169,244,.9)}   /* cyan targets */
+    .hex.trTgt{animation:pulse 1.4s ease-in-out infinite;}
+    @keyframes pulse{0%{filter:brightness(1)}50%{filter:brightness(1.18)}100%{filter:brightness(1)}}
 
     .dot{
       position:absolute;right:8px;top:8px;
@@ -131,23 +123,17 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
 
     .dist{
       position:absolute;left:8px;bottom:8px;
-      padding:2px 6px;
-      border-radius:999px;
+      padding:2px 6px;border-radius:999px;
       border:1px solid rgba(255,255,255,.18);
       background:rgba(0,0,0,.30);
-      font-size:11px; line-height:1;
-      opacity:.95;
+      font-size:11px;line-height:1;
     }
-
-    /* NEW: transition badge */
     .trBadge{
       position:absolute;left:8px;top:8px;
-      padding:2px 6px;
-      border-radius:999px;
+      padding:2px 6px;border-radius:999px;
       border:1px solid rgba(255,255,255,.18);
       background:rgba(0,0,0,.30);
-      font-size:11px; line-height:1;
-      opacity:.95;
+      font-size:11px;line-height:1;
     }
 
     .msg{margin-top:10px;padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.18)}
@@ -193,15 +179,14 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   top.append(title, controls);
 
   const layout = el("div", "grid");
-
   const left = el("div", "card");
   const right = el("div", "card");
 
   const boardHeader = el("div", "boardHeader");
   const boardTitle = el("div");
-  boardTitle.innerHTML = `<b>Board</b> <span class="hint">(select a hex to see its transitions)</span>`;
+  boardTitle.innerHTML = `<b>Board</b> <span class="hint">(orange = transition sources; cyan = selected targets)</span>`;
   const boardHint = el("div", "hint");
-  boardHint.textContent = `Orange = transition source. Cyan = transition target. Build: ${BUILD_TAG}`;
+  boardHint.textContent = `Build: ${BUILD_TAG}`;
   boardHeader.append(boardTitle, boardHint);
 
   const meta = el("div", "meta");
@@ -221,7 +206,6 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   const scenarioBody = el("div", "meta");
 
   right.append(selectionTitle, selectionBody, scenarioTitle, scenarioBody);
-
   layout.append(left, right);
   wrap.append(top, layout);
   root.appendChild(wrap);
@@ -274,32 +258,38 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     return !!hex.revealed;
   }
 
-  function computeTransitionHighlights() {
+  // NEW: build transition indexes + highlights
+  function rebuildTransitionIndexAndHighlights() {
     const s: any = scenario();
-    const transitions: any[] = s.transitions ?? [];
+    transitionsAll = s.transitions ?? [];
 
-    // All sources with outgoing transitions (for orange “source” highlight if you want later)
-    transitionSources = new Set<string>();
-    for (const t of transitions) {
+    transitionsByFrom = new Map();
+    sourcesAll = new Set();
+    sourcesOnLayer = new Set();
+
+    for (const t of transitionsAll) {
       const fromId = posId(t.from);
-      transitionSources.add(fromId);
+      const toId = posId(t.to);
+      sourcesAll.add(fromId);
+
+      const list = transitionsByFrom.get(fromId) ?? [];
+      list.push({ ...t, __fromId: fromId, __toId: toId });
+      transitionsByFrom.set(fromId, list);
+
+      const fromC = idToCoord(fromId);
+      if (fromC?.layer === currentLayer) sourcesOnLayer.add(fromId);
     }
 
-    outgoingFromSelected = [];
-    transitionTargetsSameLayer = new Map<string, string>();
+    outgoingFromSelected = selectedId ? (transitionsByFrom.get(selectedId) ?? []) : [];
+    targetsSameLayer = new Map();
 
-    if (!selectedId) return;
-
-    outgoingFromSelected = transitions.filter((t) => posId(t.from) === selectedId);
     for (const t of outgoingFromSelected) {
-      const toId = posId(t.to);
+      const toId = t.__toId;
       const toC = idToCoord(toId);
-      if (!toC) continue;
-
-      // Only highlight targets on the currently viewed layer
-      if (toC.layer === currentLayer) {
-        const badge = t.type === "DOWN" ? "▼" : "▲"; // default UP
-        transitionTargetsSameLayer.set(toId, badge);
+      if (toC?.layer === currentLayer) {
+        const typ = String(t.type ?? "UP").toUpperCase();
+        const badge = typ === "DOWN" ? "▼" : "▲";
+        targetsSameLayer.set(toId, badge);
       }
     }
   }
@@ -316,10 +306,15 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
 
   function renderBanner() {
     const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
-    const trCount = outgoingFromSelected.length;
+
     banner.innerHTML = `
-      <div><b>Reachable total:</b> ${reachable.size} | <b>This layer:</b> ${layerReachable} | <b>Transitions from selection:</b> ${trCount}</div>
-      <div class="hint">Click a hex to see its transitions. Cyan shows targets on this layer.</div>
+      <div>
+        <b>Reachable:</b> ${reachable.size} (layer ${currentLayer}: ${layerReachable})
+        | <b>Transitions total:</b> ${transitionsAll.length}
+        | <b>Sources on this layer:</b> ${sourcesOnLayer.size}
+        | <b>Outgoing from selected:</b> ${outgoingFromSelected.length}
+      </div>
+      <div class="hint">If “Transitions total” is 0, your scenario has no transitions (or they aren’t loaded).</div>
     `;
   }
 
@@ -333,7 +328,6 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     const h: any = getHex(selectedId);
     const { blocked, missing } = isBlockedOrMissing(h);
     const info = reachMap[selectedId];
-    const s: any = scenario();
 
     selectionBody.innerHTML = `
       <div><b>Hex:</b> ${selectedId}</div>
@@ -343,32 +337,30 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
       <div><b>Reachable:</b> ${info?.reachable ? "yes" : "no"}</div>
       <div><b>Distance:</b> ${info?.distance ?? "—"}</div>
       <div><b>Explored:</b> ${info?.explored ?? "—"}</div>
+      <div><b>Has transitions:</b> ${transitionsByFrom.has(selectedId) ? "yes" : "no"}</div>
     `;
 
-    const transitions: any[] = s.transitions ?? [];
-    const out = transitions.filter((t) => posId(t.from) === selectedId);
-
-    if (out.length) {
+    if (outgoingFromSelected.length) {
       appendHint(selectionBody, "Outgoing transitions (click to jump):");
 
-      for (const t of out) {
-        const toId = posId(t.to);
+      for (const t of outgoingFromSelected) {
+        const toId = t.__toId;
         const toC = idToCoord(toId);
+
         const btn = el("button", "linkBtn");
-        btn.textContent = `${t.type ?? "UP"} → ${toId}${toC && toC.layer !== currentLayer ? " (other layer)" : ""}`;
+        btn.textContent = `${String(t.type ?? "UP")} → ${toId}${toC && toC.layer !== currentLayer ? " (other layer)" : ""}`;
 
         btn.addEventListener("click", () => {
           selectedId = toId;
           if (toC) {
             currentLayer = toC.layer;
             setLayerOptions();
-            // make sure layer is inited/revealed so you can see the target
             enterLayer(state, currentLayer);
             revealWholeLayer(currentLayer);
             recomputeReachability();
           }
-          message = `Jumped to transition target: ${toId}`;
-          computeTransitionHighlights();
+          message = `Jumped to: ${toId}`;
+          rebuildTransitionIndexAndHighlights();
           renderAll();
         });
 
@@ -419,14 +411,14 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
         if (info?.reachable) btn.classList.add("reach");
         if (selectedId === id) btn.classList.add("sel");
 
-        // NEW: transition highlighting
-        if (selectedId && id === selectedId && outgoingFromSelected.length) {
-          btn.classList.add("trSrc");
-        }
-        if (transitionTargetsSameLayer.has(id)) {
+        // NEW: show ALL transition sources on the current layer in orange
+        if (sourcesOnLayer.has(id)) btn.classList.add("trSrc");
+
+        // NEW: show selected source targets (on this layer) in cyan + badge
+        if (targetsSameLayer.has(id)) {
           btn.classList.add("trTgt");
           const badge = el("div", "trBadge");
-          badge.textContent = transitionTargetsSameLayer.get(id)!;
+          badge.textContent = targetsSameLayer.get(id)!;
           btn.appendChild(badge);
         }
 
@@ -442,12 +434,11 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
         btn.addEventListener("click", () => {
           selectedId = id;
 
-          // Recompute transition highlights when selection changes
-          computeTransitionHighlights();
+          // update highlights based on this selection
+          rebuildTransitionIndexAndHighlights();
 
-          // Keep debug-friendly move attempt: lets you see a rejection reason
+          // keep debug-friendly move attempt for now
           const res = tryMove(state, id);
-
           if (res.ok) {
             message = res.won
               ? "🎉 You reached the goal!"
@@ -460,7 +451,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
 
             setLayerOptions();
             recomputeReachability();
-            computeTransitionHighlights();
+            rebuildTransitionIndexAndHighlights();
             renderAll();
             return;
           } else {
@@ -478,7 +469,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   }
 
   function renderAll() {
-    computeTransitionHighlights();
+    rebuildTransitionIndexAndHighlights();
     renderMeta();
     renderBanner();
     renderBoard();
