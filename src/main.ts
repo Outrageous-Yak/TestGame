@@ -19,5 +19,5 @@ async function loadScenario(path: string): Promise<Scenario> {
 (async () => {
   const manifest = await fetchJson<Manifest>("/scenarios/manifest.json");
   const scenarios = await Promise.all(manifest.files.map(loadScenario));
-  mountApp(document.getElementById("app")!, scenarios, manifest.initial);
+  mountApp(document.getElementById("app"), scenarios, manifest.initial);
 })();
