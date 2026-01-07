@@ -1,0 +1,33 @@
+{
+  "id": "vertical_detour",
+  "name": "Vertical Detour",
+  "layers": 7,
+  "objective": "Reach the goal hex.",
+  "description": "The direct path is blocked. Rethink your route.",
+  "notes": [
+    "Sometimes going down opens new routes."
+  ],
+  "start": { "layer": 2, "row": 3, "col": 2 },
+  "goal": { "layer": 4, "row": 3, "col": 3 },
+  "missing": [{ "layer": 3, "row": 3, "col": 4 }],
+  "blocked": [
+    { "layer": 3, "row": 2, "col": 3 },
+    { "layer": 3, "row": 3, "col": 3 }
+  ],
+  "movement": {
+    "1": "NONE",
+    "2": "SEVEN_LEFT_SIX_RIGHT",
+    "3": "TOP3_RIGHT_BOTTOM4_LEFT",
+    "4": "NONE",
+    "5": "NONE",
+    "6": "NONE",
+    "7": "NONE"
+  },
+  "transitions": [
+    { "type": "UP", "from": { "layer": 2, "row": 3, "col": 3 }, "to": { "layer": 3, "row": 3, "col": 3 } },
+    { "type": "DOWN", "from": { "layer": 2, "row": 1, "col": 1 }, "to": { "layer": 1, "row": 1, "col": 4 } },
+    { "type": "UP", "from": { "layer": 1, "row": 1, "col": 5 }, "to": { "layer": 3, "row": 4, "col": 5 } },
+    { "type": "UP", "from": { "layer": 3, "row": 4, "col": 4 }, "to": { "layer": 4, "row": 3, "col": 3 } }
+  ],
+  "revealOnEnterGuaranteedUp": true
+}
