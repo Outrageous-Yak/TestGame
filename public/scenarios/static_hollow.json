@@ -36,5 +36,5 @@
     { "type": "DOWN", "from": { "layer": 5, "row": 1, "col": 5 }, "to": { "layer": 3, "row": 1, "col": 5 } },
     { "type": "UP", "from": { "layer": 3, "row": 4, "col": 5 }, "to": { "layer": 4, "row": 4, "col": 5 } }
   ],
-  "revealOnEnterGuaranteedUp": true
+  "revealOnEnterGuaranteedUp": false
 }
