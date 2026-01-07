@@ -37,6 +37,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   // --------------------------
   let scenarioIndex = initialIndex;
   let state: GameState = newGame(scenarios[scenarioIndex]);
+  enterLayer(state, currentLayer);
 
   // Step A: keep full reachability info (distance + explored)
   let reachMap: ReachMap = getReachability(state);
