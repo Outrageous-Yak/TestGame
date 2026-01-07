@@ -1,6 +1,6 @@
 import type { GameState, Scenario, Hex } from "../engine/types";
 import { newGame, getReachability, tryMove, endTurn, type ReachMap } from "../engine/api";
-import { ROW_LENS, posId, enterLayer } from "../engine/board";
+import { ROW_LENS, posId, enterLayer, revealHex } from "../engine/board";
 
 type Coord = { layer: number; row: number; col: number };
 
@@ -41,9 +41,6 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   let selectedId: string | null = state.playerHexId ?? null;
   let currentLayer = idToCoord(state.playerHexId)?.layer ?? 1;
   let message = "";
-
-  // ✅ NEW: reveal/initialize the starting layer so reachability isn't empty
-  enterLayer(state, currentLayer);
 
   // Step A: keep full reachability info (distance + explored)
   let reachMap: ReachMap = getReachability(state);
@@ -191,6 +188,17 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   function recomputeReachability() {
     reachMap = getReachability(state);
     reachable = new Set(Object.entries(reachMap).filter(([, v]) => v.reachable).map(([k]) => k));
+  }
+
+  // ✅ DEBUG REVEAL: reveal the entire current layer so reachability isn’t empty
+  function revealWholeLayer(layer: number) {
+    for (let r = 1; r <= ROW_LENS.length; r++) {
+      const len = ROW_LENS[r - 1] ?? 7;
+      for (let c = 1; c <= len; c++) {
+        const id = `L${layer}-R${r}-C${c}`;
+        revealHex(state, id);
+      }
+    }
   }
 
   function setLayerOptions() {
@@ -392,8 +400,9 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     selectedId = state.playerHexId ?? null;
     currentLayer = idToCoord(state.playerHexId)?.layer ?? 1;
 
-    // ✅ NEW: reveal/initialize the starting layer on reset/when switching scenario
+    // ✅ Reveal current layer (plus debug reveal whole layer)
     enterLayer(state, currentLayer);
+    revealWholeLayer(currentLayer);
 
     recomputeReachability();
     message = "";
@@ -411,14 +420,24 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
 
   layerSelect.addEventListener("change", () => {
     currentLayer = Number(layerSelect.value);
+
     const err = enterLayer(state, currentLayer);
     message = err ? `Enter layer error: ${err}` : "";
+
+    // ✅ Debug reveal on layer switch too
+    revealWholeLayer(currentLayer);
+
     recomputeReachability();
     renderAll();
   });
 
   endTurnBtn.addEventListener("click", () => {
     endTurn(state);
+
+    // keep current layer revealed after turn
+    enterLayer(state, currentLayer);
+    revealWholeLayer(currentLayer);
+
     recomputeReachability();
     message = "Turn ended.";
     renderAll();
@@ -432,5 +451,11 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   // Init
   // --------------------------
   setLayerOptions();
+
+  // ✅ Reveal at boot too
+  enterLayer(state, currentLayer);
+  revealWholeLayer(currentLayer);
+  recomputeReachability();
+
   renderAll();
 }
