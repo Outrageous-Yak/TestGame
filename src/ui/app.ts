@@ -5,7 +5,6 @@ import { ROW_LENS, posId, enterLayer } from "../engine/board";
 type Coord = { layer: number; row: number; col: number };
 
 function idToCoord(id: string): Coord | null {
-  // expected format: L{layer}-R{row}-C{col}
   const m = /^L(\d+)-R(\d+)-C(\d+)$/.exec(id);
   if (!m) return null;
   return { layer: Number(m[1]), row: Number(m[2]), col: Number(m[3]) };
@@ -17,15 +16,16 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string) {
   return n;
 }
 
-function text(n: HTMLElement, t: string) {
-  n.textContent = t;
-  return n;
+function appendHint(parent: HTMLElement, txt: string) {
+  const h = el("div", "hint");
+  h.textContent = txt;
+  parent.appendChild(h);
+  return h;
 }
 
 export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initialPath: string) {
   if (!root) throw new Error('Missing element with id="app"');
 
-  // Pick an initial scenario index (best-effort)
   const initialBase = initialPath.split("/").pop()?.replace(".json", "") ?? "";
   const initialIndex = Math.max(
     0,
@@ -62,7 +62,6 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     .tag{padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.18);font-size:12px;opacity:.9}
     pre{margin:0;white-space:pre-wrap;word-break:break-word;line-height:1.3}
 
-    /* Board */
     .boardHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
     .boardWrap{display:grid;gap:10px;margin-top:10px}
     .hexRow{display:flex;gap:8px;align-items:center}
@@ -73,10 +72,8 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
       border:1px solid rgba(255,255,255,.12);
       background:rgba(255,255,255,.04);
       display:flex;align-items:center;justify-content:center;
-      cursor:pointer;
-      position:relative;
-      user-select:none;
-      font-size:12px;
+      cursor:pointer; position:relative;
+      user-select:none; font-size:12px;
       opacity:.95;
     }
     .hex:hover{border-color:rgba(255,255,255,.32)}
@@ -188,23 +185,15 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   }
 
   function getHex(id: string): Hex | undefined {
-    // GameState.hexesById is a Map<string, Hex>
     return (state.hexesById as any).get(id);
   }
 
   function isBlockedOrMissing(hex: any): { blocked: boolean; missing: boolean } {
     if (!hex) return { blocked: true, missing: true };
-    // based on your engine usage:
-    // - hex.missing (boolean)
-    // - hex.blocked (boolean)
-    const missing = !!hex.missing;
-    const blocked = !!hex.blocked;
-    return { missing, blocked };
+    return { missing: !!hex.missing, blocked: !!hex.blocked };
   }
 
   function isRevealed(hex: any): boolean {
-    // board.ts has revealHex(state, id)
-    // typical: hex.revealed = true/false
     if (!hex) return false;
     return !!hex.revealed;
   }
@@ -225,25 +214,26 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   function renderSelection() {
     selectionBody.innerHTML = "";
     if (!selectedId) {
-      selectionBody.innerHTML = `<div class="hint">No hex selected.</div>`;
+      appendHint(selectionBody, "No hex selected.");
       return;
     }
+
     const h: any = getHex(selectedId);
     const { blocked, missing } = isBlockedOrMissing(h);
 
-    const lines: string[] = [];
-    lines.push(`<div><b>Hex:</b> ${selectedId}</div>`);
-    lines.push(`<div><b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}</div>`);
-    lines.push(`<div><b>Revealed:</b> ${isRevealed(h) ? "yes" : "no"}</div>`);
-    lines.push(`<div><b>Kind:</b> ${h?.kind ?? "?"}</div>`);
-    selectionBody.innerHTML = lines.join("");
+    selectionBody.innerHTML = `
+      <div><b>Hex:</b> ${selectedId}</div>
+      <div><b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}</div>
+      <div><b>Revealed:</b> ${isRevealed(h) ? "yes" : "no"}</div>
+      <div><b>Kind:</b> ${h?.kind ?? "?"}</div>
+    `;
 
     const out = (scenario() as any).transitions?.filter((t: any) => posId(t.from) === selectedId) ?? [];
     if (out.length) {
+      appendHint(selectionBody, "Outgoing transitions:");
       const pre = el("pre");
       pre.textContent = JSON.stringify(out, null, 2);
-      selectionBody.append(el("div", "hint")).textContent = "Outgoing transitions:";
-      selectionBody.append(pre);
+      selectionBody.appendChild(pre);
     }
   }
 
@@ -257,35 +247,30 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
       d.textContent = t;
       return d;
     };
-
     tags.append(
       mkTag(`Layer: ${currentLayer}`),
       mkTag(`Reachable: ${reachable.size}`),
       mkTag(`Transitions: ${(s.transitions?.length ?? 0)}`)
     );
+    scenarioBody.appendChild(tags);
 
-    scenarioBody.append(tags);
-
-    scenarioBody.append(el("div", "hint")).textContent = "Movement:";
+    appendHint(scenarioBody, "Movement:");
     const movement = el("pre");
     movement.textContent = JSON.stringify(s.movement ?? {}, null, 2);
-    scenarioBody.append(movement);
+    scenarioBody.appendChild(movement);
 
-    scenarioBody.append(el("div", "hint")).textContent = "Transitions:";
+    appendHint(scenarioBody, "Transitions:");
     const transitions = el("pre");
     transitions.textContent = JSON.stringify(s.transitions ?? [], null, 2);
-    scenarioBody.append(transitions);
+    scenarioBody.appendChild(transitions);
   }
 
   function renderBoard() {
     boardWrap.innerHTML = "";
 
-    // draw 7 rows with varying lengths (ROW_LENS) - matches engine validation
     for (let r = 1; r <= ROW_LENS.length; r++) {
       const len = ROW_LENS[r - 1] ?? 7;
-
       const row = el("div", "hexRow");
-      // offset every other row to simulate hex stagger
       if (r % 2 === 0) row.classList.add("offset");
 
       for (let c = 1; c <= len; c++) {
@@ -293,7 +278,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
         const h: any = getHex(id);
 
         const btn = el("div", "hex");
-        text(btn, `R${r} C${c}`);
+        btn.textContent = `R${r} C${c}`;
 
         const { blocked, missing } = isBlockedOrMissing(h);
         const revealed = isRevealed(h);
@@ -308,19 +293,12 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
         if (reachable.has(id)) btn.classList.add("reach");
         if (selectedId === id) btn.classList.add("sel");
 
-        // dots
-        if (isPlayer) {
-          const d = el("div", "dot player");
-          btn.appendChild(d);
-        } else if (isGoal) {
-          const d = el("div", "dot goal");
-          btn.appendChild(d);
-        }
+        if (isPlayer) btn.appendChild(el("div", "dot player"));
+        else if (isGoal) btn.appendChild(el("div", "dot goal"));
 
         btn.addEventListener("click", () => {
           selectedId = id;
 
-          // If reachable, try moving.
           if (reachable.has(id) && id !== state.playerHexId) {
             const res = tryMove(state, id);
 
@@ -331,7 +309,6 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
                 ? "Moved (transition triggered)."
                 : "Moved.";
 
-              // Update layer view to follow player
               const playerCoord = idToCoord(state.playerHexId);
               if (playerCoord) currentLayer = playerCoord.layer;
 
@@ -361,7 +338,6 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     renderBoard();
     renderSelection();
     renderScenarioDetails();
-    // buttons: end turn always enabled (engine handles shifts etc.)
     endTurnBtn.disabled = false;
   }
 
@@ -369,7 +345,6 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     scenarioIndex = idx;
     scenarioSelect.value = String(scenarioIndex);
 
-    // validate scenario (your main.ts likely already calls assertScenario on load)
     state = newGame(scenario());
     reachable = getReachable(state);
 
@@ -390,7 +365,6 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
 
   layerSelect.addEventListener("change", () => {
     currentLayer = Number(layerSelect.value);
-    // This reveals the layer / applies "enter layer" logic in your engine
     const err = enterLayer(state, currentLayer);
     message = err ? `Enter layer error: ${err}` : "";
     reachable = getReachable(state);
