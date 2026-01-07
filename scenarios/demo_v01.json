@@ -28,5 +28,7 @@
       "to": { "layer": 2, "row": 2, "col": 2 }
     }
   ],
-  "revealOnEnterGuaranteedUp": true
+ - "revealOnEnterGuaranteedUp": true,
++ "revealOnEnterGuaranteedUp": false,
+
 }
