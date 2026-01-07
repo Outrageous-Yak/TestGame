@@ -1,0 +1,40 @@
+{
+  "id": "static_hollow",
+  "name": "Static Hollow",
+  "layers": 7,
+  "objective": "Reach the goal hex.",
+  "description": "The path is visible, but broken.",
+  "notes": [
+    "The arena (Layer 4) is stable. Other layers shift.",
+    "Timing matters."
+  ],
+  "start": { "layer": 4, "row": 3, "col": 0 },
+  "goal": { "layer": 4, "row": 3, "col": 5 },
+  "missing": [
+    { "layer": 4, "row": 2, "col": 2 },
+    { "layer": 4, "row": 2, "col": 3 },
+    { "layer": 4, "row": 2, "col": 4 },
+    { "layer": 4, "row": 3, "col": 2 },
+    { "layer": 4, "row": 3, "col": 3 },
+    { "layer": 4, "row": 3, "col": 4 },
+    { "layer": 4, "row": 4, "col": 2 },
+    { "layer": 4, "row": 4, "col": 3 },
+    { "layer": 4, "row": 4, "col": 4 }
+  ],
+  "blocked": [{ "layer": 5, "row": 2, "col": 2 }],
+  "movement": {
+    "1": "NONE",
+    "2": "SEVEN_LEFT_SIX_RIGHT",
+    "3": "TOP3_RIGHT_BOTTOM4_LEFT",
+    "4": "NONE",
+    "5": "SEVEN_LEFT_SIX_RIGHT",
+    "6": "NONE",
+    "7": "NONE"
+  },
+  "transitions": [
+    { "type": "UP", "from": { "layer": 4, "row": 1, "col": 1 }, "to": { "layer": 5, "row": 1, "col": 1 } },
+    { "type": "DOWN", "from": { "layer": 5, "row": 1, "col": 5 }, "to": { "layer": 3, "row": 1, "col": 5 } },
+    { "type": "UP", "from": { "layer": 3, "row": 4, "col": 5 }, "to": { "layer": 4, "row": 4, "col": 5 } }
+  ],
+  "revealOnEnterGuaranteedUp": true
+}
