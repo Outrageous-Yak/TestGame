@@ -4,6 +4,8 @@ import { ROW_LENS, posId, enterLayer, revealHex } from "../engine/board";
 
 type Coord = { layer: number; row: number; col: number };
 
+const BUILD_TAG = "BUILD_TAG_STEP_A_V2"; // <-- use this to confirm deployment
+
 function idToCoord(id: string): Coord | null {
   const m = /^L(\d+)-R(\d+)-C(\d+)$/.exec(id);
   if (!m) return null;
@@ -42,12 +44,11 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   let currentLayer = idToCoord(state.playerHexId)?.layer ?? 1;
   let message = "";
 
-  // Step A: keep full reachability info (distance + explored)
   let reachMap: ReachMap = getReachability(state);
   let reachable: Set<string> = new Set(Object.entries(reachMap).filter(([, v]) => v.reachable).map(([k]) => k));
 
   // --------------------------
-  // Styles
+  // Styles (REAL hexagons)
   // --------------------------
   const style = document.createElement("style");
   style.textContent = `
@@ -68,43 +69,58 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
 
     .boardHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
     .boardWrap{display:grid;gap:10px;margin-top:10px}
-    .hexRow{display:flex;gap:8px;align-items:center}
-    .hexRow.offset{padding-left:28px}
-    .hex{
-      width:64px;height:56px;
+
+    .banner{
+      margin-top:10px;
+      padding:10px 12px;
       border-radius:14px;
       border:1px solid rgba(255,255,255,.12);
-      background:rgba(255,255,255,.04);
+      background:rgba(0,0,0,.18);
+      display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+    }
+    .banner b{font-weight:700}
+
+    /* Hex rows */
+    .hexRow{display:flex;gap:10px;align-items:center}
+    .hexRow.offset{padding-left:34px}
+
+    /* REAL hexagon via clip-path */
+    .hex{
+      width:68px;
+      height:60px;
+      clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.05);
       display:flex;align-items:center;justify-content:center;
       cursor:pointer; position:relative;
       user-select:none; font-size:12px;
       opacity:.95;
     }
-    .hex:hover{border-color:rgba(255,255,255,.32)}
-    .hex.sel{outline:2px solid rgba(255,255,255,.55)}
-    .hex.reach{outline:2px solid rgba(76,175,80,.65)}
+    .hex:hover{border-color:rgba(255,255,255,.35)}
+    .hex.sel{outline:2px solid rgba(255,255,255,.6)}
+    .hex.reach{outline:2px solid rgba(76,175,80,.75)}
     .hex.player{background:rgba(76,175,80,.18)}
     .hex.goal{background:rgba(255,193,7,.16)}
-    .hex.blocked{background:rgba(244,67,54,.14);opacity:.7}
-    .hex.missing{background:rgba(120,120,120,.10);opacity:.4}
-    .hex.fog{background:rgba(0,0,0,.35);opacity:.55}
+    .hex.blocked{background:rgba(244,67,54,.14);opacity:.75}
+    .hex.missing{background:rgba(120,120,120,.10);opacity:.45}
+    .hex.fog{background:rgba(0,0,0,.38);opacity:.6}
+
     .dot{
       position:absolute;right:8px;top:8px;
       width:10px;height:10px;border-radius:999px;
       border:1px solid rgba(255,255,255,.35);
       background:rgba(255,255,255,.12);
     }
-    .dot.player{background:rgba(76,175,80,.9);border-color:rgba(76,175,80,.9)}
-    .dot.goal{background:rgba(255,193,7,.9);border-color:rgba(255,193,7,.9)}
+    .dot.player{background:rgba(76,175,80,.95);border-color:rgba(76,175,80,.95)}
+    .dot.goal{background:rgba(255,193,7,.95);border-color:rgba(255,193,7,.95)}
 
     .dist{
       position:absolute;left:8px;bottom:8px;
       padding:2px 6px;
       border-radius:999px;
       border:1px solid rgba(255,255,255,.18);
-      background:rgba(0,0,0,.28);
-      font-size:11px;
-      line-height:1;
+      background:rgba(0,0,0,.30);
+      font-size:11px; line-height:1;
       opacity:.95;
     }
 
@@ -142,7 +158,10 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   const resetBtn = el("button") as HTMLButtonElement;
   resetBtn.textContent = "Reset run";
 
-  controls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn);
+  const forceRevealBtn = el("button") as HTMLButtonElement;
+  forceRevealBtn.textContent = "Force reveal layer";
+
+  controls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn);
   top.append(title, controls);
 
   const layout = el("div", "grid");
@@ -152,16 +171,17 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
 
   const boardHeader = el("div", "boardHeader");
   const boardTitle = el("div");
-  boardTitle.innerHTML = `<b>Board</b> <span class="hint">(click a reachable hex to move)</span>`;
+  boardTitle.innerHTML = `<b>Board</b> <span class="hint">(click hex to see result)</span>`;
   const boardHint = el("div", "hint");
-  boardHint.textContent = "Green outline = reachable. Badge = distance. Green dot = player. Yellow dot = goal.";
+  boardHint.textContent = `If nothing is green, reachability is 0. Build: ${BUILD_TAG}`;
   boardHeader.append(boardTitle, boardHint);
 
   const meta = el("div", "meta");
+  const banner = el("div", "banner");
   const msg = el("div", "msg");
   const boardWrap = el("div", "boardWrap");
 
-  left.append(boardHeader, meta, msg, boardWrap);
+  left.append(boardHeader, meta, banner, msg, boardWrap);
 
   const selectionTitle = el("div");
   selectionTitle.innerHTML = `<b>Selection</b>`;
@@ -190,13 +210,11 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     reachable = new Set(Object.entries(reachMap).filter(([, v]) => v.reachable).map(([k]) => k));
   }
 
-  // ✅ DEBUG REVEAL: reveal the entire current layer so reachability isn’t empty
   function revealWholeLayer(layer: number) {
     for (let r = 1; r <= ROW_LENS.length; r++) {
       const len = ROW_LENS[r - 1] ?? 7;
       for (let c = 1; c <= len; c++) {
-        const id = `L${layer}-R${r}-C${c}`;
-        revealHex(state, id);
+        revealHex(state, `L${layer}-R${r}-C${c}`);
       }
     }
   }
@@ -228,26 +246,22 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     return !!hex.revealed;
   }
 
-  function reachableCountOnLayer(layer: number) {
-    let n = 0;
-    for (const id of reachable) {
-      const c = idToCoord(id);
-      if (c?.layer === layer) n++;
-    }
-    return n;
-  }
-
   function renderMeta() {
     const s: any = scenario();
     meta.innerHTML = `
-      <div><b>Loaded scenarios:</b> ${scenarios.length}</div>
       <div><b>Selected:</b> ${String(s.name ?? s.title ?? s.id ?? "")}</div>
-      <div><b>Layers:</b> ${s.layers ?? "?"}</div>
       <div><b>Player:</b> ${state.playerHexId ?? "?"}</div>
       <div><b>Goal:</b> ${posId(s.goal)}</div>
-      <div><b>Objective:</b> ${s.objective ?? "(none)"}</div>
     `;
     msg.textContent = message || "Ready.";
+  }
+
+  function renderBanner() {
+    const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
+    banner.innerHTML = `
+      <div><b>Reachable total:</b> ${reachable.size} | <b>This layer:</b> ${layerReachable}</div>
+      <div class="hint">If both are 0, engine isn’t producing reachable moves yet (often fog/reveal rules).</div>
+    `;
   }
 
   function renderSelection() {
@@ -270,34 +284,11 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
       <div><b>Distance:</b> ${info?.distance ?? "—"}</div>
       <div><b>Explored:</b> ${info?.explored ?? "—"}</div>
     `;
-
-    const out = (scenario() as any).transitions?.filter((t: any) => posId(t.from) === selectedId) ?? [];
-    if (out.length) {
-      appendHint(selectionBody, "Outgoing transitions:");
-      const pre = el("pre");
-      pre.textContent = JSON.stringify(out, null, 2);
-      selectionBody.appendChild(pre);
-    }
   }
 
   function renderScenarioDetails() {
     const s: any = scenario();
     scenarioBody.innerHTML = "";
-
-    const tags = el("div", "row");
-    const mkTag = (t: string) => {
-      const d = el("div", "tag");
-      d.textContent = t;
-      return d;
-    };
-
-    tags.append(
-      mkTag(`Layer: ${currentLayer}`),
-      mkTag(`Reachable (this layer): ${reachableCountOnLayer(currentLayer)}`),
-      mkTag(`Transitions: ${(s.transitions?.length ?? 0)}`)
-    );
-    scenarioBody.appendChild(tags);
-
     appendHint(scenarioBody, "Movement:");
     const movement = el("pre");
     movement.textContent = JSON.stringify(s.movement ?? {}, null, 2);
@@ -334,7 +325,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
         if (!isRevealed(h)) btn.classList.add("fog");
         if (isGoal) btn.classList.add("goal");
         if (isPlayer) btn.classList.add("player");
-        if (reachable.has(id)) btn.classList.add("reach");
+        if (info?.reachable) btn.classList.add("reach");
         if (selectedId === id) btn.classList.add("sel");
 
         if (isPlayer) btn.appendChild(el("div", "dot player"));
@@ -349,28 +340,25 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
         btn.addEventListener("click", () => {
           selectedId = id;
 
-          if (reachable.has(id) && id !== state.playerHexId) {
-            const res = tryMove(state, id);
+          // IMPORTANT: Always attempt move so you see a reason even when not "reachable"
+          const res = tryMove(state, id);
 
-            if (res.ok) {
-              message = res.won
-                ? "🎉 You reached the goal!"
-                : res.triggeredTransition
-                ? "Moved (transition triggered)."
-                : "Moved.";
+          if (res.ok) {
+            message = res.won
+              ? "🎉 You reached the goal!"
+              : res.triggeredTransition
+              ? "Moved (transition triggered)."
+              : "Moved.";
 
-              const playerCoord = idToCoord(state.playerHexId);
-              if (playerCoord) currentLayer = playerCoord.layer;
+            const playerCoord = idToCoord(state.playerHexId);
+            if (playerCoord) currentLayer = playerCoord.layer;
 
-              setLayerOptions();
-              recomputeReachability();
-              renderAll();
-              return;
-            } else {
-              message = res.reason === "BLOCKED" ? "Blocked." : "Invalid move.";
-            }
+            setLayerOptions();
+            recomputeReachability();
+            renderAll();
+            return;
           } else {
-            message = "";
+            message = res.reason ? `Move rejected: ${res.reason}` : "Move rejected.";
           }
 
           renderAll();
@@ -385,10 +373,10 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
 
   function renderAll() {
     renderMeta();
+    renderBanner();
     renderBoard();
     renderSelection();
     renderScenarioDetails();
-    endTurnBtn.disabled = false;
   }
 
   function startScenario(idx: number) {
@@ -396,17 +384,15 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     scenarioSelect.value = String(scenarioIndex);
 
     state = newGame(scenario());
-
     selectedId = state.playerHexId ?? null;
     currentLayer = idToCoord(state.playerHexId)?.layer ?? 1;
 
-    // ✅ Reveal current layer (plus debug reveal whole layer)
+    // Reveal + recompute (debug-friendly)
     enterLayer(state, currentLayer);
     revealWholeLayer(currentLayer);
-
     recomputeReachability();
-    message = "";
 
+    message = "";
     setLayerOptions();
     renderAll();
   }
@@ -414,48 +400,41 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   // --------------------------
   // Events
   // --------------------------
-  scenarioSelect.addEventListener("change", () => {
-    startScenario(Number(scenarioSelect.value));
-  });
+  scenarioSelect.addEventListener("change", () => startScenario(Number(scenarioSelect.value)));
 
   layerSelect.addEventListener("change", () => {
     currentLayer = Number(layerSelect.value);
-
     const err = enterLayer(state, currentLayer);
     message = err ? `Enter layer error: ${err}` : "";
-
-    // ✅ Debug reveal on layer switch too
     revealWholeLayer(currentLayer);
-
     recomputeReachability();
     renderAll();
   });
 
   endTurnBtn.addEventListener("click", () => {
     endTurn(state);
-
-    // keep current layer revealed after turn
     enterLayer(state, currentLayer);
     revealWholeLayer(currentLayer);
-
     recomputeReachability();
     message = "Turn ended.";
     renderAll();
   });
 
-  resetBtn.addEventListener("click", () => {
-    startScenario(scenarioIndex);
+  resetBtn.addEventListener("click", () => startScenario(scenarioIndex));
+
+  forceRevealBtn.addEventListener("click", () => {
+    revealWholeLayer(currentLayer);
+    recomputeReachability();
+    message = "Forced reveal layer + recomputed reachability.";
+    renderAll();
   });
 
   // --------------------------
   // Init
   // --------------------------
   setLayerOptions();
-
-  // ✅ Reveal at boot too
   enterLayer(state, currentLayer);
   revealWholeLayer(currentLayer);
   recomputeReachability();
-
   renderAll();
 }
