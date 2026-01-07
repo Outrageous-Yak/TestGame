@@ -1,5 +1,5 @@
 import type { GameState, Scenario, Hex } from "../engine/types";
-import { newGame, getReachable, tryMove, endTurn } from "../engine/api";
+import { newGame, getReachability, tryMove, endTurn, type ReachMap } from "../engine/api";
 import { ROW_LENS, posId, enterLayer } from "../engine/board";
 
 type Coord = { layer: number; row: number; col: number };
@@ -37,7 +37,11 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   // --------------------------
   let scenarioIndex = initialIndex;
   let state: GameState = newGame(scenarios[scenarioIndex]);
-  let reachable: Set<string> = getReachable(state);
+
+  // Step A: keep full reachability info (distance + explored)
+  let reachMap: ReachMap = getReachability(state);
+  let reachable: Set<string> = new Set(Object.entries(reachMap).filter(([, v]) => v.reachable).map(([k]) => k));
+
   let selectedId: string | null = state.playerHexId ?? null;
   let currentLayer = idToCoord(state.playerHexId)?.layer ?? 1;
   let message = "";
@@ -92,6 +96,19 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     }
     .dot.player{background:rgba(76,175,80,.9);border-color:rgba(76,175,80,.9)}
     .dot.goal{background:rgba(255,193,7,.9);border-color:rgba(255,193,7,.9)}
+
+    /* Step A: distance badge */
+    .dist{
+      position:absolute;left:8px;bottom:8px;
+      padding:2px 6px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(0,0,0,.28);
+      font-size:11px;
+      line-height:1;
+      opacity:.95;
+    }
+
     .msg{margin-top:10px;padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.18)}
     @media (max-width: 980px){.grid{grid-template-columns:1fr}}
   `;
@@ -139,7 +156,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   const boardTitle = el("div");
   boardTitle.innerHTML = `<b>Board</b> <span class="hint">(click a reachable hex to move)</span>`;
   const boardHint = el("div", "hint");
-  boardHint.textContent = "Green outline = reachable. Green dot = player. Yellow dot = goal.";
+  boardHint.textContent = "Green outline = reachable. Badge = distance. Green dot = player. Yellow dot = goal.";
   boardHeader.append(boardTitle, boardHint);
 
   const meta = el("div", "meta");
@@ -171,6 +188,11 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     return scenarios[scenarioIndex];
   }
 
+  function recomputeReachability() {
+    reachMap = getReachability(state);
+    reachable = new Set(Object.entries(reachMap).filter(([, v]) => v.reachable).map(([k]) => k));
+  }
+
   function setLayerOptions() {
     const layers = Number((scenario() as any).layers ?? 1);
     layerSelect.innerHTML = "";
@@ -198,6 +220,15 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     return !!hex.revealed;
   }
 
+  function reachableCountOnLayer(layer: number) {
+    let n = 0;
+    for (const id of reachable) {
+      const c = idToCoord(id);
+      if (c?.layer === layer) n++;
+    }
+    return n;
+  }
+
   function renderMeta() {
     const s: any = scenario();
     meta.innerHTML = `
@@ -220,12 +251,16 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
 
     const h: any = getHex(selectedId);
     const { blocked, missing } = isBlockedOrMissing(h);
+    const info = reachMap[selectedId];
 
     selectionBody.innerHTML = `
       <div><b>Hex:</b> ${selectedId}</div>
       <div><b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}</div>
       <div><b>Revealed:</b> ${isRevealed(h) ? "yes" : "no"}</div>
       <div><b>Kind:</b> ${h?.kind ?? "?"}</div>
+      <div><b>Reachable:</b> ${info?.reachable ? "yes" : "no"}</div>
+      <div><b>Distance:</b> ${info?.distance ?? "—"}</div>
+      <div><b>Explored:</b> ${info?.explored ?? "—"}</div>
     `;
 
     const out = (scenario() as any).transitions?.filter((t: any) => posId(t.from) === selectedId) ?? [];
@@ -247,9 +282,10 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
       d.textContent = t;
       return d;
     };
+
     tags.append(
       mkTag(`Layer: ${currentLayer}`),
-      mkTag(`Reachable: ${reachable.size}`),
+      mkTag(`Reachable (this layer): ${reachableCountOnLayer(currentLayer)}`),
       mkTag(`Transitions: ${(s.transitions?.length ?? 0)}`)
     );
     scenarioBody.appendChild(tags);
@@ -276,6 +312,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
       for (let c = 1; c <= len; c++) {
         const id = `L${currentLayer}-R${r}-C${c}`;
         const h: any = getHex(id);
+        const info = reachMap[id];
 
         const btn = el("div", "hex");
         btn.textContent = `R${r} C${c}`;
@@ -296,6 +333,13 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
         if (isPlayer) btn.appendChild(el("div", "dot player"));
         else if (isGoal) btn.appendChild(el("div", "dot goal"));
 
+        // Step A: distance badge on reachable hexes
+        if (info?.reachable && info.distance != null) {
+          const d = el("div", "dist");
+          d.textContent = String(info.distance);
+          btn.appendChild(d);
+        }
+
         btn.addEventListener("click", () => {
           selectedId = id;
 
@@ -313,7 +357,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
               if (playerCoord) currentLayer = playerCoord.layer;
 
               setLayerOptions();
-              reachable = getReachable(state);
+              recomputeReachability();
               renderAll();
               return;
             } else {
@@ -346,7 +390,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     scenarioSelect.value = String(scenarioIndex);
 
     state = newGame(scenario());
-    reachable = getReachable(state);
+    recomputeReachability();
 
     selectedId = state.playerHexId ?? null;
     currentLayer = idToCoord(state.playerHexId)?.layer ?? 1;
@@ -367,13 +411,13 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     currentLayer = Number(layerSelect.value);
     const err = enterLayer(state, currentLayer);
     message = err ? `Enter layer error: ${err}` : "";
-    reachable = getReachable(state);
+    recomputeReachability();
     renderAll();
   });
 
   endTurnBtn.addEventListener("click", () => {
     endTurn(state);
-    reachable = getReachable(state);
+    recomputeReachability();
     message = "Turn ended.";
     renderAll();
   });
