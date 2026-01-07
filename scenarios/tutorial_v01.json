@@ -1,0 +1,32 @@
+{
+  "id": "tutorial_v01",
+  "name": "Tutorial v0.1",
+  "layers": 7,
+  "objective": "Reach the goal hex.",
+  "description": "Climb to the next layer and explore.",
+  "notes": [
+    "Look for ▲ (UP) to climb.",
+    "Layer 2 shifts after each turn."
+  ],
+  "start": { "layer": 1, "row": 3, "col": 1 },
+  "goal": { "layer": 2, "row": 3, "col": 4 },
+  "missing": [],
+  "blocked": [],
+  "movement": {
+    "1": "NONE",
+    "2": "SEVEN_LEFT_SIX_RIGHT",
+    "3": "NONE",
+    "4": "NONE",
+    "5": "NONE",
+    "6": "NONE",
+    "7": "NONE"
+  },
+  "transitions": [
+    {
+      "type": "UP",
+      "from": { "layer": 1, "row": 2, "col": 2 },
+      "to": { "layer": 2, "row": 2, "col": 2 }
+    }
+  ],
+  "revealOnEnterGuaranteedUp": true
+}
