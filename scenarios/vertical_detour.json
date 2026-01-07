@@ -24,7 +24,7 @@
     "7": "NONE"
   },
   "transitions": [
-    { "type": "UP", "from": { "layer": 2, "row": 3, "col": 3 }, "to": { "layer": 3, "row": 3, "col": 3 } },
+    { "type": "UP", "from": { "layer": 2, "row": 3, "col": 3 }, "to": { "layer": 3, "row": 3, "col": 2 } },
     { "type": "DOWN", "from": { "layer": 2, "row": 1, "col": 1 }, "to": { "layer": 1, "row": 1, "col": 4 } },
     { "type": "UP", "from": { "layer": 1, "row": 1, "col": 5 }, "to": { "layer": 3, "row": 4, "col": 5 } },
     { "type": "UP", "from": { "layer": 3, "row": 4, "col": 4 }, "to": { "layer": 4, "row": 3, "col": 3 } }
