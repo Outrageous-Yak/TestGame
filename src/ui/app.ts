@@ -4,6 +4,20 @@ import { ROW_LENS, posId, enterLayer, revealHex } from "../engine/board";
 
 type Coord = { layer: number; row: number; col: number };
 
+type Screen = "start" | "select" | "setup" | "game";
+
+type PlayerChoice =
+  | { kind: "preset"; id: string; name: string }
+  | { kind: "custom"; name: string; imageDataUrl: string | null };
+
+type MonsterChoice = {
+  id: string;
+  name: string;
+  notes?: string;
+  imageDataUrl: string | null;
+  kind: "preset" | "custom";
+};
+
 const BUILD_TAG = "BUILD_TAG_TRANSITIONS_V2_THICK_GLOW";
 
 function idToCoord(id: string): Coord | null {
@@ -25,6 +39,59 @@ function appendHint(parent: HTMLElement, txt: string) {
   return h;
 }
 
+function escapeHtml(str: string) {
+  return str.replace(/[&<>"']/g, (m) => {
+    const map: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;",
+    };
+    return map[m] ?? m;
+  });
+}
+
+async function readFileAsDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+function wireDropZone(dropEl: HTMLElement, inputEl: HTMLInputElement, previewEl: HTMLElement, onImage: (url: string) => void) {
+  dropEl.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropEl.style.background = "rgba(240,163,91,.08)";
+  });
+  dropEl.addEventListener("dragleave", () => {
+    dropEl.style.background = "rgba(255,255,255,.03)";
+  });
+  dropEl.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    dropEl.style.background = "rgba(255,255,255,.03)";
+    const file = (e as DragEvent).dataTransfer?.files?.[0];
+    if (!file) return;
+    const url = await readFileAsDataURL(file);
+    previewEl.innerHTML = `<img src="${url}" alt="uploaded">`;
+    onImage(url);
+  });
+
+  inputEl.addEventListener("change", async () => {
+    const file = inputEl.files?.[0];
+    if (!file) return;
+    const url = await readFileAsDataURL(file);
+    previewEl.innerHTML = `<img src="${url}" alt="uploaded">`;
+    onImage(url);
+  });
+}
+
+function randId(prefix: string) {
+  return `${prefix}-${Math.random().toString(16).slice(2)}${Math.random().toString(16).slice(2)}`;
+}
+
 export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initialPath: string) {
   if (!root) throw new Error('Missing element with id="app"');
 
@@ -35,9 +102,30 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   );
 
   // --------------------------
-  // UI State
+  // High-level UI State (Screens 1–4)
   // --------------------------
+  let screen: Screen = "start";
   let scenarioIndex = initialIndex;
+
+  // Setup selections (Screen 3)
+  const PLAYER_PRESETS = [
+    { id: "p1", name: "Aeris", blurb: "A calm force. Moves with intent." },
+    { id: "p2", name: "Devlan", blurb: "A wary hunter. Reads the board." },
+  ];
+
+  // UI-only monster presets
+  const MONSTER_PRESETS = [
+    { id: "m1", name: "Boneguard", blurb: "Holds ground. Punishes carelessness." },
+    { id: "m2", name: "Veilwing", blurb: "Skirmisher. Appears where you’re not looking." },
+    { id: "m3", name: "Frostfang", blurb: "Cold pressure. Slows the pace." },
+  ];
+
+  let chosenPlayer: PlayerChoice | null = null;
+  let chosenMonsters: MonsterChoice[] = [];
+
+  // --------------------------
+  // Game State (Screen 4)
+  // --------------------------
   let state: GameState = newGame(scenarios[scenarioIndex]);
 
   let selectedId: string | null = state.playerHexId ?? null;
@@ -50,26 +138,164 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   // Transition index + highlights
   let transitionsAll: any[] = [];
   let transitionsByFrom = new Map<string, any[]>();
-  let sourcesAll = new Set<string>();          // all from-ids that have transitions
-  let sourcesOnLayer = new Set<string>();      // from-ids on currentLayer
+  let sourcesOnLayer = new Set<string>(); // from-ids on currentLayer
   let targetsSameLayer = new Map<string, string>(); // toId -> badge (▲/▼) for selected source only
   let outgoingFromSelected: any[] = [];
 
   // --------------------------
-  // Styles
+  // Styles (screens + your existing game styles)
   // --------------------------
   const style = document.createElement("style");
   style.textContent = `
-    .wrap{max-width:1250px;margin:0 auto;padding:18px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#e8e8e8}
+    :root{
+      --bg:#0b0f1a;
+      --panel: rgba(0,0,0,.16);
+      --panel2: rgba(0,0,0,.18);
+      --border: rgba(255,255,255,.12);
+      --text:#e8e8e8;
+      --muted: rgba(232,232,232,.80);
+      --accent: rgba(255,152,0,.95);
+      --accent2: rgba(3,169,244,.95);
+      --radius: 18px;
+    }
+
+    .shell{
+      max-width: 1250px;
+      margin: 0 auto;
+      padding: 18px;
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      color: var(--text);
+    }
+
+    .topBar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom: 14px;
+    }
+    .brand{
+      display:flex; align-items:center; gap:10px;
+    }
+    .dotBrand{
+      width:10px;height:10px;border-radius:999px;
+      background: rgba(255,152,0,.95);
+      box-shadow: 0 0 18px rgba(255,152,0,.35);
+    }
+    .brandTitle{
+      font-weight:800;
+      letter-spacing:.4px;
+      font-size: 18px;
+    }
+    .crumb{
+      opacity:.85;
+      font-size: 13px;
+    }
+
+    .view{ display:none; }
+    .view.active{ display:block; }
+
+    .card{
+      border:1px solid var(--border);
+      background: var(--panel);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 980px){ .grid{ grid-template-columns: 1fr; } }
+
+    h1{margin:0;font-size:42px;letter-spacing:.3px}
+    h2{margin:0 0 10px 0;font-size:18px}
+    h3{margin:0 0 10px 0;font-size:15px}
+    .hint{opacity:.85;font-size:13px}
+    .muted{opacity:.82}
+
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .btn{
+      padding:8px 10px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.22);
+      color: var(--text);
+      cursor:pointer;
+      user-select:none;
+    }
+    .btn:hover{border-color:rgba(255,255,255,.32)}
+    .btn.primary{
+      border-color: rgba(255,152,0,.40);
+      background: rgba(255,152,0,.18);
+    }
+    .btn.small{padding:6px 8px;border-radius:10px;font-size:12px}
+
+    .tile{
+      padding: 12px;
+      border-radius: 16px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+    }
+    .tile:hover{border-color:rgba(255,255,255,.28)}
+    .tile.selected{
+      border-color: rgba(255,152,0,.55);
+      box-shadow: 0 0 0 3px rgba(255,152,0,.10) inset;
+      background: rgba(255,152,0,.08);
+    }
+    .tileMain{min-width:0}
+    .tileTitle{font-weight:800; margin-bottom: 3px}
+    .tileDesc{font-size:12px; opacity:.82; line-height:1.25}
+
+    .drop{
+      border:1px dashed rgba(255,255,255,.18);
+      background: rgba(255,255,255,.03);
+      border-radius: 16px;
+      padding: 12px;
+      display:flex;
+      gap: 12px;
+      align-items:center;
+    }
+    .drop input{display:none}
+    .preview{
+      width:64px; height:64px;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.25);
+      display:grid; place-items:center;
+      overflow:hidden;
+      font-size:12px;
+      text-align:center;
+      opacity:.85;
+      flex:0 0 auto;
+    }
+    .preview img{width:100%;height:100%;object-fit:cover;display:block}
+    .field{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+    label{font-size:12px;opacity:.8}
+    input[type="text"]{
+      padding:8px 10px;
+      border-radius: 12px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.22);
+      color: var(--text);
+      outline:none;
+    }
+
+    /* --- Your existing Screen 4 styles (kept) --- */
+    .wrap{max-width:1250px;margin:0 auto;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#e8e8e8}
     .top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-    h1{margin:0;font-size:46px;letter-spacing:.3px}
     .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     select,button{padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.22);color:#e8e8e8}
     button{cursor:pointer}
-    .grid{display:grid;grid-template-columns: 1.55fr .85fr; gap:14px; margin-top:14px}
-    .card{border:1px solid rgba(255,255,255,.12); background:rgba(0,0,0,.16); border-radius:18px; padding:14px}
+    .gridGame{display:grid;grid-template-columns: 1.55fr .85fr; gap:14px; margin-top:14px}
+    .cardGame{border:1px solid rgba(255,255,255,.12); background:rgba(0,0,0,.16); border-radius:18px; padding:14px}
     .meta{display:grid;gap:6px;margin-top:10px}
-    .hint{opacity:.85;font-size:13px}
     pre{margin:0;white-space:pre-wrap;word-break:break-word;line-height:1.3}
 
     .boardHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -106,7 +332,6 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     .hex.missing{background:rgba(120,120,120,.10);opacity:.45}
     .hex.fog{background:rgba(0,0,0,.38);opacity:.6}
 
-    /* ✅ THICK TRANSITION GLOWS */
     .hex.trSrc{
       outline:5px solid rgba(255,152,0,.95);
       box-shadow:
@@ -155,80 +380,450 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     .msg{margin-top:10px;padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.18)}
     .linkBtn{padding:6px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.18);color:#e8e8e8;cursor:pointer;font-size:12px}
     .linkBtn:hover{border-color:rgba(255,255,255,.32)}
-    @media (max-width: 980px){.grid{grid-template-columns:1fr}}
+    @media (max-width: 980px){.gridGame{grid-template-columns:1fr}}
   `;
   document.head.appendChild(style);
 
   // --------------------------
-  // DOM Structure
+  // Root layout (Screens 1–4)
   // --------------------------
   root.innerHTML = "";
-  const wrap = el("div", "wrap");
+  const shell = el("div", "shell");
 
-  const top = el("div", "top");
-  const title = el("h1");
-  title.textContent = "Game";
+  const topBar = el("div", "topBar");
+  const brand = el("div", "brand");
+  const brandDot = el("div", "dotBrand");
+  const brandTitle = el("div", "brandTitle");
+  brandTitle.textContent = "HEXLOG";
+  brand.append(brandDot, brandTitle);
 
-  const controls = el("div", "controls");
+  const crumb = el("div", "crumb");
+  topBar.append(brand, crumb);
 
-  const scenarioSelect = el("select") as HTMLSelectElement;
-  scenarios.forEach((s: any, i: number) => {
-    const opt = document.createElement("option");
-    opt.value = String(i);
-    opt.textContent = String((s as any).name ?? (s as any).title ?? (s as any).id ?? `Scenario ${i + 1}`);
-    scenarioSelect.appendChild(opt);
-  });
-  scenarioSelect.value = String(scenarioIndex);
+  const vStart = el("section", "view");
+  const vSelect = el("section", "view");
+  const vSetup = el("section", "view");
+  const vGame = el("section", "view");
 
-  const layerSelect = el("select") as HTMLSelectElement;
+  shell.append(topBar, vStart, vSelect, vSetup, vGame);
+  root.appendChild(shell);
 
-  const endTurnBtn = el("button") as HTMLButtonElement;
-  endTurnBtn.textContent = "End turn";
+  function setScreen(next: Screen) {
+    screen = next;
+    [vStart, vSelect, vSetup, vGame].forEach((v) => v.classList.remove("active"));
+    const name = next === "start" ? "Start" : next === "select" ? "Select Game" : next === "setup" ? "Setup" : "In Game";
+    crumb.textContent = name;
 
-  const resetBtn = el("button") as HTMLButtonElement;
-  resetBtn.textContent = "Reset run";
-
-  const forceRevealBtn = el("button") as HTMLButtonElement;
-  forceRevealBtn.textContent = "Force reveal layer";
-
-  controls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn);
-  top.append(title, controls);
-
-  const layout = el("div", "grid");
-  const left = el("div", "card");
-  const right = el("div", "card");
-
-  const boardHeader = el("div", "boardHeader");
-  const boardTitle = el("div");
-  boardTitle.innerHTML = `<b>Board</b> <span class="hint">(orange = transition sources; cyan = selected targets)</span>`;
-  const boardHint = el("div", "hint");
-  boardHint.textContent = `Build: ${BUILD_TAG}`;
-  boardHeader.append(boardTitle, boardHint);
-
-  const meta = el("div", "meta");
-  const banner = el("div", "banner");
-  const msg = el("div", "msg");
-  const boardWrap = el("div", "boardWrap");
-
-  left.append(boardHeader, meta, banner, msg, boardWrap);
-
-  const selectionTitle = el("div");
-  selectionTitle.innerHTML = `<b>Selection</b>`;
-  const selectionBody = el("div", "meta");
-
-  const scenarioTitle = el("div");
-  scenarioTitle.style.marginTop = "14px";
-  scenarioTitle.innerHTML = `<b>Scenario</b>`;
-  const scenarioBody = el("div", "meta");
-
-  right.append(selectionTitle, selectionBody, scenarioTitle, scenarioBody);
-  layout.append(left, right);
-  wrap.append(top, layout);
-  root.appendChild(wrap);
+    if (next === "start") vStart.classList.add("active");
+    if (next === "select") vSelect.classList.add("active");
+    if (next === "setup") vSetup.classList.add("active");
+    if (next === "game") vGame.classList.add("active");
+  }
 
   // --------------------------
-  // Helpers
+  // Screen 1: Start
   // --------------------------
+  function renderStart() {
+    vStart.innerHTML = "";
+    const card = el("div", "card");
+    const h = el("h1");
+    h.textContent = "Hex Layers Puzzle";
+    const p = el("div", "hint");
+    p.textContent = "Start → Select Game → Setup (Player + Monsters) → Play.";
+
+    const row = el("div", "row");
+    const btn = el("button", "btn primary");
+    btn.textContent = "Start";
+    btn.addEventListener("click", () => {
+      renderSelect();
+      setScreen("select");
+    });
+    row.appendChild(btn);
+
+    card.append(h, p, row);
+    vStart.appendChild(card);
+  }
+
+  // --------------------------
+  // Screen 2: Game Select
+  // --------------------------
+  function scenarioLabel(s: any, i: number) {
+    return String(s?.name ?? s?.title ?? s?.id ?? `Scenario ${i + 1}`);
+  }
+
+  function renderSelect() {
+    vSelect.innerHTML = "";
+
+    const layout = el("div", "grid");
+
+    const left = el("div", "card");
+    const right = el("div", "card");
+
+    const h2 = el("h2");
+    h2.textContent = "Select game";
+    left.appendChild(h2);
+
+    const listWrap = el("div");
+    listWrap.style.display = "grid";
+    listWrap.style.gap = "10px";
+
+    scenarios.forEach((s: any, i) => {
+      const tile = el("div", "tile");
+      if (i === scenarioIndex) tile.classList.add("selected");
+
+      const main = el("div", "tileMain");
+      const t = el("div", "tileTitle");
+      t.textContent = scenarioLabel(s, i);
+      const d = el("div", "tileDesc");
+      d.textContent = String(s?.desc ?? s?.description ?? "—");
+      main.append(t, d);
+
+      const badge = el("div", "hint");
+      badge.textContent = `#${i + 1}`;
+
+      tile.append(main, badge);
+
+      tile.addEventListener("click", () => {
+        scenarioIndex = i;
+        renderSelect();
+      });
+
+      listWrap.appendChild(tile);
+    });
+
+    left.appendChild(listWrap);
+
+    const actions = el("div", "row");
+    actions.style.marginTop = "12px";
+
+    const back = el("button", "btn");
+    back.textContent = "Back";
+    back.addEventListener("click", () => setScreen("start"));
+
+    const next = el("button", "btn primary");
+    next.textContent = "Continue";
+    next.addEventListener("click", () => {
+      renderSetup();
+      setScreen("setup");
+    });
+
+    actions.append(back, next);
+    left.appendChild(actions);
+
+    // Details panel
+    const h3 = el("h2");
+    h3.textContent = "Selected";
+    right.appendChild(h3);
+
+    const s: any = scenarios[scenarioIndex];
+    const details = el("div", "hint");
+    details.innerHTML = `
+      <div><b>${escapeHtml(scenarioLabel(s, scenarioIndex))}</b></div>
+      <div class="muted" style="margin-top:6px;">
+        ${escapeHtml(String(s?.desc ?? s?.description ?? "No description."))}
+      </div>
+      <div class="hint" style="margin-top:10px;">Hexes per game: <b>322</b> (locked)</div>
+      <div class="hint">Story is delivered through the log (locked)</div>
+    `;
+    right.appendChild(details);
+
+    layout.append(left, right);
+    vSelect.appendChild(layout);
+  }
+
+  // --------------------------
+  // Screen 3: Setup
+  // --------------------------
+  function renderSetup() {
+    vSetup.innerHTML = "";
+
+    const layout = el("div", "grid");
+
+    const left = el("div", "card");
+    const right = el("div", "card");
+    layout.append(left, right);
+
+    // Player
+    const h2 = el("h2");
+    h2.textContent = "Choose your player";
+    left.appendChild(h2);
+
+    const presetWrap = el("div");
+    presetWrap.style.display = "grid";
+    presetWrap.style.gap = "10px";
+
+    for (const p of PLAYER_PRESETS) {
+      const tile = el("div", "tile");
+      const selected = chosenPlayer?.kind === "preset" && (chosenPlayer as any).id === p.id;
+      if (selected) tile.classList.add("selected");
+
+      const main = el("div", "tileMain");
+      const t = el("div", "tileTitle");
+      t.textContent = p.name;
+      const d = el("div", "tileDesc");
+      d.textContent = p.blurb;
+      main.append(t, d);
+
+      const badge = el("div", "hint");
+      badge.textContent = "Preset";
+
+      tile.append(main, badge);
+      tile.addEventListener("click", () => {
+        chosenPlayer = { kind: "preset", id: p.id, name: p.name };
+        renderSetup();
+      });
+
+      presetWrap.appendChild(tile);
+    }
+
+    left.appendChild(presetWrap);
+
+    // Custom player
+    const customCard = el("div", "card");
+    (customCard as HTMLElement).style.background = "rgba(0,0,0,.12)";
+    (customCard as HTMLElement).style.marginTop = "12px";
+
+    const h3 = el("h3");
+    h3.textContent = "Custom player";
+
+    const drop = el("div", "drop");
+    const preview = el("div", "preview");
+    preview.textContent = "Drop\nImage";
+
+    const controls = el("div");
+    controls.style.flex = "1";
+    controls.style.minWidth = "220px";
+
+    const row = el("div", "row");
+    const pickBtn = el("button", "btn small");
+    pickBtn.textContent = "Upload image";
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+
+    pickBtn.addEventListener("click", () => input.click());
+
+    row.append(pickBtn, el("div", "hint"));
+    (row.lastChild as HTMLElement).textContent = "PNG/JPG";
+
+    const nameField = el("div", "field");
+    const nameLabel = document.createElement("label");
+    nameLabel.textContent = "Name";
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.placeholder = "Enter name...";
+    nameInput.value = chosenPlayer?.kind === "custom" ? chosenPlayer.name : "";
+
+    nameField.append(nameLabel, nameInput);
+
+    controls.append(row, nameField);
+
+    drop.append(preview, controls, input);
+
+    let customPlayerImage: string | null = chosenPlayer?.kind === "custom" ? chosenPlayer.imageDataUrl : null;
+    wireDropZone(drop, input, preview, (url) => {
+      customPlayerImage = url;
+    });
+
+    const useCustom = el("button", "btn");
+    useCustom.textContent = "Use custom player";
+    useCustom.addEventListener("click", () => {
+      const nm = nameInput.value.trim() || "Custom Player";
+      chosenPlayer = { kind: "custom", name: nm, imageDataUrl: customPlayerImage };
+      renderSetup();
+    });
+
+    customCard.append(h3, drop, useCustom);
+    left.appendChild(customCard);
+
+    // Monsters
+    const mh2 = el("h2");
+    mh2.textContent = "Monsters / bad guys";
+    right.appendChild(mh2);
+
+    const mpresetWrap = el("div");
+    mpresetWrap.style.display = "grid";
+    mpresetWrap.style.gap = "10px";
+
+    for (const m of MONSTER_PRESETS) {
+      const tile = el("div", "tile");
+      const isSelected = chosenMonsters.some((x) => x.kind === "preset" && x.id === m.id);
+      if (isSelected) tile.classList.add("selected");
+
+      const main = el("div", "tileMain");
+      const t = el("div", "tileTitle");
+      t.textContent = m.name;
+      const d = el("div", "tileDesc");
+      d.textContent = m.blurb;
+      main.append(t, d);
+
+      const badge = el("div", "hint");
+      badge.textContent = isSelected ? "Selected" : "Preset";
+      tile.append(main, badge);
+
+      tile.addEventListener("click", () => {
+        if (isSelected) {
+          chosenMonsters = chosenMonsters.filter((x) => !(x.kind === "preset" && x.id === m.id));
+        } else {
+          chosenMonsters.push({
+            id: m.id,
+            name: m.name,
+            notes: m.blurb,
+            imageDataUrl: null,
+            kind: "preset",
+          });
+        }
+        renderSetup();
+      });
+
+      mpresetWrap.appendChild(tile);
+    }
+
+    right.appendChild(mpresetWrap);
+
+    // Custom monster
+    const customM = el("div", "card");
+    (customM as HTMLElement).style.background = "rgba(0,0,0,.12)";
+    (customM as HTMLElement).style.marginTop = "12px";
+
+    const mh3 = el("h3");
+    mh3.textContent = "Add custom monster";
+
+    const mdrop = el("div", "drop");
+    const mpreview = el("div", "preview");
+    mpreview.textContent = "Drop\nImage";
+
+    const mcontrols = el("div");
+    mcontrols.style.flex = "1";
+    mcontrols.style.minWidth = "220px";
+
+    const mrow = el("div", "row");
+    const mpick = el("button", "btn small");
+    mpick.textContent = "Upload image";
+
+    const minput = document.createElement("input");
+    minput.type = "file";
+    minput.accept = "image/*";
+
+    mpick.addEventListener("click", () => minput.click());
+    mrow.append(mpick, el("div", "hint"));
+    (mrow.lastChild as HTMLElement).textContent = "PNG/JPG";
+
+    const mNameField = el("div", "field");
+    const mNameLabel = document.createElement("label");
+    mNameLabel.textContent = "Name";
+    const mNameInput = document.createElement("input");
+    mNameInput.type = "text";
+    mNameInput.placeholder = "e.g. Boneguard Variant";
+    mNameField.append(mNameLabel, mNameInput);
+
+    const mNotesField = el("div", "field");
+    const mNotesLabel = document.createElement("label");
+    mNotesLabel.textContent = "What is it / what does it do? (optional)";
+    const mNotesInput = document.createElement("input");
+    mNotesInput.type = "text";
+    mNotesInput.placeholder = "Short description...";
+    mNotesField.append(mNotesLabel, mNotesInput);
+
+    mcontrols.append(mrow, mNameField, mNotesField);
+
+    mdrop.append(mpreview, mcontrols, minput);
+
+    let customMonsterImage: string | null = null;
+    wireDropZone(mdrop, minput, mpreview, (url) => (customMonsterImage = url));
+
+    const addMonsterBtn = el("button", "btn");
+    addMonsterBtn.textContent = "Add monster to roster";
+    addMonsterBtn.addEventListener("click", () => {
+      const nm = mNameInput.value.trim();
+      if (!nm) {
+        alert("Give your monster a name first.");
+        return;
+      }
+      chosenMonsters.push({
+        id: randId("custom"),
+        name: nm,
+        notes: mNotesInput.value.trim(),
+        imageDataUrl: customMonsterImage,
+        kind: "custom",
+      });
+      renderSetup();
+    });
+
+    customM.append(mh3, mdrop, addMonsterBtn);
+    right.appendChild(customM);
+
+    // Roster
+    const roster = el("div", "card");
+    (roster as HTMLElement).style.marginTop = "12px";
+    const rh = el("h3");
+    rh.textContent = "Roster";
+    roster.appendChild(rh);
+
+    const rosterBody = el("div", "hint");
+    if (chosenMonsters.length === 0) {
+      rosterBody.textContent = "No monsters selected yet.";
+    } else {
+      rosterBody.innerHTML = chosenMonsters
+        .map(
+          (m, idx) => `
+          <div class="row" style="justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,.06);">
+            <span>${idx + 1}. <b>${escapeHtml(m.name)}</b> <span class="muted">${m.notes ? "— " + escapeHtml(m.notes) : ""}</span></span>
+            <button class="btn small" data-rm="${idx}">Remove</button>
+          </div>
+        `
+        )
+        .join("");
+    }
+    roster.appendChild(rosterBody);
+    right.appendChild(roster);
+
+    roster.querySelectorAll("button[data-rm]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = Number((btn as HTMLElement).getAttribute("data-rm"));
+        chosenMonsters.splice(idx, 1);
+        renderSetup();
+      });
+    });
+
+    // Footer actions
+    const footer = el("div", "row");
+    (footer as HTMLElement).style.marginTop = "14px";
+    (footer as HTMLElement).style.justifyContent = "space-between";
+
+    const back = el("button", "btn");
+    back.textContent = "Back";
+    back.addEventListener("click", () => setScreen("select"));
+
+    const startBtn = el("button", "btn primary");
+    startBtn.textContent = "Start game";
+    startBtn.disabled = !chosenPlayer;
+
+    const hint = el("div", "hint");
+    hint.textContent = chosenPlayer ? "Ready." : "Pick a player to continue.";
+
+    startBtn.addEventListener("click", () => {
+      if (!chosenPlayer) return;
+      startScenario(scenarioIndex);
+      renderGameScreen(); // build game DOM into vGame
+      setScreen("game");
+    });
+
+    const rightPack = el("div", "row");
+    rightPack.append(hint, startBtn);
+
+    footer.append(back, rightPack);
+
+    vSetup.appendChild(layout);
+    vSetup.appendChild(footer);
+  }
+
+  // --------------------------
+  // Screen 4: Game (your existing UI wrapped)
+  // --------------------------
+  let gameBuilt = false;
+
   function scenario(): Scenario {
     return scenarios[scenarioIndex];
   }
@@ -247,19 +842,6 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     }
   }
 
-  function setLayerOptions() {
-    const layers = Number((scenario() as any).layers ?? 1);
-    layerSelect.innerHTML = "";
-    for (let i = 1; i <= layers; i++) {
-      const opt = document.createElement("option");
-      opt.value = String(i);
-      opt.textContent = `Layer ${i}`;
-      layerSelect.appendChild(opt);
-    }
-    if (currentLayer > layers) currentLayer = 1;
-    layerSelect.value = String(currentLayer);
-  }
-
   function getHex(id: string): Hex | undefined {
     return (state.hexesById as any).get(id);
   }
@@ -274,18 +856,29 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     return !!hex.revealed;
   }
 
+  function setLayerOptions(layerSelect: HTMLSelectElement) {
+    const layers = Number((scenario() as any).layers ?? 1);
+    layerSelect.innerHTML = "";
+    for (let i = 1; i <= layers; i++) {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = `Layer ${i}`;
+      layerSelect.appendChild(opt);
+    }
+    if (currentLayer > layers) currentLayer = 1;
+    layerSelect.value = String(currentLayer);
+  }
+
   function rebuildTransitionIndexAndHighlights() {
     const s: any = scenario();
     transitionsAll = s.transitions ?? [];
 
     transitionsByFrom = new Map();
-    sourcesAll = new Set();
     sourcesOnLayer = new Set();
 
     for (const t of transitionsAll) {
       const fromId = posId(t.from);
       const toId = posId(t.to);
-      sourcesAll.add(fromId);
 
       const list = transitionsByFrom.get(fromId) ?? [];
       list.push({ ...t, __fromId: fromId, __toId: toId });
@@ -309,191 +902,8 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     }
   }
 
-  function renderMeta() {
-    const s: any = scenario();
-    meta.innerHTML = `
-      <div><b>Selected:</b> ${String(s.name ?? s.title ?? s.id ?? "")}</div>
-      <div><b>Player:</b> ${state.playerHexId ?? "?"}</div>
-      <div><b>Goal:</b> ${posId(s.goal)}</div>
-    `;
-    msg.textContent = message || "Ready.";
-  }
-
-  function renderBanner() {
-    const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
-
-    banner.innerHTML = `
-      <div>
-        <b>Reachable:</b> ${reachable.size} (layer ${currentLayer}: ${layerReachable})
-        | <b>Transitions total:</b> ${transitionsAll.length}
-        | <b>Sources on this layer:</b> ${sourcesOnLayer.size}
-        | <b>Outgoing from selected:</b> ${outgoingFromSelected.length}
-      </div>
-      <div class="hint">Orange sources always show if transitions exist on this layer.</div>
-    `;
-  }
-
-  function renderSelection() {
-    selectionBody.innerHTML = "";
-    if (!selectedId) {
-      appendHint(selectionBody, "No hex selected.");
-      return;
-    }
-
-    const h: any = getHex(selectedId);
-    const { blocked, missing } = isBlockedOrMissing(h);
-    const info = reachMap[selectedId];
-
-    selectionBody.innerHTML = `
-      <div><b>Hex:</b> ${selectedId}</div>
-      <div><b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}</div>
-      <div><b>Revealed:</b> ${isRevealed(h) ? "yes" : "no"}</div>
-      <div><b>Kind:</b> ${h?.kind ?? "?"}</div>
-      <div><b>Reachable:</b> ${info?.reachable ? "yes" : "no"}</div>
-      <div><b>Distance:</b> ${info?.distance ?? "—"}</div>
-      <div><b>Explored:</b> ${info?.explored ?? "—"}</div>
-      <div><b>Has transitions:</b> ${transitionsByFrom.has(selectedId) ? "yes" : "no"}</div>
-    `;
-
-    if (outgoingFromSelected.length) {
-      appendHint(selectionBody, "Outgoing transitions (click to jump):");
-
-      for (const t of outgoingFromSelected) {
-        const toId = t.__toId;
-        const toC = idToCoord(toId);
-
-        const btn = el("button", "linkBtn");
-        btn.textContent = `${String(t.type ?? "UP")} → ${toId}${toC && toC.layer !== currentLayer ? " (other layer)" : ""}`;
-
-        btn.addEventListener("click", () => {
-          selectedId = toId;
-          if (toC) {
-            currentLayer = toC.layer;
-            setLayerOptions();
-            enterLayer(state, currentLayer);
-            revealWholeLayer(currentLayer);
-            recomputeReachability();
-          }
-          message = `Jumped to: ${toId}`;
-          rebuildTransitionIndexAndHighlights();
-          renderAll();
-        });
-
-        selectionBody.appendChild(btn);
-      }
-    }
-  }
-
-  function renderScenarioDetails() {
-    const s: any = scenario();
-    scenarioBody.innerHTML = "";
-    appendHint(scenarioBody, "Movement:");
-    const movement = el("pre");
-    movement.textContent = JSON.stringify(s.movement ?? {}, null, 2);
-    scenarioBody.appendChild(movement);
-
-    appendHint(scenarioBody, "Transitions:");
-    const transitions = el("pre");
-    transitions.textContent = JSON.stringify(s.transitions ?? [], null, 2);
-    scenarioBody.appendChild(transitions);
-  }
-
-  function renderBoard() {
-    boardWrap.innerHTML = "";
-
-    for (let r = 1; r <= ROW_LENS.length; r++) {
-      const len = ROW_LENS[r - 1] ?? 7;
-      const row = el("div", "hexRow");
-      if (r % 2 === 0) row.classList.add("offset");
-
-      for (let c = 1; c <= len; c++) {
-        const id = `L${currentLayer}-R${r}-C${c}`;
-        const h: any = getHex(id);
-        const info = reachMap[id];
-
-        const btn = el("div", "hex");
-        btn.textContent = `R${r} C${c}`;
-
-        const { blocked, missing } = isBlockedOrMissing(h);
-        const isGoal = h?.kind === "GOAL";
-        const isPlayer = state.playerHexId === id;
-
-        if (missing) btn.classList.add("missing");
-        if (blocked) btn.classList.add("blocked");
-        if (!isRevealed(h)) btn.classList.add("fog");
-        if (isGoal) btn.classList.add("goal");
-        if (isPlayer) btn.classList.add("player");
-        if (info?.reachable) btn.classList.add("reach");
-        if (selectedId === id) btn.classList.add("sel");
-
-        // orange sources on this layer
-        if (sourcesOnLayer.has(id)) btn.classList.add("trSrc");
-
-        // cyan targets (for selected source)
-        if (targetsSameLayer.has(id)) {
-          btn.classList.add("trTgt");
-          const badge = el("div", "trBadge");
-          badge.textContent = targetsSameLayer.get(id)!;
-          btn.appendChild(badge);
-        }
-
-        if (isPlayer) btn.appendChild(el("div", "dot player"));
-        else if (isGoal) btn.appendChild(el("div", "dot goal"));
-
-        if (info?.reachable && info.distance != null) {
-          const d = el("div", "dist");
-          d.textContent = String(info.distance);
-          btn.appendChild(d);
-        }
-
-        btn.addEventListener("click", () => {
-          selectedId = id;
-
-          rebuildTransitionIndexAndHighlights();
-
-          // debug-friendly move attempt for now
-          const res = tryMove(state, id);
-          if (res.ok) {
-            message = res.won
-              ? "🎉 You reached the goal!"
-              : res.triggeredTransition
-              ? "Moved (transition triggered)."
-              : "Moved.";
-
-            const playerCoord = idToCoord(state.playerHexId);
-            if (playerCoord) currentLayer = playerCoord.layer;
-
-            setLayerOptions();
-            recomputeReachability();
-            rebuildTransitionIndexAndHighlights();
-            renderAll();
-            return;
-          } else {
-            message = res.reason ? `Move rejected: ${res.reason}` : "Move rejected.";
-          }
-
-          renderAll();
-        });
-
-        row.appendChild(btn);
-      }
-
-      boardWrap.appendChild(row);
-    }
-  }
-
-  function renderAll() {
-    rebuildTransitionIndexAndHighlights();
-    renderMeta();
-    renderBanner();
-    renderBoard();
-    renderSelection();
-    renderScenarioDetails();
-  }
-
   function startScenario(idx: number) {
     scenarioIndex = idx;
-    scenarioSelect.value = String(scenarioIndex);
 
     state = newGame(scenario());
     selectedId = state.playerHexId ?? null;
@@ -504,48 +914,329 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     recomputeReachability();
 
     message = "";
-    setLayerOptions();
+  }
+
+  function renderGameScreen() {
+    if (gameBuilt) {
+      // Re-render only
+      renderAll();
+      return;
+    }
+    gameBuilt = true;
+
+    vGame.innerHTML = "";
+    const wrap = el("div", "wrap");
+
+    const top = el("div", "top");
+
+    const titleWrap = el("div");
+    const title = el("h1");
+    title.textContent = "Game";
+    const sub = el("div", "hint");
+    const sc: any = scenarios[scenarioIndex];
+    sub.textContent = `Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")} | Player: ${
+      chosenPlayer ? chosenPlayer.name : "—"
+    } | Monsters: ${chosenMonsters.length}`;
+    titleWrap.append(title, sub);
+
+    const controls = el("div", "controls");
+
+    const scenarioSelect = el("select") as HTMLSelectElement;
+    scenarios.forEach((s: any, i: number) => {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = String((s as any).name ?? (s as any).title ?? (s as any).id ?? `Scenario ${i + 1}`);
+      scenarioSelect.appendChild(opt);
+    });
+    scenarioSelect.value = String(scenarioIndex);
+
+    const layerSelect = el("select") as HTMLSelectElement;
+
+    const endTurnBtn = el("button") as HTMLButtonElement;
+    endTurnBtn.textContent = "End turn";
+
+    const resetBtn = el("button") as HTMLButtonElement;
+    resetBtn.textContent = "Reset run";
+
+    const forceRevealBtn = el("button") as HTMLButtonElement;
+    forceRevealBtn.textContent = "Force reveal layer";
+
+    const exitBtn = el("button", "btn") as HTMLButtonElement;
+    exitBtn.textContent = "Exit";
+    exitBtn.addEventListener("click", () => {
+      renderSetup();
+      setScreen("setup");
+    });
+
+    controls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
+    top.append(titleWrap, controls);
+
+    const layout = el("div", "gridGame");
+    const left = el("div", "cardGame");
+    const right = el("div", "cardGame");
+
+    const boardHeader = el("div", "boardHeader");
+    const boardTitle = el("div");
+    boardTitle.innerHTML = `<b>Board</b> <span class="hint">(orange = transition sources; cyan = selected targets)</span>`;
+    const boardHint = el("div", "hint");
+    boardHint.textContent = `Build: ${BUILD_TAG}`;
+    boardHeader.append(boardTitle, boardHint);
+
+    const meta = el("div", "meta");
+    const banner = el("div", "banner");
+    const msg = el("div", "msg");
+    const boardWrap = el("div", "boardWrap");
+
+    left.append(boardHeader, meta, banner, msg, boardWrap);
+
+    const selectionTitle = el("div");
+    selectionTitle.innerHTML = `<b>Selection</b>`;
+    const selectionBody = el("div", "meta");
+
+    const scenarioTitle = el("div");
+    scenarioTitle.style.marginTop = "14px";
+    scenarioTitle.innerHTML = `<b>Scenario</b>`;
+    const scenarioBody = el("div", "meta");
+
+    right.append(selectionTitle, selectionBody, scenarioTitle, scenarioBody);
+    layout.append(left, right);
+    wrap.append(top, layout);
+    vGame.appendChild(wrap);
+
+    function renderMeta() {
+      const s: any = scenario();
+      meta.innerHTML = `
+        <div><b>Selected:</b> ${String(s.name ?? s.title ?? s.id ?? "")}</div>
+        <div><b>Player:</b> ${state.playerHexId ?? "?"}</div>
+        <div><b>Goal:</b> ${posId(s.goal)}</div>
+      `;
+      msg.textContent = message || "Ready.";
+    }
+
+    function renderBanner() {
+      const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
+
+      banner.innerHTML = `
+        <div>
+          <b>Reachable:</b> ${reachable.size} (layer ${currentLayer}: ${layerReachable})
+          | <b>Transitions total:</b> ${transitionsAll.length}
+          | <b>Sources on this layer:</b> ${sourcesOnLayer.size}
+          | <b>Outgoing from selected:</b> ${outgoingFromSelected.length}
+        </div>
+        <div class="hint">Orange sources always show if transitions exist on this layer.</div>
+      `;
+    }
+
+    function renderSelection() {
+      selectionBody.innerHTML = "";
+      if (!selectedId) {
+        appendHint(selectionBody, "No hex selected.");
+        return;
+      }
+
+      const h: any = getHex(selectedId);
+      const { blocked, missing } = isBlockedOrMissing(h);
+      const info = reachMap[selectedId];
+
+      selectionBody.innerHTML = `
+        <div><b>Hex:</b> ${selectedId}</div>
+        <div><b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}</div>
+        <div><b>Revealed:</b> ${isRevealed(h) ? "yes" : "no"}</div>
+        <div><b>Kind:</b> ${h?.kind ?? "?"}</div>
+        <div><b>Reachable:</b> ${info?.reachable ? "yes" : "no"}</div>
+        <div><b>Distance:</b> ${info?.distance ?? "—"}</div>
+        <div><b>Explored:</b> ${info?.explored ?? "—"}</div>
+        <div><b>Has transitions:</b> ${transitionsByFrom.has(selectedId) ? "yes" : "no"}</div>
+      `;
+
+      if (outgoingFromSelected.length) {
+        appendHint(selectionBody, "Outgoing transitions (click to jump):");
+
+        for (const t of outgoingFromSelected) {
+          const toId = t.__toId;
+          const toC = idToCoord(toId);
+
+          const btn = el("button", "linkBtn");
+          btn.textContent = `${String(t.type ?? "UP")} → ${toId}${toC && toC.layer !== currentLayer ? " (other layer)" : ""}`;
+
+          btn.addEventListener("click", () => {
+            selectedId = toId;
+            if (toC) {
+              currentLayer = toC.layer;
+              setLayerOptions(layerSelect);
+              enterLayer(state, currentLayer);
+              revealWholeLayer(currentLayer);
+              recomputeReachability();
+            }
+            message = `Jumped to: ${toId}`;
+            rebuildTransitionIndexAndHighlights();
+            renderAll();
+          });
+
+          selectionBody.appendChild(btn);
+        }
+      }
+    }
+
+    function renderScenarioDetails() {
+      const s: any = scenario();
+      scenarioBody.innerHTML = "";
+      appendHint(scenarioBody, "Movement:");
+      const movement = el("pre");
+      movement.textContent = JSON.stringify(s.movement ?? {}, null, 2);
+      scenarioBody.appendChild(movement);
+
+      appendHint(scenarioBody, "Transitions:");
+      const transitions = el("pre");
+      transitions.textContent = JSON.stringify(s.transitions ?? [], null, 2);
+      scenarioBody.appendChild(transitions);
+    }
+
+    function renderBoard() {
+      boardWrap.innerHTML = "";
+
+      for (let r = 1; r <= ROW_LENS.length; r++) {
+        const len = ROW_LENS[r - 1] ?? 7;
+        const row = el("div", "hexRow");
+        if (r % 2 === 0) row.classList.add("offset");
+
+        for (let c = 1; c <= len; c++) {
+          const id = `L${currentLayer}-R${r}-C${c}`;
+          const h: any = getHex(id);
+          const info = reachMap[id];
+
+          const btn = el("div", "hex");
+          btn.textContent = `R${r} C${c}`;
+
+          const { blocked, missing } = isBlockedOrMissing(h);
+          const isGoal = h?.kind === "GOAL";
+          const isPlayer = state.playerHexId === id;
+
+          if (missing) btn.classList.add("missing");
+          if (blocked) btn.classList.add("blocked");
+          if (!isRevealed(h)) btn.classList.add("fog");
+          if (isGoal) btn.classList.add("goal");
+          if (isPlayer) btn.classList.add("player");
+          if (info?.reachable) btn.classList.add("reach");
+          if (selectedId === id) btn.classList.add("sel");
+
+          if (sourcesOnLayer.has(id)) btn.classList.add("trSrc");
+
+          if (targetsSameLayer.has(id)) {
+            btn.classList.add("trTgt");
+            const badge = el("div", "trBadge");
+            badge.textContent = targetsSameLayer.get(id)!;
+            btn.appendChild(badge);
+          }
+
+          if (isPlayer) btn.appendChild(el("div", "dot player"));
+          else if (isGoal) btn.appendChild(el("div", "dot goal"));
+
+          if (info?.reachable && info.distance != null) {
+            const d = el("div", "dist");
+            d.textContent = String(info.distance);
+            btn.appendChild(d);
+          }
+
+          btn.addEventListener("click", () => {
+            selectedId = id;
+            rebuildTransitionIndexAndHighlights();
+
+            const res = tryMove(state, id);
+            if (res.ok) {
+              message = res.won
+                ? "🎉 You reached the goal!"
+                : res.triggeredTransition
+                ? "Moved (transition triggered)."
+                : "Moved.";
+
+              const playerCoord = idToCoord(state.playerHexId);
+              if (playerCoord) currentLayer = playerCoord.layer;
+
+              setLayerOptions(layerSelect);
+              recomputeReachability();
+              rebuildTransitionIndexAndHighlights();
+              renderAll();
+              return;
+            } else {
+              message = res.reason ? `Move rejected: ${res.reason}` : "Move rejected.";
+            }
+
+            renderAll();
+          });
+
+          row.appendChild(btn);
+        }
+
+        boardWrap.appendChild(row);
+      }
+    }
+
+    function renderAll() {
+      rebuildTransitionIndexAndHighlights();
+      renderMeta();
+      renderBanner();
+      renderBoard();
+      renderSelection();
+      renderScenarioDetails();
+    }
+
+    scenarioSelect.addEventListener("change", () => {
+      scenarioIndex = Number(scenarioSelect.value);
+      startScenario(scenarioIndex);
+      setLayerOptions(layerSelect);
+      enterLayer(state, currentLayer);
+      revealWholeLayer(currentLayer);
+      recomputeReachability();
+      message = "";
+      renderAll();
+    });
+
+    layerSelect.addEventListener("change", () => {
+      currentLayer = Number(layerSelect.value);
+      const err = enterLayer(state, currentLayer);
+      message = err ? `Enter layer error: ${err}` : "";
+      revealWholeLayer(currentLayer);
+      recomputeReachability();
+      renderAll();
+    });
+
+    endTurnBtn.addEventListener("click", () => {
+      endTurn(state);
+      enterLayer(state, currentLayer);
+      revealWholeLayer(currentLayer);
+      recomputeReachability();
+      message = "Turn ended.";
+      renderAll();
+    });
+
+    resetBtn.addEventListener("click", () => {
+      startScenario(scenarioIndex);
+      setLayerOptions(layerSelect);
+      enterLayer(state, currentLayer);
+      revealWholeLayer(currentLayer);
+      recomputeReachability();
+      renderAll();
+    });
+
+    forceRevealBtn.addEventListener("click", () => {
+      revealWholeLayer(currentLayer);
+      recomputeReachability();
+      message = "Forced reveal layer + recomputed reachability.";
+      renderAll();
+    });
+
+    // Init game view
+    setLayerOptions(layerSelect);
+    enterLayer(state, currentLayer);
+    revealWholeLayer(currentLayer);
+    recomputeReachability();
     renderAll();
   }
 
   // --------------------------
-  // Events
+  // Init app
   // --------------------------
-  scenarioSelect.addEventListener("change", () => startScenario(Number(scenarioSelect.value)));
-
-  layerSelect.addEventListener("change", () => {
-    currentLayer = Number(layerSelect.value);
-    const err = enterLayer(state, currentLayer);
-    message = err ? `Enter layer error: ${err}` : "";
-    revealWholeLayer(currentLayer);
-    recomputeReachability();
-    renderAll();
-  });
-
-  endTurnBtn.addEventListener("click", () => {
-    endTurn(state);
-    enterLayer(state, currentLayer);
-    revealWholeLayer(currentLayer);
-    recomputeReachability();
-    message = "Turn ended.";
-    renderAll();
-  });
-
-  resetBtn.addEventListener("click", () => startScenario(scenarioIndex));
-
-  forceRevealBtn.addEventListener("click", () => {
-    revealWholeLayer(currentLayer);
-    recomputeReachability();
-    message = "Forced reveal layer + recomputed reachability.";
-    renderAll();
-  });
-
-  // --------------------------
-  // Init
-  // --------------------------
-  setLayerOptions();
-  enterLayer(state, currentLayer);
-  revealWholeLayer(currentLayer);
-  recomputeReachability();
-  renderAll();
+  renderStart();
+  setScreen("start");
 }
