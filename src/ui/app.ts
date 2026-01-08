@@ -661,28 +661,37 @@ export function mountApp(root: HTMLElement | null) {
       flex: 0 0 auto;
     }
 
-    .boardStage{
-      margin-top: 10px;
-      flex: 1;
-      min-height: 0;
-      overflow: auto;
-      padding: 12px;
-      border-radius: 16px;
-      border: 1px solid rgba(191,232,255,.16);
-      background: rgba(10,16,34,.20);
-      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset;
-    }
+.boardStage{
+  margin-top: 10px;
+  flex: 1;
+  min-height: 0;
+
+  overflow-y: auto;
+  overflow-x: hidden; /* ✅ kill horizontal scrollbar */
+
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(191,232,255,.16);
+  background: rgba(10,16,34,.20);
+  box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset;
+}
+
 
     /* board tilt wrapper */
     .boardTilt{
       perspective: 1100px;
       transform-style: preserve-3d;
     }
-    .boardInner{
-      transform: rotateX(var(--boardRotX)) rotateZ(var(--boardRotZ));
-      transform-origin: center;
-      transform-style: preserve-3d;
-    }
+.boardInner{
+  transform:
+    translateY(18px)
+    scale(1.08)
+    rotateX(var(--boardRotX))
+    rotateZ(var(--boardRotZ));
+  transform-origin: top center;
+  transform-style: preserve-3d;
+}
+
 
     /* responsive hex sizing: "100% minus gaps then /7" + min/max */
     .hexRow{
@@ -777,8 +786,8 @@ export function mountApp(root: HTMLElement | null) {
       position:absolute;
       left:-6%;
       right:-6%;
-      top: 105%;
-      height: 90%;
+      top: 92%;
+      height: 55%;
       background-color: var(--glow-spread-color);
       filter: blur(1.25em);
       opacity: .55;
