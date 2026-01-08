@@ -315,7 +315,7 @@ export function mountApp(root: HTMLElement | null) {
     /* ✅ Start tiles */
     .modeTile{
       position: relative;
-      height: 100%;
+      min-height: 0;
       width: 100%;
       border-radius: 22px;
       overflow: hidden;
