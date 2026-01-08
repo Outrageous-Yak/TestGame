@@ -208,18 +208,20 @@ export function mountApp(root: HTMLElement | null) {
       100%{ transform: rotate(360deg) scale(1.05); }
     }
 
-.shell{
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  padding-left: clamp(12px, 2vw, 28px);
-  padding-right: clamp(12px, 2vw, 28px);
-  padding-top: 18px;
-  padding-bottom: 18px;
-  font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial;
-  color: var(--text);
-}
-
+    /* ✅ USE MORE SCREEN WIDTH (recommended wide layout) */
+    .shell{
+      width: min(1800px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 18px;
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      color: var(--text);
+    }
+    .shell.kids{
+      --bg:#0b1020;
+      --panel: rgba(10, 20, 60, .22);
+      --accent: rgba(0, 212, 255, .95);
+      --accent2: rgba(255, 193, 7, .95);
+    }
 
     .topBar{
       display:flex;
@@ -425,7 +427,7 @@ export function mountApp(root: HTMLElement | null) {
     }
 
     /* --- Screen 4 styles (3-column stage layout) --- */
-    .wrap{max-width:1250px;margin:0 auto;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#e8e8e8}
+    .wrap{max-width:none;margin:0 auto;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#e8e8e8}
     .top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
     .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     select,button{padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.22);color:#e8e8e8}
@@ -468,14 +470,16 @@ export function mountApp(root: HTMLElement | null) {
       pointer-events:none;
     }
 
-    /* Story | Board(remaining) | Images */
-   .gridGame{
-  grid-template-columns:
-    320px              /* Story fixed */
-    1fr                /* Board takes the rest */
-    320px;             /* Images fixed */
-}
-
+    /* ✅ 3 columns: Story fixed | Board fluid | Images fixed */
+    .gridGame{
+      position:relative;
+      z-index:1;
+      display:grid;
+      grid-template-columns: 320px 1fr 320px;
+      gap: 12px;
+      height: 100%;
+      min-height: 0;
+    }
 
     .cardGame{
       height: 100%;
@@ -528,13 +532,6 @@ export function mountApp(root: HTMLElement | null) {
       box-shadow: 0 0 12px rgba(95,225,255,.35);
     }
 
-    .list{
-      margin-top:10px;
-      border-top:1px solid rgba(191,232,255,.12);
-      padding-top: 10px;
-      display:grid;
-      gap:10px;
-    }
     .listItem{
       padding:10px 10px;
       border-radius: 14px;
@@ -593,7 +590,7 @@ export function mountApp(root: HTMLElement | null) {
         0 18px 55px rgba(0,0,0,.45);
     }
 
-    /* Two-column info area ABOVE the move message */
+    /* ✅ Two-column info area ABOVE the move message */
     .boardTopGrid{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -614,7 +611,6 @@ export function mountApp(root: HTMLElement | null) {
       padding: 12px;
       padding-top: 10px;
     }
-    .boardMsg .listItem{ margin:0; }
 
     .boardSquare{
       aspect-ratio: 1 / 1;
@@ -1439,7 +1435,6 @@ export function mountApp(root: HTMLElement | null) {
     function renderBoardTop() {
       const s: any = scenario();
 
-      // Left: compact run/scenario meta
       uiBoardTopLeft.innerHTML = `
         <div><b>Scenario:</b> ${escapeHtml(String(s.name ?? s.title ?? s.id ?? ""))}</div>
         <div><b>Mode:</b> ${escapeHtml(String(mode ?? "—"))}</div>
@@ -1448,7 +1443,6 @@ export function mountApp(root: HTMLElement | null) {
         <div><b>Layer:</b> ${escapeHtml(String(currentLayer))}</div>
       `;
 
-      // Right: reachability + selection (kept short)
       const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
       const sel = selectedId ?? "—";
       const h: any = selectedId ? getHex(selectedId) : null;
@@ -1471,7 +1465,6 @@ export function mountApp(root: HTMLElement | null) {
 
       uiBoardMsg.innerHTML = `<div class="listItem">${escapeHtml(message || "Ready.")}</div>`;
 
-      // Images: player + current hex placeholder
       const playerName = document.getElementById("uiPlayerName") as HTMLElement;
       const playerBox = document.getElementById("uiPlayerImgBox") as HTMLElement;
 
