@@ -594,7 +594,15 @@ export function mountApp(root: HTMLElement | null) {
       background:rgba(0,0,0,.30);
       font-size:11px;line-height:1;
     }
+    
+      .infoText{
+        font-size: 12px;        /* try 11–13px */
+        line-height: 1.35;
+}
 
+.infoText b{
+  font-weight: 700;
+}
     .imgFrame{
       width:100%;
       height: 220px;
@@ -1257,8 +1265,8 @@ export function mountApp(root: HTMLElement | null) {
     const mid = el("div", "gameHeaderMid");
 
     const infoGrid = el("div", "infoGrid2");
-    const infoLeft = el("div", "softCard");
-    const infoRight = el("div", "softCard");
+    const infoLeft = el("div", "softCard infoText");
+    const infoRight = el("div", "softCard infoText");
     infoGrid.append(infoLeft, infoRight);
 
     const msgBar = el("div", "msgBar");
