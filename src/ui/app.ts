@@ -1275,7 +1275,7 @@ export function mountApp(root: HTMLElement | null) {
     // (3) controls column
     const controls = el("div", "gameHeaderControls infoText");
 
-    const scenarioSelect = el("select") as HTMLSelectElement;
+    const scenarioSelect = el("select infoText"); as HTMLSelectElement;
     scenarios.forEach((s: any, i: number) => {
       const opt = document.createElement("option");
       opt.value = String(i);
@@ -1284,18 +1284,18 @@ export function mountApp(root: HTMLElement | null) {
     });
     scenarioSelect.value = String(scenarioIndex);
 
-    const layerSelect = el("select") as HTMLSelectElement;
+    const layerSelect = el("select infoText"); as HTMLSelectElement;
 
-    const endTurnBtn = el("button") as HTMLButtonElement;
+    const endTurnBtn = el("button infoText"); as HTMLButtonElement;
     endTurnBtn.textContent = "End turn";
 
-    const resetBtn = el("button") as HTMLButtonElement;
+    const resetBtn = el("button infoText"); as HTMLButtonElement;
     resetBtn.textContent = "Reset run";
 
-    const forceRevealBtn = el("button") as HTMLButtonElement;
+    const forceRevealBtn = el("button infoText"); as HTMLButtonElement;
     forceRevealBtn.textContent = "Force reveal layer";
 
-    const exitBtn = el("button") as HTMLButtonElement;
+    const exitBtn = el("button infoText"); as HTMLButtonElement;
     exitBtn.textContent = "Exit";
 
     controls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
@@ -1321,15 +1321,15 @@ export function mountApp(root: HTMLElement | null) {
     storyPill.textContent = "Timeline";
     storyHead.append(storyLeftTag, storyPill);
 
-    const storyBody = el("div", "panelBody");
+    const storyBody = el("div", "panelBody infoText");;
     storyBody.append(
       (() => {
-        const a = el("div", "softCard");
+        const a = el("div", "softCard infoText");;
         a.innerHTML = `<b>Story log will live here later.</b>`;
         return a;
       })(),
       (() => {
-        const b = el("div", "softCard");
+        const b = el("div", "softCard infoText");;
         b.textContent = "Moves, discoveries, encounters, etc.";
         return b;
       })()
