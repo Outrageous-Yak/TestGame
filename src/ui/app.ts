@@ -556,59 +556,68 @@ export function mountApp(root: HTMLElement | null) {
       font-weight: 700;
     }
 
-    .boardWrap{
-      flex: 1;
-      min-height: 0;
-      display:flex;
-      flex-direction:column;
-      justify-content:flex-start;
-      gap: 10px;
-      padding-top: 4px;
-    }
+    /* Board-wide sizing knobs */
+.boardWrap{
+  --hexGap: 10px;
+  --hexW: clamp(44px, 6.4vh, 92px); /* keep your current behaviour for now */
+  --hexH: calc(var(--hexW) * 0.88);
+}
 
-    .hexRow{display:flex;gap:10px;align-items:center}
-    .hexRow.offset{padding-left:34px}
+/* rows */
+.hexRow{
+  display:flex;
+  gap: var(--hexGap);
+  align-items:center;
+}
 
-    .hex{
-      --hexW: clamp(54px, 6.4vh, 92px);
-      width: var(--hexW);
-      height: calc(var(--hexW) * 0.88);
+/* ✅ offset tied to hex size (fixes phone drift) */
+.hexRow.offset{
+  padding-left: calc((var(--hexW) / 2) + (var(--hexGap) / 2));
+}
 
-      clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
-      border:1px solid rgba(255,255,255,.18);
-      background:rgba(255,255,255,.05);
-      display:flex;align-items:center;justify-content:center;
-      cursor:pointer; position:relative;
-      user-select:none;
-      font-size: 11px;
-      line-height: 1.1;
-      opacity:.95;
-      font-weight: 700;
-    }
-    .hex:hover{border-color:rgba(255,255,255,.35)}
-    .hex.sel{outline:2px solid rgba(255,255,255,.6)}
-    .hex.reach{outline:2px solid rgba(76,175,80,.75)}
-    .hex.player{background:rgba(76,175,80,.18)}
-    .hex.goal{background:rgba(255,193,7,.16)}
-    .hex.blocked{background:rgba(244,67,54,.14);opacity:.75}
-    .hex.missing{background:rgba(120,120,120,.10);opacity:.45}
-    .hex.fog{background:rgba(0,0,0,.38);opacity:.6}
+.hex{
+  width: var(--hexW);
+  height: var(--hexH);
 
-    .hex.trSrc{
-      outline:5px solid rgba(255,152,0,.95);
-      box-shadow:
-        0 0 0 3px rgba(255,152,0,.45),
-        0 0 22px rgba(255,152,0,.75),
-        0 0 44px rgba(255,152,0,.55);
-    }
-    .hex.trTgt{
-      outline:5px solid rgba(3,169,244,.95);
-      box-shadow:
-        0 0 0 3px rgba(3,169,244,.45),
-        0 0 22px rgba(3,169,244,.75),
-        0 0 44px rgba(3,169,244,.55);
-      animation:pulse 1.2s ease-in-out infinite;
-    }
+  clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.05);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer; position:relative;
+  user-select:none;
+
+  /* ✅ label scales with size */
+  font-size: clamp(9px, calc(var(--hexW) * 0.18), 12px);
+  line-height: 1.05;
+  opacity:.95;
+  font-weight: 700;
+}
+
+.hex:hover{border-color:rgba(255,255,255,.35)}
+.hex.sel{outline:2px solid rgba(255,255,255,.6)}
+.hex.reach{outline:2px solid rgba(76,175,80,.75)}
+.hex.player{background:rgba(76,175,80,.18)}
+.hex.goal{background:rgba(255,193,7,.16)}
+.hex.blocked{background:rgba(244,67,54,.14);opacity:.75}
+.hex.missing{background:rgba(120,120,120,.10);opacity:.45}
+.hex.fog{background:rgba(0,0,0,.38);opacity:.6}
+
+.hex.trSrc{
+  outline:5px solid rgba(255,152,0,.95);
+  box-shadow:
+    0 0 0 3px rgba(255,152,0,.45),
+    0 0 22px rgba(255,152,0,.75),
+    0 0 44px rgba(255,152,0,.55);
+}
+.hex.trTgt{
+  outline:5px solid rgba(3,169,244,.95);
+  box-shadow:
+    0 0 0 3px rgba(3,169,244,.45),
+    0 0 22px rgba(3,169,244,.75),
+    0 0 44px rgba(3,169,244,.55);
+  animation:pulse 1.2s ease-in-out infinite;
+}
+
     @keyframes pulse{
       0%{filter:brightness(1)}
       50%{filter:brightness(1.35)}
