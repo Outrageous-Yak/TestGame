@@ -184,9 +184,8 @@ export function mountApp(root: HTMLElement | null) {
       --accent2: rgba(3,169,244,.95);
       --radius: 18px;
 
-      /* Game layout sizing */
-      --sideW: 360px;  /* story log */
-      --imgW: 340px;   /* images */
+      --sideW: 360px;
+      --imgW: 340px;
       --gap: 14px;
     }
 
@@ -261,7 +260,6 @@ export function mountApp(root: HTMLElement | null) {
     }
     .btn.small{padding:6px 8px;border-radius:10px;font-size:12px}
 
-    /* ✅ Start screen: 3-column grid (tile | empty gap | tile) */
     .modeGrid{
       display:grid;
       grid-template-columns: 1fr 96px 1fr;
@@ -269,16 +267,12 @@ export function mountApp(root: HTMLElement | null) {
       width: 100%;
     }
     @media (max-width: 980px){
-      .modeGrid{
-        grid-template-columns: 1fr;
-        gap: 16px;
-      }
+      .modeGrid{ grid-template-columns: 1fr; gap: 16px; }
     }
 
-    /* ✅ Start tiles: background image + overlay */
     .modeTile{
       position: relative;
-      height: 600px;
+      height: 300px;
       width: 100%;
       border-radius: 22px;
       overflow: hidden;
@@ -407,13 +401,9 @@ export function mountApp(root: HTMLElement | null) {
       outline:none;
     }
 
-    /* --- Screen 4 styles (game layout) --- */
-    .gameWrap{
-      width: 100%;
-      max-width: 100%;
-    }
+    /* --- GAME LAYOUT --- */
+    .gameWrap{ width:100%; max-width:100%; }
 
-    /* TOP header row aligned to the 3 main columns (your green lines) */
     .gameHeaderGrid{
       display:grid;
       grid-template-columns: var(--sideW) 1fr var(--imgW);
@@ -422,15 +412,15 @@ export function mountApp(root: HTMLElement | null) {
       margin-bottom: 12px;
     }
 
-    .gameTitleBox{
-      min-width: 0;
-    }
+    .gameTitleBox{ min-width:0; }
     .gameTitleBox h1{ margin:0; font-size:42px; letter-spacing:.3px; }
-    .gameTitleBox .hint{ margin-top: 6px; }
+    .gameTitleBox .hint{ margin-top:6px; }
 
     .gameHeaderMid{
-      /* intentionally blank/spacer for now */
-      min-height: 1px;
+      min-width: 0;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
     }
 
     .gameHeaderControls{
@@ -450,7 +440,6 @@ export function mountApp(root: HTMLElement | null) {
     }
     button{cursor:pointer}
 
-    /* MAIN 3-column layout */
     .gridGame3{
       display:grid;
       grid-template-columns: var(--sideW) 1fr var(--imgW);
@@ -518,15 +507,6 @@ export function mountApp(root: HTMLElement | null) {
       gap: 10px;
       align-items: stretch;
     }
-    @media (max-width: 1200px){
-      :root{ --sideW: 320px; --imgW: 320px; }
-    }
-    @media (max-width: 1040px){
-      .gameHeaderGrid{ grid-template-columns: 1fr; }
-      .gridGame3{ grid-template-columns: 1fr; }
-      .gameHeaderControls{ justify-content:flex-start; }
-      .infoGrid2{ grid-template-columns: 1fr; }
-    }
 
     .msgBar{
       padding:10px 12px;
@@ -535,7 +515,6 @@ export function mountApp(root: HTMLElement | null) {
       background:rgba(0,0,0,.18);
     }
 
-    /* Hex sizing scales with viewport height to reduce “wasted space” */
     .boardWrap{
       flex: 1;
       min-height: 0;
@@ -546,11 +525,7 @@ export function mountApp(root: HTMLElement | null) {
       padding-top: 4px;
     }
 
-    .hexRow{
-      display:flex;
-      gap: 10px;
-      align-items:center
-    }
+    .hexRow{display:flex;gap:10px;align-items:center}
     .hexRow.offset{padding-left:34px}
 
     .hex{
@@ -563,8 +538,7 @@ export function mountApp(root: HTMLElement | null) {
       background:rgba(255,255,255,.05);
       display:flex;align-items:center;justify-content:center;
       cursor:pointer; position:relative;
-      user-select:none;
-      font-size:12px;
+      user-select:none; font-size:12px;
       opacity:.95;
     }
     .hex:hover{border-color:rgba(255,255,255,.35)}
@@ -642,6 +616,16 @@ export function mountApp(root: HTMLElement | null) {
       object-fit: cover;
       display:block;
     }
+
+    @media (max-width: 1200px){
+      :root{ --sideW: 320px; --imgW: 320px; }
+    }
+    @media (max-width: 1040px){
+      .gameHeaderGrid{ grid-template-columns: 1fr; }
+      .gridGame3{ grid-template-columns: 1fr; }
+      .gameHeaderControls{ justify-content:flex-start; }
+      .infoGrid2{ grid-template-columns: 1fr; }
+    }
   `;
   document.head.appendChild(style);
 
@@ -718,8 +702,7 @@ export function mountApp(root: HTMLElement | null) {
 
     const grid = el("div", "modeGrid");
 
-    // ✅ GitHub Pages safe base
-    const baseUrl = import.meta.env.BASE_URL; // "/<repo>/" on GH pages
+    const baseUrl = import.meta.env.BASE_URL;
     const regularImg = `${baseUrl}images/ui/regular.png`;
     const kidsImg = `${baseUrl}images/ui/kids.png`;
 
@@ -1001,7 +984,7 @@ export function mountApp(root: HTMLElement | null) {
     customCard.append(h3, drop, useCustom);
     left.appendChild(customCard);
 
-    // Monsters/Creatures
+    // Monsters
     const mh2 = el("h2");
     mh2.textContent = monstersLabel();
     right.appendChild(mh2);
@@ -1045,7 +1028,7 @@ export function mountApp(root: HTMLElement | null) {
     }
     right.appendChild(mpresetWrap);
 
-    // Custom monster/creature
+    // Custom monster
     const customM = el("div", "card");
     (customM as HTMLElement).style.background = "rgba(0,0,0,.12)";
     (customM as HTMLElement).style.marginTop = "12px";
@@ -1116,7 +1099,7 @@ export function mountApp(root: HTMLElement | null) {
     customM.append(mh3, mdrop, addMonsterBtn);
     right.appendChild(customM);
 
-    // Footer actions
+    // Footer
     const footer = el("div", "row");
     (footer as HTMLElement).style.marginTop = "14px";
     (footer as HTMLElement).style.justifyContent = "space-between";
@@ -1149,7 +1132,7 @@ export function mountApp(root: HTMLElement | null) {
   }
 
   // --------------------------
-  // Screen 4: Game (3 columns + top header grid)
+  // Screen 4: Game
   // --------------------------
   let gameBuilt = false;
 
@@ -1259,10 +1242,9 @@ export function mountApp(root: HTMLElement | null) {
     vGame.innerHTML = "";
     const wrap = el("div", "gameWrap");
 
-    // --- HEADER GRID (your green line top row: 1 | 2 | 3) ---
     const headerGrid = el("div", "gameHeaderGrid");
 
-    // (1) left title column
+    // (1) title column
     const titleBox = el("div", "gameTitleBox");
     const title = el("h1");
     title.textContent = "Game";
@@ -1271,10 +1253,18 @@ export function mountApp(root: HTMLElement | null) {
     sub.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")}`;
     titleBox.append(title, sub);
 
-    // (2) middle spacer
+    // (2) middle column (INFO + MESSAGE)  ✅ moved here
     const mid = el("div", "gameHeaderMid");
 
-    // (3) right controls column (the circled controls strip)
+    const infoGrid = el("div", "infoGrid2");
+    const infoLeft = el("div", "softCard");
+    const infoRight = el("div", "softCard");
+    infoGrid.append(infoLeft, infoRight);
+
+    const msgBar = el("div", "msgBar");
+    mid.append(infoGrid, msgBar);
+
+    // (3) controls column
     const controls = el("div", "gameHeaderControls");
 
     const scenarioSelect = el("select") as HTMLSelectElement;
@@ -1304,7 +1294,7 @@ export function mountApp(root: HTMLElement | null) {
 
     headerGrid.append(titleBox, mid, controls);
 
-    // --- MAIN 3 columns: (4) story | (5) board | (6) images ---
+    // MAIN GRID
     const grid = el("div", "gridGame3");
 
     const storyPanel = el("section", "panelGame");
@@ -1338,7 +1328,7 @@ export function mountApp(root: HTMLElement | null) {
     );
     storyPanel.append(storyHead, storyBody);
 
-    // Board panel
+    // Board panel (ONLY the hex grid now)
     const boardHead = el("div", "panelHead");
     const boardLeftTag = el("div", "leftTag");
     boardLeftTag.append(el("div", "panelDot"), (() => {
@@ -1351,19 +1341,8 @@ export function mountApp(root: HTMLElement | null) {
     boardHead.append(boardLeftTag, boardPill);
 
     const boardBody = el("div", "panelBody");
-
-    // Two-column info block ABOVE "Moved" (your red circled section)
-    const infoGrid = el("div", "infoGrid2");
-    const infoLeft = el("div", "softCard");
-    const infoRight = el("div", "softCard");
-    infoGrid.append(infoLeft, infoRight);
-
-    const msgBar = el("div", "msgBar");
-
-    // Board grid container
     const boardWrap = el("div", "boardWrap");
-
-    boardBody.append(infoGrid, msgBar, boardWrap);
+    boardBody.append(boardWrap);
     boardPanel.append(boardHead, boardBody);
 
     // Images panel
@@ -1412,11 +1391,10 @@ export function mountApp(root: HTMLElement | null) {
     imagesPanel.append(imgHead, imgBody);
 
     grid.append(storyPanel, boardPanel, imagesPanel);
-
     wrap.append(headerGrid, grid);
     vGame.appendChild(wrap);
 
-    // ---------- Rendering helpers ----------
+    // ✅ These are exactly the functions you pasted, now targeting header-mid
     function renderInfoTop() {
       const s: any = scenario();
 
@@ -1457,17 +1435,10 @@ export function mountApp(root: HTMLElement | null) {
     }
 
     function renderImages() {
-      // Player image
-      const playerImgUrl =
-        chosenPlayer?.kind === "custom" ? chosenPlayer.imageDataUrl : null;
+      const playerImgUrl = chosenPlayer?.kind === "custom" ? chosenPlayer.imageDataUrl : null;
+      if (playerImgUrl) playerFrame.innerHTML = `<img src="${playerImgUrl}" alt="player">`;
+      else playerFrame.textContent = "Preset player (no image yet).";
 
-      if (playerImgUrl) {
-        playerFrame.innerHTML = `<img src="${playerImgUrl}" alt="player">`;
-      } else {
-        playerFrame.textContent = "Preset player (no image yet).";
-      }
-
-      // Current hex “scene image” placeholder (future)
       hexIdPill.textContent = state?.playerHexId ?? "—";
       const h: any = state?.playerHexId ? getHex(state.playerHexId) : null;
       hexFrame.textContent = (h?.kind ? String(h.kind) : "—").toUpperCase();
@@ -1562,7 +1533,7 @@ export function mountApp(root: HTMLElement | null) {
       renderImages();
     }
 
-    // ---------- Wire controls ----------
+    // Controls wiring
     exitBtn.addEventListener("click", () => {
       renderSetup();
       setScreen("setup");
@@ -1616,7 +1587,7 @@ export function mountApp(root: HTMLElement | null) {
       renderAll();
     });
 
-    // ---------- Boot game screen ----------
+    // Boot
     setLayerOptions(layerSelect);
     if (state) enterLayer(state, currentLayer);
     revealWholeLayer(currentLayer);
