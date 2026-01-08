@@ -208,19 +208,18 @@ export function mountApp(root: HTMLElement | null) {
       100%{ transform: rotate(360deg) scale(1.05); }
     }
 
-    .shell{
-      max-width: 1250px;
-      margin: 0 auto;
-      padding: 18px;
-      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial;
-      color: var(--text);
-    }
-    .shell.kids{
-      --bg:#0b1020;
-      --panel: rgba(10, 20, 60, .22);
-      --accent: rgba(0, 212, 255, .95);
-      --accent2: rgba(255, 193, 7, .95);
-    }
+.shell{
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding-left: clamp(12px, 2vw, 28px);
+  padding-right: clamp(12px, 2vw, 28px);
+  padding-top: 18px;
+  padding-bottom: 18px;
+  font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial;
+  color: var(--text);
+}
+
 
     .topBar{
       display:flex;
@@ -470,18 +469,13 @@ export function mountApp(root: HTMLElement | null) {
     }
 
     /* Story | Board(remaining) | Images */
-    .gridGame{
-      position:relative;
-      z-index:1;
-      display:grid;
-      grid-template-columns:
-        minmax(320px, 1.15fr)   /* Story */
-        minmax(560px, 3.25fr)   /* Board */
-        minmax(260px, 1.10fr);  /* Images */
-      gap: 12px;
-      height: 100%;
-      min-height: 0;
-    }
+   .gridGame{
+  grid-template-columns:
+    320px              /* Story fixed */
+    1fr                /* Board takes the rest */
+    320px;             /* Images fixed */
+}
+
 
     .cardGame{
       height: 100%;
