@@ -43,7 +43,7 @@ function appendHint(parent: HTMLElement, txt: string) {
 }
 
 function escapeHtml(str: string) {
-  return str.replace(/[&<>"']/g, (m) => {
+  return String(str).replace(/[&<>"']/g, (m) => {
     const map: Record<string, string> = {
       "&": "&amp;",
       "<": "&lt;",
@@ -175,68 +175,133 @@ export function mountApp(root: HTMLElement | null) {
   const style = document.createElement("style");
   style.textContent = `
     :root{
-      --bg:#0b0f1a;
-      --panel: rgba(0,0,0,.16);
-      --border: rgba(255,255,255,.12);
-      --text:#e8e8e8;
-      --muted: rgba(232,232,232,.80);
-      --accent: rgba(255,152,0,.95);
-      --accent2: rgba(3,169,244,.95);
+      --bg0:#05070d;
+      --bg1:#070a14;
+      --ink:#eaf2ff;
+      --muted:rgba(234,242,255,.72);
+
+      --card: rgba(10, 16, 34, .62);
+      --card2: rgba(10, 16, 34, .42);
+      --stroke: rgba(160, 210, 255, .22);
+      --stroke2: rgba(160, 210, 255, .14);
+
+      --aqua:#5fe1ff;
+      --ice:#bfe8ff;
+      --violet:#7a6cff;
+
       --radius: 18px;
 
-      --sideW: 360px;
-      --imgW: 340px;
-      --gap: 14px;
-
-      --baseFont: 12px;
-      --baseLine: 1.35;
+      --storyW: 320px;
+      --imagesW: 300px;
     }
 
     *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color:var(--ink);
+      background:
+        radial-gradient(1200px 800px at 20% 10%, rgba(95,225,255,.10), transparent 60%),
+        radial-gradient(900px 700px at 85% 30%, rgba(122,108,255,.12), transparent 55%),
+        radial-gradient(1000px 900px at 50% 110%, rgba(0,170,255,.08), transparent 55%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow-x:hidden;
+      font-size: 14px;
+    }
+    body::before{
+      content:"";
+      position:fixed;
+      inset:-60px;
+      pointer-events:none;
+      background:
+        conic-gradient(from 90deg at 50% 50%,
+          rgba(95,225,255,.06),
+          rgba(122,108,255,.05),
+          rgba(191,232,255,.06),
+          rgba(95,225,255,.06));
+      filter: blur(32px);
+      opacity:.55;
+      animation: prism 14s linear infinite;
+    }
+    @keyframes prism{
+      0%{ transform: rotate(0deg) scale(1.05); }
+      100%{ transform: rotate(360deg) scale(1.05); }
+    }
 
     .shell{
-      max-width: 100%;
+      width: min(1500px, 100%);
       margin: 0 auto;
-      padding: 18px;
-      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial;
-      color: var(--text);
-
-      font-size: var(--baseFont);
-      line-height: var(--baseLine);
+      padding: 18px 18px 22px;
+      color: var(--ink);
     }
+
     .shell.kids{
-      --bg:#0b1020;
-      --panel: rgba(10, 20, 60, .22);
-      --accent: rgba(0, 212, 255, .95);
-      --accent2: rgba(255, 193, 7, .95);
+      --card: rgba(8, 18, 44, .62);
+      --card2: rgba(8, 18, 44, .42);
+      --aqua:#00d4ff;
+      --violet:#7a6cff;
     }
 
     .topBar{
       display:flex;
-      align-items:center;
+      align-items:flex-start;
       justify-content:space-between;
-      gap:12px;
+      gap:14px;
       flex-wrap:wrap;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
+      position: relative;
+      z-index: 2;
     }
-    .brand{display:flex; align-items:center; gap:10px;}
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
     .dotBrand{
       width:10px;height:10px;border-radius:999px;
-      background: var(--accent);
+      background: rgba(255,152,0,.95);
       box-shadow: 0 0 18px rgba(255,152,0,.35);
     }
-    .shell.kids .dotBrand{ box-shadow: 0 0 18px rgba(0, 212, 255, .35); }
-    .brandTitle{font-weight:800; letter-spacing:.4px; font-size: 16px;}
-    .crumb{opacity:.85; font-size: 12px;}
+    .shell.kids .dotBrand{
+      background: rgba(0,212,255,.95);
+      box-shadow: 0 0 18px rgba(0, 212, 255, .35);
+    }
+    .brandTitle{font-weight:900; letter-spacing:.4px; font-size: 18px;}
+    .crumb{opacity:.85; font-size: 13px; margin-top: 2px;}
 
     .view{ display:none; }
     .view.active{ display:block; }
 
     .card{
-      border:1px solid var(--border);
-      background: var(--panel);
-      border-radius: var(--radius);
+      border:1px solid var(--stroke2);
+      background: rgba(10,16,34,.35);
+      border-radius: calc(var(--radius) + 6px);
       padding: 14px;
+      box-shadow:
+        0 0 0 1px rgba(95,225,255,.08) inset,
+        0 18px 60px rgba(0,0,0,.45);
+      backdrop-filter: blur(10px);
+      position:relative;
+      z-index:1;
+      overflow:hidden;
+    }
+    .card::before{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        radial-gradient(circle at 18% 20%, rgba(95,225,255,.10), transparent 40%),
+        radial-gradient(circle at 85% 35%, rgba(122,108,255,.10), transparent 45%),
+        repeating-linear-gradient(
+          135deg,
+          rgba(191,232,255,.06) 0px,
+          rgba(191,232,255,.06) 1px,
+          transparent 1px,
+          transparent 16px
+        );
+      opacity:.45;
+      pointer-events:none;
     }
 
     .grid{
@@ -246,42 +311,47 @@ export function mountApp(root: HTMLElement | null) {
     }
     @media (max-width: 980px){ .grid{ grid-template-columns: 1fr; } }
 
-    h1{margin:0;font-size:34px;letter-spacing:.3px;font-weight:900;line-height:1.05;}
-    h2{margin:0 0 10px 0;font-size:16px;font-weight:850;line-height:1.15;}
-    h3{margin:0 0 10px 0;font-size:13px;font-weight:800;line-height:1.2;}
-
-    .hint{opacity:.85;font-size:12px;line-height:1.35}
+    h1{margin:0;font-size:42px;letter-spacing:.3px; position:relative; z-index:1}
+    h2{margin:0 0 10px 0;font-size:18px; position:relative; z-index:1}
+    h3{margin:0 0 10px 0;font-size:15px; position:relative; z-index:1}
+    .hint{opacity:.85;font-size:13px; position:relative; z-index:1}
     .muted{opacity:.82}
 
-    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap; position:relative; z-index:1}
     .btn{
       padding:8px 10px;
       border-radius: 12px;
       border:1px solid rgba(255,255,255,.18);
       background: rgba(0,0,0,.22);
-      color: var(--text);
+      color: var(--ink);
       cursor:pointer;
       user-select:none;
-      font-size: 12px;
-      line-height: 1.2;
-      font-weight: 750;
     }
     .btn:hover{border-color:rgba(255,255,255,.32)}
     .btn.primary{
       border-color: rgba(255,152,0,.40);
       background: rgba(255,152,0,.18);
     }
-    .btn.small{padding:6px 8px;border-radius:10px;font-size:11px}
+    .shell.kids .btn.primary{
+      border-color: rgba(0, 212, 255, .40);
+      background: rgba(0, 212, 255, .14);
+    }
+    .btn.small{padding:6px 8px;border-radius:10px;font-size:12px}
 
-    /* Start screen tiles */
+    /* ✅ Start screen: 3-column grid (tile | empty gap | tile) */
     .modeGrid{
       display:grid;
       grid-template-columns: 1fr 96px 1fr;
       align-items: stretch;
       width: 100%;
+      position:relative;
+      z-index:1;
     }
     @media (max-width: 980px){
-      .modeGrid{ grid-template-columns: 1fr; gap: 16px; }
+      .modeGrid{
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
     }
 
     .modeTile{
@@ -300,6 +370,10 @@ export function mountApp(root: HTMLElement | null) {
     .modeTile.primary{
       border-color: rgba(255,152,0,.55);
       box-shadow: 0 0 0 3px rgba(255,152,0,.10) inset;
+    }
+    .shell.kids .modeTile.primary{
+      border-color: rgba(0, 212, 255, .55);
+      box-shadow: 0 0 0 3px rgba(0, 212, 255, .10) inset;
     }
 
     .modeBg{
@@ -336,12 +410,12 @@ export function mountApp(root: HTMLElement | null) {
     }
     .modeTextWrap .title{
       font-weight: 900;
-      font-size: 20px;
+      font-size: 22px;
       line-height: 1.05;
     }
     .modeTextWrap .sub{
       margin-top: 8px;
-      font-size: 12px;
+      font-size: 14px;
       opacity: .85;
       line-height: 1.25;
     }
@@ -369,8 +443,8 @@ export function mountApp(root: HTMLElement | null) {
       align-items:center;
       justify-content:space-between;
       gap: 10px;
-      font-size: 12px;
-      line-height: 1.35;
+      position:relative;
+      z-index:1;
     }
     .tile:hover{border-color:rgba(255,255,255,.28)}
     .tile.selected{
@@ -378,8 +452,13 @@ export function mountApp(root: HTMLElement | null) {
       box-shadow: 0 0 0 3px rgba(255,152,0,.10) inset;
       background: rgba(255,152,0,.08);
     }
+    .shell.kids .tile.selected{
+      border-color: rgba(0, 212, 255, .55);
+      box-shadow: 0 0 0 3px rgba(0, 212, 255, .10) inset;
+      background: rgba(0, 212, 255, .08);
+    }
     .tileMain{min-width:0}
-    .tileTitle{font-weight:850; margin-bottom: 3px; font-size: 13px;}
+    .tileTitle{font-weight:800; margin-bottom: 3px}
     .tileDesc{font-size:12px; opacity:.82; line-height:1.25}
 
     .drop{
@@ -390,8 +469,8 @@ export function mountApp(root: HTMLElement | null) {
       display:flex;
       gap: 12px;
       align-items:center;
-      font-size: 12px;
-      line-height: 1.35;
+      position:relative;
+      z-index:1;
     }
     .drop input{display:none}
     .preview{
@@ -401,136 +480,111 @@ export function mountApp(root: HTMLElement | null) {
       background: rgba(0,0,0,.25);
       display:grid; place-items:center;
       overflow:hidden;
-      font-size:11px;
+      font-size:12px;
       text-align:center;
       opacity:.85;
       flex:0 0 auto;
       white-space:pre-line;
-      line-height: 1.15;
     }
     .preview img{width:100%;height:100%;object-fit:cover;display:block}
-    .field{display:flex;flex-direction:column;gap:6px;margin-top:10px}
-    label{font-size:11px;opacity:.8}
+    .field{display:flex;flex-direction:column;gap:6px;margin-top:10px; position:relative; z-index:1}
+    label{font-size:12px;opacity:.8}
     input[type="text"]{
       padding:8px 10px;
       border-radius: 12px;
       border:1px solid rgba(255,255,255,.18);
       background: rgba(0,0,0,.22);
-      color: var(--text);
+      color: var(--ink);
       outline:none;
-      font-size: 12px;
-      line-height: 1.2;
     }
 
-    /* --- GAME LAYOUT --- */
-    .gameWrap{ width:100%; max-width:100%; }
-
-    .gameHeaderGrid{
-      display:grid;
-      grid-template-columns: var(--sideW) 1fr var(--imgW);
-      gap: var(--gap);
-      align-items: start;
-      margin-bottom: 12px;
-    }
-
-    .gameTitleBox{ min-width:0; }
-    .gameTitleBox h1{ margin:0; font-size:34px; letter-spacing:.3px; }
-    .gameTitleBox .hint{ margin-top:6px; }
-
-    .gameHeaderMid{
-      min-width: 0;
-      display:flex;
-      flex-direction:column;
-      gap: 10px;
-    }
-
-    .gameHeaderControls{
-      display:flex;
-      justify-content:flex-end;
-      align-items:center;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-
-    select,button{
-      padding:8px 10px;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,.18);
-      background:rgba(0,0,0,.22);
-      color:#e8e8e8;
-      font-size: 12px;
-      line-height: 1.2;
-      font-weight: 750;
-    }
-    button{cursor:pointer}
-
-    .gridGame3{
-      display:grid;
-      grid-template-columns: var(--sideW) 1fr var(--imgW);
-      gap: var(--gap);
-      align-items: stretch;
-    }
-
-    .panelGame{
-      border:1px solid rgba(255,255,255,.12);
-      background:rgba(0,0,0,.16);
-      border-radius:18px;
+    /* -------------------------
+       Screen 4: Game layout
+    ------------------------- */
+    .gameStage{
+      border: 1px solid rgba(191,232,255,.20);
+      background: linear-gradient(180deg, rgba(10,16,34,.58), rgba(10,16,34,.34));
+      border-radius: calc(var(--radius) + 6px);
+      box-shadow:
+        0 0 0 1px rgba(95,225,255,.10) inset,
+        0 18px 60px rgba(0,0,0,.55);
+      padding: 12px;
       overflow:hidden;
-      min-width: 0;
-      display:flex;
-      flex-direction:column;
-      box-shadow: 0 0 0 1px rgba(3,169,244,.08) inset, 0 18px 60px rgba(0,0,0,.35);
-      font-size: 12px;
-      line-height: 1.35;
+      position:relative;
+      z-index:1;
+    }
+    .gameStage::before{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        radial-gradient(circle at 18% 20%, rgba(95,225,255,.10), transparent 40%),
+        radial-gradient(circle at 85% 35%, rgba(122,108,255,.10), transparent 45%),
+        repeating-linear-gradient(
+          135deg,
+          rgba(191,232,255,.06) 0px,
+          rgba(191,232,255,.06) 1px,
+          transparent 1px,
+          transparent 16px
+        ),
+        repeating-linear-gradient(
+          45deg,
+          rgba(95,225,255,.05) 0px,
+          rgba(95,225,255,.05) 1px,
+          transparent 1px,
+          transparent 22px
+        );
+      opacity:.45;
+      pointer-events:none;
     }
 
+    .panel{
+      border-radius: var(--radius);
+      border: 1px solid rgba(160, 210, 255, .22);
+      background: rgba(10,16,34,.45);
+      overflow:hidden;
+      box-shadow:
+        0 0 0 1px rgba(95,225,255,.10) inset,
+        0 18px 40px rgba(0,0,0,.35);
+      display:flex;
+      flex-direction:column;
+      min-width: 0;
+      min-height: 0;
+    }
     .panelHead{
-      padding: 10px 12px;
-      border-bottom: 1px solid rgba(255,255,255,.10);
+      padding:10px 12px;
+      border-bottom: 1px solid rgba(191,232,255,.16);
+      background: linear-gradient(180deg, rgba(10,16,34,.62), rgba(10,16,34,.30));
+      backdrop-filter: blur(10px);
       display:flex;
       align-items:center;
       justify-content:space-between;
-      gap:10px;
+      gap:12px;
       flex-wrap:wrap;
-      background: linear-gradient(180deg, rgba(10,16,34,.62), rgba(10,16,34,.30));
     }
-    .panelHead .leftTag{ display:flex; align-items:center; gap:10px; }
-    .panelDot{
-      width:8px;height:8px;border-radius:999px;
-      background: rgba(3,169,244,.95);
-      box-shadow: 0 0 14px rgba(3,169,244,.35);
-    }
-    .panelTitle{ font-weight: 900; font-size: 12px; letter-spacing:.2px; }
-    .pill{
-      font-size: 11px;
-      opacity:.85;
-      padding: 6px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.14);
-      background: rgba(0,0,0,.18);
-      font-weight: 700;
-    }
-
-    .panelBody{
-      padding: 12px;
+    .tag{
+      font-size:11px;
+      color: var(--muted);
       display:flex;
-      flex-direction:column;
-      gap: 10px;
-      min-height: 0;
-      flex: 1;
+      align-items:center;
+      gap:8px;
+      opacity:.95;
     }
-
-    .softCard{
-      border:1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.14);
-      border-radius: 16px;
-      padding: 10px 12px;
-      min-width:0;
-      font-size: 12px;
-      line-height: 1.35;
+    .dot{
+      width:8px; height:8px; border-radius:99px;
+      background: radial-gradient(circle at 30% 30%, var(--ice), var(--aqua));
+      box-shadow: 0 0 12px rgba(95,225,255,.35);
     }
+    .pill{
+      font-size:11px;
+      color: var(--muted);
+      padding:6px 10px;
+      border-radius:999px;
+      border: 1px solid rgba(191,232,255,.16);
+      background: rgba(10,16,34,.30);
+      max-width: 100%;
+    }
+    .pill strong{ color: var(--ink); }
 
-    /* Make ALL text blocks consistent with your desired style */
     .infoText{
       font-size: 12px;
       line-height: 1.35;
@@ -539,150 +593,270 @@ export function mountApp(root: HTMLElement | null) {
       font-weight: 700;
     }
 
-    .infoGrid2{
+    .gameHeaderGrid{
+      display:grid;
+      grid-template-columns: var(--storyW) 1fr var(--imagesW);
+      gap: 12px;
+      margin-top: 12px;
+      margin-bottom: 12px;
+      position:relative;
+      z-index:1;
+      min-width:0;
+    }
+    .gameHeaderLeft{ min-height: 1px; }
+    .gameHeaderMid{
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      min-width:0;
+    }
+    .gameHeaderRight{
+      display:flex;
+      align-items:flex-start;
+      justify-content:flex-end;
+      gap: 10px;
+      flex-wrap:wrap;
+      min-width:0;
+    }
+
+    .softCard{
+      border:1px solid rgba(191,232,255,.14);
+      background: rgba(10,16,34,.22);
+      border-radius: 14px;
+      padding: 10px 12px;
+      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset;
+      min-width:0;
+    }
+
+    .infoTopGrid{
       display:grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
-      align-items: stretch;
+      min-width:0;
+    }
+    @media (max-width: 1100px){
+      .infoTopGrid{ grid-template-columns: 1fr; }
     }
 
     .msgBar{
-      padding:10px 12px;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.12);
-      background:rgba(0,0,0,.18);
-      font-size: 12px;
-      line-height: 1.35;
-      font-weight: 700;
+      border:1px solid rgba(191,232,255,.14);
+      background: rgba(10,16,34,.22);
+      border-radius: 14px;
+      padding: 10px 12px;
+      min-height: 40px;
+      display:flex;
+      align-items:center;
+      color: rgba(234,242,255,.92);
+      font-weight: 650;
     }
 
-    /* Board-wide sizing knobs */
-.boardWrap{
-  --hexGap: 10px;
-  --hexW: clamp(44px, 6.4vh, 92px); /* keep your current behaviour for now */
-  --hexH: calc(var(--hexW) * 0.88);
-}
+    .controlsRow{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    select,button{
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(0,0,0,.22);
+      color: var(--ink);
+    }
+    button{cursor:pointer}
+    button:hover{ border-color: rgba(255,255,255,.32); }
 
-/* rows */
-.hexRow{
-  display:flex;
-  gap: var(--hexGap);
-  align-items:center;
-}
+    .gameGrid{
+      display:grid;
+      grid-template-columns: var(--storyW) 1fr var(--imagesW);
+      gap: 12px;
+      min-height: 640px;
+      height: calc(100vh - 210px);
+      min-width:0;
+      position:relative;
+      z-index:1;
+    }
 
-/* ✅ offset tied to hex size (fixes phone drift) */
-.hexRow.offset{
-  padding-left: calc((var(--hexW) / 2) + (var(--hexGap) / 2));
-}
+    .storyBody{
+      padding: 12px;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      overflow:auto;
+      min-height:0;
+    }
 
-.hex{
-  width: var(--hexW);
-  height: var(--hexH);
+    .boardBody{
+      padding: 12px;
+      display:flex;
+      flex-direction:column;
+      gap: 12px;
+      min-height:0;
+      overflow:hidden;
+    }
 
-  clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
-  border:1px solid rgba(255,255,255,.18);
-  background:rgba(255,255,255,.05);
-  display:flex;align-items:center;justify-content:center;
-  cursor:pointer; position:relative;
-  user-select:none;
+    .imagesBody{
+      padding: 12px;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      min-height:0;
+      overflow:hidden;
+    }
 
-  /* ✅ label scales with size */
-  font-size: clamp(9px, calc(var(--hexW) * 0.18), 12px);
-  line-height: 1.05;
-  opacity:.95;
-  font-weight: 700;
-}
+    .imgFrame{
+      border-radius: 16px;
+      border: 1px solid rgba(191,232,255,.16);
+      background: rgba(10,16,34,.28);
+      overflow:hidden;
+      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 12px 28px rgba(0,0,0,.28);
+      display:flex;
+      flex-direction:column;
+      min-height: 220px;
+    }
+    .imgFrameHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(191,232,255,.12);
+      background: linear-gradient(180deg, rgba(10,16,34,.55), rgba(10,16,34,.28));
+      flex-wrap:wrap;
+      flex: 0 0 auto;
+    }
+    .imgFrameBody{
+      flex:1;
+      min-height:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding: 10px;
+      color: rgba(234,242,255,.72);
+      font-size: 12px;
+      text-align:center;
+    }
+    .imgFrameBody img{
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display:block;
+    }
 
-.hex:hover{border-color:rgba(255,255,255,.35)}
-.hex.sel{outline:2px solid rgba(255,255,255,.6)}
-.hex.reach{outline:2px solid rgba(76,175,80,.75)}
-.hex.player{background:rgba(76,175,80,.18)}
-.hex.goal{background:rgba(255,193,7,.16)}
-.hex.blocked{background:rgba(244,67,54,.14);opacity:.75}
-.hex.missing{background:rgba(120,120,120,.10);opacity:.45}
-.hex.fog{background:rgba(0,0,0,.38);opacity:.6}
+    .boardWrap{
+      flex: 1;
+      min-height: 0;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      overflow:auto;
+      /* sizing knobs set by JS */
+      --hexGap: 5px;
+      --hexW: 64px;
+      --hexH: calc(var(--hexW) * 0.88);
+    }
 
-.hex.trSrc{
-  outline:5px solid rgba(255,152,0,.95);
-  box-shadow:
-    0 0 0 3px rgba(255,152,0,.45),
-    0 0 22px rgba(255,152,0,.75),
-    0 0 44px rgba(255,152,0,.55);
-}
-.hex.trTgt{
-  outline:5px solid rgba(3,169,244,.95);
-  box-shadow:
-    0 0 0 3px rgba(3,169,244,.45),
-    0 0 22px rgba(3,169,244,.75),
-    0 0 44px rgba(3,169,244,.55);
-  animation:pulse 1.2s ease-in-out infinite;
-}
+    .hexRow{
+      display:flex;
+      gap: var(--hexGap);
+      align-items:center;
+    }
+    .hexRow.offset{
+      padding-left: calc((var(--hexW) / 2) + (var(--hexGap) / 2));
+    }
 
+    .hex{
+      width: var(--hexW);
+      height: var(--hexH);
+
+      clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.05);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      position:relative;
+      user-select:none;
+
+      font-size: clamp(9px, calc(var(--hexW) * 0.18), 12px);
+      line-height: 1.05;
+      opacity:.95;
+      font-weight: 700;
+    }
+    .hex:hover{border-color:rgba(255,255,255,.35)}
+    .hex.sel{outline:2px solid rgba(255,255,255,.6)}
+    .hex.reach{outline:2px solid rgba(76,175,80,.75)}
+    .hex.player{background:rgba(76,175,80,.18)}
+    .hex.goal{background:rgba(255,193,7,.16)}
+    .hex.blocked{background:rgba(244,67,54,.14);opacity:.75}
+    .hex.missing{background:rgba(120,120,120,.10);opacity:.45}
+    .hex.fog{background:rgba(0,0,0,.38);opacity:.6}
+
+    .hex.trSrc{
+      outline:5px solid rgba(255,152,0,.95);
+      box-shadow:
+        0 0 0 3px rgba(255,152,0,.45),
+        0 0 22px rgba(255,152,0,.75),
+        0 0 44px rgba(255,152,0,.55);
+    }
+    .hex.trTgt{
+      outline:5px solid rgba(3,169,244,.95);
+      box-shadow:
+        0 0 0 3px rgba(3,169,244,.45),
+        0 0 22px rgba(3,169,244,.75),
+        0 0 44px rgba(3,169,244,.55);
+      animation:pulse 1.2s ease-in-out infinite;
+    }
     @keyframes pulse{
       0%{filter:brightness(1)}
       50%{filter:brightness(1.35)}
       100%{filter:brightness(1)}
     }
 
-    .dot{
+    .dotHex{
       position:absolute;right:8px;top:8px;
       width:10px;height:10px;border-radius:999px;
       border:1px solid rgba(255,255,255,.35);
       background:rgba(255,255,255,.12);
     }
-    .dot.player{background:rgba(76,175,80,.95);border-color:rgba(76,175,80,.95)}
-    .dot.goal{background:rgba(255,193,7,.95);border-color:rgba(255,193,7,.95)}
+    .dotHex.player{background:rgba(76,175,80,.95);border-color:rgba(76,175,80,.95)}
+    .dotHex.goal{background:rgba(255,193,7,.95);border-color:rgba(255,193,7,.95)}
 
     .dist{
       position:absolute;left:8px;bottom:8px;
       padding:2px 6px;border-radius:999px;
       border:1px solid rgba(255,255,255,.18);
       background:rgba(0,0,0,.30);
-      font-size: 10px;
-      line-height: 1;
-      font-weight: 800;
+      font-size:11px;line-height:1;
     }
     .trBadge{
       position:absolute;left:8px;top:8px;
       padding:2px 6px;border-radius:999px;
       border:1px solid rgba(255,255,255,.18);
       background:rgba(0,0,0,.30);
-      font-size: 10px;
-      line-height: 1;
-      font-weight: 900;
+      font-size:11px;line-height:1;
     }
 
-    .imgFrame{
-      width:100%;
-      height: 220px;
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.20);
-      overflow:hidden;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      color: rgba(232,232,232,.7);
-      font-size: 11px;
-      text-align:center;
-      padding: 10px;
-      line-height: 1.35;
-    }
-    .imgFrame img{
-      width:100%;
-      height:100%;
-      object-fit: cover;
-      display:block;
-    }
-
-    @media (max-width: 1200px){
-      :root{ --sideW: 320px; --imgW: 320px; }
-    }
-    @media (max-width: 1040px){
-      .gameHeaderGrid{ grid-template-columns: 1fr; }
-      .gridGame3{ grid-template-columns: 1fr; }
-      .gameHeaderControls{ justify-content:flex-start; }
-      .infoGrid2{ grid-template-columns: 1fr; }
+    @media (max-width: 1100px){
+      :root{
+        --storyW: 1fr;
+        --imagesW: 1fr;
+      }
+      .gameHeaderGrid{
+        grid-template-columns: 1fr;
+      }
+      .gameHeaderRight{
+        justify-content:flex-start;
+      }
+      .gameGrid{
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: 0;
+      }
+      .boardWrap{ max-height: 560px; }
+      .imagesBody{ overflow:auto; }
     }
   `;
   document.head.appendChild(style);
@@ -694,6 +868,7 @@ export function mountApp(root: HTMLElement | null) {
   const shell = el("div", "shell");
 
   const topBar = el("div", "topBar");
+
   const brand = el("div", "brand");
   const brandDot = el("div", "dotBrand");
   const brandTitle = el("div", "brandTitle");
@@ -760,7 +935,8 @@ export function mountApp(root: HTMLElement | null) {
 
     const grid = el("div", "modeGrid");
 
-    const baseUrl = import.meta.env.BASE_URL;
+    // GitHub Pages safe base
+    const baseUrl = import.meta.env.BASE_URL; // "/<repo>/" on GH pages
     const regularImg = `${baseUrl}images/ui/regular.png`;
     const kidsImg = `${baseUrl}images/ui/kids.png`;
 
@@ -926,7 +1102,7 @@ export function mountApp(root: HTMLElement | null) {
       <div class="muted" style="margin-top:6px;">
         ${escapeHtml(String(s?.desc ?? s?.description ?? "No description."))}
       </div>
-      <div class="hint" style="margin-top:10px;">Mode: <b>${mode ?? "—"}</b></div>
+      <div class="hint" style="margin-top:10px;">Mode: <b>${escapeHtml(String(mode ?? "—"))}</b></div>
       <div class="hint">Tutorial/Demo are scenarios (locked)</div>
     `;
     right.appendChild(details);
@@ -955,6 +1131,7 @@ export function mountApp(root: HTMLElement | null) {
     const right = el("div", "card");
     layout.append(left, right);
 
+    // Player
     const h2 = el("h2");
     h2.textContent = "Choose your player";
     left.appendChild(h2);
@@ -1041,6 +1218,7 @@ export function mountApp(root: HTMLElement | null) {
     customCard.append(h3, drop, useCustom);
     left.appendChild(customCard);
 
+    // Monsters/Creatures
     const mh2 = el("h2");
     mh2.textContent = monstersLabel();
     right.appendChild(mh2);
@@ -1084,6 +1262,7 @@ export function mountApp(root: HTMLElement | null) {
     }
     right.appendChild(mpresetWrap);
 
+    // Custom monster/creature
     const customM = el("div", "card");
     (customM as HTMLElement).style.background = "rgba(0,0,0,.12)";
     (customM as HTMLElement).style.marginTop = "12px";
@@ -1154,6 +1333,7 @@ export function mountApp(root: HTMLElement | null) {
     customM.append(mh3, mdrop, addMonsterBtn);
     right.appendChild(customM);
 
+    // Footer actions
     const footer = el("div", "row");
     (footer as HTMLElement).style.marginTop = "14px";
     (footer as HTMLElement).style.justifyContent = "space-between";
@@ -1286,41 +1466,52 @@ export function mountApp(root: HTMLElement | null) {
     message = "";
   }
 
+  function getPlayerDisplayName() {
+    if (!chosenPlayer) return "—";
+    return chosenPlayer.kind === "preset" ? chosenPlayer.name : chosenPlayer.name;
+  }
+
+  function getPlayerImageUrl(): string | null {
+    if (!chosenPlayer) return null;
+    if (chosenPlayer.kind === "custom") return chosenPlayer.imageDataUrl ?? null;
+    return null; // preset: no image yet
+  }
+
   function renderGameScreen() {
-    if (gameBuilt) {
-      renderAll();
-      return;
-    }
+    if (gameBuilt) return;
     gameBuilt = true;
 
     vGame.innerHTML = "";
-    const wrap = el("div", "gameWrap");
 
-    const headerGrid = el("div", "gameHeaderGrid");
-
-    // (1) title column
-    const titleBox = el("div", "gameTitleBox");
+    const titleWrap = el("div");
     const title = el("h1");
     title.textContent = "Game";
     const sub = el("div", "hint");
     const sc: any = scenarios[scenarioIndex];
     sub.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")}`;
-    titleBox.append(title, sub);
+    titleWrap.append(title, sub);
 
-    // (2) middle column (INFO + MESSAGE)
+    const stage = el("div", "gameStage");
+
+    // Header grid aligned to 3 columns
+    const headerGrid = el("div", "gameHeaderGrid");
+    const headerLeft = el("div", "gameHeaderLeft"); // empty (matches story column)
     const mid = el("div", "gameHeaderMid");
+    const headerRight = el("div", "gameHeaderRight");
 
-    const infoGrid = el("div", "infoGrid2");
+    // Middle: infoTop (two columns) + message bar
+    const infoTop = el("div", "infoTopGrid");
     const infoLeft = el("div", "softCard infoText");
     const infoRight = el("div", "softCard infoText");
-    infoGrid.append(infoLeft, infoRight);
+    infoTop.append(infoLeft, infoRight);
 
-    const msgBar = el("div", "msgBar");
-    mid.append(infoGrid, msgBar);
+    const msgBar = el("div", "msgBar infoText");
+    msgBar.textContent = "Ready.";
 
-    // (3) controls column
-    const controls = el("div", "gameHeaderControls");
+    mid.append(infoTop, msgBar);
 
+    // Right: controls (scenario/layer/buttons/exit)
+    const controlsRow = el("div", "controlsRow");
     const scenarioSelect = el("select") as HTMLSelectElement;
     scenarios.forEach((s: any, i: number) => {
       const opt = document.createElement("option");
@@ -1343,110 +1534,155 @@ export function mountApp(root: HTMLElement | null) {
 
     const exitBtn = el("button") as HTMLButtonElement;
     exitBtn.textContent = "Exit";
+    exitBtn.addEventListener("click", () => {
+      renderSetup();
+      setScreen("setup");
+    });
 
-    controls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
+    controlsRow.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
+    headerRight.append(controlsRow);
 
-    headerGrid.append(titleBox, mid, controls);
+    headerGrid.append(headerLeft, mid, headerRight);
 
-    // MAIN GRID
-    const grid = el("div", "gridGame3");
+    // Main grid aligned to 3 columns
+    const gameGrid = el("div", "gameGrid");
 
-    const storyPanel = el("section", "panelGame");
-    const boardPanel = el("section", "panelGame");
-    const imagesPanel = el("section", "panelGame");
-
-    // Story panel
+    // Column 1: Story Log
+    const storyPanel = el("section", "panel");
     const storyHead = el("div", "panelHead");
-    const storyLeftTag = el("div", "leftTag");
-    storyLeftTag.append(el("div", "panelDot"), (() => {
-      const t = el("div", "panelTitle");
-      t.textContent = "Story Log";
-      return t;
-    })());
-    const storyPill = el("div", "pill");
-    storyPill.textContent = "Timeline";
-    storyHead.append(storyLeftTag, storyPill);
-
-    const storyBody = el("div", "panelBody");
-    storyBody.append(
+    storyHead.append(
       (() => {
-        const a = el("div", "softCard");
-        a.innerHTML = `<b>Story log will live here later.</b>`;
-        return a;
+        const t = el("div", "tag");
+        t.innerHTML = `<span class="dot"></span> Story Log`;
+        return t;
       })(),
       (() => {
-        const b = el("div", "softCard");
-        b.textContent = "Moves, discoveries, encounters, etc.";
-        return b;
+        const p = el("div", "pill");
+        p.textContent = "Timeline";
+        return p;
+      })()
+    );
+    const storyBody = el("div", "storyBody");
+    storyBody.append(
+      (() => {
+        const c = el("div", "softCard infoText");
+        c.innerHTML = `<b>Story log will live here later.</b>`;
+        return c;
+      })(),
+      (() => {
+        const c = el("div", "softCard infoText");
+        c.textContent = "Moves, discoveries, encounters, etc.";
+        return c;
       })()
     );
     storyPanel.append(storyHead, storyBody);
 
-    // Board panel (ONLY the hex grid)
+    // Column 2: Board
+    const boardPanel = el("section", "panel");
     const boardHead = el("div", "panelHead");
-    const boardLeftTag = el("div", "leftTag");
-    boardLeftTag.append(el("div", "panelDot"), (() => {
-      const t = el("div", "panelTitle");
-      t.textContent = "Board";
-      return t;
-    })());
-    const boardPill = el("div", "pill");
-    boardPill.textContent = `Build: ${BUILD_TAG}`;
-    boardHead.append(boardLeftTag, boardPill);
+    boardHead.append(
+      (() => {
+        const t = el("div", "tag");
+        t.innerHTML = `<span class="dot"></span> Board`;
+        return t;
+      })(),
+      (() => {
+        const p = el("div", "pill");
+        p.innerHTML = `<strong>Build:</strong> ${escapeHtml(BUILD_TAG)}`;
+        return p;
+      })()
+    );
 
-    const boardBody = el("div", "panelBody");
+    const boardBody = el("div", "boardBody");
     const boardWrap = el("div", "boardWrap");
+
     boardBody.append(boardWrap);
     boardPanel.append(boardHead, boardBody);
 
-    // Images panel
-    const imgHead = el("div", "panelHead");
-    const imgLeftTag = el("div", "leftTag");
-    imgLeftTag.append(el("div", "panelDot"), (() => {
-      const t = el("div", "panelTitle");
-      t.textContent = "Images";
-      return t;
-    })());
-    const imgPill = el("div", "pill");
-    imgPill.textContent = "Now";
-    imgHead.append(imgLeftTag, imgPill);
+    // Column 3: Images
+    const imagesPanel = el("section", "panel");
+    const imagesHead = el("div", "panelHead");
+    imagesHead.append(
+      (() => {
+        const t = el("div", "tag");
+        t.innerHTML = `<span class="dot"></span> Images`;
+        return t;
+      })(),
+      (() => {
+        const p = el("div", "pill");
+        p.textContent = "Now";
+        return p;
+      })()
+    );
 
-    const imgBody = el("div", "panelBody");
-
-    const playerCard = el("div", "softCard");
-    const playerRow = el("div");
-    playerRow.style.display = "flex";
-    playerRow.style.alignItems = "center";
-    playerRow.style.justifyContent = "space-between";
-    playerRow.style.gap = "10px";
-    playerRow.innerHTML = `<b>Player</b>`;
-    const playerNamePill = el("div", "pill");
-    playerNamePill.textContent = chosenPlayer?.name ?? "—";
-    playerRow.appendChild(playerNamePill);
+    const imagesBody = el("div", "imagesBody");
 
     const playerFrame = el("div", "imgFrame");
-    playerCard.append(playerRow, playerFrame);
-
-    const hexCard = el("div", "softCard");
-    const hexRow = el("div");
-    hexRow.style.display = "flex";
-    hexRow.style.alignItems = "center";
-    hexRow.style.justifyContent = "space-between";
-    hexRow.style.gap = "10px";
-    hexRow.innerHTML = `<b>Current Hex</b>`;
-    const hexIdPill = el("div", "pill");
-    hexIdPill.textContent = state?.playerHexId ?? "—";
-    hexRow.appendChild(hexIdPill);
+    const playerFrameHead = el("div", "imgFrameHead");
+    playerFrameHead.innerHTML = `
+      <div class="infoText"><b>Player</b></div>
+      <div class="pill"><strong>${escapeHtml(getPlayerDisplayName())}</strong></div>
+    `;
+    const playerFrameBody = el("div", "imgFrameBody");
+    playerFrame.append(playerFrameHead, playerFrameBody);
 
     const hexFrame = el("div", "imgFrame");
-    hexCard.append(hexRow, hexFrame);
+    const hexFrameHead = el("div", "imgFrameHead");
+    hexFrameHead.innerHTML = `
+      <div class="infoText"><b>Current Hex</b></div>
+      <div class="pill"><strong>${escapeHtml(String(state?.playerHexId ?? "—"))}</strong></div>
+    `;
+    const hexFrameBody = el("div", "imgFrameBody");
+    hexFrameBody.textContent = "NORMAL";
+    hexFrame.append(hexFrameHead, hexFrameBody);
 
-    imgBody.append(playerCard, hexCard);
-    imagesPanel.append(imgHead, imgBody);
+    imagesBody.append(playerFrame, hexFrame);
+    imagesPanel.append(imagesHead, imagesBody);
 
-    grid.append(storyPanel, boardPanel, imagesPanel);
-    wrap.append(headerGrid, grid);
-    vGame.appendChild(wrap);
+    gameGrid.append(storyPanel, boardPanel, imagesPanel);
+
+    // mount
+    stage.append(headerGrid, gameGrid);
+    vGame.append(titleWrap, stage);
+
+    // Fit hexes to width: (100% - gaps) / 7, clamp, and offset rows via CSS
+    function fitHexesToBoard() {
+      const cols = 7;
+      const gap = 5;
+      const w = boardWrap.clientWidth;
+      if (!w) return;
+
+      const raw = (w - (cols - 1) * gap) / cols;
+      const minW = 44;
+      const maxW = 92;
+      const hexW = Math.max(minW, Math.min(maxW, Math.floor(raw)));
+
+      boardWrap.style.setProperty("--hexGap", `${gap}px`);
+      boardWrap.style.setProperty("--hexW", `${hexW}px`);
+    }
+
+    const ro = new ResizeObserver(() => fitHexesToBoard());
+    ro.observe(boardWrap);
+    window.addEventListener("resize", fitHexesToBoard);
+
+    function renderPlayerImagePanel() {
+      const url = getPlayerImageUrl();
+      if (url) {
+        playerFrameBody.innerHTML = `<img src="${url}" alt="player">`;
+      } else {
+        playerFrameBody.textContent = "Preset player (no image yet).";
+      }
+    }
+
+    function renderHexPanel() {
+      const cur = state?.playerHexId ?? "—";
+      hexFrameHead.innerHTML = `
+        <div class="infoText"><b>Current Hex</b></div>
+        <div class="pill"><strong>${escapeHtml(String(cur))}</strong></div>
+      `;
+      // placeholder until you attach per-hex images later
+      hexFrameBody.textContent = String(getHex(cur as any)?.kind ?? "NORMAL");
+    }
 
     function renderInfoTop() {
       const s: any = scenario();
@@ -1487,16 +1723,6 @@ export function mountApp(root: HTMLElement | null) {
       msgBar.textContent = message || "Ready.";
     }
 
-    function renderImages() {
-      const playerImgUrl = chosenPlayer?.kind === "custom" ? chosenPlayer.imageDataUrl : null;
-      if (playerImgUrl) playerFrame.innerHTML = `<img src="${playerImgUrl}" alt="player">`;
-      else playerFrame.textContent = "Preset player (no image yet).";
-
-      hexIdPill.textContent = state?.playerHexId ?? "—";
-      const h: any = state?.playerHexId ? getHex(state.playerHexId) : null;
-      hexFrame.textContent = (h?.kind ? String(h.kind) : "—").toUpperCase();
-    }
-
     function renderBoard() {
       boardWrap.innerHTML = "";
       if (!state) return;
@@ -1535,8 +1761,13 @@ export function mountApp(root: HTMLElement | null) {
             btn.appendChild(badge);
           }
 
-          if (isPlayer) btn.appendChild(el("div", "dot player"));
-          else if (isGoal) btn.appendChild(el("div", "dot goal"));
+          if (isPlayer) {
+            const d = el("div", "dotHex player");
+            btn.appendChild(d);
+          } else if (isGoal) {
+            const d = el("div", "dotHex goal");
+            btn.appendChild(d);
+          }
 
           if (info?.reachable && info.distance != null) {
             const d = el("div", "dist");
@@ -1562,6 +1793,7 @@ export function mountApp(root: HTMLElement | null) {
               setLayerOptions(layerSelect);
               recomputeReachability();
               rebuildTransitionIndexAndHighlights();
+
               renderAll();
               return;
             } else {
@@ -1576,6 +1808,9 @@ export function mountApp(root: HTMLElement | null) {
 
         boardWrap.appendChild(row);
       }
+
+      // after DOM updates, fit again
+      fitHexesToBoard();
     }
 
     function renderAll() {
@@ -1583,13 +1818,9 @@ export function mountApp(root: HTMLElement | null) {
       renderInfoTop();
       renderMessage();
       renderBoard();
-      renderImages();
+      renderPlayerImagePanel();
+      renderHexPanel();
     }
-
-    exitBtn.addEventListener("click", () => {
-      renderSetup();
-      setScreen("setup");
-    });
 
     scenarioSelect.addEventListener("change", () => {
       scenarioIndex = Number(scenarioSelect.value);
@@ -1643,6 +1874,7 @@ export function mountApp(root: HTMLElement | null) {
     if (state) enterLayer(state, currentLayer);
     revealWholeLayer(currentLayer);
     recomputeReachability();
+    fitHexesToBoard();
     renderAll();
   }
 
