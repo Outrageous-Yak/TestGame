@@ -1269,11 +1269,11 @@ export function mountApp(root: HTMLElement | null) {
     const infoRight = el("div", "softCard infoText");
     infoGrid.append(infoLeft, infoRight);
 
-    const msgBar = el("div", "msgBar");
+    const msgBar = el("div", "msgBar infoText");
     mid.append(infoGrid, msgBar);
 
     // (3) controls column
-    const controls = el("div", "gameHeaderControls");
+    const controls = el("div", "gameHeaderControls infoText");
 
     const scenarioSelect = el("select") as HTMLSelectElement;
     scenarios.forEach((s: any, i: number) => {
