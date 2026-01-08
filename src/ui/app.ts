@@ -76,7 +76,12 @@ async function readFileAsDataURL(file: File): Promise<string> {
   });
 }
 
-function wireDropZone(dropEl: HTMLElement, inputEl: HTMLInputElement, previewEl: HTMLElement, onImage: (url: string) => void) {
+function wireDropZone(
+  dropEl: HTMLElement,
+  inputEl: HTMLInputElement,
+  previewEl: HTMLElement,
+  onImage: (url: string) => void
+) {
   dropEl.addEventListener("dragover", (e) => {
     e.preventDefault();
     dropEl.style.background = "rgba(240,163,91,.08)";
@@ -136,7 +141,6 @@ export function mountApp(root: HTMLElement | null) {
     { id: "m2", name: "Veilwing", blurb: "Skirmisher. Appears where you’re not looking." },
     { id: "m3", name: "Frostfang", blurb: "Cold pressure. Slows the pace." },
   ];
-  // Kids version = friendlier creatures / baddies
   const MONSTER_PRESETS_KIDS = [
     { id: "k1", name: "Bouncy Slime", blurb: "Goofy and harmless… mostly." },
     { id: "k2", name: "Patchwork Gremlin", blurb: "Mischief maker. Loves shiny things." },
@@ -247,10 +251,34 @@ export function mountApp(root: HTMLElement | null) {
     }
     .btn:hover{border-color:rgba(255,255,255,.32)}
     .btn.primary{
-      border-color: color-mix(in srgb, var(--accent) 45%, rgba(255,255,255,.18));
-      background: color-mix(in srgb, var(--accent) 18%, rgba(0,0,0,.22));
+      border-color: rgba(255,152,0,.40);
+      background: rgba(255,152,0,.18);
     }
     .btn.small{padding:6px 8px;border-radius:10px;font-size:12px}
+
+    /* ✅ Start screen buttons with icons */
+    .btnIcon{ display:flex; align-items:center; gap:10px; }
+    .btnIcon img{
+      width:26px; height:26px;
+      object-fit:contain;
+      border-radius:8px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.20);
+    }
+    .modeBtn{
+      padding:12px 14px;
+      border-radius:16px;
+      min-width: 260px;
+      justify-content:space-between;
+    }
+    .modeBtn .modeText{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-start;
+      line-height:1.1;
+    }
+    .modeBtn .modeText .title{font-weight:800}
+    .modeBtn .modeText .sub{font-size:12px;opacity:.82;margin-top:4px}
 
     .tile{
       padding: 12px;
@@ -265,9 +293,9 @@ export function mountApp(root: HTMLElement | null) {
     }
     .tile:hover{border-color:rgba(255,255,255,.28)}
     .tile.selected{
-      border-color: color-mix(in srgb, var(--accent) 55%, rgba(255,255,255,.12));
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent) inset;
-      background: color-mix(in srgb, var(--accent) 8%, rgba(255,255,255,.04));
+      border-color: rgba(255,152,0,.55);
+      box-shadow: 0 0 0 3px rgba(255,152,0,.10) inset;
+      background: rgba(255,152,0,.08);
     }
     .tileMain{min-width:0}
     .tileTitle{font-weight:800; margin-bottom: 3px}
@@ -308,7 +336,7 @@ export function mountApp(root: HTMLElement | null) {
       outline:none;
     }
 
-    /* --- Screen 4 styles (same as your current UI, but scoped) --- */
+    /* --- Screen 4 styles (your existing UI) --- */
     .wrap{max-width:1250px;margin:0 auto;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#e8e8e8}
     .top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
     .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -432,7 +460,8 @@ export function mountApp(root: HTMLElement | null) {
   function setScreen(next: Screen) {
     screen = next;
     [vStart, vSelect, vSetup, vGame].forEach((v) => v.classList.remove("active"));
-    const name = next === "start" ? "Start" : next === "select" ? "Select Game" : next === "setup" ? "Setup" : "In Game";
+    const name =
+      next === "start" ? "Start" : next === "select" ? "Select Game" : next === "setup" ? "Setup" : "In Game";
     crumb.textContent = name;
 
     if (next === "start") vStart.classList.add("active");
@@ -449,22 +478,22 @@ export function mountApp(root: HTMLElement | null) {
     mode = nextMode;
     applyModeTheme();
 
-    // load manifest based on mode
     const base = mode === "kids" ? "kids/" : "";
     const manifest = await fetchJson<Manifest>(`${base}scenarios/manifest.json`);
     initialPath = manifest.initial;
     scenarios = await Promise.all(manifest.files.map((f) => loadScenario(`${base}${f}`)));
 
-    // choose initial scenario index based on manifest.initial filename
     const initialBase = initialPath.split("/").pop()?.replace(".json", "") ?? "";
     scenarioIndex = Math.max(
       0,
-      scenarios.findIndex((s: any) => String((s as any).id ?? "") === initialBase || String((s as any).name ?? "") === initialBase)
+      scenarios.findIndex(
+        (s: any) => String((s as any).id ?? "") === initialBase || String((s as any).name ?? "") === initialBase
+      )
     );
   }
 
   // --------------------------
-  // Screen 1: Start (Mode selection)
+  // Screen 1: Start (Mode selection with images)
   // --------------------------
   function renderStart() {
     vStart.innerHTML = "";
@@ -477,12 +506,26 @@ export function mountApp(root: HTMLElement | null) {
 
     const row = el("div", "row");
 
-    const regularBtn = el("button", "btn primary");
-    regularBtn.textContent = "Regular version";
+    // ✅ Your uploaded files:
+    const regularIcon = "images/ui/regular.png";
+    const kidsIcon = "images/ui/kids.png";
+
+    const regularBtn = el("button", "btn primary btnIcon modeBtn") as HTMLButtonElement;
+    regularBtn.innerHTML = `
+      <span class="btnIcon">
+        <img src="${regularIcon}" alt="Regular" />
+        <span class="modeText">
+          <span class="title">Regular version</span>
+          <span class="sub">Standard tone and enemies</span>
+        </span>
+      </span>
+      <span class="hint">→</span>
+    `;
+
     regularBtn.addEventListener("click", async () => {
       try {
-        regularBtn.textContent = "Loading…";
         regularBtn.setAttribute("disabled", "true");
+        regularBtn.querySelector(".hint")!.textContent = "Loading…";
         await loadModeContent("regular");
         chosenPlayer = null;
         chosenMonsters = [];
@@ -490,17 +533,27 @@ export function mountApp(root: HTMLElement | null) {
         setScreen("select");
       } catch (e: any) {
         alert(String(e?.message ?? e));
-        regularBtn.textContent = "Regular version";
         regularBtn.removeAttribute("disabled");
+        regularBtn.querySelector(".hint")!.textContent = "→";
       }
     });
 
-    const kidsBtn = el("button", "btn");
-    kidsBtn.textContent = "Kids / Friendly";
+    const kidsBtn = el("button", "btn btnIcon modeBtn") as HTMLButtonElement;
+    kidsBtn.innerHTML = `
+      <span class="btnIcon">
+        <img src="${kidsIcon}" alt="Kids" />
+        <span class="modeText">
+          <span class="title">Kids / Friendly</span>
+          <span class="sub">Brighter UI, non-scary foes</span>
+        </span>
+      </span>
+      <span class="hint">→</span>
+    `;
+
     kidsBtn.addEventListener("click", async () => {
       try {
-        kidsBtn.textContent = "Loading…";
         kidsBtn.setAttribute("disabled", "true");
+        kidsBtn.querySelector(".hint")!.textContent = "Loading…";
         await loadModeContent("kids");
         chosenPlayer = null;
         chosenMonsters = [];
@@ -508,8 +561,8 @@ export function mountApp(root: HTMLElement | null) {
         setScreen("select");
       } catch (e: any) {
         alert(String(e?.message ?? e));
-        kidsBtn.textContent = "Kids / Friendly";
         kidsBtn.removeAttribute("disabled");
+        kidsBtn.querySelector(".hint")!.textContent = "→";
       }
     });
 
@@ -519,7 +572,7 @@ export function mountApp(root: HTMLElement | null) {
   }
 
   // --------------------------
-  // Screen 2: Game Select
+  // Screen 2: Scenario select
   // --------------------------
   function scenarioLabel(s: any, i: number) {
     return String(s?.name ?? s?.title ?? s?.id ?? `Scenario ${i + 1}`);
@@ -586,7 +639,6 @@ export function mountApp(root: HTMLElement | null) {
     actions.append(back, next);
     left.appendChild(actions);
 
-    // Details
     const h3 = el("h2");
     h3.textContent = "Selected";
     right.appendChild(h3);
@@ -607,7 +659,7 @@ export function mountApp(root: HTMLElement | null) {
   }
 
   // --------------------------
-  // Screen 3: Setup (player + monsters/creatures)
+  // Screen 3: Setup
   // --------------------------
   function getPlayerPresets() {
     return mode === "kids" ? PLAYER_PRESETS_KIDS : PLAYER_PRESETS_REGULAR;
@@ -627,7 +679,6 @@ export function mountApp(root: HTMLElement | null) {
     const right = el("div", "card");
     layout.append(left, right);
 
-    // Player
     const h2 = el("h2");
     h2.textContent = "Choose your player";
     left.appendChild(h2);
@@ -661,7 +712,6 @@ export function mountApp(root: HTMLElement | null) {
     }
     left.appendChild(presetWrap);
 
-    // Custom player
     const customCard = el("div", "card");
     (customCard as HTMLElement).style.background = "rgba(0,0,0,.12)";
     (customCard as HTMLElement).style.marginTop = "12px";
@@ -715,7 +765,6 @@ export function mountApp(root: HTMLElement | null) {
     customCard.append(h3, drop, useCustom);
     left.appendChild(customCard);
 
-    // Monsters/Creatures
     const mh2 = el("h2");
     mh2.textContent = monstersLabel();
     right.appendChild(mh2);
@@ -759,7 +808,6 @@ export function mountApp(root: HTMLElement | null) {
     }
     right.appendChild(mpresetWrap);
 
-    // Custom monster/creature
     const customM = el("div", "card");
     (customM as HTMLElement).style.background = "rgba(0,0,0,.12)";
     (customM as HTMLElement).style.marginTop = "12px";
@@ -830,40 +878,6 @@ export function mountApp(root: HTMLElement | null) {
     customM.append(mh3, mdrop, addMonsterBtn);
     right.appendChild(customM);
 
-    // Roster display
-    const roster = el("div", "card");
-    (roster as HTMLElement).style.marginTop = "12px";
-    const rh = el("h3");
-    rh.textContent = "Roster";
-    roster.appendChild(rh);
-
-    const rosterBody = el("div", "hint");
-    if (chosenMonsters.length === 0) {
-      rosterBody.textContent = "No selections yet.";
-    } else {
-      rosterBody.innerHTML = chosenMonsters
-        .map(
-          (m, idx) => `
-          <div class="row" style="justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,.06);">
-            <span>${idx + 1}. <b>${escapeHtml(m.name)}</b> <span class="muted">${m.notes ? "— " + escapeHtml(m.notes) : ""}</span></span>
-            <button class="btn small" data-rm="${idx}">Remove</button>
-          </div>
-        `
-        )
-        .join("");
-    }
-    roster.appendChild(rosterBody);
-    right.appendChild(roster);
-
-    roster.querySelectorAll("button[data-rm]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const idx = Number((btn as HTMLElement).getAttribute("data-rm"));
-        chosenMonsters.splice(idx, 1);
-        renderSetup();
-      });
-    });
-
-    // Footer actions
     const footer = el("div", "row");
     (footer as HTMLElement).style.marginTop = "14px";
     (footer as HTMLElement).style.justifyContent = "space-between";
@@ -896,7 +910,7 @@ export function mountApp(root: HTMLElement | null) {
   }
 
   // --------------------------
-  // Screen 4: Game
+  // Screen 4: Game (embedded)
   // --------------------------
   let gameBuilt = false;
 
@@ -1013,9 +1027,7 @@ export function mountApp(root: HTMLElement | null) {
     title.textContent = "Game";
     const sub = el("div", "hint");
     const sc: any = scenarios[scenarioIndex];
-    sub.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")} | Player: ${
-      chosenPlayer ? chosenPlayer.name : "—"
-    } | Roster: ${chosenMonsters.length}`;
+    sub.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")}`;
     titleWrap.append(title, sub);
 
     const controls = el("div", "controls");
@@ -1127,34 +1139,6 @@ export function mountApp(root: HTMLElement | null) {
         <div><b>Explored:</b> ${info?.explored ?? "—"}</div>
         <div><b>Has transitions:</b> ${transitionsByFrom.has(selectedId) ? "yes" : "no"}</div>
       `;
-
-      if (outgoingFromSelected.length) {
-        appendHint(selectionBody, "Outgoing transitions (click to jump):");
-
-        for (const t of outgoingFromSelected) {
-          const toId = t.__toId;
-          const toC = idToCoord(toId);
-
-          const btn = el("button", "linkBtn");
-          btn.textContent = `${String(t.type ?? "UP")} → ${toId}${toC && toC.layer !== currentLayer ? " (other layer)" : ""}`;
-
-          btn.addEventListener("click", () => {
-            selectedId = toId;
-            if (toC && state) {
-              currentLayer = toC.layer;
-              setLayerOptions(layerSelect);
-              enterLayer(state, currentLayer);
-              revealWholeLayer(currentLayer);
-              recomputeReachability();
-            }
-            message = `Jumped to: ${toId}`;
-            rebuildTransitionIndexAndHighlights();
-            renderAll();
-          });
-
-          selectionBody.appendChild(btn);
-        }
-      }
     }
 
     function renderScenarioDetails() {
@@ -1308,7 +1292,6 @@ export function mountApp(root: HTMLElement | null) {
       renderAll();
     });
 
-    // Init
     setLayerOptions(layerSelect);
     if (state) enterLayer(state, currentLayer);
     revealWholeLayer(currentLayer);
