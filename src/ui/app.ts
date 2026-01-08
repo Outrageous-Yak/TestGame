@@ -1,10 +1,13 @@
 import type { GameState, Scenario, Hex } from "../engine/types";
+import { assertScenario } from "../engine/scenario";
 import { newGame, getReachability, tryMove, endTurn, type ReachMap } from "../engine/api";
 import { ROW_LENS, posId, enterLayer, revealHex } from "../engine/board";
 
 type Coord = { layer: number; row: number; col: number };
-
 type Screen = "start" | "select" | "setup" | "game";
+type Mode = "regular" | "kids";
+
+type Manifest = { initial: string; files: string[] };
 
 type PlayerChoice =
   | { kind: "preset"; id: string; name: string }
@@ -52,6 +55,18 @@ function escapeHtml(str: string) {
   });
 }
 
+async function fetchJson<T>(path: string): Promise<T> {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error(`Failed to load: ${path}`);
+  return res.json();
+}
+
+async function loadScenario(path: string): Promise<Scenario> {
+  const s = await fetchJson<Scenario>(path);
+  assertScenario(s);
+  return s;
+}
+
 async function readFileAsDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -92,32 +107,40 @@ function randId(prefix: string) {
   return `${prefix}-${Math.random().toString(16).slice(2)}${Math.random().toString(16).slice(2)}`;
 }
 
-export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initialPath: string) {
+export function mountApp(root: HTMLElement | null) {
   if (!root) throw new Error('Missing element with id="app"');
 
-  const initialBase = initialPath.split("/").pop()?.replace(".json", "") ?? "";
-  const initialIndex = Math.max(
-    0,
-    scenarios.findIndex((s: any) => String((s as any).id ?? "") === initialBase || String((s as any).name ?? "") === initialBase)
-  );
-
   // --------------------------
-  // High-level UI State (Screens 1–4)
+  // App-level state
   // --------------------------
   let screen: Screen = "start";
-  let scenarioIndex = initialIndex;
+  let mode: Mode | null = null;
+
+  // Loaded per-mode after Screen 1
+  let scenarios: Scenario[] = [];
+  let initialPath = "";
+  let scenarioIndex = 0;
 
   // Setup selections (Screen 3)
-  const PLAYER_PRESETS = [
+  const PLAYER_PRESETS_REGULAR = [
     { id: "p1", name: "Aeris", blurb: "A calm force. Moves with intent." },
     { id: "p2", name: "Devlan", blurb: "A wary hunter. Reads the board." },
   ];
+  const PLAYER_PRESETS_KIDS = [
+    { id: "p1", name: "Sunny", blurb: "Brave, bright, and curious." },
+    { id: "p2", name: "Pip", blurb: "Small steps, big wins." },
+  ];
 
-  // UI-only monster presets
-  const MONSTER_PRESETS = [
+  const MONSTER_PRESETS_REGULAR = [
     { id: "m1", name: "Boneguard", blurb: "Holds ground. Punishes carelessness." },
     { id: "m2", name: "Veilwing", blurb: "Skirmisher. Appears where you’re not looking." },
     { id: "m3", name: "Frostfang", blurb: "Cold pressure. Slows the pace." },
+  ];
+  // Kids version = friendlier creatures / baddies
+  const MONSTER_PRESETS_KIDS = [
+    { id: "k1", name: "Bouncy Slime", blurb: "Goofy and harmless… mostly." },
+    { id: "k2", name: "Patchwork Gremlin", blurb: "Mischief maker. Loves shiny things." },
+    { id: "k3", name: "Cloud Puff", blurb: "Floats around and blocks the way." },
   ];
 
   let chosenPlayer: PlayerChoice | null = null;
@@ -126,31 +149,30 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   // --------------------------
   // Game State (Screen 4)
   // --------------------------
-  let state: GameState = newGame(scenarios[scenarioIndex]);
+  let state: GameState | null = null;
 
-  let selectedId: string | null = state.playerHexId ?? null;
-  let currentLayer = idToCoord(state.playerHexId)?.layer ?? 1;
+  let selectedId: string | null = null;
+  let currentLayer = 1;
   let message = "";
 
-  let reachMap: ReachMap = getReachability(state);
-  let reachable: Set<string> = new Set(Object.entries(reachMap).filter(([, v]) => v.reachable).map(([k]) => k));
+  let reachMap: ReachMap = {};
+  let reachable: Set<string> = new Set();
 
   // Transition index + highlights
   let transitionsAll: any[] = [];
   let transitionsByFrom = new Map<string, any[]>();
-  let sourcesOnLayer = new Set<string>(); // from-ids on currentLayer
-  let targetsSameLayer = new Map<string, string>(); // toId -> badge (▲/▼) for selected source only
+  let sourcesOnLayer = new Set<string>();
+  let targetsSameLayer = new Map<string, string>();
   let outgoingFromSelected: any[] = [];
 
   // --------------------------
-  // Styles (screens + your existing game styles)
+  // Styles (Screens + Game)
   // --------------------------
   const style = document.createElement("style");
   style.textContent = `
     :root{
       --bg:#0b0f1a;
       --panel: rgba(0,0,0,.16);
-      --panel2: rgba(0,0,0,.18);
       --border: rgba(255,255,255,.12);
       --text:#e8e8e8;
       --muted: rgba(232,232,232,.80);
@@ -166,6 +188,12 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
       font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial;
       color: var(--text);
     }
+    .shell.kids{
+      --bg:#0b1020;
+      --panel: rgba(10, 20, 60, .22);
+      --accent: rgba(0, 212, 255, .95);
+      --accent2: rgba(255, 193, 7, .95);
+    }
 
     .topBar{
       display:flex;
@@ -175,23 +203,15 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
       flex-wrap:wrap;
       margin-bottom: 14px;
     }
-    .brand{
-      display:flex; align-items:center; gap:10px;
-    }
+    .brand{display:flex; align-items:center; gap:10px;}
     .dotBrand{
       width:10px;height:10px;border-radius:999px;
-      background: rgba(255,152,0,.95);
+      background: var(--accent);
       box-shadow: 0 0 18px rgba(255,152,0,.35);
     }
-    .brandTitle{
-      font-weight:800;
-      letter-spacing:.4px;
-      font-size: 18px;
-    }
-    .crumb{
-      opacity:.85;
-      font-size: 13px;
-    }
+    .shell.kids .dotBrand{ box-shadow: 0 0 18px rgba(0, 212, 255, .35); }
+    .brandTitle{font-weight:800; letter-spacing:.4px; font-size: 18px;}
+    .crumb{opacity:.85; font-size: 13px;}
 
     .view{ display:none; }
     .view.active{ display:block; }
@@ -227,8 +247,8 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     }
     .btn:hover{border-color:rgba(255,255,255,.32)}
     .btn.primary{
-      border-color: rgba(255,152,0,.40);
-      background: rgba(255,152,0,.18);
+      border-color: color-mix(in srgb, var(--accent) 45%, rgba(255,255,255,.18));
+      background: color-mix(in srgb, var(--accent) 18%, rgba(0,0,0,.22));
     }
     .btn.small{padding:6px 8px;border-radius:10px;font-size:12px}
 
@@ -245,9 +265,9 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     }
     .tile:hover{border-color:rgba(255,255,255,.28)}
     .tile.selected{
-      border-color: rgba(255,152,0,.55);
-      box-shadow: 0 0 0 3px rgba(255,152,0,.10) inset;
-      background: rgba(255,152,0,.08);
+      border-color: color-mix(in srgb, var(--accent) 55%, rgba(255,255,255,.12));
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent) inset;
+      background: color-mix(in srgb, var(--accent) 8%, rgba(255,255,255,.04));
     }
     .tileMain{min-width:0}
     .tileTitle{font-weight:800; margin-bottom: 3px}
@@ -274,6 +294,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
       text-align:center;
       opacity:.85;
       flex:0 0 auto;
+      white-space:pre-line;
     }
     .preview img{width:100%;height:100%;object-fit:cover;display:block}
     .field{display:flex;flex-direction:column;gap:6px;margin-top:10px}
@@ -287,7 +308,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
       outline:none;
     }
 
-    /* --- Your existing Screen 4 styles (kept) --- */
+    /* --- Screen 4 styles (same as your current UI, but scoped) --- */
     .wrap{max-width:1250px;margin:0 auto;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#e8e8e8}
     .top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
     .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -385,7 +406,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   document.head.appendChild(style);
 
   // --------------------------
-  // Root layout (Screens 1–4)
+  // Root layout
   // --------------------------
   root.innerHTML = "";
   const shell = el("div", "shell");
@@ -420,26 +441,79 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     if (next === "game") vGame.classList.add("active");
   }
 
+  function applyModeTheme() {
+    shell.classList.toggle("kids", mode === "kids");
+  }
+
+  async function loadModeContent(nextMode: Mode) {
+    mode = nextMode;
+    applyModeTheme();
+
+    // load manifest based on mode
+    const base = mode === "kids" ? "kids/" : "";
+    const manifest = await fetchJson<Manifest>(`${base}scenarios/manifest.json`);
+    initialPath = manifest.initial;
+    scenarios = await Promise.all(manifest.files.map((f) => loadScenario(`${base}${f}`)));
+
+    // choose initial scenario index based on manifest.initial filename
+    const initialBase = initialPath.split("/").pop()?.replace(".json", "") ?? "";
+    scenarioIndex = Math.max(
+      0,
+      scenarios.findIndex((s: any) => String((s as any).id ?? "") === initialBase || String((s as any).name ?? "") === initialBase)
+    );
+  }
+
   // --------------------------
-  // Screen 1: Start
+  // Screen 1: Start (Mode selection)
   // --------------------------
   function renderStart() {
     vStart.innerHTML = "";
     const card = el("div", "card");
     const h = el("h1");
     h.textContent = "Hex Layers Puzzle";
+
     const p = el("div", "hint");
-    p.textContent = "Start → Select Game → Setup (Player + Monsters) → Play.";
+    p.textContent = "Choose a version, then select a scenario, set up, and play.";
 
     const row = el("div", "row");
-    const btn = el("button", "btn primary");
-    btn.textContent = "Start";
-    btn.addEventListener("click", () => {
-      renderSelect();
-      setScreen("select");
-    });
-    row.appendChild(btn);
 
+    const regularBtn = el("button", "btn primary");
+    regularBtn.textContent = "Regular version";
+    regularBtn.addEventListener("click", async () => {
+      try {
+        regularBtn.textContent = "Loading…";
+        regularBtn.setAttribute("disabled", "true");
+        await loadModeContent("regular");
+        chosenPlayer = null;
+        chosenMonsters = [];
+        renderSelect();
+        setScreen("select");
+      } catch (e: any) {
+        alert(String(e?.message ?? e));
+        regularBtn.textContent = "Regular version";
+        regularBtn.removeAttribute("disabled");
+      }
+    });
+
+    const kidsBtn = el("button", "btn");
+    kidsBtn.textContent = "Kids / Friendly";
+    kidsBtn.addEventListener("click", async () => {
+      try {
+        kidsBtn.textContent = "Loading…";
+        kidsBtn.setAttribute("disabled", "true");
+        await loadModeContent("kids");
+        chosenPlayer = null;
+        chosenMonsters = [];
+        renderSelect();
+        setScreen("select");
+      } catch (e: any) {
+        alert(String(e?.message ?? e));
+        kidsBtn.textContent = "Kids / Friendly";
+        kidsBtn.removeAttribute("disabled");
+      }
+    });
+
+    row.append(regularBtn, kidsBtn);
     card.append(h, p, row);
     vStart.appendChild(card);
   }
@@ -455,12 +529,12 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     vSelect.innerHTML = "";
 
     const layout = el("div", "grid");
-
     const left = el("div", "card");
     const right = el("div", "card");
+    layout.append(left, right);
 
     const h2 = el("h2");
-    h2.textContent = "Select game";
+    h2.textContent = "Select scenario";
     left.appendChild(h2);
 
     const listWrap = el("div");
@@ -482,7 +556,6 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
       badge.textContent = `#${i + 1}`;
 
       tile.append(main, badge);
-
       tile.addEventListener("click", () => {
         scenarioIndex = i;
         renderSelect();
@@ -498,7 +571,10 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
 
     const back = el("button", "btn");
     back.textContent = "Back";
-    back.addEventListener("click", () => setScreen("start"));
+    back.addEventListener("click", () => {
+      renderStart();
+      setScreen("start");
+    });
 
     const next = el("button", "btn primary");
     next.textContent = "Continue";
@@ -510,7 +586,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     actions.append(back, next);
     left.appendChild(actions);
 
-    // Details panel
+    // Details
     const h3 = el("h2");
     h3.textContent = "Selected";
     right.appendChild(h3);
@@ -522,23 +598,31 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
       <div class="muted" style="margin-top:6px;">
         ${escapeHtml(String(s?.desc ?? s?.description ?? "No description."))}
       </div>
-      <div class="hint" style="margin-top:10px;">Hexes per game: <b>322</b> (locked)</div>
-      <div class="hint">Story is delivered through the log (locked)</div>
+      <div class="hint" style="margin-top:10px;">Mode: <b>${mode ?? "—"}</b></div>
+      <div class="hint">Tutorial/Demo are scenarios (locked)</div>
     `;
     right.appendChild(details);
 
-    layout.append(left, right);
     vSelect.appendChild(layout);
   }
 
   // --------------------------
-  // Screen 3: Setup
+  // Screen 3: Setup (player + monsters/creatures)
   // --------------------------
+  function getPlayerPresets() {
+    return mode === "kids" ? PLAYER_PRESETS_KIDS : PLAYER_PRESETS_REGULAR;
+  }
+  function getMonsterPresets() {
+    return mode === "kids" ? MONSTER_PRESETS_KIDS : MONSTER_PRESETS_REGULAR;
+  }
+  function monstersLabel() {
+    return mode === "kids" ? "Creatures / baddies" : "Monsters / bad guys";
+  }
+
   function renderSetup() {
     vSetup.innerHTML = "";
 
     const layout = el("div", "grid");
-
     const left = el("div", "card");
     const right = el("div", "card");
     layout.append(left, right);
@@ -552,7 +636,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     presetWrap.style.display = "grid";
     presetWrap.style.gap = "10px";
 
-    for (const p of PLAYER_PRESETS) {
+    for (const p of getPlayerPresets()) {
       const tile = el("div", "tile");
       const selected = chosenPlayer?.kind === "preset" && (chosenPlayer as any).id === p.id;
       if (selected) tile.classList.add("selected");
@@ -575,7 +659,6 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
 
       presetWrap.appendChild(tile);
     }
-
     left.appendChild(presetWrap);
 
     // Custom player
@@ -601,7 +684,6 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
-
     pickBtn.addEventListener("click", () => input.click());
 
     row.append(pickBtn, el("div", "hint"));
@@ -616,15 +698,11 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     nameInput.value = chosenPlayer?.kind === "custom" ? chosenPlayer.name : "";
 
     nameField.append(nameLabel, nameInput);
-
     controls.append(row, nameField);
-
     drop.append(preview, controls, input);
 
     let customPlayerImage: string | null = chosenPlayer?.kind === "custom" ? chosenPlayer.imageDataUrl : null;
-    wireDropZone(drop, input, preview, (url) => {
-      customPlayerImage = url;
-    });
+    wireDropZone(drop, input, preview, (url) => (customPlayerImage = url));
 
     const useCustom = el("button", "btn");
     useCustom.textContent = "Use custom player";
@@ -637,16 +715,16 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     customCard.append(h3, drop, useCustom);
     left.appendChild(customCard);
 
-    // Monsters
+    // Monsters/Creatures
     const mh2 = el("h2");
-    mh2.textContent = "Monsters / bad guys";
+    mh2.textContent = monstersLabel();
     right.appendChild(mh2);
 
     const mpresetWrap = el("div");
     mpresetWrap.style.display = "grid";
     mpresetWrap.style.gap = "10px";
 
-    for (const m of MONSTER_PRESETS) {
+    for (const m of getMonsterPresets()) {
       const tile = el("div", "tile");
       const isSelected = chosenMonsters.some((x) => x.kind === "preset" && x.id === m.id);
       if (isSelected) tile.classList.add("selected");
@@ -679,16 +757,15 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
 
       mpresetWrap.appendChild(tile);
     }
-
     right.appendChild(mpresetWrap);
 
-    // Custom monster
+    // Custom monster/creature
     const customM = el("div", "card");
     (customM as HTMLElement).style.background = "rgba(0,0,0,.12)";
     (customM as HTMLElement).style.marginTop = "12px";
 
     const mh3 = el("h3");
-    mh3.textContent = "Add custom monster";
+    mh3.textContent = mode === "kids" ? "Add custom creature" : "Add custom monster";
 
     const mdrop = el("div", "drop");
     const mpreview = el("div", "preview");
@@ -705,8 +782,8 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     const minput = document.createElement("input");
     minput.type = "file";
     minput.accept = "image/*";
-
     mpick.addEventListener("click", () => minput.click());
+
     mrow.append(mpick, el("div", "hint"));
     (mrow.lastChild as HTMLElement).textContent = "PNG/JPG";
 
@@ -715,7 +792,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     mNameLabel.textContent = "Name";
     const mNameInput = document.createElement("input");
     mNameInput.type = "text";
-    mNameInput.placeholder = "e.g. Boneguard Variant";
+    mNameInput.placeholder = mode === "kids" ? "e.g. Sparkle Crab" : "e.g. Boneguard Variant";
     mNameField.append(mNameLabel, mNameInput);
 
     const mNotesField = el("div", "field");
@@ -727,18 +804,17 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     mNotesField.append(mNotesLabel, mNotesInput);
 
     mcontrols.append(mrow, mNameField, mNotesField);
-
     mdrop.append(mpreview, mcontrols, minput);
 
     let customMonsterImage: string | null = null;
     wireDropZone(mdrop, minput, mpreview, (url) => (customMonsterImage = url));
 
     const addMonsterBtn = el("button", "btn");
-    addMonsterBtn.textContent = "Add monster to roster";
+    addMonsterBtn.textContent = mode === "kids" ? "Add creature to roster" : "Add monster to roster";
     addMonsterBtn.addEventListener("click", () => {
       const nm = mNameInput.value.trim();
       if (!nm) {
-        alert("Give your monster a name first.");
+        alert("Give it a name first.");
         return;
       }
       chosenMonsters.push({
@@ -754,7 +830,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     customM.append(mh3, mdrop, addMonsterBtn);
     right.appendChild(customM);
 
-    // Roster
+    // Roster display
     const roster = el("div", "card");
     (roster as HTMLElement).style.marginTop = "12px";
     const rh = el("h3");
@@ -763,7 +839,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
 
     const rosterBody = el("div", "hint");
     if (chosenMonsters.length === 0) {
-      rosterBody.textContent = "No monsters selected yet.";
+      rosterBody.textContent = "No selections yet.";
     } else {
       rosterBody.innerHTML = chosenMonsters
         .map(
@@ -806,7 +882,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     startBtn.addEventListener("click", () => {
       if (!chosenPlayer) return;
       startScenario(scenarioIndex);
-      renderGameScreen(); // build game DOM into vGame
+      renderGameScreen();
       setScreen("game");
     });
 
@@ -820,20 +896,23 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   }
 
   // --------------------------
-  // Screen 4: Game (your existing UI wrapped)
+  // Screen 4: Game
   // --------------------------
   let gameBuilt = false;
 
   function scenario(): Scenario {
+    if (!scenarios.length) throw new Error("Scenarios not loaded yet.");
     return scenarios[scenarioIndex];
   }
 
   function recomputeReachability() {
+    if (!state) return;
     reachMap = getReachability(state);
     reachable = new Set(Object.entries(reachMap).filter(([, v]) => v.reachable).map(([k]) => k));
   }
 
   function revealWholeLayer(layer: number) {
+    if (!state) return;
     for (let r = 1; r <= ROW_LENS.length; r++) {
       const len = ROW_LENS[r - 1] ?? 7;
       for (let c = 1; c <= len; c++) {
@@ -843,6 +922,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
   }
 
   function getHex(id: string): Hex | undefined {
+    if (!state) return undefined;
     return (state.hexesById as any).get(id);
   }
 
@@ -918,7 +998,6 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
 
   function renderGameScreen() {
     if (gameBuilt) {
-      // Re-render only
       renderAll();
       return;
     }
@@ -934,9 +1013,9 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     title.textContent = "Game";
     const sub = el("div", "hint");
     const sc: any = scenarios[scenarioIndex];
-    sub.textContent = `Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")} | Player: ${
+    sub.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")} | Player: ${
       chosenPlayer ? chosenPlayer.name : "—"
-    } | Monsters: ${chosenMonsters.length}`;
+    } | Roster: ${chosenMonsters.length}`;
     titleWrap.append(title, sub);
 
     const controls = el("div", "controls");
@@ -1007,7 +1086,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
       const s: any = scenario();
       meta.innerHTML = `
         <div><b>Selected:</b> ${String(s.name ?? s.title ?? s.id ?? "")}</div>
-        <div><b>Player:</b> ${state.playerHexId ?? "?"}</div>
+        <div><b>Player:</b> ${state?.playerHexId ?? "?"}</div>
         <div><b>Goal:</b> ${posId(s.goal)}</div>
       `;
       msg.textContent = message || "Ready.";
@@ -1061,7 +1140,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
 
           btn.addEventListener("click", () => {
             selectedId = toId;
-            if (toC) {
+            if (toC && state) {
               currentLayer = toC.layer;
               setLayerOptions(layerSelect);
               enterLayer(state, currentLayer);
@@ -1094,6 +1173,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
 
     function renderBoard() {
       boardWrap.innerHTML = "";
+      if (!state) return;
 
       for (let r = 1; r <= ROW_LENS.length; r++) {
         const len = ROW_LENS[r - 1] ?? 7;
@@ -1142,7 +1222,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
             selectedId = id;
             rebuildTransitionIndexAndHighlights();
 
-            const res = tryMove(state, id);
+            const res = tryMove(state!, id);
             if (res.ok) {
               message = res.won
                 ? "🎉 You reached the goal!"
@@ -1150,7 +1230,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
                 ? "Moved (transition triggered)."
                 : "Moved.";
 
-              const playerCoord = idToCoord(state.playerHexId);
+              const playerCoord = idToCoord(state!.playerHexId);
               if (playerCoord) currentLayer = playerCoord.layer;
 
               setLayerOptions(layerSelect);
@@ -1185,7 +1265,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
       scenarioIndex = Number(scenarioSelect.value);
       startScenario(scenarioIndex);
       setLayerOptions(layerSelect);
-      enterLayer(state, currentLayer);
+      if (state) enterLayer(state, currentLayer);
       revealWholeLayer(currentLayer);
       recomputeReachability();
       message = "";
@@ -1194,6 +1274,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
 
     layerSelect.addEventListener("change", () => {
       currentLayer = Number(layerSelect.value);
+      if (!state) return;
       const err = enterLayer(state, currentLayer);
       message = err ? `Enter layer error: ${err}` : "";
       revealWholeLayer(currentLayer);
@@ -1202,6 +1283,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     });
 
     endTurnBtn.addEventListener("click", () => {
+      if (!state) return;
       endTurn(state);
       enterLayer(state, currentLayer);
       revealWholeLayer(currentLayer);
@@ -1213,7 +1295,7 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
     resetBtn.addEventListener("click", () => {
       startScenario(scenarioIndex);
       setLayerOptions(layerSelect);
-      enterLayer(state, currentLayer);
+      if (state) enterLayer(state, currentLayer);
       revealWholeLayer(currentLayer);
       recomputeReachability();
       renderAll();
@@ -1226,17 +1308,18 @@ export function mountApp(root: HTMLElement | null, scenarios: Scenario[], initia
       renderAll();
     });
 
-    // Init game view
+    // Init
     setLayerOptions(layerSelect);
-    enterLayer(state, currentLayer);
+    if (state) enterLayer(state, currentLayer);
     revealWholeLayer(currentLayer);
     recomputeReachability();
     renderAll();
   }
 
   // --------------------------
-  // Init app
+  // Start app
   // --------------------------
+  applyModeTheme();
   renderStart();
   setScreen("start");
 }
