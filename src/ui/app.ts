@@ -175,72 +175,38 @@ export function mountApp(root: HTMLElement | null) {
   const style = document.createElement("style");
   style.textContent = `
     :root{
-      --bg0:#05070d;
-      --bg1:#070a14;
-
-      --ink:#eaf2ff;
-      --muted:rgba(234,242,255,.72);
-
-      --card: rgba(10, 16, 34, .62);
-      --card2: rgba(10, 16, 34, .42);
-      --stroke: rgba(160, 210, 255, .22);
-      --stroke2: rgba(160, 210, 255, .14);
-
-      --aqua:#5fe1ff;
-      --ice:#bfe8ff;
-      --violet:#7a6cff;
-
+      --bg:#0b0f1a;
+      --panel: rgba(0,0,0,.16);
+      --border: rgba(255,255,255,.12);
+      --text:#e8e8e8;
+      --muted: rgba(232,232,232,.80);
+      --accent: rgba(255,152,0,.95);
+      --accent2: rgba(3,169,244,.95);
       --radius: 18px;
-      --colGap: 12px;
-    }
 
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
-    body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-      color:var(--ink);
-      background:
-        radial-gradient(1200px 800px at 20% 10%, rgba(95,225,255,.10), transparent 60%),
-        radial-gradient(900px 700px at 85% 30%, rgba(122,108,255,.12), transparent 55%),
-        radial-gradient(1000px 900px at 50% 110%, rgba(0,170,255,.08), transparent 55%),
-        linear-gradient(180deg, var(--bg0), var(--bg1));
-      overflow-x:hidden;
-      font-size: 14px;
-    }
-    body::before{
-      content:"";
-      position:fixed;
-      inset:-60px;
-      pointer-events:none;
-      background:
-        conic-gradient(from 90deg at 50% 50%,
-          rgba(95,225,255,.06),
-          rgba(122,108,255,.05),
-          rgba(191,232,255,.06),
-          rgba(95,225,255,.06));
-      filter: blur(32px);
-      opacity:.55;
-      animation: prism 14s linear infinite;
-      z-index:0;
-    }
-    @keyframes prism{
-      0%{ transform: rotate(0deg) scale(1.05); }
-      100%{ transform: rotate(360deg) scale(1.05); }
+      /* Game layout sizing */
+      --sideW: 360px;  /* story log */
+      --imgW: 340px;   /* images */
+      --gap: 14px;
     }
 
     .shell{
-      width: 100%;
-      max-width: 1800px; /* uses more of screen width */
+      max-width: 100%;
       margin: 0 auto;
-      padding: 18px 18px 26px;
-      position:relative;
-      z-index:1;
+      padding: 18px;
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      color: var(--text);
+    }
+    .shell.kids{
+      --bg:#0b1020;
+      --panel: rgba(10, 20, 60, .22);
+      --accent: rgba(0, 212, 255, .95);
+      --accent2: rgba(255, 193, 7, .95);
     }
 
     .topBar{
       display:flex;
-      align-items:flex-start;
+      align-items:center;
       justify-content:space-between;
       gap:12px;
       flex-wrap:wrap;
@@ -248,27 +214,23 @@ export function mountApp(root: HTMLElement | null) {
     }
     .brand{display:flex; align-items:center; gap:10px;}
     .dotBrand{
-      width:8px;height:8px;border-radius:999px;
-      background: radial-gradient(circle at 30% 30%, var(--ice), var(--aqua));
-      box-shadow: 0 0 14px rgba(95,225,255,.35);
-      border: 1px solid rgba(191,232,255,.22);
+      width:10px;height:10px;border-radius:999px;
+      background: var(--accent);
+      box-shadow: 0 0 18px rgba(255,152,0,.35);
     }
-    .brandTitle{font-weight:900; letter-spacing:.4px; font-size: 18px;}
+    .shell.kids .dotBrand{ box-shadow: 0 0 18px rgba(0, 212, 255, .35); }
+    .brandTitle{font-weight:800; letter-spacing:.4px; font-size: 18px;}
     .crumb{opacity:.85; font-size: 13px;}
+
     .view{ display:none; }
     .view.active{ display:block; }
 
     .card{
-      border:1px solid var(--stroke2);
-      background: rgba(10,16,34,.40);
-      border-radius: calc(var(--radius) + 6px);
+      border:1px solid var(--border);
+      background: var(--panel);
+      border-radius: var(--radius);
       padding: 14px;
-      box-shadow:
-        0 0 0 1px rgba(95,225,255,.08) inset,
-        0 18px 60px rgba(0,0,0,.35);
-      backdrop-filter: blur(10px);
     }
-
     .grid{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -279,25 +241,23 @@ export function mountApp(root: HTMLElement | null) {
     h1{margin:0;font-size:42px;letter-spacing:.3px}
     h2{margin:0 0 10px 0;font-size:18px}
     h3{margin:0 0 10px 0;font-size:15px}
-    .hint{opacity:.86;font-size:13px; color: var(--muted)}
+    .hint{opacity:.85;font-size:13px}
     .muted{opacity:.82}
 
     .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     .btn{
       padding:8px 10px;
       border-radius: 12px;
-      border:1px solid rgba(191,232,255,.18);
-      background: rgba(10,16,34,.28);
-      color: var(--ink);
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.22);
+      color: var(--text);
       cursor:pointer;
       user-select:none;
-      box-shadow: 0 10px 24px rgba(0,0,0,.20);
     }
-    .btn:hover{border-color:rgba(191,232,255,.32)}
+    .btn:hover{border-color:rgba(255,255,255,.32)}
     .btn.primary{
-      border-color: rgba(95,225,255,.35);
-      background: rgba(95,225,255,.10);
-      box-shadow: 0 0 0 1px rgba(95,225,255,.10) inset, 0 12px 26px rgba(0,0,0,.28);
+      border-color: rgba(255,152,0,.40);
+      background: rgba(255,152,0,.18);
     }
     .btn.small{padding:6px 8px;border-radius:10px;font-size:12px}
 
@@ -309,28 +269,31 @@ export function mountApp(root: HTMLElement | null) {
       width: 100%;
     }
     @media (max-width: 980px){
-      .modeGrid{ grid-template-columns: 1fr; gap: 16px; }
+      .modeGrid{
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
     }
 
-    /* ✅ Start tiles */
+    /* ✅ Start tiles: background image + overlay */
     .modeTile{
       position: relative;
-      min-height: 0;
+      height: 600px;
       width: 100%;
       border-radius: 22px;
       overflow: hidden;
-      border: 1px solid rgba(191,232,255,.18);
-      background: rgba(10,16,34,.22);
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.22);
       cursor: pointer;
       user-select: none;
       padding: 0;
-      box-shadow: 0 12px 30px rgba(0,0,0,.28);
     }
-    .modeTile:hover{ border-color: rgba(191,232,255,.32); }
+    .modeTile:hover{ border-color: rgba(255,255,255,.32); }
     .modeTile.primary{
-      border-color: rgba(95,225,255,.38);
-      box-shadow: 0 0 0 3px rgba(95,225,255,.10) inset, 0 12px 30px rgba(0,0,0,.28);
+      border-color: rgba(255,152,0,.55);
+      box-shadow: 0 0 0 3px rgba(255,152,0,.10) inset;
     }
+
     .modeBg{
       position:absolute;
       inset:0;
@@ -382,8 +345,8 @@ export function mountApp(root: HTMLElement | null) {
       display:flex;
       align-items:center;
       justify-content:center;
-      border:1px solid rgba(191,232,255,.18);
-      background: rgba(10,16,34,.22);
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.22);
       font-size: 18px;
       opacity: .92;
     }
@@ -391,28 +354,27 @@ export function mountApp(root: HTMLElement | null) {
     .tile{
       padding: 12px;
       border-radius: 16px;
-      border:1px solid rgba(191,232,255,.14);
-      background: rgba(10,16,34,.22);
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
       cursor:pointer;
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap: 10px;
-      box-shadow: 0 10px 24px rgba(0,0,0,.18);
     }
-    .tile:hover{border-color:rgba(191,232,255,.28)}
+    .tile:hover{border-color:rgba(255,255,255,.28)}
     .tile.selected{
-      border-color: rgba(95,225,255,.38);
-      box-shadow: 0 0 0 3px rgba(95,225,255,.10) inset, 0 10px 24px rgba(0,0,0,.18);
-      background: rgba(95,225,255,.06);
+      border-color: rgba(255,152,0,.55);
+      box-shadow: 0 0 0 3px rgba(255,152,0,.10) inset;
+      background: rgba(255,152,0,.08);
     }
     .tileMain{min-width:0}
     .tileTitle{font-weight:800; margin-bottom: 3px}
     .tileDesc{font-size:12px; opacity:.82; line-height:1.25}
 
     .drop{
-      border:1px dashed rgba(191,232,255,.18);
-      background: rgba(10,16,34,.18);
+      border:1px dashed rgba(255,255,255,.18);
+      background: rgba(255,255,255,.03);
       border-radius: 16px;
       padding: 12px;
       display:flex;
@@ -423,7 +385,7 @@ export function mountApp(root: HTMLElement | null) {
     .preview{
       width:64px; height:64px;
       border-radius:16px;
-      border:1px solid rgba(191,232,255,.12);
+      border:1px solid rgba(255,255,255,.12);
       background: rgba(0,0,0,.25);
       display:grid; place-items:center;
       overflow:hidden;
@@ -439,210 +401,190 @@ export function mountApp(root: HTMLElement | null) {
     input[type="text"]{
       padding:8px 10px;
       border-radius: 12px;
-      border:1px solid rgba(191,232,255,.18);
-      background: rgba(5,8,18,.45);
-      color: var(--ink);
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.22);
+      color: var(--text);
       outline:none;
     }
 
-    /* --------------------------
-       GAME SCREEN (3 columns)
-    -------------------------- */
-    .stageGame{
+    /* --- Screen 4 styles (game layout) --- */
+    .gameWrap{
       width: 100%;
-      border-radius: calc(var(--radius) + 6px);
-      padding: 12px;
-      background: linear-gradient(180deg, rgba(10,16,34,.58), rgba(10,16,34,.34));
-      border: 1px solid rgba(191,232,255,.20);
-      box-shadow:
-        0 0 0 1px rgba(95,225,255,.10) inset,
-        0 18px 60px rgba(0,0,0,.55);
-      overflow:hidden;
-
-      /* key: avoid forced empty space */
-      min-height: 0;
-    }
-    .stageGame::before{
-      content:"";
-      position:absolute;
-      inset:0;
-      pointer-events:none;
-      background:
-        radial-gradient(circle at 18% 20%, rgba(95,225,255,.10), transparent 40%),
-        radial-gradient(circle at 85% 35%, rgba(122,108,255,.10), transparent 45%),
-        repeating-linear-gradient(
-          135deg,
-          rgba(191,232,255,.06) 0px,
-          rgba(191,232,255,.06) 1px,
-          transparent 1px,
-          transparent 16px
-        ),
-        repeating-linear-gradient(
-          45deg,
-          rgba(95,225,255,.05) 0px,
-          rgba(95,225,255,.05) 1px,
-          transparent 1px,
-          transparent 22px
-        );
-      opacity:.55;
+      max-width: 100%;
     }
 
-    .gameGrid{
-      position:relative;
-      z-index:1;
+    /* TOP header row aligned to the 3 main columns (your green lines) */
+    .gameHeaderGrid{
       display:grid;
-      grid-template-columns: 300px 1fr 300px;
-      gap: var(--colGap);
-      min-height: 0;
-    }
-    @media (max-width: 1100px){
-      .gameGrid{ grid-template-columns: 1fr; }
+      grid-template-columns: var(--sideW) 1fr var(--imgW);
+      gap: var(--gap);
+      align-items: start;
+      margin-bottom: 12px;
     }
 
-    .panel{
-      border-radius: var(--radius);
-      border: 1px solid rgba(160, 210, 255, .22);
-      background: rgba(10,16,34,.45);
+    .gameTitleBox{
+      min-width: 0;
+    }
+    .gameTitleBox h1{ margin:0; font-size:42px; letter-spacing:.3px; }
+    .gameTitleBox .hint{ margin-top: 6px; }
+
+    .gameHeaderMid{
+      /* intentionally blank/spacer for now */
+      min-height: 1px;
+    }
+
+    .gameHeaderControls{
+      display:flex;
+      justify-content:flex-end;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    select,button{
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(0,0,0,.22);
+      color:#e8e8e8
+    }
+    button{cursor:pointer}
+
+    /* MAIN 3-column layout */
+    .gridGame3{
+      display:grid;
+      grid-template-columns: var(--sideW) 1fr var(--imgW);
+      gap: var(--gap);
+      align-items: stretch;
+    }
+
+    .panelGame{
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.16);
+      border-radius:18px;
       overflow:hidden;
-      box-shadow:
-        0 0 0 1px rgba(95,225,255,.10) inset,
-        0 18px 40px rgba(0,0,0,.35);
+      min-width: 0;
       display:flex;
       flex-direction:column;
-      min-width: 0;
-      min-height: 0;
+      box-shadow: 0 0 0 1px rgba(3,169,244,.08) inset, 0 18px 60px rgba(0,0,0,.35);
     }
 
     .panelHead{
-      padding:10px 12px;
-      border-bottom: 1px solid rgba(191,232,255,.16);
-      background: linear-gradient(180deg, rgba(10,16,34,.62), rgba(10,16,34,.30));
-      backdrop-filter: blur(10px);
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
       display:flex;
       align-items:center;
       justify-content:space-between;
-      gap:12px;
+      gap:10px;
       flex-wrap:wrap;
+      background: linear-gradient(180deg, rgba(10,16,34,.62), rgba(10,16,34,.30));
     }
-    .tag{
-      font-size:11px;
-      color: var(--muted);
-      display:flex;
-      align-items:center;
-      gap:8px;
-      opacity:.95;
+    .panelHead .leftTag{ display:flex; align-items:center; gap:10px; }
+    .panelDot{
+      width:8px;height:8px;border-radius:999px;
+      background: rgba(3,169,244,.95);
+      box-shadow: 0 0 14px rgba(3,169,244,.35);
     }
-    .dot{
-      width:8px; height:8px; border-radius:99px;
-      background: radial-gradient(circle at 30% 30%, var(--ice), var(--aqua));
-      box-shadow: 0 0 12px rgba(95,225,255,.35);
-    }
+    .panelTitle{ font-weight: 800; }
     .pill{
-      font-size:11px;
-      color: var(--muted);
-      padding:6px 10px;
-      border-radius:999px;
-      border: 1px solid rgba(191,232,255,.16);
-      background: rgba(10,16,34,.30);
+      font-size: 12px;
+      opacity:.85;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.18);
     }
-    .pill strong{ color: var(--ink); }
 
     .panelBody{
-      padding: 12px;
-      min-height: 0;
-    }
-
-    /* Board column internals */
-    .boardBody{
       padding: 12px;
       display:flex;
       flex-direction:column;
       gap: 10px;
       min-height: 0;
+      flex: 1;
     }
 
-    .controlsRow{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      flex-wrap:wrap;
-      justify-content:flex-end;
+    .softCard{
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.14);
+      border-radius: 16px;
+      padding: 10px 12px;
+      min-width:0;
     }
-    .ctrlSelect,.ctrlBtn{
-      padding:8px 10px;
-      border-radius:12px;
-      border:1px solid rgba(191,232,255,.18);
-      background: rgba(5,8,18,.45);
-      color: var(--ink);
-      box-shadow: 0 10px 22px rgba(0,0,0,.20);
-    }
-    .ctrlBtn{ cursor:pointer; }
-    .ctrlBtn:hover,.ctrlSelect:hover{ border-color: rgba(191,232,255,.32); }
 
-    /* the NEW "above-board" 2-column grid */
-    .aboveGrid{
+    .infoGrid2{
       display:grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
+      align-items: stretch;
     }
-    @media (max-width: 980px){
-      .aboveGrid{ grid-template-columns: 1fr; }
+    @media (max-width: 1200px){
+      :root{ --sideW: 320px; --imgW: 320px; }
     }
-
-    .miniCard{
-      border-radius: 16px;
-      border: 1px solid rgba(191,232,255,.16);
-      background: rgba(10,16,34,.30);
-      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 12px 28px rgba(0,0,0,.24);
-      padding: 10px 12px;
+    @media (max-width: 1040px){
+      .gameHeaderGrid{ grid-template-columns: 1fr; }
+      .gridGame3{ grid-template-columns: 1fr; }
+      .gameHeaderControls{ justify-content:flex-start; }
+      .infoGrid2{ grid-template-columns: 1fr; }
     }
-    .miniCard b{ color: var(--ink); }
 
     .msgBar{
       padding:10px 12px;
       border-radius:14px;
-      border:1px solid rgba(191,232,255,.12);
-      background: rgba(10,16,34,.22);
-      color: var(--ink);
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.18);
     }
 
+    /* Hex sizing scales with viewport height to reduce “wasted space” */
     .boardWrap{
-      display:grid;
+      flex: 1;
+      min-height: 0;
+      display:flex;
+      flex-direction:column;
+      justify-content:flex-start;
       gap: 10px;
-      padding-top: 2px;
+      padding-top: 4px;
     }
 
-    .hexRow{display:flex;gap:10px;align-items:center}
+    .hexRow{
+      display:flex;
+      gap: 10px;
+      align-items:center
+    }
     .hexRow.offset{padding-left:34px}
 
     .hex{
-      width:68px;height:60px;
+      --hexW: clamp(54px, 6.4vh, 92px);
+      width: var(--hexW);
+      height: calc(var(--hexW) * 0.88);
+
       clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
-      border:2px solid rgba(191,232,255,.16);
+      border:1px solid rgba(255,255,255,.18);
       background:rgba(255,255,255,.05);
       display:flex;align-items:center;justify-content:center;
       cursor:pointer; position:relative;
-      user-select:none; font-size:12px;
+      user-select:none;
+      font-size:12px;
       opacity:.95;
     }
-    .hex:hover{border-color:rgba(191,232,255,.30)}
-    .hex.sel{outline:22px solid rgba(191,232,255,.55)}
-    .hex.reach{outline:22px solid rgba(76,175,80,.75)}
+    .hex:hover{border-color:rgba(255,255,255,.35)}
+    .hex.sel{outline:2px solid rgba(255,255,255,.6)}
+    .hex.reach{outline:2px solid rgba(76,175,80,.75)}
     .hex.player{background:rgba(76,175,80,.18)}
     .hex.goal{background:rgba(255,193,7,.16)}
-    .hex.blocked{background:rgba(244,67,54,.14);opacity:.78}
+    .hex.blocked{background:rgba(244,67,54,.14);opacity:.75}
     .hex.missing{background:rgba(120,120,120,.10);opacity:.45}
     .hex.fog{background:rgba(0,0,0,.38);opacity:.6}
 
     .hex.trSrc{
-      outline:25px solid rgba(255,152,0,.95);
+      outline:5px solid rgba(255,152,0,.95);
       box-shadow:
         0 0 0 3px rgba(255,152,0,.45),
         0 0 22px rgba(255,152,0,.75),
         0 0 44px rgba(255,152,0,.55);
     }
     .hex.trTgt{
-      outline:25px solid rgba(3,169,244,.95);
+      outline:5px solid rgba(3,169,244,.95);
       box-shadow:
         0 0 0 3px rgba(3,169,244,.45),
         0 0 22px rgba(3,169,244,.75),
@@ -651,82 +593,45 @@ export function mountApp(root: HTMLElement | null) {
     }
     @keyframes pulse{
       0%{filter:brightness(1)}
-      50%{filter:brightness(1.30)}
+      50%{filter:brightness(1.35)}
       100%{filter:brightness(1)}
     }
 
-    .hexDot{
+    .dot{
       position:absolute;right:8px;top:8px;
       width:10px;height:10px;border-radius:999px;
-      border:1px solid rgba(191,232,255,.35);
+      border:1px solid rgba(255,255,255,.35);
       background:rgba(255,255,255,.12);
     }
-    .hexDot.player{background:rgba(76,175,80,.95);border-color:rgba(76,175,80,.95)}
-    .hexDot.goal{background:rgba(255,193,7,.95);border-color:rgba(255,193,7,.95)}
+    .dot.player{background:rgba(76,175,80,.95);border-color:rgba(76,175,80,.95)}
+    .dot.goal{background:rgba(255,193,7,.95);border-color:rgba(255,193,7,.95)}
 
     .dist{
       position:absolute;left:8px;bottom:8px;
       padding:2px 6px;border-radius:999px;
-      border:1px solid rgba(191,232,255,.18);
+      border:1px solid rgba(255,255,255,.18);
       background:rgba(0,0,0,.30);
       font-size:11px;line-height:1;
     }
     .trBadge{
       position:absolute;left:8px;top:8px;
       padding:2px 6px;border-radius:999px;
-      border:1px solid rgba(191,232,255,.18);
+      border:1px solid rgba(255,255,255,.18);
       background:rgba(0,0,0,.30);
       font-size:11px;line-height:1;
     }
 
-    /* Story and Images column placeholders */
-    .storyList{
-      display:grid;
-      gap: 10px;
-    }
-    .storyItem{
-      border-radius: 14px;
-      border: 1px solid rgba(191,232,255,.12);
-      background: rgba(10,16,34,.22);
-      padding: 10px 12px;
-      color: var(--ink);
-    }
-
-    .imgStack{
-      display:grid;
-      gap: 10px;
-    }
-    .imgCard{
+    .imgFrame{
+      width:100%;
+      height: 220px;
       border-radius: 16px;
-      border: 1px solid rgba(191,232,255,.16);
-      background: rgba(10,16,34,.22);
-      padding: 10px 12px;
-      min-height: 220px;
-      display:flex;
-      flex-direction:column;
-      gap: 8px;
-    }
-    .imgHead{
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.20);
+      overflow:hidden;
       display:flex;
       align-items:center;
-      justify-content:space-between;
-      gap: 10px;
-      flex-wrap:wrap;
-      padding-bottom: 6px;
-      border-bottom: 1px solid rgba(191,232,255,.12);
-      color: var(--muted);
-      font-size: 12px;
-    }
-    .imgFrame{
-      flex: 1;
-      min-height: 0;
-      border-radius: 14px;
-      border: 1px solid rgba(191,232,255,.12);
-      background: rgba(0,0,0,.18);
-      display:grid;
-      place-items:center;
-      overflow:hidden;
-      color: var(--muted);
+      justify-content:center;
+      color: rgba(232,232,232,.7);
       font-size: 12px;
       text-align:center;
       padding: 10px;
@@ -734,7 +639,7 @@ export function mountApp(root: HTMLElement | null) {
     .imgFrame img{
       width:100%;
       height:100%;
-      object-fit:cover;
+      object-fit: cover;
       display:block;
     }
   `;
@@ -777,8 +682,13 @@ export function mountApp(root: HTMLElement | null) {
     if (next === "game") vGame.classList.add("active");
   }
 
+  function applyModeTheme() {
+    shell.classList.toggle("kids", mode === "kids");
+  }
+
   async function loadModeContent(nextMode: Mode) {
     mode = nextMode;
+    applyModeTheme();
 
     const base = mode === "kids" ? "kids/" : "";
     const manifest = await fetchJson<Manifest>(`${base}scenarios/manifest.json`);
@@ -809,7 +719,7 @@ export function mountApp(root: HTMLElement | null) {
     const grid = el("div", "modeGrid");
 
     // ✅ GitHub Pages safe base
-    const baseUrl = import.meta.env.BASE_URL;
+    const baseUrl = import.meta.env.BASE_URL; // "/<repo>/" on GH pages
     const regularImg = `${baseUrl}images/ui/regular.png`;
     const kidsImg = `${baseUrl}images/ui/kids.png`;
 
@@ -1039,7 +949,7 @@ export function mountApp(root: HTMLElement | null) {
     left.appendChild(presetWrap);
 
     const customCard = el("div", "card");
-    (customCard as HTMLElement).style.background = "rgba(10,16,34,.22)";
+    (customCard as HTMLElement).style.background = "rgba(0,0,0,.12)";
     (customCard as HTMLElement).style.marginTop = "12px";
 
     const h3 = el("h3");
@@ -1137,7 +1047,7 @@ export function mountApp(root: HTMLElement | null) {
 
     // Custom monster/creature
     const customM = el("div", "card");
-    (customM as HTMLElement).style.background = "rgba(10,16,34,.22)";
+    (customM as HTMLElement).style.background = "rgba(0,0,0,.12)";
     (customM as HTMLElement).style.marginTop = "12px";
 
     const mh3 = el("h3");
@@ -1239,7 +1149,7 @@ export function mountApp(root: HTMLElement | null) {
   }
 
   // --------------------------
-  // Screen 4: Game
+  // Screen 4: Game (3 columns + top header grid)
   // --------------------------
   let gameBuilt = false;
 
@@ -1341,54 +1251,33 @@ export function mountApp(root: HTMLElement | null) {
 
   function renderGameScreen() {
     if (gameBuilt) {
-      // re-render existing
-      (vGame as HTMLElement).innerHTML = "";
-      gameBuilt = false;
+      renderAll();
+      return;
     }
     gameBuilt = true;
 
     vGame.innerHTML = "";
+    const wrap = el("div", "gameWrap");
 
-    // Title area (top left)
-    const titleRow = el("div");
-    titleRow.style.marginBottom = "12px";
+    // --- HEADER GRID (your green line top row: 1 | 2 | 3) ---
+    const headerGrid = el("div", "gameHeaderGrid");
 
+    // (1) left title column
+    const titleBox = el("div", "gameTitleBox");
     const title = el("h1");
     title.textContent = "Game";
     const sub = el("div", "hint");
     const sc: any = scenarios[scenarioIndex];
     sub.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")}`;
-    titleRow.append(title, sub);
+    titleBox.append(title, sub);
 
-    const stage = el("div", "stageGame");
-    // stage has ::before, needs relative
-    (stage as HTMLElement).style.position = "relative";
+    // (2) middle spacer
+    const mid = el("div", "gameHeaderMid");
 
-    const grid = el("div", "gameGrid");
+    // (3) right controls column (the circled controls strip)
+    const controls = el("div", "gameHeaderControls");
 
-    // LEFT: Story Log
-    const storyPanel = el("section", "panel");
-    const storyHead = el("div", "panelHead");
-    storyHead.innerHTML = `<div class="tag"><span class="dot"></span> Story Log</div><div class="pill">Timeline</div>`;
-    const storyBody = el("div", "panelBody");
-    const storyList = el("div", "storyList");
-    const si1 = el("div", "storyItem");
-    si1.textContent = "Story log will live here later.";
-    const si2 = el("div", "storyItem");
-    si2.textContent = "Moves, discoveries, encounters, etc.";
-    storyList.append(si1, si2);
-    storyBody.appendChild(storyList);
-    storyPanel.append(storyHead, storyBody);
-
-    // MIDDLE: Board
-    const boardPanel = el("section", "panel");
-
-    const boardHead = el("div", "panelHead");
-    const headLeft = el("div", "tag");
-    headLeft.innerHTML = `<span class="dot"></span> Board`;
-    const headRight = el("div", "controlsRow");
-
-    const scenarioSelect = el("select", "ctrlSelect") as HTMLSelectElement;
+    const scenarioSelect = el("select") as HTMLSelectElement;
     scenarios.forEach((s: any, i: number) => {
       const opt = document.createElement("option");
       opt.value = String(i);
@@ -1397,102 +1286,191 @@ export function mountApp(root: HTMLElement | null) {
     });
     scenarioSelect.value = String(scenarioIndex);
 
-    const layerSelect = el("select", "ctrlSelect") as HTMLSelectElement;
+    const layerSelect = el("select") as HTMLSelectElement;
 
-    const endTurnBtn = el("button", "ctrlBtn") as HTMLButtonElement;
+    const endTurnBtn = el("button") as HTMLButtonElement;
     endTurnBtn.textContent = "End turn";
 
-    const resetBtn = el("button", "ctrlBtn") as HTMLButtonElement;
+    const resetBtn = el("button") as HTMLButtonElement;
     resetBtn.textContent = "Reset run";
 
-    const forceRevealBtn = el("button", "ctrlBtn") as HTMLButtonElement;
+    const forceRevealBtn = el("button") as HTMLButtonElement;
     forceRevealBtn.textContent = "Force reveal layer";
 
-    const exitBtn = el("button", "ctrlBtn") as HTMLButtonElement;
+    const exitBtn = el("button") as HTMLButtonElement;
     exitBtn.textContent = "Exit";
-    exitBtn.addEventListener("click", () => {
-      renderSetup();
-      setScreen("setup");
-    });
 
-    headRight.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
-    boardHead.append(headLeft, headRight);
+    controls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
 
-    const boardBody = el("div", "boardBody");
+    headerGrid.append(titleBox, mid, controls);
 
-    const aboveGrid = el("div", "aboveGrid");
-    const leftInfo = el("div", "miniCard");
-    const rightInfo = el("div", "miniCard");
-    aboveGrid.append(leftInfo, rightInfo);
+    // --- MAIN 3 columns: (4) story | (5) board | (6) images ---
+    const grid = el("div", "gridGame3");
+
+    const storyPanel = el("section", "panelGame");
+    const boardPanel = el("section", "panelGame");
+    const imagesPanel = el("section", "panelGame");
+
+    // Story panel
+    const storyHead = el("div", "panelHead");
+    const storyLeftTag = el("div", "leftTag");
+    storyLeftTag.append(el("div", "panelDot"), (() => {
+      const t = el("div", "panelTitle");
+      t.textContent = "Story Log";
+      return t;
+    })());
+    const storyPill = el("div", "pill");
+    storyPill.textContent = "Timeline";
+    storyHead.append(storyLeftTag, storyPill);
+
+    const storyBody = el("div", "panelBody");
+    storyBody.append(
+      (() => {
+        const a = el("div", "softCard");
+        a.innerHTML = `<b>Story log will live here later.</b>`;
+        return a;
+      })(),
+      (() => {
+        const b = el("div", "softCard");
+        b.textContent = "Moves, discoveries, encounters, etc.";
+        return b;
+      })()
+    );
+    storyPanel.append(storyHead, storyBody);
+
+    // Board panel
+    const boardHead = el("div", "panelHead");
+    const boardLeftTag = el("div", "leftTag");
+    boardLeftTag.append(el("div", "panelDot"), (() => {
+      const t = el("div", "panelTitle");
+      t.textContent = "Board";
+      return t;
+    })());
+    const boardPill = el("div", "pill");
+    boardPill.textContent = `Build: ${BUILD_TAG}`;
+    boardHead.append(boardLeftTag, boardPill);
+
+    const boardBody = el("div", "panelBody");
+
+    // Two-column info block ABOVE "Moved" (your red circled section)
+    const infoGrid = el("div", "infoGrid2");
+    const infoLeft = el("div", "softCard");
+    const infoRight = el("div", "softCard");
+    infoGrid.append(infoLeft, infoRight);
 
     const msgBar = el("div", "msgBar");
+
+    // Board grid container
     const boardWrap = el("div", "boardWrap");
 
-    boardBody.append(aboveGrid, msgBar, boardWrap);
+    boardBody.append(infoGrid, msgBar, boardWrap);
     boardPanel.append(boardHead, boardBody);
 
-    // RIGHT: Images
-    const imgPanel = el("section", "panel");
+    // Images panel
     const imgHead = el("div", "panelHead");
-    imgHead.innerHTML = `<div class="tag"><span class="dot"></span> Images</div><div class="pill">Now</div>`;
+    const imgLeftTag = el("div", "leftTag");
+    imgLeftTag.append(el("div", "panelDot"), (() => {
+      const t = el("div", "panelTitle");
+      t.textContent = "Images";
+      return t;
+    })());
+    const imgPill = el("div", "pill");
+    imgPill.textContent = "Now";
+    imgHead.append(imgLeftTag, imgPill);
+
     const imgBody = el("div", "panelBody");
-    const imgStack = el("div", "imgStack");
 
-    const playerCard = el("div", "imgCard");
-    playerCard.innerHTML = `
-      <div class="imgHead"><span>Player</span><span class="pill">${escapeHtml(chosenPlayer?.name ?? "—")}</span></div>
-      <div class="imgFrame" id="playerImgFrame">Preset player (no image yet).</div>
-    `;
+    const playerCard = el("div", "softCard");
+    const playerRow = el("div");
+    playerRow.style.display = "flex";
+    playerRow.style.alignItems = "center";
+    playerRow.style.justifyContent = "space-between";
+    playerRow.style.gap = "10px";
+    playerRow.innerHTML = `<b>Player</b>`;
+    const playerNamePill = el("div", "pill");
+    playerNamePill.textContent = chosenPlayer?.name ?? "—";
+    playerRow.appendChild(playerNamePill);
 
-    const hexCard = el("div", "imgCard");
-    hexCard.innerHTML = `
-      <div class="imgHead"><span>Current Hex</span><span class="pill" id="hexLabelPill">—</span></div>
-      <div class="imgFrame" id="hexImgFrame">NORMAL</div>
-    `;
+    const playerFrame = el("div", "imgFrame");
+    playerCard.append(playerRow, playerFrame);
 
-    imgStack.append(playerCard, hexCard);
-    imgBody.append(imgStack);
-    imgPanel.append(imgHead, imgBody);
+    const hexCard = el("div", "softCard");
+    const hexRow = el("div");
+    hexRow.style.display = "flex";
+    hexRow.style.alignItems = "center";
+    hexRow.style.justifyContent = "space-between";
+    hexRow.style.gap = "10px";
+    hexRow.innerHTML = `<b>Current Hex</b>`;
+    const hexIdPill = el("div", "pill");
+    hexIdPill.textContent = state?.playerHexId ?? "—";
+    hexRow.appendChild(hexIdPill);
 
-    grid.append(storyPanel, boardPanel, imgPanel);
-    stage.appendChild(grid);
+    const hexFrame = el("div", "imgFrame");
+    hexCard.append(hexRow, hexFrame);
 
-    vGame.append(titleRow, stage);
+    imgBody.append(playerCard, hexCard);
+    imagesPanel.append(imgHead, imgBody);
 
-    function renderAbove() {
+    grid.append(storyPanel, boardPanel, imagesPanel);
+
+    wrap.append(headerGrid, grid);
+    vGame.appendChild(wrap);
+
+    // ---------- Rendering helpers ----------
+    function renderInfoTop() {
       const s: any = scenario();
-      const goal = posId(s.goal);
 
-      leftInfo.innerHTML = `
+      infoLeft.innerHTML = `
         <div><b>Scenario:</b> ${escapeHtml(String(s.name ?? s.title ?? s.id ?? ""))}</div>
         <div><b>Mode:</b> ${escapeHtml(String(mode ?? "—"))}</div>
         <div><b>Player:</b> ${escapeHtml(String(state?.playerHexId ?? "?"))}</div>
-        <div><b>Goal:</b> ${escapeHtml(goal)}</div>
+        <div><b>Goal:</b> ${escapeHtml(String(posId(s.goal)))}</div>
         <div><b>Layer:</b> ${escapeHtml(String(currentLayer))}</div>
       `;
 
-      const sel = selectedId ?? "—";
-      const h: any = selectedId ? getHex(selectedId) : null;
-      const info = selectedId ? reachMap[selectedId] : null;
+      if (!selectedId) {
+        infoRight.innerHTML = `<div class="hint">No selection.</div>`;
+        return;
+      }
 
-      rightInfo.innerHTML = `
-        <div><b>Selected:</b> ${escapeHtml(sel)}</div>
-        <div><b>Kind:</b> ${escapeHtml(String(h?.kind ?? "—"))}</div>
-        <div><b>Reachable:</b> ${escapeHtml(String(info?.reachable ? "yes" : "no"))}</div>
+      const h: any = getHex(selectedId);
+      const { blocked, missing } = isBlockedOrMissing(h);
+      const info = reachMap[selectedId];
+
+      const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
+
+      infoRight.innerHTML = `
+        <div><b>Selected:</b> ${escapeHtml(selectedId)}</div>
+        <div><b>Kind:</b> ${escapeHtml(String(h?.kind ?? "?"))}</div>
+        <div><b>Reachable:</b> ${escapeHtml(info?.reachable ? "yes" : "no")}</div>
         <div><b>Distance:</b> ${escapeHtml(String(info?.distance ?? "—"))}</div>
-        <div style="margin-top:6px;color:rgba(234,242,255,.80)">
-          <b>Reachable</b> (${escapeHtml(String(currentLayer))}): ${escapeHtml(
-            String(Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length)
-          )} &nbsp;•&nbsp;
-          <b>Outgoing</b>: ${escapeHtml(String(outgoingFromSelected.length))}
-          <div class="hint" style="margin-top:6px;">Build: ${escapeHtml(BUILD_TAG)}</div>
+        <div style="margin-top:8px; opacity:.9">
+          <b>Reachable:</b> ${reachable.size} (layer ${currentLayer}: ${layerReachable})<br/>
+          <b>Transitions:</b> ${transitionsAll.length} · <b>Sources (layer):</b> ${sourcesOnLayer.size} · <b>Outgoing:</b> ${outgoingFromSelected.length}<br/>
+          <b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}
         </div>
       `;
+    }
 
+    function renderMessage() {
       msgBar.textContent = message || "Ready.";
+    }
 
-      const hexPill = document.getElementById("hexLabelPill");
-      if (hexPill) hexPill.textContent = state?.playerHexId ?? "—";
+    function renderImages() {
+      // Player image
+      const playerImgUrl =
+        chosenPlayer?.kind === "custom" ? chosenPlayer.imageDataUrl : null;
+
+      if (playerImgUrl) {
+        playerFrame.innerHTML = `<img src="${playerImgUrl}" alt="player">`;
+      } else {
+        playerFrame.textContent = "Preset player (no image yet).";
+      }
+
+      // Current hex “scene image” placeholder (future)
+      hexIdPill.textContent = state?.playerHexId ?? "—";
+      const h: any = state?.playerHexId ? getHex(state.playerHexId) : null;
+      hexFrame.textContent = (h?.kind ? String(h.kind) : "—").toUpperCase();
     }
 
     function renderBoard() {
@@ -1533,13 +1511,8 @@ export function mountApp(root: HTMLElement | null) {
             btn.appendChild(badge);
           }
 
-          if (isPlayer) {
-            const d = el("div", "hexDot player");
-            btn.appendChild(d);
-          } else if (isGoal) {
-            const d = el("div", "hexDot goal");
-            btn.appendChild(d);
-          }
+          if (isPlayer) btn.appendChild(el("div", "dot player"));
+          else if (isGoal) btn.appendChild(el("div", "dot goal"));
 
           if (info?.reachable && info.distance != null) {
             const d = el("div", "dist");
@@ -1583,9 +1556,17 @@ export function mountApp(root: HTMLElement | null) {
 
     function renderAll() {
       rebuildTransitionIndexAndHighlights();
-      renderAbove();
+      renderInfoTop();
+      renderMessage();
       renderBoard();
+      renderImages();
     }
+
+    // ---------- Wire controls ----------
+    exitBtn.addEventListener("click", () => {
+      renderSetup();
+      setScreen("setup");
+    });
 
     scenarioSelect.addEventListener("change", () => {
       scenarioIndex = Number(scenarioSelect.value);
@@ -1624,6 +1605,7 @@ export function mountApp(root: HTMLElement | null) {
       if (state) enterLayer(state, currentLayer);
       revealWholeLayer(currentLayer);
       recomputeReachability();
+      message = "";
       renderAll();
     });
 
@@ -1634,6 +1616,7 @@ export function mountApp(root: HTMLElement | null) {
       renderAll();
     });
 
+    // ---------- Boot game screen ----------
     setLayerOptions(layerSelect);
     if (state) enterLayer(state, currentLayer);
     revealWholeLayer(currentLayer);
@@ -1644,6 +1627,7 @@ export function mountApp(root: HTMLElement | null) {
   // --------------------------
   // Start app
   // --------------------------
+  applyModeTheme();
   renderStart();
   setScreen("start");
 }
