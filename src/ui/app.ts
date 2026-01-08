@@ -35,13 +35,6 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string) {
   return n;
 }
 
-function appendHint(parent: HTMLElement, txt: string) {
-  const h = el("div", "hint");
-  h.textContent = txt;
-  parent.appendChild(h);
-  return h;
-}
-
 function escapeHtml(str: string) {
   return str.replace(/[&<>"']/g, (m) => {
     const map: Record<string, string> = {
@@ -432,7 +425,7 @@ export function mountApp(root: HTMLElement | null) {
       outline:none;
     }
 
-    /* --- Screen 4 styles (NEW: stage layout) --- */
+    /* --- Screen 4 styles (3-column stage layout) --- */
     .wrap{max-width:1250px;margin:0 auto;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#e8e8e8}
     .top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
     .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -476,16 +469,15 @@ export function mountApp(root: HTMLElement | null) {
       pointer-events:none;
     }
 
+    /* Story | Board(remaining) | Images */
     .gridGame{
       position:relative;
       z-index:1;
       display:grid;
       grid-template-columns:
-        minmax(220px, .85fr)   /* Dice */
-        minmax(320px, 1.20fr)  /* Story */
-        minmax(240px, .95fr)   /* Images */
-        minmax(560px, 2.30fr)  /* BOARD */
-        minmax(280px, 1.10fr); /* Info */
+        minmax(320px, 1.15fr)   /* Story */
+        minmax(560px, 3.25fr)   /* Board */
+        minmax(260px, 1.10fr);  /* Images */
       gap: 12px;
       height: 100%;
       min-height: 0;
@@ -540,30 +532,6 @@ export function mountApp(root: HTMLElement | null) {
       width:8px; height:8px; border-radius:99px;
       background: radial-gradient(circle at 30% 30%, rgba(191,232,255,.95), rgba(95,225,255,.95));
       box-shadow: 0 0 12px rgba(95,225,255,.35);
-    }
-
-    .diceBtns{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-    }
-    .diceBtn{
-      padding: 12px 14px;
-      border-radius: 14px;
-      border: 1px solid rgba(191,232,255,.18);
-      background:
-        radial-gradient(circle at 20% 20%, rgba(191,232,255,.20), transparent 40%),
-        linear-gradient(135deg, rgba(29,78,216,.65), rgba(122,108,255,.20));
-      color: var(--text);
-      font-weight: 900;
-      cursor:pointer;
-      box-shadow: 0 10px 24px rgba(0,0,0,.25);
-      text-align:left;
-    }
-    .diceBtn small{
-      display:block; color: rgba(234,242,255,.72);
-      font-weight: 600; margin-top:4px;
-      font-size: 11px;
     }
 
     .list{
@@ -630,6 +598,30 @@ export function mountApp(root: HTMLElement | null) {
         0 0 0 1px rgba(95,225,255,.14) inset,
         0 18px 55px rgba(0,0,0,.45);
     }
+
+    /* Two-column info area ABOVE the move message */
+    .boardTopGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 12px;
+      padding-bottom: 0;
+    }
+    .boardTopCard{
+      border-radius: 14px;
+      border:1px solid rgba(191,232,255,.14);
+      background: rgba(10,16,34,.28);
+      padding: 10px 10px;
+      font-size: 12px;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .boardMsg{
+      padding: 12px;
+      padding-top: 10px;
+    }
+    .boardMsg .listItem{ margin:0; }
+
     .boardSquare{
       aspect-ratio: 1 / 1;
       width: 100%;
@@ -710,6 +702,7 @@ export function mountApp(root: HTMLElement | null) {
     @media (max-width: 1180px){
       .gridGame{ grid-template-columns: 1fr; }
       .boardSquare{ aspect-ratio: auto; max-height:none; }
+      .boardTopGrid{ grid-template-columns: 1fr; }
     }
   `;
   document.head.appendChild(style);
@@ -1325,14 +1318,6 @@ export function mountApp(root: HTMLElement | null) {
     }
     gameBuilt = true;
 
-    // Simple local dice log (in-game only)
-    type RollEntry = { expr: string; total: number; at: number };
-    let rollLog: RollEntry[] = [];
-
-    function rollDie(sides: number) {
-      return 1 + Math.floor(Math.random() * sides);
-    }
-
     vGame.innerHTML = "";
     const wrap = el("div", "wrap");
 
@@ -1378,30 +1363,11 @@ export function mountApp(root: HTMLElement | null) {
     controls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
     top.append(titleWrap, controls);
 
-    // --- Stage + 5-column layout ---
+    // --- Stage + 3-column layout ---
     const stage = el("div", "stageGame");
     const layout = el("div", "gridGame");
 
-    // Column 1: Dice
-    const diceCol = el("div", "cardGame");
-    diceCol.innerHTML = `
-      <div class="panelHead">
-        <div class="tag"><span class="dotUi"></span> Dice</div>
-        <div class="pill">Quick</div>
-      </div>
-      <div class="panelBody">
-        <div class="diceBtns">
-          <button class="diceBtn" type="button" id="uiD6">d6 <small>Roll a d6</small></button>
-          <button class="diceBtn" type="button" id="uiD12">d12 <small>Roll a d12</small></button>
-          <button class="diceBtn" type="button" id="uiD20">d20 <small>Roll a d20</small></button>
-        </div>
-        <div class="list" id="uiRollLog">
-          <div class="listItem">No rolls yet.</div>
-        </div>
-      </div>
-    `;
-
-    // Column 2: Story log
+    // Column 1: Story log
     const storyCol = el("div", "cardGame");
     storyCol.innerHTML = `
       <div class="panelHead">
@@ -1413,6 +1379,32 @@ export function mountApp(root: HTMLElement | null) {
         <div class="listItem">Moves, discoveries, encounters, etc.</div>
       </div>
     `;
+
+    // Column 2: Board (hero)
+    const boardCol = el("div", "cardGame boardHero");
+
+    const boardHeader = el("div", "panelHead");
+    boardHeader.innerHTML = `
+      <div class="tag"><span class="dotUi"></span> Board</div>
+      <div class="pill">Build: ${escapeHtml(BUILD_TAG)}</div>
+    `;
+
+    const boardTopGrid = el("div", "boardTopGrid");
+    const boardTopLeft = el("div", "boardTopCard");
+    const boardTopRight = el("div", "boardTopCard");
+    boardTopLeft.id = "uiBoardTopLeft";
+    boardTopRight.id = "uiBoardTopRight";
+    boardTopGrid.append(boardTopLeft, boardTopRight);
+
+    const boardMsg = el("div", "boardMsg");
+    boardMsg.id = "uiBoardMsg";
+
+    const boardSquare = el("div", "boardSquare");
+    const boardWrap = el("div", "boardWrap");
+    boardWrap.id = "uiBoardWrap";
+    boardSquare.appendChild(boardWrap);
+
+    boardCol.append(boardHeader, boardTopGrid, boardMsg, boardSquare);
 
     // Column 3: Images (player + current hex)
     const imagesCol = el("div", "cardGame");
@@ -1440,88 +1432,50 @@ export function mountApp(root: HTMLElement | null) {
       </div>
     `;
 
-    // Column 4: Board (hero)
-    const boardCol = el("div", "cardGame boardHero");
-
-    const boardHeader = el("div", "panelHead");
-    boardHeader.innerHTML = `
-      <div class="tag"><span class="dotUi"></span> Board</div>
-      <div class="pill">Build: ${escapeHtml(BUILD_TAG)}</div>
-    `;
-
-    const meta = el("div", "panelBody");
-    meta.style.paddingBottom = "0";
-
-    const banner = el("div", "panelBody");
-    banner.style.paddingTop = "10px";
-    banner.style.paddingBottom = "10px";
-
-    const msg = el("div", "panelBody");
-    msg.style.paddingTop = "0";
-
-    const boardSquare = el("div", "boardSquare");
-    const boardWrap = el("div", "boardWrap");
-    boardSquare.appendChild(boardWrap);
-
-    boardCol.append(boardHeader, meta, banner, msg, boardSquare);
-
-    // Column 5: Info
-    const infoCol = el("div", "cardGame");
-    infoCol.innerHTML = `
-      <div class="panelHead">
-        <div class="tag"><span class="dotUi"></span> Info</div>
-        <div class="pill">Details</div>
-      </div>
-      <div class="panelBody">
-        <div><b>Selection</b></div>
-        <div class="list" id="uiSelection"></div>
-
-        <div style="margin-top:14px;"><b>Scenario</b></div>
-        <div class="list" id="uiScenario"></div>
-      </div>
-    `;
-
-    layout.append(diceCol, storyCol, imagesCol, boardCol, infoCol);
+    layout.append(storyCol, boardCol, imagesCol);
     stage.appendChild(layout);
 
     wrap.append(top, stage);
     vGame.appendChild(wrap);
 
-    const selectionBody = document.getElementById("uiSelection") as HTMLElement;
-    const scenarioBody = document.getElementById("uiScenario") as HTMLElement;
-    const rollLogEl = document.getElementById("uiRollLog") as HTMLElement;
+    const uiBoardTopLeft = document.getElementById("uiBoardTopLeft") as HTMLElement;
+    const uiBoardTopRight = document.getElementById("uiBoardTopRight") as HTMLElement;
+    const uiBoardMsg = document.getElementById("uiBoardMsg") as HTMLElement;
 
-    function renderRollLog() {
-      rollLogEl.innerHTML = "";
-      if (!rollLog.length) {
-        rollLogEl.innerHTML = `<div class="listItem">No rolls yet.</div>`;
-        return;
-      }
-      for (const entry of rollLog.slice().reverse()) {
-        const when = new Date(entry.at).toLocaleTimeString();
-        rollLogEl.innerHTML += `<div class="listItem"><b>${escapeHtml(entry.expr)}</b> → <b>${entry.total}</b><div class="hint">${escapeHtml(when)}</div></div>`;
-      }
-    }
-
-    function doRoll(sides: number) {
-      const r = rollDie(sides);
-      rollLog.push({ expr: `1d${sides}`, total: r, at: Date.now() });
-      if (rollLog.length > 80) rollLog = rollLog.slice(-80);
-      renderRollLog();
-    }
-
-    (document.getElementById("uiD6") as HTMLButtonElement).addEventListener("click", () => doRoll(6));
-    (document.getElementById("uiD12") as HTMLButtonElement).addEventListener("click", () => doRoll(12));
-    (document.getElementById("uiD20") as HTMLButtonElement).addEventListener("click", () => doRoll(20));
-
-    function renderMeta() {
+    function renderBoardTop() {
       const s: any = scenario();
-      meta.innerHTML = `
-        <div class="listItem"><b>Selected:</b> ${escapeHtml(String(s.name ?? s.title ?? s.id ?? ""))}</div>
-        <div class="listItem"><b>Player:</b> ${escapeHtml(String(state?.playerHexId ?? "?"))}</div>
-        <div class="listItem"><b>Goal:</b> ${escapeHtml(String(posId(s.goal)))}</div>
+
+      // Left: compact run/scenario meta
+      uiBoardTopLeft.innerHTML = `
+        <div><b>Scenario:</b> ${escapeHtml(String(s.name ?? s.title ?? s.id ?? ""))}</div>
+        <div><b>Mode:</b> ${escapeHtml(String(mode ?? "—"))}</div>
+        <div><b>Player:</b> ${escapeHtml(String(state?.playerHexId ?? "?"))}</div>
+        <div><b>Goal:</b> ${escapeHtml(String(posId(s.goal)))}</div>
+        <div><b>Layer:</b> ${escapeHtml(String(currentLayer))}</div>
       `;
-      msg.innerHTML = `<div class="listItem">${escapeHtml(message || "Ready.")}</div>`;
+
+      // Right: reachability + selection (kept short)
+      const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
+      const sel = selectedId ?? "—";
+      const h: any = selectedId ? getHex(selectedId) : null;
+      const info = selectedId ? reachMap[selectedId] : null;
+
+      uiBoardTopRight.innerHTML = `
+        <div><b>Selected:</b> ${escapeHtml(sel)}</div>
+        <div><b>Kind:</b> ${escapeHtml(String(h?.kind ?? "—"))}</div>
+        <div><b>Reachable:</b> ${escapeHtml(String(info?.reachable ? "yes" : selectedId ? "no" : "—"))}</div>
+        <div><b>Distance:</b> ${escapeHtml(String(info?.distance ?? "—"))}</div>
+        <div style="margin-top:6px;">
+          <b>Reachable:</b> ${escapeHtml(String(reachable.size))} (layer ${escapeHtml(String(currentLayer))}: ${escapeHtml(
+        String(layerReachable)
+      )})<br/>
+          <b>Transitions:</b> ${escapeHtml(String(transitionsAll.length))} • <b>Sources (layer):</b> ${escapeHtml(
+        String(sourcesOnLayer.size)
+      )} • <b>Outgoing:</b> ${escapeHtml(String(outgoingFromSelected.length))}
+        </div>
+      `;
+
+      uiBoardMsg.innerHTML = `<div class="listItem">${escapeHtml(message || "Ready.")}</div>`;
 
       // Images: player + current hex placeholder
       const playerName = document.getElementById("uiPlayerName") as HTMLElement;
@@ -1531,9 +1485,7 @@ export function mountApp(root: HTMLElement | null) {
       playerName.textContent = nm;
 
       const imgUrl = chosenPlayer?.kind === "custom" ? chosenPlayer.imageDataUrl : null;
-      playerBox.innerHTML = imgUrl
-        ? `<img src="${imgUrl}" alt="player">`
-        : `<div>Preset player (no image yet).</div>`;
+      playerBox.innerHTML = imgUrl ? `<img src="${imgUrl}" alt="player">` : `<div>Preset player (no image yet).</div>`;
 
       const hexLabel = document.getElementById("uiHexLabel") as HTMLElement;
       const hexBox = document.getElementById("uiHexImgBox") as HTMLElement;
@@ -1543,60 +1495,6 @@ export function mountApp(root: HTMLElement | null) {
 
       const hk: any = focusId && focusId !== "—" ? getHex(focusId) : null;
       hexBox.innerHTML = `<div>${escapeHtml(String(hk?.kind ?? "Unknown"))}</div>`;
-    }
-
-    function renderBanner() {
-      const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
-
-      banner.innerHTML = `
-        <div class="listItem">
-          <b>Reachable:</b> ${reachable.size} (layer ${currentLayer}: ${layerReachable})<br/>
-          <b>Transitions total:</b> ${transitionsAll.length}<br/>
-          <b>Sources on this layer:</b> ${sourcesOnLayer.size}<br/>
-          <b>Outgoing from selected:</b> ${outgoingFromSelected.length}
-        </div>
-        <div class="hint" style="margin-top:8px;">Orange = transition sources. Cyan = selected targets.</div>
-      `;
-    }
-
-    function renderSelection() {
-      selectionBody.innerHTML = "";
-      if (!selectedId) {
-        selectionBody.innerHTML = `<div class="listItem">No hex selected.</div>`;
-        return;
-      }
-
-      const h: any = getHex(selectedId);
-      const { blocked, missing } = isBlockedOrMissing(h);
-      const info = reachMap[selectedId];
-
-      selectionBody.innerHTML = `
-        <div class="listItem"><b>Hex:</b> ${escapeHtml(selectedId)}</div>
-        <div class="listItem"><b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}</div>
-        <div class="listItem"><b>Revealed:</b> ${isRevealed(h) ? "yes" : "no"}</div>
-        <div class="listItem"><b>Kind:</b> ${escapeHtml(String(h?.kind ?? "?"))}</div>
-        <div class="listItem"><b>Reachable:</b> ${info?.reachable ? "yes" : "no"}</div>
-        <div class="listItem"><b>Distance:</b> ${escapeHtml(String(info?.distance ?? "—"))}</div>
-        <div class="listItem"><b>Explored:</b> ${escapeHtml(String(info?.explored ?? "—"))}</div>
-        <div class="listItem"><b>Has transitions:</b> ${transitionsByFrom.has(selectedId) ? "yes" : "no"}</div>
-      `;
-    }
-
-    function renderScenarioDetails() {
-      const s: any = scenario();
-      scenarioBody.innerHTML = "";
-
-      const move = el("div", "listItem");
-      move.innerHTML = `<b>Movement</b><div class="hint" style="margin-top:6px; white-space:pre-wrap">${escapeHtml(
-        JSON.stringify(s.movement ?? {}, null, 2)
-      )}</div>`;
-
-      const trans = el("div", "listItem");
-      trans.innerHTML = `<b>Transitions</b><div class="hint" style="margin-top:6px; white-space:pre-wrap">${escapeHtml(
-        JSON.stringify(s.transitions ?? [], null, 2)
-      )}</div>`;
-
-      scenarioBody.append(move, trans);
     }
 
     function renderBoard() {
@@ -1682,12 +1580,8 @@ export function mountApp(root: HTMLElement | null) {
 
     function renderAll() {
       rebuildTransitionIndexAndHighlights();
-      renderMeta();
-      renderBanner();
+      renderBoardTop();
       renderBoard();
-      renderSelection();
-      renderScenarioDetails();
-      renderRollLog();
     }
 
     scenarioSelect.addEventListener("change", () => {
