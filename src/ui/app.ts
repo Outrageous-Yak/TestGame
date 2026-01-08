@@ -256,29 +256,76 @@ export function mountApp(root: HTMLElement | null) {
     }
     .btn.small{padding:6px 8px;border-radius:10px;font-size:12px}
 
-    /* ✅ Start screen buttons with icons */
-    .btnIcon{ display:flex; align-items:center; gap:10px; }
-    .btnIcon img{
-      width:26px; height:26px;
-      object-fit:contain;
-      border-radius:8px;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(0,0,0,.20);
+    /* ✅ Start screen: 3-column grid (tile | empty gap | tile) */
+    .modeGrid{
+      display:grid;
+      grid-template-columns: 1fr 96px 1fr;
+      align-items: stretch;
+      width: 100%;
     }
-    .modeBtn{
-      padding:12px 14px;
-      border-radius:16px;
-      min-width: 260px;
-      justify-content:space-between;
+    @media (max-width: 980px){
+      .modeGrid{
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
     }
-    .modeBtn .modeText{
+
+    /* ✅ Mode tiles: height-driven, image fills full height */
+    .modeTile{
+      display:grid;
+      grid-template-columns: auto 1fr 48px; /* image | text | arrow */
+      align-items: stretch;
+      padding: 0;
+      border-radius: 20px;
+      overflow: hidden;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.22);
+      cursor:pointer;
+      user-select:none;
+      height: 132px; /* 🔒 anchor */
+      width: 100%;
+    }
+    .modeTile:hover{border-color: rgba(255,255,255,.32);}
+    .modeTile.primary{
+      border-color: rgba(255,152,0,.55);
+      box-shadow: 0 0 0 3px rgba(255,152,0,.10) inset;
+      background: rgba(255,152,0,.10);
+    }
+
+    .modeImg{
+      height: 100%;
+      width: auto;           /* 👈 critical: width derives from height */
+      aspect-ratio: 2 / 3;   /* matches 1664×2496 (portrait) */
+      object-fit: cover;     /* fills height cleanly */
+      display:block;
+      background: rgba(0,0,0,.25);
+    }
+
+    .modeTextWrap{
       display:flex;
       flex-direction:column;
-      align-items:flex-start;
-      line-height:1.1;
+      justify-content:center;
+      padding: 16px 18px;
+      text-align:left;
     }
-    .modeBtn .modeText .title{font-weight:800}
-    .modeBtn .modeText .sub{font-size:12px;opacity:.82;margin-top:4px}
+    .modeTextWrap .title{
+      font-weight: 900;
+      font-size: 19px;
+      line-height: 1.1;
+    }
+    .modeTextWrap .sub{
+      margin-top: 6px;
+      font-size: 13px;
+      opacity: .82;
+      line-height: 1.25;
+    }
+    .modeArrow{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: 18px;
+      opacity: .85;
+    }
 
     .tile{
       padding: 12px;
@@ -336,7 +383,7 @@ export function mountApp(root: HTMLElement | null) {
       outline:none;
     }
 
-    /* --- Screen 4 styles (your existing UI) --- */
+    /* --- Screen 4 styles (your existing board UI) --- */
     .wrap{max-width:1250px;margin:0 auto;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#e8e8e8}
     .top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
     .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -493,7 +540,7 @@ export function mountApp(root: HTMLElement | null) {
   }
 
   // --------------------------
-  // Screen 1: Start (Mode selection with images)
+  // Screen 1: Start (Mode selection with full-height images)
   // --------------------------
   function renderStart() {
     vStart.innerHTML = "";
@@ -504,28 +551,26 @@ export function mountApp(root: HTMLElement | null) {
     const p = el("div", "hint");
     p.textContent = "Choose a version, then select a scenario, set up, and play.";
 
-    const row = el("div", "row");
+    const grid = el("div", "modeGrid");
 
-    // ✅ Your uploaded files:
+    // ✅ Your uploaded files in public/images/ui/
     const regularIcon = "images/ui/regular.png";
     const kidsIcon = "images/ui/kids.png";
 
-    const regularBtn = el("button", "btn primary btnIcon modeBtn") as HTMLButtonElement;
+    const regularBtn = el("button", "modeTile primary") as HTMLButtonElement;
     regularBtn.innerHTML = `
-      <span class="btnIcon">
-        <img src="${regularIcon}" alt="Regular" />
-        <span class="modeText">
-          <span class="title">Regular version</span>
-          <span class="sub">Standard tone and enemies</span>
-        </span>
-      </span>
-      <span class="hint">→</span>
+      <img class="modeImg" src="${regularIcon}" alt="Regular" />
+      <div class="modeTextWrap">
+        <div class="title">Regular version</div>
+        <div class="sub">Standard tone and enemies</div>
+      </div>
+      <div class="modeArrow">→</div>
     `;
 
     regularBtn.addEventListener("click", async () => {
       try {
-        regularBtn.setAttribute("disabled", "true");
-        regularBtn.querySelector(".hint")!.textContent = "Loading…";
+        regularBtn.disabled = true;
+        (regularBtn.querySelector(".modeArrow") as HTMLElement).textContent = "…";
         await loadModeContent("regular");
         chosenPlayer = null;
         chosenMonsters = [];
@@ -533,27 +578,25 @@ export function mountApp(root: HTMLElement | null) {
         setScreen("select");
       } catch (e: any) {
         alert(String(e?.message ?? e));
-        regularBtn.removeAttribute("disabled");
-        regularBtn.querySelector(".hint")!.textContent = "→";
+        regularBtn.disabled = false;
+        (regularBtn.querySelector(".modeArrow") as HTMLElement).textContent = "→";
       }
     });
 
-    const kidsBtn = el("button", "btn btnIcon modeBtn") as HTMLButtonElement;
+    const kidsBtn = el("button", "modeTile") as HTMLButtonElement;
     kidsBtn.innerHTML = `
-      <span class="btnIcon">
-        <img src="${kidsIcon}" alt="Kids" />
-        <span class="modeText">
-          <span class="title">Kids / Friendly</span>
-          <span class="sub">Brighter UI, non-scary foes</span>
-        </span>
-      </span>
-      <span class="hint">→</span>
+      <img class="modeImg" src="${kidsIcon}" alt="Kids" />
+      <div class="modeTextWrap">
+        <div class="title">Kids / Friendly</div>
+        <div class="sub">Brighter UI, non-scary foes</div>
+      </div>
+      <div class="modeArrow">→</div>
     `;
 
     kidsBtn.addEventListener("click", async () => {
       try {
-        kidsBtn.setAttribute("disabled", "true");
-        kidsBtn.querySelector(".hint")!.textContent = "Loading…";
+        kidsBtn.disabled = true;
+        (kidsBtn.querySelector(".modeArrow") as HTMLElement).textContent = "…";
         await loadModeContent("kids");
         chosenPlayer = null;
         chosenMonsters = [];
@@ -561,13 +604,16 @@ export function mountApp(root: HTMLElement | null) {
         setScreen("select");
       } catch (e: any) {
         alert(String(e?.message ?? e));
-        kidsBtn.removeAttribute("disabled");
-        kidsBtn.querySelector(".hint")!.textContent = "→";
+        kidsBtn.disabled = false;
+        (kidsBtn.querySelector(".modeArrow") as HTMLElement).textContent = "→";
       }
     });
 
-    row.append(regularBtn, kidsBtn);
-    card.append(h, p, row);
+    // empty middle column
+    const spacer = document.createElement("div");
+
+    grid.append(regularBtn, spacer, kidsBtn);
+    card.append(h, p, grid);
     vStart.appendChild(card);
   }
 
@@ -679,6 +725,7 @@ export function mountApp(root: HTMLElement | null) {
     const right = el("div", "card");
     layout.append(left, right);
 
+    // Player
     const h2 = el("h2");
     h2.textContent = "Choose your player";
     left.appendChild(h2);
@@ -765,6 +812,7 @@ export function mountApp(root: HTMLElement | null) {
     customCard.append(h3, drop, useCustom);
     left.appendChild(customCard);
 
+    // Monsters/Creatures
     const mh2 = el("h2");
     mh2.textContent = monstersLabel();
     right.appendChild(mh2);
@@ -808,6 +856,7 @@ export function mountApp(root: HTMLElement | null) {
     }
     right.appendChild(mpresetWrap);
 
+    // Custom monster/creature
     const customM = el("div", "card");
     (customM as HTMLElement).style.background = "rgba(0,0,0,.12)";
     (customM as HTMLElement).style.marginTop = "12px";
@@ -878,6 +927,7 @@ export function mountApp(root: HTMLElement | null) {
     customM.append(mh3, mdrop, addMonsterBtn);
     right.appendChild(customM);
 
+    // Footer actions
     const footer = el("div", "row");
     (footer as HTMLElement).style.marginTop = "14px";
     (footer as HTMLElement).style.justifyContent = "space-between";
