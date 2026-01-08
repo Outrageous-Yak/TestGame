@@ -715,7 +715,7 @@ export function mountApp(root: HTMLElement | null) {
     /* Hex tile base (size + shape) */
     .hex{
       width: var(--hexW);
-      height: calc(var(--hexW) * 0.88);
+      height: calc(var(--hexW) * 5);
       clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
 
       display:flex;
