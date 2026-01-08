@@ -21,7 +21,7 @@ type MonsterChoice = {
   kind: "preset" | "custom";
 };
 
-const BUILD_TAG = "BUILD_TAG_TRANSITIONS_V2_THICK_GLOW";
+const BUILD_TAG = "BUILD_TAG_3COL_3D_ROTATE_GLOW_FILLWIDTH_V1";
 
 function idToCoord(id: string): Coord | null {
   const m = /^L(\d+)-R(\d+)-C(\d+)$/.exec(id);
@@ -84,7 +84,7 @@ function wireDropZone(
 ) {
   dropEl.addEventListener("dragover", (e) => {
     e.preventDefault();
-    dropEl.style.background = "rgba(95,225,255,.08)";
+    dropEl.style.background = "rgba(240,163,91,.08)";
   });
   dropEl.addEventListener("dragleave", () => {
     dropEl.style.background = "rgba(255,255,255,.03)";
@@ -169,8 +169,12 @@ export function mountApp(root: HTMLElement | null) {
   let targetsSameLayer = new Map<string, string>();
   let outgoingFromSelected: any[] = [];
 
+  // Story log (placeholder for now)
+  type StoryEntry = { at: string; text: string };
+  let story: StoryEntry[] = [];
+
   // --------------------------
-  // Styles
+  // Styles (Screens + Game)
   // --------------------------
   const style = document.createElement("style");
   style.textContent = `
@@ -180,8 +184,8 @@ export function mountApp(root: HTMLElement | null) {
       --ink:#eaf2ff;
       --muted:rgba(234,242,255,.72);
 
-      --card: rgba(10, 16, 34, .52);
-      --card2: rgba(10, 16, 34, .38);
+      --card: rgba(10, 16, 34, .62);
+      --card2: rgba(10, 16, 34, .42);
       --stroke: rgba(160, 210, 255, .22);
       --stroke2: rgba(160, 210, 255, .14);
 
@@ -191,20 +195,17 @@ export function mountApp(root: HTMLElement | null) {
 
       --radius: 18px;
 
-      /* Game layout widths */
-      --leftW: 340px;   /* story log */
-      --rightW: 320px;  /* images */
-      --gap: 12px;
+      --colGap: 12px;
 
-      /* Hex layout vars (set by JS via ResizeObserver) */
+      /* board geometry */
+      --cols: 7;
       --hexGap: 5px;
-      --hexW: 64px;
-      --hexH: 56px;
-      --hexOffset: 34px;
+      --hexMin: 44px;
+      --hexMax: 96px;
 
-      /* Text sizing */
-      --baseText: 12px;
-      --line: 1.35;
+      /* board “table” tilt */
+      --boardRotZ: -6deg;
+      --boardRotX: 10deg;
     }
 
     *{ box-sizing:border-box; }
@@ -219,8 +220,7 @@ export function mountApp(root: HTMLElement | null) {
         radial-gradient(1000px 900px at 50% 110%, rgba(0,170,255,.08), transparent 55%),
         linear-gradient(180deg, var(--bg0), var(--bg1));
       overflow-x:hidden;
-      font-size: var(--baseText);
-      line-height: var(--line);
+      font-size: 14px;
     }
     body::before{
       content:"";
@@ -236,6 +236,7 @@ export function mountApp(root: HTMLElement | null) {
       filter: blur(32px);
       opacity:.55;
       animation: prism 14s linear infinite;
+      z-index:0;
     }
     @keyframes prism{
       0%{ transform: rotate(0deg) scale(1.05); }
@@ -243,136 +244,265 @@ export function mountApp(root: HTMLElement | null) {
     }
 
     .shell{
-      width: min(1480px, calc(100vw - 36px));
-      margin: 0 auto;
-      padding: 18px 0 26px;
       position:relative;
       z-index:1;
+      max-width: 1400px;     /* uses more width */
+      margin: 0 auto;
+      padding: 18px;
       color: var(--ink);
     }
     .shell.kids{
-      --card: rgba(10, 22, 50, .52);
-      --card2: rgba(10, 22, 50, .38);
-      --aqua: #4df6ff;
-      --violet: #9a7cff;
+      --card: rgba(8, 18, 46, .62);
+      --card2: rgba(8, 18, 46, .42);
+      --stroke: rgba(150, 230, 255, .22);
+      --stroke2: rgba(150, 230, 255, .14);
+      --aqua:#00d4ff;
+      --violet:#7a6cff;
     }
 
     .topBar{
       display:flex;
-      align-items:flex-start;
+      align-items:center;
       justify-content:space-between;
       gap:12px;
       flex-wrap:wrap;
-      padding: 0 6px;
       margin-bottom: 14px;
     }
-    .brand{display:flex; align-items:center; gap:10px;}
-    .dotBrand{
-      width:8px;height:8px;border-radius:999px;
-      background: radial-gradient(circle at 30% 30%, var(--ice), var(--aqua));
-      box-shadow: 0 0 12px rgba(95,225,255,.35);
-      margin-top: 7px;
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:10px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke2);
+      background: rgba(10,16,34,.35);
+      box-shadow: 0 0 0 1px rgba(95,225,255,.08) inset, 0 10px 30px rgba(0,0,0,.35);
+      backdrop-filter: blur(10px);
     }
+    .sigil{
+      width:34px; height:34px;
+      border-radius: 12px;
+      position:relative;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(95,225,255,.35), transparent 55%),
+        radial-gradient(circle at 70% 70%, rgba(122,108,255,.30), transparent 55%),
+        rgba(10,16,34,.55);
+      border:1px solid rgba(191,232,255,.22);
+      box-shadow: 0 0 28px rgba(95,225,255,.12);
+      flex: 0 0 auto;
+    }
+    .sigil:before{
+      content:"";
+      position:absolute; inset:7px;
+      border-radius:10px;
+      border:1px solid rgba(191,232,255,.28);
+      transform: rotate(45deg);
+      opacity:.8;
+    }
+    .titlebox{ display:flex; flex-direction:column; line-height:1.1; }
     .brandTitle{
-      font-weight:900;
-      letter-spacing:.5px;
-      font-size: 16px;
+      font-weight:850;
+      letter-spacing:.2px;
+      font-size: 15px;
     }
-    .crumb{
-      opacity:.85;
-      font-size: 12px;
-      padding-top: 2px;
-      text-align:right;
-    }
+    .crumb{ opacity:.85; font-size: 13px; color: var(--muted); }
 
     .view{ display:none; }
     .view.active{ display:block; }
 
     .card{
-      border: 1px solid var(--stroke2);
-      background: var(--card);
-      border-radius: var(--radius);
+      border: 1px solid rgba(191,232,255,.20);
+      background: linear-gradient(180deg, rgba(10,16,34,.58), rgba(10,16,34,.34));
+      border-radius: calc(var(--radius) + 6px);
       padding: 14px;
       box-shadow:
-        0 0 0 1px rgba(95,225,255,.08) inset,
-        0 18px 50px rgba(0,0,0,.45);
-      backdrop-filter: blur(10px);
+        0 0 0 1px rgba(95,225,255,.10) inset,
+        0 18px 60px rgba(0,0,0,.45);
+      position:relative;
+      overflow:hidden;
     }
-
-    h1{margin:0; font-size: 44px; letter-spacing:.2px; line-height:1.05;}
-    h2{margin:0 0 10px 0; font-size: 14px; letter-spacing:.2px;}
-    h3{margin:0 0 10px 0; font-size: 13px; letter-spacing:.2px;}
-    .hint{opacity:.82; font-size: 12px;}
-    .muted{opacity:.82}
-
-    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
-    .btn{
-      padding:8px 10px;
-      border-radius: 12px;
-      border:1px solid rgba(191,232,255,.18);
-      background: rgba(10,16,34,.35);
-      color: var(--ink);
-      cursor:pointer;
-      user-select:none;
-      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 10px 24px rgba(0,0,0,.25);
-      font-size: 12px;
-      font-weight: 800;
-    }
-    .btn:hover{border-color:rgba(191,232,255,.30); filter: brightness(1.06);}
-    .btn.primary{
-      border-color: rgba(95,225,255,.35);
+    .card::before{
+      content:"";
+      position:absolute; inset:0;
       background:
-        radial-gradient(circle at 20% 20%, rgba(191,232,255,.18), transparent 40%),
-        linear-gradient(135deg, rgba(29,78,216,.45), rgba(122,108,255,.22));
+        radial-gradient(circle at 18% 20%, rgba(95,225,255,.10), transparent 40%),
+        radial-gradient(circle at 85% 35%, rgba(122,108,255,.10), transparent 45%),
+        repeating-linear-gradient(
+          135deg,
+          rgba(191,232,255,.06) 0px,
+          rgba(191,232,255,.06) 1px,
+          transparent 1px,
+          transparent 16px
+        );
+      opacity:.50;
+      pointer-events:none;
     }
-    .btn.small{padding:6px 8px;border-radius:10px;font-size:11px}
+    .card > *{ position:relative; z-index:1; }
 
-    .grid2{
+    .grid{
       display:grid;
       grid-template-columns: 1fr 1fr;
       gap: 14px;
     }
-    @media (max-width: 980px){ .grid2{ grid-template-columns: 1fr; } }
+    @media (max-width: 980px){ .grid{ grid-template-columns: 1fr; } }
+
+    h1{margin:0;font-size:42px;letter-spacing:.3px}
+    h2{margin:0 0 10px 0;font-size:18px}
+    h3{margin:0 0 10px 0;font-size:15px}
+    .hint{opacity:.85;font-size:13px;color:var(--muted)}
+    .muted{opacity:.82}
+
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .btn{
+      padding:8px 10px;
+      border-radius: 12px;
+      border:1px solid rgba(191,232,255,.18);
+      background: rgba(10,16,34,.28);
+      color: var(--ink);
+      cursor:pointer;
+      user-select:none;
+      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 10px 24px rgba(0,0,0,.22);
+    }
+    .btn:hover{border-color:rgba(191,232,255,.34)}
+    .btn.primary{
+      border-color: rgba(95,225,255,.42);
+      background: rgba(95,225,255,.14);
+    }
+    .btn.small{padding:6px 8px;border-radius:10px;font-size:12px}
+
+    /* ✅ Start screen: 3-column grid (tile | empty gap | tile) */
+    .modeGrid{
+      display:grid;
+      grid-template-columns: 1fr 96px 1fr;
+      align-items: stretch;
+      width: 100%;
+    }
+    @media (max-width: 980px){
+      .modeGrid{
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+    }
+
+    /* ✅ Start tiles: background image + overlay */
+    .modeTile{
+      position: relative;
+      height: 150px;
+      width: 100%;
+      border-radius: 22px;
+      overflow: hidden;
+      border: 1px solid rgba(191,232,255,.20);
+      background: rgba(10,16,34,.28);
+      cursor: pointer;
+      user-select: none;
+      padding: 0;
+      box-shadow: 0 0 0 1px rgba(95,225,255,.08) inset, 0 14px 34px rgba(0,0,0,.35);
+    }
+    .modeTile:hover{ border-color: rgba(191,232,255,.34); }
+    .modeTile.primary{
+      border-color: rgba(95,225,255,.48);
+      box-shadow: 0 0 0 3px rgba(95,225,255,.10) inset, 0 14px 34px rgba(0,0,0,.38);
+    }
+    .modeBg{
+      position:absolute;
+      inset:0;
+      background-size: cover;
+      background-position: center;
+      filter: saturate(1.05) contrast(1.05);
+    }
+    .modeShade{
+      position:absolute;
+      inset:0;
+      background: linear-gradient(90deg,
+        rgba(0,0,0,.62) 0%,
+        rgba(0,0,0,.40) 42%,
+        rgba(0,0,0,.18) 100%
+      );
+    }
+    .modeContent{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 14px;
+      padding: 16px 18px;
+    }
+    .modeTextWrap{
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      min-width: 0;
+      text-align:left;
+    }
+    .modeTextWrap .title{
+      font-weight: 900;
+      font-size: 22px;
+      line-height: 1.05;
+    }
+    .modeTextWrap .sub{
+      margin-top: 8px;
+      font-size: 14px;
+      opacity: .85;
+      line-height: 1.25;
+      color: rgba(234,242,255,.80);
+    }
+    .modeArrow{
+      flex: 0 0 auto;
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border:1px solid rgba(191,232,255,.18);
+      background: rgba(10,16,34,.28);
+      font-size: 18px;
+      opacity: .92;
+    }
 
     .tile{
       padding: 12px;
       border-radius: 16px;
       border:1px solid rgba(191,232,255,.14);
-      background: rgba(10,16,34,.30);
+      background: rgba(10,16,34,.28);
       cursor:pointer;
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap: 10px;
-      box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset, 0 12px 28px rgba(0,0,0,.28);
+      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 12px 28px rgba(0,0,0,.28);
     }
-    .tile:hover{border-color:rgba(191,232,255,.24)}
+    .tile:hover{border-color:rgba(191,232,255,.28)}
     .tile.selected{
-      border-color: rgba(95,225,255,.40);
-      box-shadow: 0 0 0 3px rgba(95,225,255,.10) inset, 0 16px 36px rgba(0,0,0,.30);
+      border-color: rgba(95,225,255,.42);
+      box-shadow: 0 0 0 3px rgba(95,225,255,.10) inset, 0 12px 28px rgba(0,0,0,.30);
+      background: rgba(95,225,255,.07);
     }
     .tileMain{min-width:0}
-    .tileTitle{font-weight:900; margin-bottom: 3px; font-size: 12px;}
-    .tileDesc{font-size:11px; opacity:.82; line-height:1.25}
+    .tileTitle{font-weight:800; margin-bottom: 3px}
+    .tileDesc{font-size:12px; opacity:.82; line-height:1.25; color: rgba(234,242,255,.75)}
 
     .drop{
       border:1px dashed rgba(191,232,255,.18);
-      background: rgba(255,255,255,.03);
+      background: rgba(10,16,34,.20);
       border-radius: 16px;
       padding: 12px;
       display:flex;
       gap: 12px;
       align-items:center;
+      box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
     }
     .drop input{display:none}
     .preview{
       width:64px; height:64px;
       border-radius:16px;
-      border:1px solid rgba(191,232,255,.14);
+      border:1px solid rgba(191,232,255,.12);
       background: rgba(0,0,0,.25);
       display:grid; place-items:center;
       overflow:hidden;
-      font-size:11px;
+      font-size:12px;
       text-align:center;
       opacity:.85;
       flex:0 0 auto;
@@ -380,119 +510,82 @@ export function mountApp(root: HTMLElement | null) {
     }
     .preview img{width:100%;height:100%;object-fit:cover;display:block}
     .field{display:flex;flex-direction:column;gap:6px;margin-top:10px}
-    label{font-size:11px;opacity:.8}
+    label{font-size:12px;opacity:.8;color:rgba(234,242,255,.75)}
     input[type="text"]{
       padding:8px 10px;
       border-radius: 12px;
       border:1px solid rgba(191,232,255,.18);
-      background: rgba(5,8,18,.55);
+      background: rgba(10,16,34,.28);
       color: var(--ink);
       outline:none;
-      font-size: 12px;
-      font-weight: 700;
+      box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
     }
 
-    /* ==========================
-       GAME SCREEN (3 columns)
-    ========================== */
-    .gameStage{
-      border-radius: calc(var(--radius) + 6px);
-      border: 1px solid rgba(191,232,255,.18);
-      background: linear-gradient(180deg, rgba(10,16,34,.58), rgba(10,16,34,.30));
-      box-shadow:
-        0 0 0 1px rgba(95,225,255,.08) inset,
-        0 18px 60px rgba(0,0,0,.55);
-      overflow:hidden;
-      padding: 12px;
-      min-height: calc(100vh - 140px);
-    }
-    .gameStage::before{
-      content:"";
-      position:absolute;
-      inset:0;
-      pointer-events:none;
-      opacity:.55;
-      background:
-        radial-gradient(circle at 18% 20%, rgba(95,225,255,.10), transparent 40%),
-        radial-gradient(circle at 85% 35%, rgba(122,108,255,.10), transparent 45%),
-        repeating-linear-gradient(135deg, rgba(191,232,255,.06) 0px, rgba(191,232,255,.06) 1px, transparent 1px, transparent 16px),
-        repeating-linear-gradient(45deg, rgba(95,225,255,.05) 0px, rgba(95,225,255,.05) 1px, transparent 1px, transparent 22px);
-    }
-
-    .gameWrap{
-      position:relative;
-      z-index:1;
+    /* --- Screen 4 (3-column) --- */
+    .gameShell{
       display:flex;
       flex-direction:column;
-      gap: var(--gap);
-      min-height: calc(100vh - 170px);
+      gap: 12px;
+      min-height: calc(100vh - 120px);
     }
 
-    /* Header grid aligns to the 3 columns.
-       Controls span board+images (columns 2-3). */
-    .gameHeader{
-      display:grid;
-      grid-template-columns: var(--leftW) 1fr var(--rightW);
-      gap: var(--gap);
-      align-items:start;
-      padding: 2px 2px 0;
-    }
-    .gameHeaderLeft{
-      padding: 6px 6px 0;
-    }
-    .gameHeaderTitle{
-      font-size: 44px;
-      font-weight: 900;
-      letter-spacing:.2px;
-      margin:0;
-      line-height: 1.05;
-    }
-    .gameHeaderSub{
-      margin-top: 6px;
-      font-size: 12px;
-      opacity:.82;
-    }
-    .gameHeaderControls{
-      grid-column: 2 / 4;  /* spans board+images */
+    .gameTop{
       display:flex;
-      justify-content:flex-end;
-      align-items:center;
-      gap: 10px;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:12px;
       flex-wrap:wrap;
-      padding: 6px 6px 0;
     }
+    .gameTitle{ display:flex; flex-direction:column; gap:6px; }
+    .gameTitle h1{ font-size: 34px; }
+    .gameControls{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    select,button{padding:8px 10px;border-radius:12px;border:1px solid rgba(191,232,255,.18);background:rgba(10,16,34,.28);color:var(--ink)}
+    button{cursor:pointer}
+    select:hover,button:hover{border-color:rgba(191,232,255,.32)}
 
-    .gameLayout{
-      display:grid;
-      grid-template-columns: var(--leftW) 1fr var(--rightW);
-      gap: var(--gap);
+    .gameGrid{
+      flex:1;
       min-height: 0;
-      flex: 1;
+      display:grid;
+      grid-template-columns: 320px 1fr 320px; /* story | board | images */
+      gap: var(--colGap);
+      align-items: stretch;
+    }
+    @media (max-width: 1100px){
+      .gameGrid{
+        grid-template-columns: 1fr;
+      }
     }
 
     .panel{
+      height: 100%;
+      min-height: 0;
       border-radius: var(--radius);
       border: 1px solid rgba(160, 210, 255, .22);
       background: rgba(10,16,34,.45);
       overflow:hidden;
       box-shadow:
-        0 0 0 1px rgba(95,225,255,.08) inset,
+        0 0 0 1px rgba(95,225,255,.10) inset,
         0 18px 40px rgba(0,0,0,.35);
       display:flex;
       flex-direction:column;
-      min-width: 0;
-      min-height: 0;
     }
     .panelHead{
       padding:10px 12px;
       border-bottom: 1px solid rgba(191,232,255,.14);
-      background: linear-gradient(180deg, rgba(10,16,34,.62), rgba(10,16,34,.28));
+      background: linear-gradient(180deg, rgba(10,16,34,.62), rgba(10,16,34,.30));
       backdrop-filter: blur(10px);
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:12px;
       flex-wrap:wrap;
+      flex: 0 0 auto;
     }
     .tag{
       font-size:11px;
@@ -501,8 +594,6 @@ export function mountApp(root: HTMLElement | null) {
       align-items:center;
       gap:8px;
       opacity:.95;
-      font-weight: 800;
-      letter-spacing:.2px;
     }
     .dot{
       width:8px; height:8px; border-radius:99px;
@@ -516,110 +607,152 @@ export function mountApp(root: HTMLElement | null) {
       border-radius:999px;
       border: 1px solid rgba(191,232,255,.16);
       background: rgba(10,16,34,.30);
-      font-weight: 800;
-      white-space: nowrap;
     }
+    .pill strong{ color: var(--ink); }
 
     .panelBody{
-      padding: 12px;
+      flex:1;
+      min-height:0;
       overflow:auto;
-      min-height: 0;
-    }
-
-    .softCard{
-      border-radius: 16px;
-      border: 1px solid rgba(191,232,255,.14);
-      background: rgba(10,16,34,.28);
-      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 12px 28px rgba(0,0,0,.28);
       padding: 12px;
-      min-width: 0;
+      background: rgba(10,16,34,.30);
     }
 
+    /* small, consistent text blocks */
     .infoText{
       font-size: 12px;
       line-height: 1.35;
+      color: rgba(234,242,255,.86);
     }
-    .infoText b{
-      font-weight: 800;
-      color: rgba(234,242,255,.98);
+    .infoText b{ font-weight: 800; color: rgba(234,242,255,.96); }
+
+    .softCard{
+      border-radius: 16px;
+      border: 1px solid rgba(191,232,255,.16);
+      background: rgba(10,16,34,.28);
+      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 12px 28px rgba(0,0,0,.28);
+      padding: 12px;
+      overflow:hidden;
     }
 
+    /* middle/board panel: top info grid + msg + board fills remaining */
+    .boardColumn{
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+    }
+    .infoTopGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 1100px){
+      .infoTopGrid{ grid-template-columns: 1fr; }
+    }
     .msgBar{
       margin-top: 10px;
       padding: 10px 12px;
       border-radius: 14px;
       border: 1px solid rgba(191,232,255,.14);
-      background: rgba(10,16,34,.24);
-      box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
-      font-weight: 800;
+      background: rgba(10,16,34,.30);
+      color: rgba(234,242,255,.88);
       font-size: 12px;
+      line-height: 1.35;
+      flex: 0 0 auto;
     }
 
-    /* Board column layout */
-    .boardBody{
-      display:flex;
-      flex-direction:column;
-      gap: 10px;
+    .boardStage{
+      margin-top: 10px;
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
       padding: 12px;
-      overflow:hidden;
-      min-height: 0;
-      flex: 1;
-    }
-    .infoTop{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      min-width: 0;
-    }
-    @media (max-width: 980px){
-      .infoTop{ grid-template-columns: 1fr; }
+      border-radius: 16px;
+      border: 1px solid rgba(191,232,255,.16);
+      background: rgba(10,16,34,.20);
+      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset;
     }
 
-    .boardScroll{
-      flex: 1;
-      min-height: 0;
-      overflow:auto;
-      padding-right: 4px;
+    /* board tilt wrapper */
+    .boardTilt{
+      perspective: 1100px;
+      transform-style: preserve-3d;
+    }
+    .boardInner{
+      transform: rotateX(var(--boardRotX)) rotateZ(var(--boardRotZ));
+      transform-origin: center;
+      transform-style: preserve-3d;
     }
 
-    /* Rows */
+    /* responsive hex sizing: "100% minus gaps then /7" + min/max */
     .hexRow{
       display:flex;
       gap: var(--hexGap);
       align-items:center;
-      justify-content:flex-start;
       width: 100%;
     }
     .hexRow.offset{
-      padding-left: var(--hexOffset);
+      padding-left: calc((var(--hexW) / 2) + (var(--hexGap) / 2));
     }
 
-    /* ========= HEX GLOW BASE ========= */
+    .boardInner{
+      --hexW: clamp(
+        var(--hexMin),
+        calc((100% - ( (var(--cols) - 1) * var(--hexGap) )) / var(--cols)),
+        var(--hexMax)
+      );
+    }
+
+    /* Hex tile base (size + shape) */
     .hex{
       width: var(--hexW);
-      height: var(--hexH);
-
+      height: calc(var(--hexW) * 0.88);
       clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
+
       display:flex;
       align-items:center;
       justify-content:center;
+
       cursor:pointer;
-      position:relative;
       user-select:none;
 
-      font-size: clamp(9px, calc(var(--hexW) * 0.18), 12px);
-      line-height: 1.05;
+      font-size: 11px;
+      line-height: 1.1;
       font-weight: 800;
 
+      /* allow pseudo layers */
+      position: relative;
+      overflow: visible;
+
+      /* 3D controls */
+      --z: 10px;
+      transform-style: preserve-3d;
+    }
+
+    /* 3D extrusion/base */
+    .hex::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      clip-path: inherit;
+      transform: translate3d(6px, var(--z), -2px);
+      background: linear-gradient(135deg, rgba(0,0,0,.22), rgba(0,0,0,.40));
+      opacity: .95;
+      z-index: -2;
+      filter: blur(.15px);
+    }
+
+    /* Hex glow base (ported from Uiverse button) */
+    .hex{
       /* defaults */
-      --glow-color: rgba(255,255,255,.28);
-      --glow-spread-color: rgba(255,255,255,.14);
+      --glow-color: rgba(255,255,255,.35);
+      --glow-spread-color: rgba(255,255,255,.18);
       --enhanced-glow-color: rgba(255,255,255,.55);
       --btn-color: rgba(255,255,255,.06);
 
       border: .18em solid var(--glow-color);
       background-color: var(--btn-color);
-      color: rgba(234,242,255,.92);
+      color: rgba(232,232,232,.92);
 
       box-shadow:
         0 0 .8em .18em var(--glow-color),
@@ -627,37 +760,38 @@ export function mountApp(root: HTMLElement | null) {
         inset 0 0 .55em .18em var(--glow-color);
 
       text-shadow: 0 0 .45em var(--glow-color);
+      transition: transform .12s ease, filter .12s ease, box-shadow .18s ease, background-color .18s ease, border-color .18s ease;
+      z-index: 1;
 
-      transition:
-        transform .12s ease,
-        filter .12s ease,
-        box-shadow .18s ease,
-        background-color .18s ease,
-        border-color .18s ease;
+      /* subtle top-face lighting */
+      background-image:
+        linear-gradient(180deg, rgba(255,255,255,.14), transparent 45%),
+        radial-gradient(circle at 30% 25%, rgba(255,255,255,.10), transparent 55%);
+      background-blend-mode: screen;
     }
 
+    /* Optional “floor glow” under hex */
     .hex::after{
       pointer-events:none;
       content:"";
       position:absolute;
       left:-6%;
       right:-6%;
-      top:105%;
-      height:90%;
+      top: 105%;
+      height: 90%;
       background-color: var(--glow-spread-color);
       filter: blur(1.25em);
       opacity: .55;
       transform: perspective(1.5em) rotateX(35deg) scale(1, .6);
+      z-index: -1;
     }
 
     .hex:hover{
       transform: translateY(-1px) scale(1.02);
       filter: brightness(1.08);
-      background-color: color-mix(in srgb, var(--btn-color) 60%, white 40%);
     }
-
     .hex:active{
-      transform: translateY(0) scale(.99);
+      transform: translateY(0px) scale(0.99);
       box-shadow:
         0 0 .55em .18em var(--glow-color),
         0 0 1.6em .8em var(--glow-spread-color),
@@ -674,40 +808,47 @@ export function mountApp(root: HTMLElement | null) {
       --glow-color: rgba(76,175,80,1);
       --glow-spread-color: rgba(76,175,80,.55);
       --btn-color: rgba(76,175,80,.18);
+      --z: 14px;
     }
     .hex.goal{
       --glow-color: rgba(255,193,7,1);
       --glow-spread-color: rgba(255,193,7,.55);
       --btn-color: rgba(255,193,7,.14);
+      --z: 12px;
     }
     .hex.blocked{
       --glow-color: rgba(244,67,54,.95);
       --glow-spread-color: rgba(244,67,54,.45);
       --btn-color: rgba(244,67,54,.10);
-      opacity: .8;
+      opacity: .82;
+      --z: 7px;
     }
     .hex.missing{
-      --glow-color: rgba(255,255,255,.12);
-      --glow-spread-color: rgba(255,255,255,.06);
-      --btn-color: rgba(255,255,255,.03);
-      opacity:.45;
+      --glow-color: rgba(255,255,255,.16);
+      --glow-spread-color: rgba(255,255,255,.10);
+      --btn-color: rgba(255,255,255,.04);
+      opacity: .45;
+      --z: 5px;
     }
     .hex.fog{
       --glow-color: rgba(255,255,255,.18);
       --glow-spread-color: rgba(0,0,0,.45);
       --btn-color: rgba(0,0,0,.28);
       opacity: .62;
+      --z: 4px;
     }
     .hex.trSrc{
       --glow-color: rgba(255,152,0,1);
       --glow-spread-color: rgba(255,152,0,.55);
       --btn-color: rgba(255,152,0,.10);
+      --z: 12px;
     }
     .hex.trTgt{
       --glow-color: rgba(3,169,244,1);
       --glow-spread-color: rgba(3,169,244,.55);
       --btn-color: rgba(3,169,244,.10);
       animation: pulse 1.2s ease-in-out infinite;
+      --z: 12px;
     }
     @keyframes pulse{
       0%{filter:brightness(1)}
@@ -715,98 +856,77 @@ export function mountApp(root: HTMLElement | null) {
       100%{filter:brightness(1)}
     }
 
-    /* Selected ring (keep subtle) */
-    .hex.sel{
-      outline: 2px solid rgba(234,242,255,.55);
-      outline-offset: 2px;
-    }
-
     /* Priority overrides */
     .hex.trTgt{ opacity: 1; }
     .hex.player{ opacity: 1; }
     .hex.goal{ opacity: 1; }
 
-    /* Small markers */
-    .miniDot{
-      position:absolute;
-      right:8px;
-      top:8px;
-      width:9px;height:9px;border-radius:999px;
-      border:1px solid rgba(255,255,255,.35);
-      background:rgba(255,255,255,.12);
-    }
-    .miniDot.player{background:rgba(76,175,80,1);border-color:rgba(76,175,80,1)}
-    .miniDot.goal{background:rgba(255,193,7,1);border-color:rgba(255,193,7,1)}
-    .dist{
-      position:absolute;
-      left:8px;
-      bottom:8px;
-      padding:2px 6px;
-      border-radius:999px;
-      border:1px solid rgba(191,232,255,.14);
-      background:rgba(0,0,0,.30);
-      font-size:10px;
-      line-height:1;
-      font-weight: 900;
-    }
-    .trBadge{
-      position:absolute;
-      left:8px;
-      top:8px;
-      padding:2px 6px;
-      border-radius:999px;
-      border:1px solid rgba(191,232,255,.14);
-      background:rgba(0,0,0,.30);
-      font-size:10px;
-      line-height:1;
-      font-weight: 900;
+    .hex.sel{
+      outline: 2px solid rgba(234,242,255,.7);
+      outline-offset: 2px;
     }
 
-    /* Images column */
-    .imgBox{
-      height: 220px;
+    /* story list */
+    .list{
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+    }
+    .storyItem{
+      border-bottom: 1px solid rgba(191,232,255,.10);
+      padding-bottom: 10px;
+    }
+    .storyItem:last-child{ border-bottom:none; padding-bottom:0; }
+    .storyAt{ font-size: 11px; color: rgba(234,242,255,.60); margin-bottom: 6px; }
+    .storyText{ font-size: 12px; line-height: 1.35; color: rgba(234,242,255,.86); }
+
+    /* images column */
+    .imgCol{
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      height: 100%;
+      min-height: 0;
+    }
+    .imgFrame{
+      flex: 1;
+      min-height: 0;
       border-radius: 16px;
-      border: 1px solid rgba(191,232,255,.14);
-      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(191,232,255,.16);
+      background: rgba(10,16,34,.22);
       overflow:hidden;
+      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 12px 28px rgba(0,0,0,.28);
+      display:flex;
+      flex-direction:column;
+    }
+    .imgTop{
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(191,232,255,.12);
+      background: linear-gradient(180deg, rgba(10,16,34,.55), rgba(10,16,34,.28));
+      font-size: 11px;
+      color: rgba(234,242,255,.72);
       display:flex;
       align-items:center;
-      justify-content:center;
-      text-align:center;
-      padding: 10px;
-      color: rgba(234,242,255,.82);
-      font-weight: 800;
-      font-size: 12px;
+      justify-content:space-between;
+      gap: 10px;
     }
-    .imgBox img{
-      width:100%;
-      height:100%;
+    .img{
+      width: 100%;
+      height: 100%;
       object-fit: cover;
       display:block;
+      background: rgba(0,0,0,.18);
     }
-
-    /* Mobile stack for game screen */
-    @media (max-width: 1100px){
-      :root{
-        --leftW: 1fr;
-        --rightW: 1fr;
-      }
-      .gameHeader{
-        grid-template-columns: 1fr;
-      }
-      .gameHeaderControls{
-        grid-column: 1 / 2;
-        justify-content:flex-start;
-      }
-      .gameLayout{
-        grid-template-columns: 1fr;
-      }
-      .gameStage{
-        min-height: auto;
-      }
-      .gameWrap{
-        min-height: auto;
-      }
+    .imgPh{
+      flex:1;
+      display:grid;
+      place-items:center;
+      color: rgba(234,242,255,.70);
+      font-size: 12px;
+      background:
+        radial-gradient(500px 240px at 20% 20%, rgba(95,225,255,.10), transparent 60%),
+        radial-gradient(500px 240px at 80% 40%, rgba(122,108,255,.10), transparent 60%),
+        rgba(10,16,34,.18);
     }
   `;
   document.head.appendChild(style);
@@ -819,13 +939,15 @@ export function mountApp(root: HTMLElement | null) {
 
   const topBar = el("div", "topBar");
   const brand = el("div", "brand");
-  const brandDot = el("div", "dotBrand");
+  const sig = el("div", "sigil");
+  const titlebox = el("div", "titlebox");
   const brandTitle = el("div", "brandTitle");
   brandTitle.textContent = "HEXLOG";
-  brand.append(brandDot, brandTitle);
-
   const crumb = el("div", "crumb");
-  topBar.append(brand, crumb);
+  titlebox.append(brandTitle, crumb);
+  brand.append(sig, titlebox);
+
+  topBar.append(brand);
 
   const vStart = el("section", "view");
   const vSelect = el("section", "view");
@@ -876,52 +998,100 @@ export function mountApp(root: HTMLElement | null) {
   function renderStart() {
     vStart.innerHTML = "";
     const card = el("div", "card");
+
     const h = el("h1");
     h.textContent = "Hex Layers Puzzle";
 
     const p = el("div", "hint");
     p.textContent = "Choose a version, then select a scenario, set up, and play.";
 
-    const row = el("div", "row");
-    row.style.marginTop = "12px";
+    const grid = el("div", "modeGrid");
 
-    const regularBtn = el("button", "btn primary") as HTMLButtonElement;
-    regularBtn.textContent = "Regular";
-    regularBtn.addEventListener("click", async () => {
-      try {
-        regularBtn.disabled = true;
-        await loadModeContent("regular");
-        chosenPlayer = null;
-        chosenMonsters = [];
-        renderSelect();
-        setScreen("select");
-      } catch (e: any) {
-        alert(String(e?.message ?? e));
-      } finally {
-        regularBtn.disabled = false;
-      }
+    // ✅ GitHub Pages safe base
+    const baseUrl = import.meta.env.BASE_URL; // e.g. "/TestGame/" on GH pages
+    const regularImg = `${baseUrl}images/ui/regular.png`;
+    const kidsImg = `${baseUrl}images/ui/kids.png`;
+
+    function makeTile(opts: {
+      primary?: boolean;
+      title: string;
+      sub: string;
+      bgUrl: string;
+      onClick: () => void;
+    }) {
+      const btn = el("button", `modeTile${opts.primary ? " primary" : ""}`) as HTMLButtonElement;
+      btn.type = "button";
+
+      const bg = el("div", "modeBg") as HTMLDivElement;
+      bg.style.backgroundImage = `url("${opts.bgUrl}")`;
+
+      const shade = el("div", "modeShade");
+
+      const content = el("div", "modeContent");
+      const text = el("div", "modeTextWrap");
+      text.innerHTML = `
+        <div class="title">${escapeHtml(opts.title)}</div>
+        <div class="sub">${escapeHtml(opts.sub)}</div>
+      `;
+
+      const arrow = el("div", "modeArrow");
+      arrow.textContent = "→";
+
+      content.append(text, arrow);
+      btn.append(bg, shade, content);
+
+      btn.addEventListener("click", opts.onClick);
+
+      return { btn, arrow };
+    }
+
+    const { btn: regularBtn, arrow: regularArrow } = makeTile({
+      primary: true,
+      title: "Regular version",
+      sub: "Standard tone and enemies",
+      bgUrl: regularImg,
+      onClick: async () => {
+        try {
+          regularBtn.disabled = true;
+          regularArrow.textContent = "…";
+          await loadModeContent("regular");
+          chosenPlayer = null;
+          chosenMonsters = [];
+          renderSelect();
+          setScreen("select");
+        } catch (e: any) {
+          alert(String(e?.message ?? e));
+          regularBtn.disabled = false;
+          regularArrow.textContent = "→";
+        }
+      },
     });
 
-    const kidsBtn = el("button", "btn") as HTMLButtonElement;
-    kidsBtn.textContent = "Kids / Friendly";
-    kidsBtn.addEventListener("click", async () => {
-      try {
-        kidsBtn.disabled = true;
-        await loadModeContent("kids");
-        chosenPlayer = null;
-        chosenMonsters = [];
-        renderSelect();
-        setScreen("select");
-      } catch (e: any) {
-        alert(String(e?.message ?? e));
-      } finally {
-        kidsBtn.disabled = false;
-      }
+    const { btn: kidsBtn, arrow: kidsArrow } = makeTile({
+      title: "Kids / Friendly",
+      sub: "Brighter UI, non-scary foes",
+      bgUrl: kidsImg,
+      onClick: async () => {
+        try {
+          kidsBtn.disabled = true;
+          kidsArrow.textContent = "…";
+          await loadModeContent("kids");
+          chosenPlayer = null;
+          chosenMonsters = [];
+          renderSelect();
+          setScreen("select");
+        } catch (e: any) {
+          alert(String(e?.message ?? e));
+          kidsBtn.disabled = false;
+          kidsArrow.textContent = "→";
+        }
+      },
     });
 
-    row.append(regularBtn, kidsBtn);
+    const spacer = document.createElement("div");
+    grid.append(regularBtn, spacer, kidsBtn);
 
-    card.append(h, p, row);
+    card.append(h, p, grid);
     vStart.appendChild(card);
   }
 
@@ -935,7 +1105,7 @@ export function mountApp(root: HTMLElement | null) {
   function renderSelect() {
     vSelect.innerHTML = "";
 
-    const layout = el("div", "grid2");
+    const layout = el("div", "grid");
     const left = el("div", "card");
     const right = el("div", "card");
     layout.append(left, right);
@@ -1004,7 +1174,8 @@ export function mountApp(root: HTMLElement | null) {
       <div class="muted" style="margin-top:6px;">
         ${escapeHtml(String(s?.desc ?? s?.description ?? "No description."))}
       </div>
-      <div class="hint" style="margin-top:10px;">Mode: <b>${escapeHtml(String(mode ?? "—"))}</b></div>
+      <div class="hint" style="margin-top:10px;">Mode: <b>${escapeHtml(mode ?? "—")}</b></div>
+      <div class="hint">Tutorial/Demo are scenarios (locked)</div>
     `;
     right.appendChild(details);
 
@@ -1027,7 +1198,7 @@ export function mountApp(root: HTMLElement | null) {
   function renderSetup() {
     vSetup.innerHTML = "";
 
-    const layout = el("div", "grid2");
+    const layout = el("div", "grid");
     const left = el("div", "card");
     const right = el("div", "card");
     layout.append(left, right);
@@ -1067,7 +1238,7 @@ export function mountApp(root: HTMLElement | null) {
     left.appendChild(presetWrap);
 
     const customCard = el("div", "card");
-    (customCard as HTMLElement).style.background = "rgba(10,16,34,.28)";
+    (customCard as HTMLElement).style.background = "rgba(10,16,34,.30)";
     (customCard as HTMLElement).style.marginTop = "12px";
 
     const h3 = el("h3");
@@ -1119,7 +1290,7 @@ export function mountApp(root: HTMLElement | null) {
     customCard.append(h3, drop, useCustom);
     left.appendChild(customCard);
 
-    // Monsters
+    // Monsters/Creatures (kept for later, but does not affect game UI yet)
     const mh2 = el("h2");
     mh2.textContent = monstersLabel();
     right.appendChild(mh2);
@@ -1163,7 +1334,7 @@ export function mountApp(root: HTMLElement | null) {
     }
     right.appendChild(mpresetWrap);
 
-    // Footer
+    // Footer actions
     const footer = el("div", "row");
     (footer as HTMLElement).style.marginTop = "14px";
     (footer as HTMLElement).style.justifyContent = "space-between";
@@ -1196,8 +1367,10 @@ export function mountApp(root: HTMLElement | null) {
   }
 
   // --------------------------
-  // Game helpers
+  // Screen 4: Game (3-column)
   // --------------------------
+  let gameBuilt = false;
+
   function scenario(): Scenario {
     if (!scenarios.length) throw new Error("Scenarios not loaded yet.");
     return scenarios[scenarioIndex];
@@ -1280,6 +1453,11 @@ export function mountApp(root: HTMLElement | null) {
     }
   }
 
+  function pushStory(text: string) {
+    story.push({ at: new Date().toLocaleString(), text });
+    if (story.length > 80) story = story.slice(-80);
+  }
+
   function startScenario(idx: number) {
     scenarioIndex = idx;
 
@@ -1292,45 +1470,36 @@ export function mountApp(root: HTMLElement | null) {
     recomputeReachability();
 
     message = "";
+    story = [];
+    pushStory(`Run started. Build: ${BUILD_TAG}`);
+    pushStory(`Player spawned at ${state.playerHexId}. Goal: ${posId((scenario() as any).goal)}.`);
   }
 
-  // --------------------------
-  // Screen 4: Game (3 columns)
-  // --------------------------
-  let gameBuilt = false;
-  let boardResizeObserver: ResizeObserver | null = null;
-
   function renderGameScreen() {
-    if (gameBuilt) return;
+    if (gameBuilt) {
+      renderAllGame();
+      return;
+    }
     gameBuilt = true;
 
     vGame.innerHTML = "";
 
-    const stage = el("div", "gameStage");
-    const wrap = el("div", "gameWrap");
+    const shellGame = el("div", "gameShell");
 
-    // Header aligned to the 3 columns
-    const header = el("div", "gameHeader");
+    // Top row
+    const top = el("div", "gameTop");
 
-    const headerLeft = el("div", "gameHeaderLeft");
-    const title = el("div", "gameHeaderTitle");
+    const titleWrap = el("div", "gameTitle");
+    const title = el("h1");
     title.textContent = "Game";
-    const sub = el("div", "gameHeaderSub");
+    const sub = el("div", "hint");
     const sc: any = scenarios[scenarioIndex];
-    sub.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")}`;
-    headerLeft.append(title, sub);
+    sub.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")} | Build: ${BUILD_TAG}`;
+    titleWrap.append(title, sub);
 
-    // Controls (span columns 2-3)
-    const controls = el("div", "gameHeaderControls");
+    const controls = el("div", "gameControls");
 
     const scenarioSelect = el("select") as HTMLSelectElement;
-    scenarioSelect.style.fontSize = "12px";
-    scenarioSelect.style.fontWeight = "800";
-    scenarioSelect.style.borderRadius = "999px";
-    scenarioSelect.style.padding = "8px 12px";
-    scenarioSelect.style.border = "1px solid rgba(191,232,255,.18)";
-    scenarioSelect.style.background = "rgba(10,16,34,.35)";
-    scenarioSelect.style.color = "rgba(234,242,255,.92)";
     scenarios.forEach((s: any, i: number) => {
       const opt = document.createElement("option");
       opt.value = String(i);
@@ -1340,152 +1509,145 @@ export function mountApp(root: HTMLElement | null) {
     scenarioSelect.value = String(scenarioIndex);
 
     const layerSelect = el("select") as HTMLSelectElement;
-    layerSelect.style.fontSize = "12px";
-    layerSelect.style.fontWeight = "800";
-    layerSelect.style.borderRadius = "999px";
-    layerSelect.style.padding = "8px 12px";
-    layerSelect.style.border = "1px solid rgba(191,232,255,.18)";
-    layerSelect.style.background = "rgba(10,16,34,.35)";
-    layerSelect.style.color = "rgba(234,242,255,.92)";
 
-    const endTurnBtn = el("button", "btn") as HTMLButtonElement;
+    const endTurnBtn = el("button") as HTMLButtonElement;
     endTurnBtn.textContent = "End turn";
 
-    const resetBtn = el("button", "btn") as HTMLButtonElement;
+    const resetBtn = el("button") as HTMLButtonElement;
     resetBtn.textContent = "Reset run";
 
-    const forceRevealBtn = el("button", "btn") as HTMLButtonElement;
+    const forceRevealBtn = el("button") as HTMLButtonElement;
     forceRevealBtn.textContent = "Force reveal layer";
 
-    const exitBtn = el("button", "btn") as HTMLButtonElement;
+    const exitBtn = el("button") as HTMLButtonElement;
     exitBtn.textContent = "Exit";
     exitBtn.addEventListener("click", () => {
+      // allow re-entering setup without stale game UI issues
+      gameBuilt = false;
+      vGame.innerHTML = "";
       renderSetup();
       setScreen("setup");
     });
 
     controls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
+    top.append(titleWrap, controls);
 
-    header.append(headerLeft, el("div"), el("div")); // placeholders for grid columns
-    header.appendChild(controls); // controls span via CSS
+    // 3-column grid
+    const grid = el("div", "gameGrid");
 
-    // Main 3-column layout
-    const layout = el("div", "gameLayout");
-
-    // Left: Story log
+    // (1) Story (left)
     const storyPanel = el("section", "panel");
     const storyHead = el("div", "panelHead");
-    storyHead.innerHTML = `<div class="tag"><span class="dot"></span> Story Log</div><div class="pill">Timeline</div>`;
+    storyHead.innerHTML = `<div class="tag"><span class="dot"></span> Story Log</div><div class="pill"><strong>Run</strong></div>`;
     const storyBody = el("div", "panelBody");
-    const storyCard1 = el("div", "softCard infoText");
-    storyCard1.innerHTML = `<b>Story log</b> will live here later.`;
-    const storyCard2 = el("div", "softCard infoText");
-    storyCard2.style.marginTop = "10px";
-    storyCard2.textContent = "Moves, discoveries, encounters, etc.";
-    storyBody.append(storyCard1, storyCard2);
+    const storyList = el("div", "list");
+    storyBody.appendChild(storyList);
     storyPanel.append(storyHead, storyBody);
 
-    // Middle: Board
-    const boardPanel = el("section", "panel");
+    // (2) Board (middle)
+    const boardPanel = el("section", "panel boardColumn");
     const boardHead = el("div", "panelHead");
-    const boardTitle = el("div", "tag");
-    boardTitle.innerHTML = `<span class="dot"></span> Board`;
-    const boardPill = el("div", "pill");
-    boardPill.textContent = `Build: ${BUILD_TAG}`;
-    boardHead.append(boardTitle, boardPill);
+    boardHead.innerHTML = `<div class="tag"><span class="dot"></span> Board</div><div class="pill"><strong>Hex</strong> grid</div>`;
 
-    const boardBody = el("div", "boardBody");
+    const boardBody = el("div", "panelBody");
+    boardBody.style.overflow = "hidden"; // we control scrolling inside stage
 
-    const infoTop = el("div", "infoTop");
+    const infoTop = el("div", "infoTopGrid");
     const infoLeft = el("div", "softCard infoText");
     const infoRight = el("div", "softCard infoText");
     infoTop.append(infoLeft, infoRight);
 
     const msgBar = el("div", "msgBar");
 
-    const boardScroll = el("div", "boardScroll");
-    const boardWrap = el("div");
-    boardWrap.style.display = "grid";
-    boardWrap.style.gap = "10px";
-    boardWrap.style.padding = "4px 4px 12px";
-    boardScroll.appendChild(boardWrap);
+    const stage = el("div", "boardStage");
+    const tilt = el("div", "boardTilt");
+    const boardInner = el("div", "boardInner");
+    tilt.appendChild(boardInner);
+    stage.appendChild(tilt);
 
-    boardBody.append(infoTop, msgBar, boardScroll);
+    boardBody.append(infoTop, msgBar, stage);
     boardPanel.append(boardHead, boardBody);
 
-    // Right: Images
+    // (3) Images (right)
     const imgPanel = el("section", "panel");
     const imgHead = el("div", "panelHead");
-    imgHead.innerHTML = `<div class="tag"><span class="dot"></span> Images</div><div class="pill">Now</div>`;
+    imgHead.innerHTML = `<div class="tag"><span class="dot"></span> Images</div><div class="pill"><strong>2</strong></div>`;
     const imgBody = el("div", "panelBody");
+    imgBody.style.overflow = "hidden";
 
-    const playerBox = el("div", "softCard");
-    playerBox.innerHTML = `
-      <div class="infoText" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-        <b>Player</b>
-        <span class="pill" style="padding:6px 10px">${escapeHtml(chosenPlayer?.name ?? "—")}</span>
-      </div>
-      <div class="imgBox" style="margin-top:10px" id="playerImgBox">Preset player (no image yet).</div>
-    `;
+    const imgCol = el("div", "imgCol");
 
-    const hexBox = el("div", "softCard");
-    hexBox.style.marginTop = "10px";
-    hexBox.innerHTML = `
-      <div class="infoText" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-        <b>Current Hex</b>
-        <span class="pill" id="hexLabelPill" style="padding:6px 10px">—</span>
-      </div>
-      <div class="imgBox" style="margin-top:10px" id="hexImgBox">NORMAL</div>
-    `;
+    const playerFrame = el("div", "imgFrame");
+    const playerTop = el("div", "imgTop");
+    playerTop.innerHTML = `<div>Player</div><div class="hint">${escapeHtml(chosenPlayer?.name ?? "—")}</div>`;
+    const playerSlot = el("div", "imgPh");
+    playerSlot.textContent = "Player image";
+    playerFrame.append(playerTop, playerSlot);
 
-    imgBody.append(playerBox, hexBox);
+    const hexFrame = el("div", "imgFrame");
+    const hexTop = el("div", "imgTop");
+    hexTop.innerHTML = `<div>Current hex</div><div class="hint">Landscape later</div>`;
+    const hexSlot = el("div", "imgPh");
+    hexSlot.textContent = "Hex image";
+    hexFrame.append(hexTop, hexSlot);
+
+    imgCol.append(playerFrame, hexFrame);
+    imgBody.appendChild(imgCol);
     imgPanel.append(imgHead, imgBody);
 
-    layout.append(storyPanel, boardPanel, imgPanel);
+    grid.append(storyPanel, boardPanel, imgPanel);
+    shellGame.append(top, grid);
+    vGame.appendChild(shellGame);
 
-    wrap.append(header, layout);
-    stage.appendChild(wrap);
-    vGame.appendChild(stage);
-
-    // ---- Dynamic hex sizing to fill width (7 across) ----
-    // We measure the usable width of boardScroll and compute:
-    // hexW = (width - gap*(7-1)) / 7  with min/max.
-    function clamp(n: number, lo: number, hi: number) {
-      return Math.max(lo, Math.min(hi, n));
+    // --------------------------
+    // Render helpers (game)
+    // --------------------------
+    function renderStory() {
+      storyList.innerHTML = "";
+      if (!story.length) {
+        const e = el("div", "hint");
+        e.textContent = "No story yet.";
+        storyList.appendChild(e);
+        return;
+      }
+      for (let i = story.length - 1; i >= 0; i--) {
+        const s = story[i];
+        const item = el("div", "storyItem");
+        const at = el("div", "storyAt");
+        at.textContent = s.at;
+        const tx = el("div", "storyText");
+        tx.textContent = s.text;
+        item.append(at, tx);
+        storyList.appendChild(item);
+      }
     }
 
-    function setHexLayoutVars() {
-      // Use the boardScroll width; it matches the board content area
-      const w = boardScroll.clientWidth;
-      if (!w || w < 50) return;
+    function renderImages() {
+      // player
+      const playerName = chosenPlayer?.name ?? "—";
+      playerTop.innerHTML = `<div>Player</div><div class="hint">${escapeHtml(playerName)}</div>`;
 
-      const gap = 5; // user wanted 5
-      const cols = 7;
-      const minW = 46;
-      const maxW = 92;
+      // swap placeholder with image if custom uploaded
+      const customUrl = chosenPlayer?.kind === "custom" ? chosenPlayer.imageDataUrl : null;
+      if (customUrl) {
+        playerSlot.innerHTML = `<img class="img" alt="Player" src="${customUrl}">`;
+      } else {
+        playerSlot.innerHTML = "";
+        const ph = el("div", "imgPh");
+        ph.textContent = chosenPlayer ? "Preset (add art later)" : "Player image";
+        playerSlot.replaceWith(ph);
+        // restore reference
+        (playerFrame.children[1] as HTMLElement).replaceWith(ph);
+        // ensure slot points to correct node
+        // (we won't use playerSlot further after this render, so fine)
+      }
 
-      const raw = (w - gap * (cols - 1)) / cols;
-      const hexW = clamp(raw, minW, maxW);
-
-      // Good-looking hex height ratio for this clip-path
-      const hexH = Math.round(hexW * 0.88);
-
-      // Offset for even rows = half a hex + half a gap
-      const offset = Math.round((hexW + gap) / 2);
-
-      // Apply vars to board panel (so only board uses them)
-      (boardPanel as HTMLElement).style.setProperty("--hexGap", `${gap}px`);
-      (boardPanel as HTMLElement).style.setProperty("--hexW", `${Math.round(hexW)}px`);
-      (boardPanel as HTMLElement).style.setProperty("--hexH", `${hexH}px`);
-      (boardPanel as HTMLElement).style.setProperty("--hexOffset", `${offset}px`);
+      // current hex “image” placeholder text
+      const cur = state?.playerHexId ?? "—";
+      hexTop.innerHTML = `<div>Current hex</div><div class="hint">${escapeHtml(cur)}</div>`;
+      hexSlot.textContent = selectedId ? `Selected: ${selectedId}` : `On: ${cur}`;
     }
 
-    if (boardResizeObserver) boardResizeObserver.disconnect();
-    boardResizeObserver = new ResizeObserver(() => setHexLayoutVars());
-    boardResizeObserver.observe(boardScroll);
-    window.addEventListener("resize", setHexLayoutVars, { passive: true });
-
-    // ---- Render functions ----
     function renderInfoTop() {
       const s: any = scenario();
 
@@ -1519,12 +1681,6 @@ export function mountApp(root: HTMLElement | null) {
           <b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}
         </div>
       `;
-
-      const hexLabel = document.getElementById("hexLabelPill");
-      if (hexLabel) hexLabel.textContent = state?.playerHexId ?? "—";
-
-      const hexImg = document.getElementById("hexImgBox");
-      if (hexImg) hexImg.textContent = String(getHex(state?.playerHexId ?? "")?.kind ?? "NORMAL");
     }
 
     function renderMessage() {
@@ -1532,7 +1688,7 @@ export function mountApp(root: HTMLElement | null) {
     }
 
     function renderBoard() {
-      boardWrap.innerHTML = "";
+      boardInner.innerHTML = "";
       if (!state) return;
 
       for (let r = 1; r <= ROW_LENS.length; r++) {
@@ -1546,38 +1702,26 @@ export function mountApp(root: HTMLElement | null) {
           const info = reachMap[id];
 
           const btn = el("div", "hex");
-          btn.textContent = `R${r} C${c}`;
+
+          // shorter label (less clutter)
+          btn.textContent = `${r}:${c}`;
 
           const { blocked, missing } = isBlockedOrMissing(h);
           const isGoal = h?.kind === "GOAL";
           const isPlayer = state.playerHexId === id;
 
-          // State classes (CSS variables handle the glow)
+          // IMPORTANT: class priority by add-order (later rules win if same specificity)
           if (missing) btn.classList.add("missing");
           if (blocked) btn.classList.add("blocked");
           if (!isRevealed(h)) btn.classList.add("fog");
           if (info?.reachable) btn.classList.add("reach");
+
+          if (sourcesOnLayer.has(id)) btn.classList.add("trSrc");
+          if (targetsSameLayer.has(id)) btn.classList.add("trTgt");
+
           if (isGoal) btn.classList.add("goal");
           if (isPlayer) btn.classList.add("player");
           if (selectedId === id) btn.classList.add("sel");
-
-          if (sourcesOnLayer.has(id)) btn.classList.add("trSrc");
-
-          if (targetsSameLayer.has(id)) {
-            btn.classList.add("trTgt");
-            const badge = el("div", "trBadge");
-            badge.textContent = targetsSameLayer.get(id)!;
-            btn.appendChild(badge);
-          }
-
-          if (isPlayer) btn.appendChild(el("div", "miniDot player"));
-          else if (isGoal) btn.appendChild(el("div", "miniDot goal"));
-
-          if (info?.reachable && info.distance != null) {
-            const d = el("div", "dist");
-            d.textContent = String(info.distance);
-            btn.appendChild(d);
-          }
 
           btn.addEventListener("click", () => {
             selectedId = id;
@@ -1591,39 +1735,43 @@ export function mountApp(root: HTMLElement | null) {
                 ? "Moved (transition triggered)."
                 : "Moved.";
 
+              pushStory(message + ` (${id})`);
+
               const playerCoord = idToCoord(state!.playerHexId);
               if (playerCoord) currentLayer = playerCoord.layer;
 
               setLayerOptions(layerSelect);
               recomputeReachability();
               rebuildTransitionIndexAndHighlights();
-              renderAll();
+              renderAllGame();
               return;
             } else {
               message = res.reason ? `Move rejected: ${res.reason}` : "Move rejected.";
+              pushStory(message + ` (${id})`);
             }
 
-            renderAll();
+            renderAllGame();
           });
 
           row.appendChild(btn);
         }
 
-        boardWrap.appendChild(row);
+        boardInner.appendChild(row);
       }
-
-      // Make sure sizing recalcs after rows appear
-      setHexLayoutVars();
     }
 
-    function renderAll() {
+    function renderAllGame() {
       rebuildTransitionIndexAndHighlights();
       renderInfoTop();
       renderMessage();
       renderBoard();
+      renderStory();
+      renderImages();
     }
 
-    // ---- Events ----
+    // --------------------------
+    // Wire up UI events
+    // --------------------------
     scenarioSelect.addEventListener("change", () => {
       scenarioIndex = Number(scenarioSelect.value);
       startScenario(scenarioIndex);
@@ -1632,7 +1780,8 @@ export function mountApp(root: HTMLElement | null) {
       revealWholeLayer(currentLayer);
       recomputeReachability();
       message = "";
-      renderAll();
+      pushStory(`Scenario changed: ${(scenario() as any).name ?? (scenario() as any).title ?? (scenario() as any).id}`);
+      renderAllGame();
     });
 
     layerSelect.addEventListener("change", () => {
@@ -1642,7 +1791,8 @@ export function mountApp(root: HTMLElement | null) {
       message = err ? `Enter layer error: ${err}` : "";
       revealWholeLayer(currentLayer);
       recomputeReachability();
-      renderAll();
+      pushStory(err ? `Layer change failed: ${err}` : `Entered layer ${currentLayer}.`);
+      renderAllGame();
     });
 
     endTurnBtn.addEventListener("click", () => {
@@ -1652,7 +1802,8 @@ export function mountApp(root: HTMLElement | null) {
       revealWholeLayer(currentLayer);
       recomputeReachability();
       message = "Turn ended.";
-      renderAll();
+      pushStory(message);
+      renderAllGame();
     });
 
     resetBtn.addEventListener("click", () => {
@@ -1661,25 +1812,25 @@ export function mountApp(root: HTMLElement | null) {
       if (state) enterLayer(state, currentLayer);
       revealWholeLayer(currentLayer);
       recomputeReachability();
-      message = "Ready.";
-      renderAll();
+      message = "";
+      pushStory("Run reset.");
+      renderAllGame();
     });
 
     forceRevealBtn.addEventListener("click", () => {
       revealWholeLayer(currentLayer);
       recomputeReachability();
       message = "Forced reveal layer + recomputed reachability.";
-      renderAll();
+      pushStory(message);
+      renderAllGame();
     });
 
-    // ---- Boot game view ----
+    // initial boot for game view
     setLayerOptions(layerSelect);
     if (state) enterLayer(state, currentLayer);
     revealWholeLayer(currentLayer);
     recomputeReachability();
-    rebuildTransitionIndexAndHighlights();
-    setHexLayoutVars();
-    renderAll();
+    renderAllGame();
   }
 
   // --------------------------
