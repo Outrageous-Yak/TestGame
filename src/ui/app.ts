@@ -618,7 +618,7 @@ export function mountApp(root: HTMLElement | null) {
     .hex{
       width:68px;height:60px;
       clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
-      border:1px solid rgba(191,232,255,.16);
+      border:2px solid rgba(191,232,255,.16);
       background:rgba(255,255,255,.05);
       display:flex;align-items:center;justify-content:center;
       cursor:pointer; position:relative;
@@ -626,8 +626,8 @@ export function mountApp(root: HTMLElement | null) {
       opacity:.95;
     }
     .hex:hover{border-color:rgba(191,232,255,.30)}
-    .hex.sel{outline:2px solid rgba(191,232,255,.55)}
-    .hex.reach{outline:2px solid rgba(76,175,80,.75)}
+    .hex.sel{outline:22px solid rgba(191,232,255,.55)}
+    .hex.reach{outline:22px solid rgba(76,175,80,.75)}
     .hex.player{background:rgba(76,175,80,.18)}
     .hex.goal{background:rgba(255,193,7,.16)}
     .hex.blocked{background:rgba(244,67,54,.14);opacity:.78}
@@ -635,14 +635,14 @@ export function mountApp(root: HTMLElement | null) {
     .hex.fog{background:rgba(0,0,0,.38);opacity:.6}
 
     .hex.trSrc{
-      outline:5px solid rgba(255,152,0,.95);
+      outline:25px solid rgba(255,152,0,.95);
       box-shadow:
         0 0 0 3px rgba(255,152,0,.45),
         0 0 22px rgba(255,152,0,.75),
         0 0 44px rgba(255,152,0,.55);
     }
     .hex.trTgt{
-      outline:5px solid rgba(3,169,244,.95);
+      outline:25px solid rgba(3,169,244,.95);
       box-shadow:
         0 0 0 3px rgba(3,169,244,.45),
         0 0 22px rgba(3,169,244,.75),
