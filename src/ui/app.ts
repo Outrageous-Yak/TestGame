@@ -270,61 +270,80 @@ export function mountApp(root: HTMLElement | null) {
       }
     }
 
-    /* ✅ Mode tiles: height-driven, image fills full height */
+    /* ✅ Start tiles: background image + overlay (text always visible) */
     .modeTile{
-      display:grid;
-      grid-template-columns: auto 1fr 48px; /* image | text | arrow */
-      align-items: stretch;
-      padding: 0;
-      border-radius: 20px;
-      overflow: hidden;
-      border:1px solid rgba(255,255,255,.18);
-      background: rgba(0,0,0,.22);
-      cursor:pointer;
-      user-select:none;
-      height: 132px; /* 🔒 anchor */
+      position: relative;
+      height: 150px;
       width: 100%;
+      border-radius: 22px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.22);
+      cursor: pointer;
+      user-select: none;
+      padding: 0;
     }
-    .modeTile:hover{border-color: rgba(255,255,255,.32);}
+    .modeTile:hover{ border-color: rgba(255,255,255,.32); }
     .modeTile.primary{
       border-color: rgba(255,152,0,.55);
       box-shadow: 0 0 0 3px rgba(255,152,0,.10) inset;
-      background: rgba(255,152,0,.10);
     }
 
-    .modeImg{
-      height: 100%;
-      width: auto;           /* 👈 critical: width derives from height */
-      aspect-ratio: 2 / 3;   /* matches 1664×2496 (portrait) */
-      object-fit: cover;     /* fills height cleanly */
-      display:block;
-      background: rgba(0,0,0,.25);
+    .modeBg{
+      position:absolute;
+      inset:0;
+      background-size: cover;
+      background-position: center;
+      filter: saturate(1.05) contrast(1.05);
     }
-
+    .modeShade{
+      position:absolute;
+      inset:0;
+      background: linear-gradient(90deg,
+        rgba(0,0,0,.62) 0%,
+        rgba(0,0,0,.40) 42%,
+        rgba(0,0,0,.18) 100%
+      );
+    }
+    .modeContent{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 14px;
+      padding: 16px 18px;
+    }
     .modeTextWrap{
       display:flex;
       flex-direction:column;
       justify-content:center;
-      padding: 16px 18px;
+      min-width: 0;
       text-align:left;
     }
     .modeTextWrap .title{
       font-weight: 900;
-      font-size: 19px;
-      line-height: 1.1;
+      font-size: 22px;
+      line-height: 1.05;
     }
     .modeTextWrap .sub{
-      margin-top: 6px;
-      font-size: 13px;
-      opacity: .82;
+      margin-top: 8px;
+      font-size: 14px;
+      opacity: .85;
       line-height: 1.25;
     }
     .modeArrow{
+      flex: 0 0 auto;
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
       display:flex;
       align-items:center;
       justify-content:center;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.22);
       font-size: 18px;
-      opacity: .85;
+      opacity: .92;
     }
 
     .tile{
@@ -383,7 +402,7 @@ export function mountApp(root: HTMLElement | null) {
       outline:none;
     }
 
-    /* --- Screen 4 styles (your existing board UI) --- */
+    /* --- Screen 4 styles (board UI) --- */
     .wrap{max-width:1250px;margin:0 auto;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#e8e8e8}
     .top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
     .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -540,7 +559,7 @@ export function mountApp(root: HTMLElement | null) {
   }
 
   // --------------------------
-  // Screen 1: Start (Mode selection with full-height images)
+  // Screen 1: Start
   // --------------------------
   function renderStart() {
     vStart.innerHTML = "";
@@ -553,66 +572,90 @@ export function mountApp(root: HTMLElement | null) {
 
     const grid = el("div", "modeGrid");
 
-    // ✅ Your uploaded files in public/images/ui/
-    const regularIcon = "images/ui/regular.png";
-    const kidsIcon = "images/ui/kids.png";
+    // ✅ GitHub Pages safe base
+    const baseUrl = import.meta.env.BASE_URL; // "/TestGame/" on GH pages
+    const regularImg = `${baseUrl}images/ui/regular.png`;
+    const kidsImg = `${baseUrl}images/ui/kids.png`;
 
-    const regularBtn = el("button", "modeTile primary") as HTMLButtonElement;
-    regularBtn.innerHTML = `
-      <img class="modeImg" src="${regularIcon}" alt="Regular" />
-      <div class="modeTextWrap">
-        <div class="title">Regular version</div>
-        <div class="sub">Standard tone and enemies</div>
-      </div>
-      <div class="modeArrow">→</div>
-    `;
+    function makeTile(opts: {
+      primary?: boolean;
+      title: string;
+      sub: string;
+      bgUrl: string;
+      onClick: () => void;
+    }) {
+      const btn = el("button", `modeTile${opts.primary ? " primary" : ""}`) as HTMLButtonElement;
+      btn.type = "button";
 
-    regularBtn.addEventListener("click", async () => {
-      try {
-        regularBtn.disabled = true;
-        (regularBtn.querySelector(".modeArrow") as HTMLElement).textContent = "…";
-        await loadModeContent("regular");
-        chosenPlayer = null;
-        chosenMonsters = [];
-        renderSelect();
-        setScreen("select");
-      } catch (e: any) {
-        alert(String(e?.message ?? e));
-        regularBtn.disabled = false;
-        (regularBtn.querySelector(".modeArrow") as HTMLElement).textContent = "→";
-      }
+      const bg = el("div", "modeBg") as HTMLDivElement;
+      bg.style.backgroundImage = `url("${opts.bgUrl}")`;
+
+      const shade = el("div", "modeShade");
+
+      const content = el("div", "modeContent");
+      const text = el("div", "modeTextWrap");
+      text.innerHTML = `
+        <div class="title">${escapeHtml(opts.title)}</div>
+        <div class="sub">${escapeHtml(opts.sub)}</div>
+      `;
+
+      const arrow = el("div", "modeArrow");
+      arrow.textContent = "→";
+
+      content.append(text, arrow);
+      btn.append(bg, shade, content);
+
+      btn.addEventListener("click", opts.onClick);
+
+      return { btn, arrow };
+    }
+
+    const { btn: regularBtn, arrow: regularArrow } = makeTile({
+      primary: true,
+      title: "Regular version",
+      sub: "Standard tone and enemies",
+      bgUrl: regularImg,
+      onClick: async () => {
+        try {
+          regularBtn.disabled = true;
+          regularArrow.textContent = "…";
+          await loadModeContent("regular");
+          chosenPlayer = null;
+          chosenMonsters = [];
+          renderSelect();
+          setScreen("select");
+        } catch (e: any) {
+          alert(String(e?.message ?? e));
+          regularBtn.disabled = false;
+          regularArrow.textContent = "→";
+        }
+      },
     });
 
-    const kidsBtn = el("button", "modeTile") as HTMLButtonElement;
-    kidsBtn.innerHTML = `
-      <img class="modeImg" src="${kidsIcon}" alt="Kids" />
-      <div class="modeTextWrap">
-        <div class="title">Kids / Friendly</div>
-        <div class="sub">Brighter UI, non-scary foes</div>
-      </div>
-      <div class="modeArrow">→</div>
-    `;
-
-    kidsBtn.addEventListener("click", async () => {
-      try {
-        kidsBtn.disabled = true;
-        (kidsBtn.querySelector(".modeArrow") as HTMLElement).textContent = "…";
-        await loadModeContent("kids");
-        chosenPlayer = null;
-        chosenMonsters = [];
-        renderSelect();
-        setScreen("select");
-      } catch (e: any) {
-        alert(String(e?.message ?? e));
-        kidsBtn.disabled = false;
-        (kidsBtn.querySelector(".modeArrow") as HTMLElement).textContent = "→";
-      }
+    const { btn: kidsBtn, arrow: kidsArrow } = makeTile({
+      title: "Kids / Friendly",
+      sub: "Brighter UI, non-scary foes",
+      bgUrl: kidsImg,
+      onClick: async () => {
+        try {
+          kidsBtn.disabled = true;
+          kidsArrow.textContent = "…";
+          await loadModeContent("kids");
+          chosenPlayer = null;
+          chosenMonsters = [];
+          renderSelect();
+          setScreen("select");
+        } catch (e: any) {
+          alert(String(e?.message ?? e));
+          kidsBtn.disabled = false;
+          kidsArrow.textContent = "→";
+        }
+      },
     });
 
-    // empty middle column
     const spacer = document.createElement("div");
-
     grid.append(regularBtn, spacer, kidsBtn);
+
     card.append(h, p, grid);
     vStart.appendChild(card);
   }
