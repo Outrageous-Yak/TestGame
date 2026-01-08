@@ -43,7 +43,7 @@ function appendHint(parent: HTMLElement, txt: string) {
 }
 
 function escapeHtml(str: string) {
-  return String(str).replace(/[&<>"']/g, (m) => {
+  return str.replace(/[&<>"']/g, (m) => {
     const map: Record<string, string> = {
       "&": "&amp;",
       "<": "&lt;",
@@ -84,7 +84,7 @@ function wireDropZone(
 ) {
   dropEl.addEventListener("dragover", (e) => {
     e.preventDefault();
-    dropEl.style.background = "rgba(240,163,91,.08)";
+    dropEl.style.background = "rgba(95,225,255,.08)";
   });
   dropEl.addEventListener("dragleave", () => {
     dropEl.style.background = "rgba(255,255,255,.03)";
@@ -170,7 +170,7 @@ export function mountApp(root: HTMLElement | null) {
   let outgoingFromSelected: any[] = [];
 
   // --------------------------
-  // Styles (Screens + Game)
+  // Styles
   // --------------------------
   const style = document.createElement("style");
   style.textContent = `
@@ -180,8 +180,8 @@ export function mountApp(root: HTMLElement | null) {
       --ink:#eaf2ff;
       --muted:rgba(234,242,255,.72);
 
-      --card: rgba(10, 16, 34, .62);
-      --card2: rgba(10, 16, 34, .42);
+      --card: rgba(10, 16, 34, .52);
+      --card2: rgba(10, 16, 34, .38);
       --stroke: rgba(160, 210, 255, .22);
       --stroke2: rgba(160, 210, 255, .14);
 
@@ -191,8 +191,20 @@ export function mountApp(root: HTMLElement | null) {
 
       --radius: 18px;
 
-      --storyW: 320px;
-      --imagesW: 300px;
+      /* Game layout widths */
+      --leftW: 340px;   /* story log */
+      --rightW: 320px;  /* images */
+      --gap: 12px;
+
+      /* Hex layout vars (set by JS via ResizeObserver) */
+      --hexGap: 5px;
+      --hexW: 64px;
+      --hexH: 56px;
+      --hexOffset: 34px;
+
+      /* Text sizing */
+      --baseText: 12px;
+      --line: 1.35;
     }
 
     *{ box-sizing:border-box; }
@@ -207,7 +219,8 @@ export function mountApp(root: HTMLElement | null) {
         radial-gradient(1000px 900px at 50% 110%, rgba(0,170,255,.08), transparent 55%),
         linear-gradient(180deg, var(--bg0), var(--bg1));
       overflow-x:hidden;
-      font-size: 14px;
+      font-size: var(--baseText);
+      line-height: var(--line);
     }
     body::before{
       content:"";
@@ -230,311 +243,231 @@ export function mountApp(root: HTMLElement | null) {
     }
 
     .shell{
-      width: min(1500px, 100%);
+      width: min(1480px, calc(100vw - 36px));
       margin: 0 auto;
-      padding: 18px 18px 22px;
+      padding: 18px 0 26px;
+      position:relative;
+      z-index:1;
       color: var(--ink);
     }
-
     .shell.kids{
-      --card: rgba(8, 18, 44, .62);
-      --card2: rgba(8, 18, 44, .42);
-      --aqua:#00d4ff;
-      --violet:#7a6cff;
+      --card: rgba(10, 22, 50, .52);
+      --card2: rgba(10, 22, 50, .38);
+      --aqua: #4df6ff;
+      --violet: #9a7cff;
     }
 
     .topBar{
       display:flex;
       align-items:flex-start;
       justify-content:space-between;
-      gap:14px;
+      gap:12px;
       flex-wrap:wrap;
-      margin-bottom: 12px;
-      position: relative;
-      z-index: 2;
+      padding: 0 6px;
+      margin-bottom: 14px;
     }
-
-    .brand{
-      display:flex;
-      align-items:center;
-      gap:10px;
-    }
+    .brand{display:flex; align-items:center; gap:10px;}
     .dotBrand{
-      width:10px;height:10px;border-radius:999px;
-      background: rgba(255,152,0,.95);
-      box-shadow: 0 0 18px rgba(255,152,0,.35);
+      width:8px;height:8px;border-radius:999px;
+      background: radial-gradient(circle at 30% 30%, var(--ice), var(--aqua));
+      box-shadow: 0 0 12px rgba(95,225,255,.35);
+      margin-top: 7px;
     }
-    .shell.kids .dotBrand{
-      background: rgba(0,212,255,.95);
-      box-shadow: 0 0 18px rgba(0, 212, 255, .35);
+    .brandTitle{
+      font-weight:900;
+      letter-spacing:.5px;
+      font-size: 16px;
     }
-    .brandTitle{font-weight:900; letter-spacing:.4px; font-size: 18px;}
-    .crumb{opacity:.85; font-size: 13px; margin-top: 2px;}
+    .crumb{
+      opacity:.85;
+      font-size: 12px;
+      padding-top: 2px;
+      text-align:right;
+    }
 
     .view{ display:none; }
     .view.active{ display:block; }
 
     .card{
-      border:1px solid var(--stroke2);
-      background: rgba(10,16,34,.35);
-      border-radius: calc(var(--radius) + 6px);
+      border: 1px solid var(--stroke2);
+      background: var(--card);
+      border-radius: var(--radius);
       padding: 14px;
       box-shadow:
         0 0 0 1px rgba(95,225,255,.08) inset,
-        0 18px 60px rgba(0,0,0,.45);
+        0 18px 50px rgba(0,0,0,.45);
       backdrop-filter: blur(10px);
-      position:relative;
-      z-index:1;
-      overflow:hidden;
-    }
-    .card::before{
-      content:"";
-      position:absolute; inset:0;
-      background:
-        radial-gradient(circle at 18% 20%, rgba(95,225,255,.10), transparent 40%),
-        radial-gradient(circle at 85% 35%, rgba(122,108,255,.10), transparent 45%),
-        repeating-linear-gradient(
-          135deg,
-          rgba(191,232,255,.06) 0px,
-          rgba(191,232,255,.06) 1px,
-          transparent 1px,
-          transparent 16px
-        );
-      opacity:.45;
-      pointer-events:none;
     }
 
-    .grid{
+    h1{margin:0; font-size: 44px; letter-spacing:.2px; line-height:1.05;}
+    h2{margin:0 0 10px 0; font-size: 14px; letter-spacing:.2px;}
+    h3{margin:0 0 10px 0; font-size: 13px; letter-spacing:.2px;}
+    .hint{opacity:.82; font-size: 12px;}
+    .muted{opacity:.82}
+
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .btn{
+      padding:8px 10px;
+      border-radius: 12px;
+      border:1px solid rgba(191,232,255,.18);
+      background: rgba(10,16,34,.35);
+      color: var(--ink);
+      cursor:pointer;
+      user-select:none;
+      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 10px 24px rgba(0,0,0,.25);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .btn:hover{border-color:rgba(191,232,255,.30); filter: brightness(1.06);}
+    .btn.primary{
+      border-color: rgba(95,225,255,.35);
+      background:
+        radial-gradient(circle at 20% 20%, rgba(191,232,255,.18), transparent 40%),
+        linear-gradient(135deg, rgba(29,78,216,.45), rgba(122,108,255,.22));
+    }
+    .btn.small{padding:6px 8px;border-radius:10px;font-size:11px}
+
+    .grid2{
       display:grid;
       grid-template-columns: 1fr 1fr;
       gap: 14px;
     }
-    @media (max-width: 980px){ .grid{ grid-template-columns: 1fr; } }
-
-    h1{margin:0;font-size:42px;letter-spacing:.3px; position:relative; z-index:1}
-    h2{margin:0 0 10px 0;font-size:18px; position:relative; z-index:1}
-    h3{margin:0 0 10px 0;font-size:15px; position:relative; z-index:1}
-    .hint{opacity:.85;font-size:13px; position:relative; z-index:1}
-    .muted{opacity:.82}
-
-    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap; position:relative; z-index:1}
-    .btn{
-      padding:8px 10px;
-      border-radius: 12px;
-      border:1px solid rgba(255,255,255,.18);
-      background: rgba(0,0,0,.22);
-      color: var(--ink);
-      cursor:pointer;
-      user-select:none;
-    }
-    .btn:hover{border-color:rgba(255,255,255,.32)}
-    .btn.primary{
-      border-color: rgba(255,152,0,.40);
-      background: rgba(255,152,0,.18);
-    }
-    .shell.kids .btn.primary{
-      border-color: rgba(0, 212, 255, .40);
-      background: rgba(0, 212, 255, .14);
-    }
-    .btn.small{padding:6px 8px;border-radius:10px;font-size:12px}
-
-    /* ✅ Start screen: 3-column grid (tile | empty gap | tile) */
-    .modeGrid{
-      display:grid;
-      grid-template-columns: 1fr 96px 1fr;
-      align-items: stretch;
-      width: 100%;
-      position:relative;
-      z-index:1;
-    }
-    @media (max-width: 980px){
-      .modeGrid{
-        grid-template-columns: 1fr;
-        gap: 16px;
-      }
-    }
-
-    .modeTile{
-      position: relative;
-      height: 150px;
-      width: 100%;
-      border-radius: 22px;
-      overflow: hidden;
-      border: 1px solid rgba(255,255,255,.18);
-      background: rgba(0,0,0,.22);
-      cursor: pointer;
-      user-select: none;
-      padding: 0;
-    }
-    .modeTile:hover{ border-color: rgba(255,255,255,.32); }
-    .modeTile.primary{
-      border-color: rgba(255,152,0,.55);
-      box-shadow: 0 0 0 3px rgba(255,152,0,.10) inset;
-    }
-    .shell.kids .modeTile.primary{
-      border-color: rgba(0, 212, 255, .55);
-      box-shadow: 0 0 0 3px rgba(0, 212, 255, .10) inset;
-    }
-
-    .modeBg{
-      position:absolute;
-      inset:0;
-      background-size: cover;
-      background-position: center;
-      filter: saturate(1.05) contrast(1.05);
-    }
-    .modeShade{
-      position:absolute;
-      inset:0;
-      background: linear-gradient(90deg,
-        rgba(0,0,0,.62) 0%,
-        rgba(0,0,0,.40) 42%,
-        rgba(0,0,0,.18) 100%
-      );
-    }
-    .modeContent{
-      position:absolute;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: 14px;
-      padding: 16px 18px;
-    }
-    .modeTextWrap{
-      display:flex;
-      flex-direction:column;
-      justify-content:center;
-      min-width: 0;
-      text-align:left;
-    }
-    .modeTextWrap .title{
-      font-weight: 900;
-      font-size: 22px;
-      line-height: 1.05;
-    }
-    .modeTextWrap .sub{
-      margin-top: 8px;
-      font-size: 14px;
-      opacity: .85;
-      line-height: 1.25;
-    }
-    .modeArrow{
-      flex: 0 0 auto;
-      width: 46px;
-      height: 46px;
-      border-radius: 14px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      border:1px solid rgba(255,255,255,.18);
-      background: rgba(0,0,0,.22);
-      font-size: 18px;
-      opacity: .92;
-    }
+    @media (max-width: 980px){ .grid2{ grid-template-columns: 1fr; } }
 
     .tile{
       padding: 12px;
       border-radius: 16px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.04);
+      border:1px solid rgba(191,232,255,.14);
+      background: rgba(10,16,34,.30);
       cursor:pointer;
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap: 10px;
-      position:relative;
-      z-index:1;
+      box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset, 0 12px 28px rgba(0,0,0,.28);
     }
-    .tile:hover{border-color:rgba(255,255,255,.28)}
+    .tile:hover{border-color:rgba(191,232,255,.24)}
     .tile.selected{
-      border-color: rgba(255,152,0,.55);
-      box-shadow: 0 0 0 3px rgba(255,152,0,.10) inset;
-      background: rgba(255,152,0,.08);
-    }
-    .shell.kids .tile.selected{
-      border-color: rgba(0, 212, 255, .55);
-      box-shadow: 0 0 0 3px rgba(0, 212, 255, .10) inset;
-      background: rgba(0, 212, 255, .08);
+      border-color: rgba(95,225,255,.40);
+      box-shadow: 0 0 0 3px rgba(95,225,255,.10) inset, 0 16px 36px rgba(0,0,0,.30);
     }
     .tileMain{min-width:0}
-    .tileTitle{font-weight:800; margin-bottom: 3px}
-    .tileDesc{font-size:12px; opacity:.82; line-height:1.25}
+    .tileTitle{font-weight:900; margin-bottom: 3px; font-size: 12px;}
+    .tileDesc{font-size:11px; opacity:.82; line-height:1.25}
 
     .drop{
-      border:1px dashed rgba(255,255,255,.18);
+      border:1px dashed rgba(191,232,255,.18);
       background: rgba(255,255,255,.03);
       border-radius: 16px;
       padding: 12px;
       display:flex;
       gap: 12px;
       align-items:center;
-      position:relative;
-      z-index:1;
     }
     .drop input{display:none}
     .preview{
       width:64px; height:64px;
       border-radius:16px;
-      border:1px solid rgba(255,255,255,.12);
+      border:1px solid rgba(191,232,255,.14);
       background: rgba(0,0,0,.25);
       display:grid; place-items:center;
       overflow:hidden;
-      font-size:12px;
+      font-size:11px;
       text-align:center;
       opacity:.85;
       flex:0 0 auto;
       white-space:pre-line;
     }
     .preview img{width:100%;height:100%;object-fit:cover;display:block}
-    .field{display:flex;flex-direction:column;gap:6px;margin-top:10px; position:relative; z-index:1}
-    label{font-size:12px;opacity:.8}
+    .field{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+    label{font-size:11px;opacity:.8}
     input[type="text"]{
       padding:8px 10px;
       border-radius: 12px;
-      border:1px solid rgba(255,255,255,.18);
-      background: rgba(0,0,0,.22);
+      border:1px solid rgba(191,232,255,.18);
+      background: rgba(5,8,18,.55);
       color: var(--ink);
       outline:none;
+      font-size: 12px;
+      font-weight: 700;
     }
 
-    /* -------------------------
-       Screen 4: Game layout
-    ------------------------- */
+    /* ==========================
+       GAME SCREEN (3 columns)
+    ========================== */
     .gameStage{
-      border: 1px solid rgba(191,232,255,.20);
-      background: linear-gradient(180deg, rgba(10,16,34,.58), rgba(10,16,34,.34));
       border-radius: calc(var(--radius) + 6px);
+      border: 1px solid rgba(191,232,255,.18);
+      background: linear-gradient(180deg, rgba(10,16,34,.58), rgba(10,16,34,.30));
       box-shadow:
-        0 0 0 1px rgba(95,225,255,.10) inset,
+        0 0 0 1px rgba(95,225,255,.08) inset,
         0 18px 60px rgba(0,0,0,.55);
-      padding: 12px;
       overflow:hidden;
-      position:relative;
-      z-index:1;
+      padding: 12px;
+      min-height: calc(100vh - 140px);
     }
     .gameStage::before{
       content:"";
-      position:absolute; inset:0;
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      opacity:.55;
       background:
         radial-gradient(circle at 18% 20%, rgba(95,225,255,.10), transparent 40%),
         radial-gradient(circle at 85% 35%, rgba(122,108,255,.10), transparent 45%),
-        repeating-linear-gradient(
-          135deg,
-          rgba(191,232,255,.06) 0px,
-          rgba(191,232,255,.06) 1px,
-          transparent 1px,
-          transparent 16px
-        ),
-        repeating-linear-gradient(
-          45deg,
-          rgba(95,225,255,.05) 0px,
-          rgba(95,225,255,.05) 1px,
-          transparent 1px,
-          transparent 22px
-        );
-      opacity:.45;
-      pointer-events:none;
+        repeating-linear-gradient(135deg, rgba(191,232,255,.06) 0px, rgba(191,232,255,.06) 1px, transparent 1px, transparent 16px),
+        repeating-linear-gradient(45deg, rgba(95,225,255,.05) 0px, rgba(95,225,255,.05) 1px, transparent 1px, transparent 22px);
+    }
+
+    .gameWrap{
+      position:relative;
+      z-index:1;
+      display:flex;
+      flex-direction:column;
+      gap: var(--gap);
+      min-height: calc(100vh - 170px);
+    }
+
+    /* Header grid aligns to the 3 columns.
+       Controls span board+images (columns 2-3). */
+    .gameHeader{
+      display:grid;
+      grid-template-columns: var(--leftW) 1fr var(--rightW);
+      gap: var(--gap);
+      align-items:start;
+      padding: 2px 2px 0;
+    }
+    .gameHeaderLeft{
+      padding: 6px 6px 0;
+    }
+    .gameHeaderTitle{
+      font-size: 44px;
+      font-weight: 900;
+      letter-spacing:.2px;
+      margin:0;
+      line-height: 1.05;
+    }
+    .gameHeaderSub{
+      margin-top: 6px;
+      font-size: 12px;
+      opacity:.82;
+    }
+    .gameHeaderControls{
+      grid-column: 2 / 4;  /* spans board+images */
+      display:flex;
+      justify-content:flex-end;
+      align-items:center;
+      gap: 10px;
+      flex-wrap:wrap;
+      padding: 6px 6px 0;
+    }
+
+    .gameLayout{
+      display:grid;
+      grid-template-columns: var(--leftW) 1fr var(--rightW);
+      gap: var(--gap);
+      min-height: 0;
+      flex: 1;
     }
 
     .panel{
@@ -543,7 +476,7 @@ export function mountApp(root: HTMLElement | null) {
       background: rgba(10,16,34,.45);
       overflow:hidden;
       box-shadow:
-        0 0 0 1px rgba(95,225,255,.10) inset,
+        0 0 0 1px rgba(95,225,255,.08) inset,
         0 18px 40px rgba(0,0,0,.35);
       display:flex;
       flex-direction:column;
@@ -552,8 +485,8 @@ export function mountApp(root: HTMLElement | null) {
     }
     .panelHead{
       padding:10px 12px;
-      border-bottom: 1px solid rgba(191,232,255,.16);
-      background: linear-gradient(180deg, rgba(10,16,34,.62), rgba(10,16,34,.30));
+      border-bottom: 1px solid rgba(191,232,255,.14);
+      background: linear-gradient(180deg, rgba(10,16,34,.62), rgba(10,16,34,.28));
       backdrop-filter: blur(10px);
       display:flex;
       align-items:center;
@@ -568,6 +501,8 @@ export function mountApp(root: HTMLElement | null) {
       align-items:center;
       gap:8px;
       opacity:.95;
+      font-weight: 800;
+      letter-spacing:.2px;
     }
     .dot{
       width:8px; height:8px; border-radius:99px;
@@ -581,198 +516,90 @@ export function mountApp(root: HTMLElement | null) {
       border-radius:999px;
       border: 1px solid rgba(191,232,255,.16);
       background: rgba(10,16,34,.30);
-      max-width: 100%;
+      font-weight: 800;
+      white-space: nowrap;
     }
-    .pill strong{ color: var(--ink); }
+
+    .panelBody{
+      padding: 12px;
+      overflow:auto;
+      min-height: 0;
+    }
+
+    .softCard{
+      border-radius: 16px;
+      border: 1px solid rgba(191,232,255,.14);
+      background: rgba(10,16,34,.28);
+      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 12px 28px rgba(0,0,0,.28);
+      padding: 12px;
+      min-width: 0;
+    }
 
     .infoText{
       font-size: 12px;
       line-height: 1.35;
     }
     .infoText b{
-      font-weight: 700;
-    }
-
-    .gameHeaderGrid{
-      display:grid;
-      grid-template-columns: var(--storyW) 1fr var(--imagesW);
-      gap: 12px;
-      margin-top: 12px;
-      margin-bottom: 12px;
-      position:relative;
-      z-index:1;
-      min-width:0;
-    }
-    .gameHeaderLeft{ min-height: 1px; }
-    .gameHeaderMid{
-      display:flex;
-      flex-direction:column;
-      gap: 10px;
-      min-width:0;
-    }
-    .gameHeaderRight{
-      display:flex;
-      align-items:flex-start;
-      justify-content:flex-end;
-      gap: 10px;
-      flex-wrap:wrap;
-      min-width:0;
-    }
-
-    .softCard{
-      border:1px solid rgba(191,232,255,.14);
-      background: rgba(10,16,34,.22);
-      border-radius: 14px;
-      padding: 10px 12px;
-      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset;
-      min-width:0;
-    }
-
-    .infoTopGrid{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      min-width:0;
-    }
-    @media (max-width: 1100px){
-      .infoTopGrid{ grid-template-columns: 1fr; }
+      font-weight: 800;
+      color: rgba(234,242,255,.98);
     }
 
     .msgBar{
-      border:1px solid rgba(191,232,255,.14);
-      background: rgba(10,16,34,.22);
-      border-radius: 14px;
+      margin-top: 10px;
       padding: 10px 12px;
-      min-height: 40px;
-      display:flex;
-      align-items:center;
-      color: rgba(234,242,255,.92);
-      font-weight: 650;
-    }
-
-    .controlsRow{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      flex-wrap:wrap;
-      justify-content:flex-end;
-    }
-    select,button{
-      padding:8px 10px;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,.18);
-      background:rgba(0,0,0,.22);
-      color: var(--ink);
-    }
-    button{cursor:pointer}
-    button:hover{ border-color: rgba(255,255,255,.32); }
-
-    .gameGrid{
-      display:grid;
-      grid-template-columns: var(--storyW) 1fr var(--imagesW);
-      gap: 12px;
-      min-height: 640px;
-      height: calc(100vh - 210px);
-      min-width:0;
-      position:relative;
-      z-index:1;
-    }
-
-    .storyBody{
-      padding: 12px;
-      display:flex;
-      flex-direction:column;
-      gap: 10px;
-      overflow:auto;
-      min-height:0;
-    }
-
-    .boardBody{
-      padding: 12px;
-      display:flex;
-      flex-direction:column;
-      gap: 12px;
-      min-height:0;
-      overflow:hidden;
-    }
-
-    .imagesBody{
-      padding: 12px;
-      display:flex;
-      flex-direction:column;
-      gap: 10px;
-      min-height:0;
-      overflow:hidden;
-    }
-
-    .imgFrame{
-      border-radius: 16px;
-      border: 1px solid rgba(191,232,255,.16);
-      background: rgba(10,16,34,.28);
-      overflow:hidden;
-      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 12px 28px rgba(0,0,0,.28);
-      display:flex;
-      flex-direction:column;
-      min-height: 220px;
-    }
-    .imgFrameHead{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      padding: 10px 10px;
-      border-bottom: 1px solid rgba(191,232,255,.12);
-      background: linear-gradient(180deg, rgba(10,16,34,.55), rgba(10,16,34,.28));
-      flex-wrap:wrap;
-      flex: 0 0 auto;
-    }
-    .imgFrameBody{
-      flex:1;
-      min-height:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding: 10px;
-      color: rgba(234,242,255,.72);
+      border-radius: 14px;
+      border: 1px solid rgba(191,232,255,.14);
+      background: rgba(10,16,34,.24);
+      box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
+      font-weight: 800;
       font-size: 12px;
-      text-align:center;
-    }
-    .imgFrameBody img{
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display:block;
     }
 
-    .boardWrap{
+    /* Board column layout */
+    .boardBody{
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      padding: 12px;
+      overflow:hidden;
+      min-height: 0;
+      flex: 1;
+    }
+    .infoTop{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      min-width: 0;
+    }
+    @media (max-width: 980px){
+      .infoTop{ grid-template-columns: 1fr; }
+    }
+
+    .boardScroll{
       flex: 1;
       min-height: 0;
-      display:flex;
-      flex-direction:column;
-      gap: 10px;
       overflow:auto;
-      /* sizing knobs set by JS */
-      --hexGap: 5px;
-      --hexW: 64px;
-      --hexH: calc(var(--hexW) * 0.88);
+      padding-right: 4px;
     }
 
+    /* Rows */
     .hexRow{
       display:flex;
       gap: var(--hexGap);
       align-items:center;
+      justify-content:flex-start;
+      width: 100%;
     }
     .hexRow.offset{
-      padding-left: calc((var(--hexW) / 2) + (var(--hexGap) / 2));
+      padding-left: var(--hexOffset);
     }
 
+    /* ========= HEX GLOW BASE ========= */
     .hex{
       width: var(--hexW);
       height: var(--hexH);
 
       clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
-      border:1px solid rgba(255,255,255,.18);
-      background:rgba(255,255,255,.05);
       display:flex;
       align-items:center;
       justify-content:center;
@@ -782,32 +609,105 @@ export function mountApp(root: HTMLElement | null) {
 
       font-size: clamp(9px, calc(var(--hexW) * 0.18), 12px);
       line-height: 1.05;
-      opacity:.95;
-      font-weight: 700;
-    }
-    .hex:hover{border-color:rgba(255,255,255,.35)}
-    .hex.sel{outline:2px solid rgba(255,255,255,.6)}
-    .hex.reach{outline:2px solid rgba(76,175,80,.75)}
-    .hex.player{background:rgba(76,175,80,.18)}
-    .hex.goal{background:rgba(255,193,7,.16)}
-    .hex.blocked{background:rgba(244,67,54,.14);opacity:.75}
-    .hex.missing{background:rgba(120,120,120,.10);opacity:.45}
-    .hex.fog{background:rgba(0,0,0,.38);opacity:.6}
+      font-weight: 800;
 
-    .hex.trSrc{
-      outline:5px solid rgba(255,152,0,.95);
+      /* defaults */
+      --glow-color: rgba(255,255,255,.28);
+      --glow-spread-color: rgba(255,255,255,.14);
+      --enhanced-glow-color: rgba(255,255,255,.55);
+      --btn-color: rgba(255,255,255,.06);
+
+      border: .18em solid var(--glow-color);
+      background-color: var(--btn-color);
+      color: rgba(234,242,255,.92);
+
       box-shadow:
-        0 0 0 3px rgba(255,152,0,.45),
-        0 0 22px rgba(255,152,0,.75),
-        0 0 44px rgba(255,152,0,.55);
+        0 0 .8em .18em var(--glow-color),
+        0 0 2.2em .7em var(--glow-spread-color),
+        inset 0 0 .55em .18em var(--glow-color);
+
+      text-shadow: 0 0 .45em var(--glow-color);
+
+      transition:
+        transform .12s ease,
+        filter .12s ease,
+        box-shadow .18s ease,
+        background-color .18s ease,
+        border-color .18s ease;
+    }
+
+    .hex::after{
+      pointer-events:none;
+      content:"";
+      position:absolute;
+      left:-6%;
+      right:-6%;
+      top:105%;
+      height:90%;
+      background-color: var(--glow-spread-color);
+      filter: blur(1.25em);
+      opacity: .55;
+      transform: perspective(1.5em) rotateX(35deg) scale(1, .6);
+    }
+
+    .hex:hover{
+      transform: translateY(-1px) scale(1.02);
+      filter: brightness(1.08);
+      background-color: color-mix(in srgb, var(--btn-color) 60%, white 40%);
+    }
+
+    .hex:active{
+      transform: translateY(0) scale(.99);
+      box-shadow:
+        0 0 .55em .18em var(--glow-color),
+        0 0 1.6em .8em var(--glow-spread-color),
+        inset 0 0 .4em .18em var(--glow-color);
+    }
+
+    /* State themes (variables only) */
+    .hex.reach{
+      --glow-color: rgba(76,175,80,.95);
+      --glow-spread-color: rgba(76,175,80,.45);
+      --btn-color: rgba(76,175,80,.10);
+    }
+    .hex.player{
+      --glow-color: rgba(76,175,80,1);
+      --glow-spread-color: rgba(76,175,80,.55);
+      --btn-color: rgba(76,175,80,.18);
+    }
+    .hex.goal{
+      --glow-color: rgba(255,193,7,1);
+      --glow-spread-color: rgba(255,193,7,.55);
+      --btn-color: rgba(255,193,7,.14);
+    }
+    .hex.blocked{
+      --glow-color: rgba(244,67,54,.95);
+      --glow-spread-color: rgba(244,67,54,.45);
+      --btn-color: rgba(244,67,54,.10);
+      opacity: .8;
+    }
+    .hex.missing{
+      --glow-color: rgba(255,255,255,.12);
+      --glow-spread-color: rgba(255,255,255,.06);
+      --btn-color: rgba(255,255,255,.03);
+      opacity:.45;
+    }
+    .hex.fog{
+      --glow-color: rgba(255,255,255,.18);
+      --glow-spread-color: rgba(0,0,0,.45);
+      --btn-color: rgba(0,0,0,.28);
+      opacity: .62;
+    }
+    .hex.trSrc{
+      --glow-color: rgba(255,152,0,1);
+      --glow-spread-color: rgba(255,152,0,.55);
+      --btn-color: rgba(255,152,0,.10);
     }
     .hex.trTgt{
-      outline:5px solid rgba(3,169,244,.95);
-      box-shadow:
-        0 0 0 3px rgba(3,169,244,.45),
-        0 0 22px rgba(3,169,244,.75),
-        0 0 44px rgba(3,169,244,.55);
-      animation:pulse 1.2s ease-in-out infinite;
+      --glow-color: rgba(3,169,244,1);
+      --glow-spread-color: rgba(3,169,244,.55);
+      --btn-color: rgba(3,169,244,.10);
+      animation: pulse 1.2s ease-in-out infinite;
     }
     @keyframes pulse{
       0%{filter:brightness(1)}
@@ -815,48 +715,98 @@ export function mountApp(root: HTMLElement | null) {
       100%{filter:brightness(1)}
     }
 
-    .dotHex{
-      position:absolute;right:8px;top:8px;
-      width:10px;height:10px;border-radius:999px;
+    /* Selected ring (keep subtle) */
+    .hex.sel{
+      outline: 2px solid rgba(234,242,255,.55);
+      outline-offset: 2px;
+    }
+
+    /* Priority overrides */
+    .hex.trTgt{ opacity: 1; }
+    .hex.player{ opacity: 1; }
+    .hex.goal{ opacity: 1; }
+
+    /* Small markers */
+    .miniDot{
+      position:absolute;
+      right:8px;
+      top:8px;
+      width:9px;height:9px;border-radius:999px;
       border:1px solid rgba(255,255,255,.35);
       background:rgba(255,255,255,.12);
     }
-    .dotHex.player{background:rgba(76,175,80,.95);border-color:rgba(76,175,80,.95)}
-    .dotHex.goal{background:rgba(255,193,7,.95);border-color:rgba(255,193,7,.95)}
-
+    .miniDot.player{background:rgba(76,175,80,1);border-color:rgba(76,175,80,1)}
+    .miniDot.goal{background:rgba(255,193,7,1);border-color:rgba(255,193,7,1)}
     .dist{
-      position:absolute;left:8px;bottom:8px;
-      padding:2px 6px;border-radius:999px;
-      border:1px solid rgba(255,255,255,.18);
+      position:absolute;
+      left:8px;
+      bottom:8px;
+      padding:2px 6px;
+      border-radius:999px;
+      border:1px solid rgba(191,232,255,.14);
       background:rgba(0,0,0,.30);
-      font-size:11px;line-height:1;
+      font-size:10px;
+      line-height:1;
+      font-weight: 900;
     }
     .trBadge{
-      position:absolute;left:8px;top:8px;
-      padding:2px 6px;border-radius:999px;
-      border:1px solid rgba(255,255,255,.18);
+      position:absolute;
+      left:8px;
+      top:8px;
+      padding:2px 6px;
+      border-radius:999px;
+      border:1px solid rgba(191,232,255,.14);
       background:rgba(0,0,0,.30);
-      font-size:11px;line-height:1;
+      font-size:10px;
+      line-height:1;
+      font-weight: 900;
     }
 
+    /* Images column */
+    .imgBox{
+      height: 220px;
+      border-radius: 16px;
+      border: 1px solid rgba(191,232,255,.14);
+      background: rgba(0,0,0,.18);
+      overflow:hidden;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding: 10px;
+      color: rgba(234,242,255,.82);
+      font-weight: 800;
+      font-size: 12px;
+    }
+    .imgBox img{
+      width:100%;
+      height:100%;
+      object-fit: cover;
+      display:block;
+    }
+
+    /* Mobile stack for game screen */
     @media (max-width: 1100px){
       :root{
-        --storyW: 1fr;
-        --imagesW: 1fr;
+        --leftW: 1fr;
+        --rightW: 1fr;
       }
-      .gameHeaderGrid{
+      .gameHeader{
         grid-template-columns: 1fr;
       }
-      .gameHeaderRight{
+      .gameHeaderControls{
+        grid-column: 1 / 2;
         justify-content:flex-start;
       }
-      .gameGrid{
+      .gameLayout{
         grid-template-columns: 1fr;
-        height: auto;
-        min-height: 0;
       }
-      .boardWrap{ max-height: 560px; }
-      .imagesBody{ overflow:auto; }
+      .gameStage{
+        min-height: auto;
+      }
+      .gameWrap{
+        min-height: auto;
+      }
     }
   `;
   document.head.appendChild(style);
@@ -868,7 +818,6 @@ export function mountApp(root: HTMLElement | null) {
   const shell = el("div", "shell");
 
   const topBar = el("div", "topBar");
-
   const brand = el("div", "brand");
   const brandDot = el("div", "dotBrand");
   const brandTitle = el("div", "brandTitle");
@@ -933,93 +882,46 @@ export function mountApp(root: HTMLElement | null) {
     const p = el("div", "hint");
     p.textContent = "Choose a version, then select a scenario, set up, and play.";
 
-    const grid = el("div", "modeGrid");
+    const row = el("div", "row");
+    row.style.marginTop = "12px";
 
-    // GitHub Pages safe base
-    const baseUrl = import.meta.env.BASE_URL; // "/<repo>/" on GH pages
-    const regularImg = `${baseUrl}images/ui/regular.png`;
-    const kidsImg = `${baseUrl}images/ui/kids.png`;
-
-    function makeTile(opts: {
-      primary?: boolean;
-      title: string;
-      sub: string;
-      bgUrl: string;
-      onClick: () => void;
-    }) {
-      const btn = el("button", `modeTile${opts.primary ? " primary" : ""}`) as HTMLButtonElement;
-      btn.type = "button";
-
-      const bg = el("div", "modeBg") as HTMLDivElement;
-      bg.style.backgroundImage = `url("${opts.bgUrl}")`;
-
-      const shade = el("div", "modeShade");
-
-      const content = el("div", "modeContent");
-      const text = el("div", "modeTextWrap");
-      text.innerHTML = `
-        <div class="title">${escapeHtml(opts.title)}</div>
-        <div class="sub">${escapeHtml(opts.sub)}</div>
-      `;
-
-      const arrow = el("div", "modeArrow");
-      arrow.textContent = "→";
-
-      content.append(text, arrow);
-      btn.append(bg, shade, content);
-
-      btn.addEventListener("click", opts.onClick);
-
-      return { btn, arrow };
-    }
-
-    const { btn: regularBtn, arrow: regularArrow } = makeTile({
-      primary: true,
-      title: "Regular version",
-      sub: "Standard tone and enemies",
-      bgUrl: regularImg,
-      onClick: async () => {
-        try {
-          regularBtn.disabled = true;
-          regularArrow.textContent = "…";
-          await loadModeContent("regular");
-          chosenPlayer = null;
-          chosenMonsters = [];
-          renderSelect();
-          setScreen("select");
-        } catch (e: any) {
-          alert(String(e?.message ?? e));
-          regularBtn.disabled = false;
-          regularArrow.textContent = "→";
-        }
-      },
+    const regularBtn = el("button", "btn primary") as HTMLButtonElement;
+    regularBtn.textContent = "Regular";
+    regularBtn.addEventListener("click", async () => {
+      try {
+        regularBtn.disabled = true;
+        await loadModeContent("regular");
+        chosenPlayer = null;
+        chosenMonsters = [];
+        renderSelect();
+        setScreen("select");
+      } catch (e: any) {
+        alert(String(e?.message ?? e));
+      } finally {
+        regularBtn.disabled = false;
+      }
     });
 
-    const { btn: kidsBtn, arrow: kidsArrow } = makeTile({
-      title: "Kids / Friendly",
-      sub: "Brighter UI, non-scary foes",
-      bgUrl: kidsImg,
-      onClick: async () => {
-        try {
-          kidsBtn.disabled = true;
-          kidsArrow.textContent = "…";
-          await loadModeContent("kids");
-          chosenPlayer = null;
-          chosenMonsters = [];
-          renderSelect();
-          setScreen("select");
-        } catch (e: any) {
-          alert(String(e?.message ?? e));
-          kidsBtn.disabled = false;
-          kidsArrow.textContent = "→";
-        }
-      },
+    const kidsBtn = el("button", "btn") as HTMLButtonElement;
+    kidsBtn.textContent = "Kids / Friendly";
+    kidsBtn.addEventListener("click", async () => {
+      try {
+        kidsBtn.disabled = true;
+        await loadModeContent("kids");
+        chosenPlayer = null;
+        chosenMonsters = [];
+        renderSelect();
+        setScreen("select");
+      } catch (e: any) {
+        alert(String(e?.message ?? e));
+      } finally {
+        kidsBtn.disabled = false;
+      }
     });
 
-    const spacer = document.createElement("div");
-    grid.append(regularBtn, spacer, kidsBtn);
+    row.append(regularBtn, kidsBtn);
 
-    card.append(h, p, grid);
+    card.append(h, p, row);
     vStart.appendChild(card);
   }
 
@@ -1033,7 +935,7 @@ export function mountApp(root: HTMLElement | null) {
   function renderSelect() {
     vSelect.innerHTML = "";
 
-    const layout = el("div", "grid");
+    const layout = el("div", "grid2");
     const left = el("div", "card");
     const right = el("div", "card");
     layout.append(left, right);
@@ -1103,7 +1005,6 @@ export function mountApp(root: HTMLElement | null) {
         ${escapeHtml(String(s?.desc ?? s?.description ?? "No description."))}
       </div>
       <div class="hint" style="margin-top:10px;">Mode: <b>${escapeHtml(String(mode ?? "—"))}</b></div>
-      <div class="hint">Tutorial/Demo are scenarios (locked)</div>
     `;
     right.appendChild(details);
 
@@ -1126,7 +1027,7 @@ export function mountApp(root: HTMLElement | null) {
   function renderSetup() {
     vSetup.innerHTML = "";
 
-    const layout = el("div", "grid");
+    const layout = el("div", "grid2");
     const left = el("div", "card");
     const right = el("div", "card");
     layout.append(left, right);
@@ -1166,7 +1067,7 @@ export function mountApp(root: HTMLElement | null) {
     left.appendChild(presetWrap);
 
     const customCard = el("div", "card");
-    (customCard as HTMLElement).style.background = "rgba(0,0,0,.12)";
+    (customCard as HTMLElement).style.background = "rgba(10,16,34,.28)";
     (customCard as HTMLElement).style.marginTop = "12px";
 
     const h3 = el("h3");
@@ -1218,7 +1119,7 @@ export function mountApp(root: HTMLElement | null) {
     customCard.append(h3, drop, useCustom);
     left.appendChild(customCard);
 
-    // Monsters/Creatures
+    // Monsters
     const mh2 = el("h2");
     mh2.textContent = monstersLabel();
     right.appendChild(mh2);
@@ -1262,78 +1163,7 @@ export function mountApp(root: HTMLElement | null) {
     }
     right.appendChild(mpresetWrap);
 
-    // Custom monster/creature
-    const customM = el("div", "card");
-    (customM as HTMLElement).style.background = "rgba(0,0,0,.12)";
-    (customM as HTMLElement).style.marginTop = "12px";
-
-    const mh3 = el("h3");
-    mh3.textContent = mode === "kids" ? "Add custom creature" : "Add custom monster";
-
-    const mdrop = el("div", "drop");
-    const mpreview = el("div", "preview");
-    mpreview.textContent = "Drop\nImage";
-
-    const mcontrols = el("div");
-    mcontrols.style.flex = "1";
-    mcontrols.style.minWidth = "220px";
-
-    const mrow = el("div", "row");
-    const mpick = el("button", "btn small");
-    mpick.textContent = "Upload image";
-
-    const minput = document.createElement("input");
-    minput.type = "file";
-    minput.accept = "image/*";
-    mpick.addEventListener("click", () => minput.click());
-
-    mrow.append(mpick, el("div", "hint"));
-    (mrow.lastChild as HTMLElement).textContent = "PNG/JPG";
-
-    const mNameField = el("div", "field");
-    const mNameLabel = document.createElement("label");
-    mNameLabel.textContent = "Name";
-    const mNameInput = document.createElement("input");
-    mNameInput.type = "text";
-    mNameInput.placeholder = mode === "kids" ? "e.g. Sparkle Crab" : "e.g. Boneguard Variant";
-    mNameField.append(mNameLabel, mNameInput);
-
-    const mNotesField = el("div", "field");
-    const mNotesLabel = document.createElement("label");
-    mNotesLabel.textContent = "What is it / what does it do? (optional)";
-    const mNotesInput = document.createElement("input");
-    mNotesInput.type = "text";
-    mNotesInput.placeholder = "Short description...";
-    mNotesField.append(mNotesLabel, mNotesInput);
-
-    mcontrols.append(mrow, mNameField, mNotesField);
-    mdrop.append(mpreview, mcontrols, minput);
-
-    let customMonsterImage: string | null = null;
-    wireDropZone(mdrop, minput, mpreview, (url) => (customMonsterImage = url));
-
-    const addMonsterBtn = el("button", "btn");
-    addMonsterBtn.textContent = mode === "kids" ? "Add creature to roster" : "Add monster to roster";
-    addMonsterBtn.addEventListener("click", () => {
-      const nm = mNameInput.value.trim();
-      if (!nm) {
-        alert("Give it a name first.");
-        return;
-      }
-      chosenMonsters.push({
-        id: randId("custom"),
-        name: nm,
-        notes: mNotesInput.value.trim(),
-        imageDataUrl: customMonsterImage,
-        kind: "custom",
-      });
-      renderSetup();
-    });
-
-    customM.append(mh3, mdrop, addMonsterBtn);
-    right.appendChild(customM);
-
-    // Footer actions
+    // Footer
     const footer = el("div", "row");
     (footer as HTMLElement).style.marginTop = "14px";
     (footer as HTMLElement).style.justifyContent = "space-between";
@@ -1366,10 +1196,8 @@ export function mountApp(root: HTMLElement | null) {
   }
 
   // --------------------------
-  // Screen 4: Game
+  // Game helpers
   // --------------------------
-  let gameBuilt = false;
-
   function scenario(): Scenario {
     if (!scenarios.length) throw new Error("Scenarios not loaded yet.");
     return scenarios[scenarioIndex];
@@ -1466,16 +1294,11 @@ export function mountApp(root: HTMLElement | null) {
     message = "";
   }
 
-  function getPlayerDisplayName() {
-    if (!chosenPlayer) return "—";
-    return chosenPlayer.kind === "preset" ? chosenPlayer.name : chosenPlayer.name;
-  }
-
-  function getPlayerImageUrl(): string | null {
-    if (!chosenPlayer) return null;
-    if (chosenPlayer.kind === "custom") return chosenPlayer.imageDataUrl ?? null;
-    return null; // preset: no image yet
-  }
+  // --------------------------
+  // Screen 4: Game (3 columns)
+  // --------------------------
+  let gameBuilt = false;
+  let boardResizeObserver: ResizeObserver | null = null;
 
   function renderGameScreen() {
     if (gameBuilt) return;
@@ -1483,36 +1306,31 @@ export function mountApp(root: HTMLElement | null) {
 
     vGame.innerHTML = "";
 
-    const titleWrap = el("div");
-    const title = el("h1");
+    const stage = el("div", "gameStage");
+    const wrap = el("div", "gameWrap");
+
+    // Header aligned to the 3 columns
+    const header = el("div", "gameHeader");
+
+    const headerLeft = el("div", "gameHeaderLeft");
+    const title = el("div", "gameHeaderTitle");
     title.textContent = "Game";
-    const sub = el("div", "hint");
+    const sub = el("div", "gameHeaderSub");
     const sc: any = scenarios[scenarioIndex];
     sub.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")}`;
-    titleWrap.append(title, sub);
+    headerLeft.append(title, sub);
 
-    const stage = el("div", "gameStage");
+    // Controls (span columns 2-3)
+    const controls = el("div", "gameHeaderControls");
 
-    // Header grid aligned to 3 columns
-    const headerGrid = el("div", "gameHeaderGrid");
-    const headerLeft = el("div", "gameHeaderLeft"); // empty (matches story column)
-    const mid = el("div", "gameHeaderMid");
-    const headerRight = el("div", "gameHeaderRight");
-
-    // Middle: infoTop (two columns) + message bar
-    const infoTop = el("div", "infoTopGrid");
-    const infoLeft = el("div", "softCard infoText");
-    const infoRight = el("div", "softCard infoText");
-    infoTop.append(infoLeft, infoRight);
-
-    const msgBar = el("div", "msgBar infoText");
-    msgBar.textContent = "Ready.";
-
-    mid.append(infoTop, msgBar);
-
-    // Right: controls (scenario/layer/buttons/exit)
-    const controlsRow = el("div", "controlsRow");
     const scenarioSelect = el("select") as HTMLSelectElement;
+    scenarioSelect.style.fontSize = "12px";
+    scenarioSelect.style.fontWeight = "800";
+    scenarioSelect.style.borderRadius = "999px";
+    scenarioSelect.style.padding = "8px 12px";
+    scenarioSelect.style.border = "1px solid rgba(191,232,255,.18)";
+    scenarioSelect.style.background = "rgba(10,16,34,.35)";
+    scenarioSelect.style.color = "rgba(234,242,255,.92)";
     scenarios.forEach((s: any, i: number) => {
       const opt = document.createElement("option");
       opt.value = String(i);
@@ -1522,168 +1340,152 @@ export function mountApp(root: HTMLElement | null) {
     scenarioSelect.value = String(scenarioIndex);
 
     const layerSelect = el("select") as HTMLSelectElement;
+    layerSelect.style.fontSize = "12px";
+    layerSelect.style.fontWeight = "800";
+    layerSelect.style.borderRadius = "999px";
+    layerSelect.style.padding = "8px 12px";
+    layerSelect.style.border = "1px solid rgba(191,232,255,.18)";
+    layerSelect.style.background = "rgba(10,16,34,.35)";
+    layerSelect.style.color = "rgba(234,242,255,.92)";
 
-    const endTurnBtn = el("button") as HTMLButtonElement;
+    const endTurnBtn = el("button", "btn") as HTMLButtonElement;
     endTurnBtn.textContent = "End turn";
 
-    const resetBtn = el("button") as HTMLButtonElement;
+    const resetBtn = el("button", "btn") as HTMLButtonElement;
     resetBtn.textContent = "Reset run";
 
-    const forceRevealBtn = el("button") as HTMLButtonElement;
+    const forceRevealBtn = el("button", "btn") as HTMLButtonElement;
     forceRevealBtn.textContent = "Force reveal layer";
 
-    const exitBtn = el("button") as HTMLButtonElement;
+    const exitBtn = el("button", "btn") as HTMLButtonElement;
     exitBtn.textContent = "Exit";
     exitBtn.addEventListener("click", () => {
       renderSetup();
       setScreen("setup");
     });
 
-    controlsRow.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
-    headerRight.append(controlsRow);
+    controls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
 
-    headerGrid.append(headerLeft, mid, headerRight);
+    header.append(headerLeft, el("div"), el("div")); // placeholders for grid columns
+    header.appendChild(controls); // controls span via CSS
 
-    // Main grid aligned to 3 columns
-    const gameGrid = el("div", "gameGrid");
+    // Main 3-column layout
+    const layout = el("div", "gameLayout");
 
-    // Column 1: Story Log
+    // Left: Story log
     const storyPanel = el("section", "panel");
     const storyHead = el("div", "panelHead");
-    storyHead.append(
-      (() => {
-        const t = el("div", "tag");
-        t.innerHTML = `<span class="dot"></span> Story Log`;
-        return t;
-      })(),
-      (() => {
-        const p = el("div", "pill");
-        p.textContent = "Timeline";
-        return p;
-      })()
-    );
-    const storyBody = el("div", "storyBody");
-    storyBody.append(
-      (() => {
-        const c = el("div", "softCard infoText");
-        c.innerHTML = `<b>Story log will live here later.</b>`;
-        return c;
-      })(),
-      (() => {
-        const c = el("div", "softCard infoText");
-        c.textContent = "Moves, discoveries, encounters, etc.";
-        return c;
-      })()
-    );
+    storyHead.innerHTML = `<div class="tag"><span class="dot"></span> Story Log</div><div class="pill">Timeline</div>`;
+    const storyBody = el("div", "panelBody");
+    const storyCard1 = el("div", "softCard infoText");
+    storyCard1.innerHTML = `<b>Story log</b> will live here later.`;
+    const storyCard2 = el("div", "softCard infoText");
+    storyCard2.style.marginTop = "10px";
+    storyCard2.textContent = "Moves, discoveries, encounters, etc.";
+    storyBody.append(storyCard1, storyCard2);
     storyPanel.append(storyHead, storyBody);
 
-    // Column 2: Board
+    // Middle: Board
     const boardPanel = el("section", "panel");
     const boardHead = el("div", "panelHead");
-    boardHead.append(
-      (() => {
-        const t = el("div", "tag");
-        t.innerHTML = `<span class="dot"></span> Board`;
-        return t;
-      })(),
-      (() => {
-        const p = el("div", "pill");
-        p.innerHTML = `<strong>Build:</strong> ${escapeHtml(BUILD_TAG)}`;
-        return p;
-      })()
-    );
+    const boardTitle = el("div", "tag");
+    boardTitle.innerHTML = `<span class="dot"></span> Board`;
+    const boardPill = el("div", "pill");
+    boardPill.textContent = `Build: ${BUILD_TAG}`;
+    boardHead.append(boardTitle, boardPill);
 
     const boardBody = el("div", "boardBody");
-    const boardWrap = el("div", "boardWrap");
 
-    boardBody.append(boardWrap);
+    const infoTop = el("div", "infoTop");
+    const infoLeft = el("div", "softCard infoText");
+    const infoRight = el("div", "softCard infoText");
+    infoTop.append(infoLeft, infoRight);
+
+    const msgBar = el("div", "msgBar");
+
+    const boardScroll = el("div", "boardScroll");
+    const boardWrap = el("div");
+    boardWrap.style.display = "grid";
+    boardWrap.style.gap = "10px";
+    boardWrap.style.padding = "4px 4px 12px";
+    boardScroll.appendChild(boardWrap);
+
+    boardBody.append(infoTop, msgBar, boardScroll);
     boardPanel.append(boardHead, boardBody);
 
-    // Column 3: Images
-    const imagesPanel = el("section", "panel");
-    const imagesHead = el("div", "panelHead");
-    imagesHead.append(
-      (() => {
-        const t = el("div", "tag");
-        t.innerHTML = `<span class="dot"></span> Images`;
-        return t;
-      })(),
-      (() => {
-        const p = el("div", "pill");
-        p.textContent = "Now";
-        return p;
-      })()
-    );
+    // Right: Images
+    const imgPanel = el("section", "panel");
+    const imgHead = el("div", "panelHead");
+    imgHead.innerHTML = `<div class="tag"><span class="dot"></span> Images</div><div class="pill">Now</div>`;
+    const imgBody = el("div", "panelBody");
 
-    const imagesBody = el("div", "imagesBody");
-
-    const playerFrame = el("div", "imgFrame");
-    const playerFrameHead = el("div", "imgFrameHead");
-    playerFrameHead.innerHTML = `
-      <div class="infoText"><b>Player</b></div>
-      <div class="pill"><strong>${escapeHtml(getPlayerDisplayName())}</strong></div>
+    const playerBox = el("div", "softCard");
+    playerBox.innerHTML = `
+      <div class="infoText" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <b>Player</b>
+        <span class="pill" style="padding:6px 10px">${escapeHtml(chosenPlayer?.name ?? "—")}</span>
+      </div>
+      <div class="imgBox" style="margin-top:10px" id="playerImgBox">Preset player (no image yet).</div>
     `;
-    const playerFrameBody = el("div", "imgFrameBody");
-    playerFrame.append(playerFrameHead, playerFrameBody);
 
-    const hexFrame = el("div", "imgFrame");
-    const hexFrameHead = el("div", "imgFrameHead");
-    hexFrameHead.innerHTML = `
-      <div class="infoText"><b>Current Hex</b></div>
-      <div class="pill"><strong>${escapeHtml(String(state?.playerHexId ?? "—"))}</strong></div>
+    const hexBox = el("div", "softCard");
+    hexBox.style.marginTop = "10px";
+    hexBox.innerHTML = `
+      <div class="infoText" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <b>Current Hex</b>
+        <span class="pill" id="hexLabelPill" style="padding:6px 10px">—</span>
+      </div>
+      <div class="imgBox" style="margin-top:10px" id="hexImgBox">NORMAL</div>
     `;
-    const hexFrameBody = el("div", "imgFrameBody");
-    hexFrameBody.textContent = "NORMAL";
-    hexFrame.append(hexFrameHead, hexFrameBody);
 
-    imagesBody.append(playerFrame, hexFrame);
-    imagesPanel.append(imagesHead, imagesBody);
+    imgBody.append(playerBox, hexBox);
+    imgPanel.append(imgHead, imgBody);
 
-    gameGrid.append(storyPanel, boardPanel, imagesPanel);
+    layout.append(storyPanel, boardPanel, imgPanel);
 
-    // mount
-    stage.append(headerGrid, gameGrid);
-    vGame.append(titleWrap, stage);
+    wrap.append(header, layout);
+    stage.appendChild(wrap);
+    vGame.appendChild(stage);
 
-    // Fit hexes to width: (100% - gaps) / 7, clamp, and offset rows via CSS
-    function fitHexesToBoard() {
+    // ---- Dynamic hex sizing to fill width (7 across) ----
+    // We measure the usable width of boardScroll and compute:
+    // hexW = (width - gap*(7-1)) / 7  with min/max.
+    function clamp(n: number, lo: number, hi: number) {
+      return Math.max(lo, Math.min(hi, n));
+    }
+
+    function setHexLayoutVars() {
+      // Use the boardScroll width; it matches the board content area
+      const w = boardScroll.clientWidth;
+      if (!w || w < 50) return;
+
+      const gap = 5; // user wanted 5
       const cols = 7;
-      const gap = 5;
-      const w = boardWrap.clientWidth;
-      if (!w) return;
-
-      const raw = (w - (cols - 1) * gap) / cols;
-      const minW = 44;
+      const minW = 46;
       const maxW = 92;
-      const hexW = Math.max(minW, Math.min(maxW, Math.floor(raw)));
 
-      boardWrap.style.setProperty("--hexGap", `${gap}px`);
-      boardWrap.style.setProperty("--hexW", `${hexW}px`);
+      const raw = (w - gap * (cols - 1)) / cols;
+      const hexW = clamp(raw, minW, maxW);
+
+      // Good-looking hex height ratio for this clip-path
+      const hexH = Math.round(hexW * 0.88);
+
+      // Offset for even rows = half a hex + half a gap
+      const offset = Math.round((hexW + gap) / 2);
+
+      // Apply vars to board panel (so only board uses them)
+      (boardPanel as HTMLElement).style.setProperty("--hexGap", `${gap}px`);
+      (boardPanel as HTMLElement).style.setProperty("--hexW", `${Math.round(hexW)}px`);
+      (boardPanel as HTMLElement).style.setProperty("--hexH", `${hexH}px`);
+      (boardPanel as HTMLElement).style.setProperty("--hexOffset", `${offset}px`);
     }
 
-    const ro = new ResizeObserver(() => fitHexesToBoard());
-    ro.observe(boardWrap);
-    window.addEventListener("resize", fitHexesToBoard);
+    if (boardResizeObserver) boardResizeObserver.disconnect();
+    boardResizeObserver = new ResizeObserver(() => setHexLayoutVars());
+    boardResizeObserver.observe(boardScroll);
+    window.addEventListener("resize", setHexLayoutVars, { passive: true });
 
-    function renderPlayerImagePanel() {
-      const url = getPlayerImageUrl();
-      if (url) {
-        playerFrameBody.innerHTML = `<img src="${url}" alt="player">`;
-      } else {
-        playerFrameBody.textContent = "Preset player (no image yet).";
-      }
-    }
-
-    function renderHexPanel() {
-      const cur = state?.playerHexId ?? "—";
-      hexFrameHead.innerHTML = `
-        <div class="infoText"><b>Current Hex</b></div>
-        <div class="pill"><strong>${escapeHtml(String(cur))}</strong></div>
-      `;
-      // placeholder until you attach per-hex images later
-      hexFrameBody.textContent = String(getHex(cur as any)?.kind ?? "NORMAL");
-    }
-
+    // ---- Render functions ----
     function renderInfoTop() {
       const s: any = scenario();
 
@@ -1717,6 +1519,12 @@ export function mountApp(root: HTMLElement | null) {
           <b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}
         </div>
       `;
+
+      const hexLabel = document.getElementById("hexLabelPill");
+      if (hexLabel) hexLabel.textContent = state?.playerHexId ?? "—";
+
+      const hexImg = document.getElementById("hexImgBox");
+      if (hexImg) hexImg.textContent = String(getHex(state?.playerHexId ?? "")?.kind ?? "NORMAL");
     }
 
     function renderMessage() {
@@ -1744,12 +1552,13 @@ export function mountApp(root: HTMLElement | null) {
           const isGoal = h?.kind === "GOAL";
           const isPlayer = state.playerHexId === id;
 
+          // State classes (CSS variables handle the glow)
           if (missing) btn.classList.add("missing");
           if (blocked) btn.classList.add("blocked");
           if (!isRevealed(h)) btn.classList.add("fog");
+          if (info?.reachable) btn.classList.add("reach");
           if (isGoal) btn.classList.add("goal");
           if (isPlayer) btn.classList.add("player");
-          if (info?.reachable) btn.classList.add("reach");
           if (selectedId === id) btn.classList.add("sel");
 
           if (sourcesOnLayer.has(id)) btn.classList.add("trSrc");
@@ -1761,13 +1570,8 @@ export function mountApp(root: HTMLElement | null) {
             btn.appendChild(badge);
           }
 
-          if (isPlayer) {
-            const d = el("div", "dotHex player");
-            btn.appendChild(d);
-          } else if (isGoal) {
-            const d = el("div", "dotHex goal");
-            btn.appendChild(d);
-          }
+          if (isPlayer) btn.appendChild(el("div", "miniDot player"));
+          else if (isGoal) btn.appendChild(el("div", "miniDot goal"));
 
           if (info?.reachable && info.distance != null) {
             const d = el("div", "dist");
@@ -1793,7 +1597,6 @@ export function mountApp(root: HTMLElement | null) {
               setLayerOptions(layerSelect);
               recomputeReachability();
               rebuildTransitionIndexAndHighlights();
-
               renderAll();
               return;
             } else {
@@ -1809,8 +1612,8 @@ export function mountApp(root: HTMLElement | null) {
         boardWrap.appendChild(row);
       }
 
-      // after DOM updates, fit again
-      fitHexesToBoard();
+      // Make sure sizing recalcs after rows appear
+      setHexLayoutVars();
     }
 
     function renderAll() {
@@ -1818,10 +1621,9 @@ export function mountApp(root: HTMLElement | null) {
       renderInfoTop();
       renderMessage();
       renderBoard();
-      renderPlayerImagePanel();
-      renderHexPanel();
     }
 
+    // ---- Events ----
     scenarioSelect.addEventListener("change", () => {
       scenarioIndex = Number(scenarioSelect.value);
       startScenario(scenarioIndex);
@@ -1859,7 +1661,7 @@ export function mountApp(root: HTMLElement | null) {
       if (state) enterLayer(state, currentLayer);
       revealWholeLayer(currentLayer);
       recomputeReachability();
-      message = "";
+      message = "Ready.";
       renderAll();
     });
 
@@ -1870,11 +1672,13 @@ export function mountApp(root: HTMLElement | null) {
       renderAll();
     });
 
+    // ---- Boot game view ----
     setLayerOptions(layerSelect);
     if (state) enterLayer(state, currentLayer);
     revealWholeLayer(currentLayer);
     recomputeReachability();
-    fitHexesToBoard();
+    rebuildTransitionIndexAndHighlights();
+    setHexLayoutVars();
     renderAll();
   }
 
