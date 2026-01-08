@@ -444,7 +444,8 @@ export function mountApp(root: HTMLElement | null) {
         0 18px 60px rgba(0,0,0,.55);
       position: relative;
       overflow:hidden;
-      min-height: 720px;
+      height: calc(100vh - 170px); /* tweak 170px if your header is taller/shorter */
+      min-height: 0;
     }
     .stageGame::before{
       content:"";
@@ -612,14 +613,14 @@ export function mountApp(root: HTMLElement | null) {
       padding-top: 10px;
     }
 
-    .boardSquare{
-      aspect-ratio: 1 / 1;
-      width: 100%;
-      max-height: calc(100vh - 260px);
-      min-height: 520px;
-      overflow:auto;
-      padding: 12px;
-    }
+   .boardSquare{
+  width: 100%;
+  max-height: none;
+  min-height: 0;
+  overflow: visible;     /* key: don't reserve scroll area */
+  padding: 12px;
+  aspect-ratio: auto;    /* key: remove square forcing */
+}
     .boardWrap{display:grid;gap:10px}
 
     .hexRow{display:flex;gap:10px;align-items:center}
