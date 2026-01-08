@@ -185,6 +185,36 @@ export function mountApp(root: HTMLElement | null) {
       --radius: 18px;
     }
 
+    /* Blue, moving background (global) */
+    body{
+      margin:0;
+      background:
+        radial-gradient(1200px 800px at 20% 10%, rgba(95,225,255,.10), transparent 60%),
+        radial-gradient(900px 700px at 85% 30%, rgba(122,108,255,.12), transparent 55%),
+        radial-gradient(1000px 900px at 50% 110%, rgba(0,170,255,.08), transparent 55%),
+        linear-gradient(180deg, #05070d, #070a14);
+      overflow-x:hidden;
+    }
+    body::before{
+      content:"";
+      position:fixed;
+      inset:-60px;
+      pointer-events:none;
+      background:
+        conic-gradient(from 90deg at 50% 50%,
+          rgba(95,225,255,.06),
+          rgba(122,108,255,.05),
+          rgba(191,232,255,.06),
+          rgba(95,225,255,.06));
+      filter: blur(32px);
+      opacity:.55;
+      animation: prism 14s linear infinite;
+    }
+    @keyframes prism{
+      0%{ transform: rotate(0deg) scale(1.05); }
+      100%{ transform: rotate(360deg) scale(1.05); }
+    }
+
     .shell{
       max-width: 1250px;
       margin: 0 auto;
@@ -402,28 +432,213 @@ export function mountApp(root: HTMLElement | null) {
       outline:none;
     }
 
-    /* --- Screen 4 styles (board UI) --- */
+    /* --- Screen 4 styles (NEW: stage layout) --- */
     .wrap{max-width:1250px;margin:0 auto;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:#e8e8e8}
     .top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
     .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     select,button{padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.22);color:#e8e8e8}
     button{cursor:pointer}
-    .gridGame{display:grid;grid-template-columns: 1.55fr .85fr; gap:14px; margin-top:14px}
-    .cardGame{border:1px solid rgba(255,255,255,.12); background:rgba(0,0,0,.16); border-radius:18px; padding:14px}
-    .meta{display:grid;gap:6px;margin-top:10px}
-    pre{margin:0;white-space:pre-wrap;word-break:break-word;line-height:1.3}
 
-    .boardHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-    .boardWrap{display:grid;gap:10px;margin-top:10px}
-
-    .banner{
-      margin-top:10px;
-      padding:10px 12px;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.12);
-      background:rgba(0,0,0,.18);
-      display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+    .stageGame{
+      margin-top: 14px;
+      border-radius: calc(var(--radius) + 6px);
+      padding: 12px;
+      background: linear-gradient(180deg, rgba(10,16,34,.58), rgba(10,16,34,.34));
+      border: 1px solid rgba(191,232,255,.20);
+      box-shadow:
+        0 0 0 1px rgba(95,225,255,.10) inset,
+        0 18px 60px rgba(0,0,0,.55);
+      position: relative;
+      overflow:hidden;
+      min-height: 720px;
     }
+    .stageGame::before{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        radial-gradient(circle at 18% 20%, rgba(95,225,255,.10), transparent 40%),
+        radial-gradient(circle at 85% 35%, rgba(122,108,255,.10), transparent 45%),
+        repeating-linear-gradient(
+          135deg,
+          rgba(191,232,255,.06) 0px,
+          rgba(191,232,255,.06) 1px,
+          transparent 1px,
+          transparent 16px
+        ),
+        repeating-linear-gradient(
+          45deg,
+          rgba(95,225,255,.05) 0px,
+          rgba(95,225,255,.05) 1px,
+          transparent 1px,
+          transparent 22px
+        );
+      opacity:.55;
+      pointer-events:none;
+    }
+
+    .gridGame{
+      position:relative;
+      z-index:1;
+      display:grid;
+      grid-template-columns:
+        minmax(220px, .85fr)   /* Dice */
+        minmax(320px, 1.20fr)  /* Story */
+        minmax(240px, .95fr)   /* Images */
+        minmax(560px, 2.30fr)  /* BOARD */
+        minmax(280px, 1.10fr); /* Info */
+      gap: 12px;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .cardGame{
+      height: 100%;
+      border-radius: var(--radius);
+      border: 1px solid rgba(160, 210, 255, .22);
+      background: rgba(10,16,34,.45);
+      overflow:hidden;
+      box-shadow:
+        0 0 0 1px rgba(95,225,255,.10) inset,
+        0 18px 40px rgba(0,0,0,.35);
+      display:flex;
+      flex-direction:column;
+      min-width: 0;
+      min-height: 0;
+    }
+    .panelHead{
+      padding:10px 12px;
+      border-bottom: 1px solid rgba(191,232,255,.16);
+      background: linear-gradient(180deg, rgba(10,16,34,.62), rgba(10,16,34,.30));
+      backdrop-filter: blur(10px);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .panelBody{
+      padding: 12px;
+      overflow:auto;
+      min-height:0;
+    }
+    .pill{
+      font-size:11px;
+      color: rgba(234,242,255,.72);
+      padding:6px 10px;
+      border-radius:999px;
+      border: 1px solid rgba(191,232,255,.16);
+      background: rgba(10,16,34,.30);
+    }
+    .tag{
+      font-size:11px;
+      color: rgba(234,242,255,.72);
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .dotUi{
+      width:8px; height:8px; border-radius:99px;
+      background: radial-gradient(circle at 30% 30%, rgba(191,232,255,.95), rgba(95,225,255,.95));
+      box-shadow: 0 0 12px rgba(95,225,255,.35);
+    }
+
+    .diceBtns{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .diceBtn{
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(191,232,255,.18);
+      background:
+        radial-gradient(circle at 20% 20%, rgba(191,232,255,.20), transparent 40%),
+        linear-gradient(135deg, rgba(29,78,216,.65), rgba(122,108,255,.20));
+      color: var(--text);
+      font-weight: 900;
+      cursor:pointer;
+      box-shadow: 0 10px 24px rgba(0,0,0,.25);
+      text-align:left;
+    }
+    .diceBtn small{
+      display:block; color: rgba(234,242,255,.72);
+      font-weight: 600; margin-top:4px;
+      font-size: 11px;
+    }
+
+    .list{
+      margin-top:10px;
+      border-top:1px solid rgba(191,232,255,.12);
+      padding-top: 10px;
+      display:grid;
+      gap:10px;
+    }
+    .listItem{
+      padding:10px 10px;
+      border-radius: 14px;
+      border:1px solid rgba(191,232,255,.14);
+      background: rgba(10,16,34,.28);
+      font-size: 12px;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .imgStack{
+      display:flex;
+      flex-direction:column;
+      gap: 12px;
+    }
+    .imgFrame{
+      border-radius: 16px;
+      border: 1px solid rgba(191,232,255,.16);
+      background: rgba(10,16,34,.28);
+      overflow:hidden;
+      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 12px 28px rgba(0,0,0,.28);
+      min-height: 220px;
+      display:flex;
+      flex-direction:column;
+    }
+    .imgTop{
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(191,232,255,.12);
+      background: linear-gradient(180deg, rgba(10,16,34,.55), rgba(10,16,34,.28));
+      font-size: 12px;
+      color: rgba(234,242,255,.72);
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+    }
+    .imgBox{
+      width:100%;
+      flex: 1;
+      min-height: 0;
+      display:grid;
+      place-items:center;
+      color: rgba(234,242,255,.65);
+      font-size: 12px;
+    }
+    .imgBox img{
+      width:100%;
+      height:100%;
+      object-fit: cover;
+      display:block;
+    }
+
+    .boardHero{
+      box-shadow:
+        0 0 0 1px rgba(95,225,255,.14) inset,
+        0 18px 55px rgba(0,0,0,.45);
+    }
+    .boardSquare{
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      max-height: calc(100vh - 260px);
+      min-height: 520px;
+      overflow:auto;
+      padding: 12px;
+    }
+    .boardWrap{display:grid;gap:10px}
 
     .hexRow{display:flex;gap:10px;align-items:center}
     .hexRow.offset{padding-left:34px}
@@ -492,10 +707,10 @@ export function mountApp(root: HTMLElement | null) {
       font-size:11px;line-height:1;
     }
 
-    .msg{margin-top:10px;padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.18)}
-    .linkBtn{padding:6px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.18);color:#e8e8e8;cursor:pointer;font-size:12px}
-    .linkBtn:hover{border-color:rgba(255,255,255,.32)}
-    @media (max-width: 980px){.gridGame{grid-template-columns:1fr}}
+    @media (max-width: 1180px){
+      .gridGame{ grid-template-columns: 1fr; }
+      .boardSquare{ aspect-ratio: auto; max-height:none; }
+    }
   `;
   document.head.appendChild(style);
 
@@ -739,7 +954,7 @@ export function mountApp(root: HTMLElement | null) {
       <div class="muted" style="margin-top:6px;">
         ${escapeHtml(String(s?.desc ?? s?.description ?? "No description."))}
       </div>
-      <div class="hint" style="margin-top:10px;">Mode: <b>${mode ?? "—"}</b></div>
+      <div class="hint" style="margin-top:10px;">Mode: <b>${escapeHtml(mode ?? "—")}</b></div>
       <div class="hint">Tutorial/Demo are scenarios (locked)</div>
     `;
     right.appendChild(details);
@@ -1110,6 +1325,14 @@ export function mountApp(root: HTMLElement | null) {
     }
     gameBuilt = true;
 
+    // Simple local dice log (in-game only)
+    type RollEntry = { expr: string; total: number; at: number };
+    let rollLog: RollEntry[] = [];
+
+    function rollDie(sides: number) {
+      return 1 + Math.floor(Math.random() * sides);
+    }
+
     vGame.innerHTML = "";
     const wrap = el("div", "wrap");
 
@@ -1155,66 +1378,191 @@ export function mountApp(root: HTMLElement | null) {
     controls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
     top.append(titleWrap, controls);
 
+    // --- Stage + 5-column layout ---
+    const stage = el("div", "stageGame");
     const layout = el("div", "gridGame");
-    const left = el("div", "cardGame");
-    const right = el("div", "cardGame");
 
-    const boardHeader = el("div", "boardHeader");
-    const boardTitle = el("div");
-    boardTitle.innerHTML = `<b>Board</b> <span class="hint">(orange = transition sources; cyan = selected targets)</span>`;
-    const boardHint = el("div", "hint");
-    boardHint.textContent = `Build: ${BUILD_TAG}`;
-    boardHeader.append(boardTitle, boardHint);
+    // Column 1: Dice
+    const diceCol = el("div", "cardGame");
+    diceCol.innerHTML = `
+      <div class="panelHead">
+        <div class="tag"><span class="dotUi"></span> Dice</div>
+        <div class="pill">Quick</div>
+      </div>
+      <div class="panelBody">
+        <div class="diceBtns">
+          <button class="diceBtn" type="button" id="uiD6">d6 <small>Roll a d6</small></button>
+          <button class="diceBtn" type="button" id="uiD12">d12 <small>Roll a d12</small></button>
+          <button class="diceBtn" type="button" id="uiD20">d20 <small>Roll a d20</small></button>
+        </div>
+        <div class="list" id="uiRollLog">
+          <div class="listItem">No rolls yet.</div>
+        </div>
+      </div>
+    `;
 
-    const meta = el("div", "meta");
-    const banner = el("div", "banner");
-    const msg = el("div", "msg");
+    // Column 2: Story log
+    const storyCol = el("div", "cardGame");
+    storyCol.innerHTML = `
+      <div class="panelHead">
+        <div class="tag"><span class="dotUi"></span> Story Log</div>
+        <div class="pill">Timeline</div>
+      </div>
+      <div class="panelBody" id="uiStory">
+        <div class="listItem">Story log will live here later.</div>
+        <div class="listItem">Moves, discoveries, encounters, etc.</div>
+      </div>
+    `;
+
+    // Column 3: Images (player + current hex)
+    const imagesCol = el("div", "cardGame");
+    imagesCol.innerHTML = `
+      <div class="panelHead">
+        <div class="tag"><span class="dotUi"></span> Images</div>
+        <div class="pill">Now</div>
+      </div>
+      <div class="panelBody">
+        <div class="imgStack">
+          <div class="imgFrame">
+            <div class="imgTop"><div>Player</div><div class="pill" id="uiPlayerName">—</div></div>
+            <div class="imgBox" id="uiPlayerImgBox">
+              <div>Pick a player image in Setup.</div>
+            </div>
+          </div>
+
+          <div class="imgFrame">
+            <div class="imgTop"><div>Current Hex</div><div class="pill" id="uiHexLabel">—</div></div>
+            <div class="imgBox" id="uiHexImgBox">
+              <div>Hex scene image will show here.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Column 4: Board (hero)
+    const boardCol = el("div", "cardGame boardHero");
+
+    const boardHeader = el("div", "panelHead");
+    boardHeader.innerHTML = `
+      <div class="tag"><span class="dotUi"></span> Board</div>
+      <div class="pill">Build: ${escapeHtml(BUILD_TAG)}</div>
+    `;
+
+    const meta = el("div", "panelBody");
+    meta.style.paddingBottom = "0";
+
+    const banner = el("div", "panelBody");
+    banner.style.paddingTop = "10px";
+    banner.style.paddingBottom = "10px";
+
+    const msg = el("div", "panelBody");
+    msg.style.paddingTop = "0";
+
+    const boardSquare = el("div", "boardSquare");
     const boardWrap = el("div", "boardWrap");
+    boardSquare.appendChild(boardWrap);
 
-    left.append(boardHeader, meta, banner, msg, boardWrap);
+    boardCol.append(boardHeader, meta, banner, msg, boardSquare);
 
-    const selectionTitle = el("div");
-    selectionTitle.innerHTML = `<b>Selection</b>`;
-    const selectionBody = el("div", "meta");
+    // Column 5: Info
+    const infoCol = el("div", "cardGame");
+    infoCol.innerHTML = `
+      <div class="panelHead">
+        <div class="tag"><span class="dotUi"></span> Info</div>
+        <div class="pill">Details</div>
+      </div>
+      <div class="panelBody">
+        <div><b>Selection</b></div>
+        <div class="list" id="uiSelection"></div>
 
-    const scenarioTitle = el("div");
-    scenarioTitle.style.marginTop = "14px";
-    scenarioTitle.innerHTML = `<b>Scenario</b>`;
-    const scenarioBody = el("div", "meta");
+        <div style="margin-top:14px;"><b>Scenario</b></div>
+        <div class="list" id="uiScenario"></div>
+      </div>
+    `;
 
-    right.append(selectionTitle, selectionBody, scenarioTitle, scenarioBody);
-    layout.append(left, right);
-    wrap.append(top, layout);
+    layout.append(diceCol, storyCol, imagesCol, boardCol, infoCol);
+    stage.appendChild(layout);
+
+    wrap.append(top, stage);
     vGame.appendChild(wrap);
+
+    const selectionBody = document.getElementById("uiSelection") as HTMLElement;
+    const scenarioBody = document.getElementById("uiScenario") as HTMLElement;
+    const rollLogEl = document.getElementById("uiRollLog") as HTMLElement;
+
+    function renderRollLog() {
+      rollLogEl.innerHTML = "";
+      if (!rollLog.length) {
+        rollLogEl.innerHTML = `<div class="listItem">No rolls yet.</div>`;
+        return;
+      }
+      for (const entry of rollLog.slice().reverse()) {
+        const when = new Date(entry.at).toLocaleTimeString();
+        rollLogEl.innerHTML += `<div class="listItem"><b>${escapeHtml(entry.expr)}</b> → <b>${entry.total}</b><div class="hint">${escapeHtml(when)}</div></div>`;
+      }
+    }
+
+    function doRoll(sides: number) {
+      const r = rollDie(sides);
+      rollLog.push({ expr: `1d${sides}`, total: r, at: Date.now() });
+      if (rollLog.length > 80) rollLog = rollLog.slice(-80);
+      renderRollLog();
+    }
+
+    (document.getElementById("uiD6") as HTMLButtonElement).addEventListener("click", () => doRoll(6));
+    (document.getElementById("uiD12") as HTMLButtonElement).addEventListener("click", () => doRoll(12));
+    (document.getElementById("uiD20") as HTMLButtonElement).addEventListener("click", () => doRoll(20));
 
     function renderMeta() {
       const s: any = scenario();
       meta.innerHTML = `
-        <div><b>Selected:</b> ${String(s.name ?? s.title ?? s.id ?? "")}</div>
-        <div><b>Player:</b> ${state?.playerHexId ?? "?"}</div>
-        <div><b>Goal:</b> ${posId(s.goal)}</div>
+        <div class="listItem"><b>Selected:</b> ${escapeHtml(String(s.name ?? s.title ?? s.id ?? ""))}</div>
+        <div class="listItem"><b>Player:</b> ${escapeHtml(String(state?.playerHexId ?? "?"))}</div>
+        <div class="listItem"><b>Goal:</b> ${escapeHtml(String(posId(s.goal)))}</div>
       `;
-      msg.textContent = message || "Ready.";
+      msg.innerHTML = `<div class="listItem">${escapeHtml(message || "Ready.")}</div>`;
+
+      // Images: player + current hex placeholder
+      const playerName = document.getElementById("uiPlayerName") as HTMLElement;
+      const playerBox = document.getElementById("uiPlayerImgBox") as HTMLElement;
+
+      const nm = chosenPlayer ? (chosenPlayer as any).name : "—";
+      playerName.textContent = nm;
+
+      const imgUrl = chosenPlayer?.kind === "custom" ? chosenPlayer.imageDataUrl : null;
+      playerBox.innerHTML = imgUrl
+        ? `<img src="${imgUrl}" alt="player">`
+        : `<div>Preset player (no image yet).</div>`;
+
+      const hexLabel = document.getElementById("uiHexLabel") as HTMLElement;
+      const hexBox = document.getElementById("uiHexImgBox") as HTMLElement;
+
+      const focusId = selectedId ?? state?.playerHexId ?? "—";
+      hexLabel.textContent = focusId;
+
+      const hk: any = focusId && focusId !== "—" ? getHex(focusId) : null;
+      hexBox.innerHTML = `<div>${escapeHtml(String(hk?.kind ?? "Unknown"))}</div>`;
     }
 
     function renderBanner() {
       const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
 
       banner.innerHTML = `
-        <div>
-          <b>Reachable:</b> ${reachable.size} (layer ${currentLayer}: ${layerReachable})
-          | <b>Transitions total:</b> ${transitionsAll.length}
-          | <b>Sources on this layer:</b> ${sourcesOnLayer.size}
-          | <b>Outgoing from selected:</b> ${outgoingFromSelected.length}
+        <div class="listItem">
+          <b>Reachable:</b> ${reachable.size} (layer ${currentLayer}: ${layerReachable})<br/>
+          <b>Transitions total:</b> ${transitionsAll.length}<br/>
+          <b>Sources on this layer:</b> ${sourcesOnLayer.size}<br/>
+          <b>Outgoing from selected:</b> ${outgoingFromSelected.length}
         </div>
-        <div class="hint">Orange sources always show if transitions exist on this layer.</div>
+        <div class="hint" style="margin-top:8px;">Orange = transition sources. Cyan = selected targets.</div>
       `;
     }
 
     function renderSelection() {
       selectionBody.innerHTML = "";
       if (!selectedId) {
-        appendHint(selectionBody, "No hex selected.");
+        selectionBody.innerHTML = `<div class="listItem">No hex selected.</div>`;
         return;
       }
 
@@ -1223,29 +1571,32 @@ export function mountApp(root: HTMLElement | null) {
       const info = reachMap[selectedId];
 
       selectionBody.innerHTML = `
-        <div><b>Hex:</b> ${selectedId}</div>
-        <div><b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}</div>
-        <div><b>Revealed:</b> ${isRevealed(h) ? "yes" : "no"}</div>
-        <div><b>Kind:</b> ${h?.kind ?? "?"}</div>
-        <div><b>Reachable:</b> ${info?.reachable ? "yes" : "no"}</div>
-        <div><b>Distance:</b> ${info?.distance ?? "—"}</div>
-        <div><b>Explored:</b> ${info?.explored ?? "—"}</div>
-        <div><b>Has transitions:</b> ${transitionsByFrom.has(selectedId) ? "yes" : "no"}</div>
+        <div class="listItem"><b>Hex:</b> ${escapeHtml(selectedId)}</div>
+        <div class="listItem"><b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}</div>
+        <div class="listItem"><b>Revealed:</b> ${isRevealed(h) ? "yes" : "no"}</div>
+        <div class="listItem"><b>Kind:</b> ${escapeHtml(String(h?.kind ?? "?"))}</div>
+        <div class="listItem"><b>Reachable:</b> ${info?.reachable ? "yes" : "no"}</div>
+        <div class="listItem"><b>Distance:</b> ${escapeHtml(String(info?.distance ?? "—"))}</div>
+        <div class="listItem"><b>Explored:</b> ${escapeHtml(String(info?.explored ?? "—"))}</div>
+        <div class="listItem"><b>Has transitions:</b> ${transitionsByFrom.has(selectedId) ? "yes" : "no"}</div>
       `;
     }
 
     function renderScenarioDetails() {
       const s: any = scenario();
       scenarioBody.innerHTML = "";
-      appendHint(scenarioBody, "Movement:");
-      const movement = el("pre");
-      movement.textContent = JSON.stringify(s.movement ?? {}, null, 2);
-      scenarioBody.appendChild(movement);
 
-      appendHint(scenarioBody, "Transitions:");
-      const transitions = el("pre");
-      transitions.textContent = JSON.stringify(s.transitions ?? [], null, 2);
-      scenarioBody.appendChild(transitions);
+      const move = el("div", "listItem");
+      move.innerHTML = `<b>Movement</b><div class="hint" style="margin-top:6px; white-space:pre-wrap">${escapeHtml(
+        JSON.stringify(s.movement ?? {}, null, 2)
+      )}</div>`;
+
+      const trans = el("div", "listItem");
+      trans.innerHTML = `<b>Transitions</b><div class="hint" style="margin-top:6px; white-space:pre-wrap">${escapeHtml(
+        JSON.stringify(s.transitions ?? [], null, 2)
+      )}</div>`;
+
+      scenarioBody.append(move, trans);
     }
 
     function renderBoard() {
@@ -1336,6 +1687,7 @@ export function mountApp(root: HTMLElement | null) {
       renderBoard();
       renderSelection();
       renderScenarioDetails();
+      renderRollLog();
     }
 
     scenarioSelect.addEventListener("change", () => {
