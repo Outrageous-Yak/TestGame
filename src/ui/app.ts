@@ -187,7 +187,12 @@ export function mountApp(root: HTMLElement | null) {
       --sideW: 360px;
       --imgW: 340px;
       --gap: 14px;
+
+      --baseFont: 12px;
+      --baseLine: 1.35;
     }
+
+    *{ box-sizing:border-box; }
 
     .shell{
       max-width: 100%;
@@ -195,6 +200,9 @@ export function mountApp(root: HTMLElement | null) {
       padding: 18px;
       font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial;
       color: var(--text);
+
+      font-size: var(--baseFont);
+      line-height: var(--baseLine);
     }
     .shell.kids{
       --bg:#0b1020;
@@ -218,8 +226,8 @@ export function mountApp(root: HTMLElement | null) {
       box-shadow: 0 0 18px rgba(255,152,0,.35);
     }
     .shell.kids .dotBrand{ box-shadow: 0 0 18px rgba(0, 212, 255, .35); }
-    .brandTitle{font-weight:800; letter-spacing:.4px; font-size: 18px;}
-    .crumb{opacity:.85; font-size: 13px;}
+    .brandTitle{font-weight:800; letter-spacing:.4px; font-size: 16px;}
+    .crumb{opacity:.85; font-size: 12px;}
 
     .view{ display:none; }
     .view.active{ display:block; }
@@ -230,6 +238,7 @@ export function mountApp(root: HTMLElement | null) {
       border-radius: var(--radius);
       padding: 14px;
     }
+
     .grid{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -237,10 +246,11 @@ export function mountApp(root: HTMLElement | null) {
     }
     @media (max-width: 980px){ .grid{ grid-template-columns: 1fr; } }
 
-    h1{margin:0;font-size:42px;letter-spacing:.3px}
-    h2{margin:0 0 10px 0;font-size:18px}
-    h3{margin:0 0 10px 0;font-size:15px}
-    .hint{opacity:.85;font-size:13px}
+    h1{margin:0;font-size:34px;letter-spacing:.3px;font-weight:900;line-height:1.05;}
+    h2{margin:0 0 10px 0;font-size:16px;font-weight:850;line-height:1.15;}
+    h3{margin:0 0 10px 0;font-size:13px;font-weight:800;line-height:1.2;}
+
+    .hint{opacity:.85;font-size:12px;line-height:1.35}
     .muted{opacity:.82}
 
     .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -252,14 +262,18 @@ export function mountApp(root: HTMLElement | null) {
       color: var(--text);
       cursor:pointer;
       user-select:none;
+      font-size: 12px;
+      line-height: 1.2;
+      font-weight: 750;
     }
     .btn:hover{border-color:rgba(255,255,255,.32)}
     .btn.primary{
       border-color: rgba(255,152,0,.40);
       background: rgba(255,152,0,.18);
     }
-    .btn.small{padding:6px 8px;border-radius:10px;font-size:12px}
+    .btn.small{padding:6px 8px;border-radius:10px;font-size:11px}
 
+    /* Start screen tiles */
     .modeGrid{
       display:grid;
       grid-template-columns: 1fr 96px 1fr;
@@ -272,7 +286,7 @@ export function mountApp(root: HTMLElement | null) {
 
     .modeTile{
       position: relative;
-      height: 300px;
+      height: 150px;
       width: 100%;
       border-radius: 22px;
       overflow: hidden;
@@ -322,12 +336,12 @@ export function mountApp(root: HTMLElement | null) {
     }
     .modeTextWrap .title{
       font-weight: 900;
-      font-size: 22px;
+      font-size: 20px;
       line-height: 1.05;
     }
     .modeTextWrap .sub{
       margin-top: 8px;
-      font-size: 14px;
+      font-size: 12px;
       opacity: .85;
       line-height: 1.25;
     }
@@ -355,6 +369,8 @@ export function mountApp(root: HTMLElement | null) {
       align-items:center;
       justify-content:space-between;
       gap: 10px;
+      font-size: 12px;
+      line-height: 1.35;
     }
     .tile:hover{border-color:rgba(255,255,255,.28)}
     .tile.selected{
@@ -363,7 +379,7 @@ export function mountApp(root: HTMLElement | null) {
       background: rgba(255,152,0,.08);
     }
     .tileMain{min-width:0}
-    .tileTitle{font-weight:800; margin-bottom: 3px}
+    .tileTitle{font-weight:850; margin-bottom: 3px; font-size: 13px;}
     .tileDesc{font-size:12px; opacity:.82; line-height:1.25}
 
     .drop{
@@ -374,6 +390,8 @@ export function mountApp(root: HTMLElement | null) {
       display:flex;
       gap: 12px;
       align-items:center;
+      font-size: 12px;
+      line-height: 1.35;
     }
     .drop input{display:none}
     .preview{
@@ -383,15 +401,16 @@ export function mountApp(root: HTMLElement | null) {
       background: rgba(0,0,0,.25);
       display:grid; place-items:center;
       overflow:hidden;
-      font-size:12px;
+      font-size:11px;
       text-align:center;
       opacity:.85;
       flex:0 0 auto;
       white-space:pre-line;
+      line-height: 1.15;
     }
     .preview img{width:100%;height:100%;object-fit:cover;display:block}
     .field{display:flex;flex-direction:column;gap:6px;margin-top:10px}
-    label{font-size:12px;opacity:.8}
+    label{font-size:11px;opacity:.8}
     input[type="text"]{
       padding:8px 10px;
       border-radius: 12px;
@@ -399,6 +418,8 @@ export function mountApp(root: HTMLElement | null) {
       background: rgba(0,0,0,.22);
       color: var(--text);
       outline:none;
+      font-size: 12px;
+      line-height: 1.2;
     }
 
     /* --- GAME LAYOUT --- */
@@ -413,7 +434,7 @@ export function mountApp(root: HTMLElement | null) {
     }
 
     .gameTitleBox{ min-width:0; }
-    .gameTitleBox h1{ margin:0; font-size:42px; letter-spacing:.3px; }
+    .gameTitleBox h1{ margin:0; font-size:34px; letter-spacing:.3px; }
     .gameTitleBox .hint{ margin-top:6px; }
 
     .gameHeaderMid{
@@ -436,7 +457,10 @@ export function mountApp(root: HTMLElement | null) {
       border-radius:12px;
       border:1px solid rgba(255,255,255,.18);
       background:rgba(0,0,0,.22);
-      color:#e8e8e8
+      color:#e8e8e8;
+      font-size: 12px;
+      line-height: 1.2;
+      font-weight: 750;
     }
     button{cursor:pointer}
 
@@ -456,6 +480,8 @@ export function mountApp(root: HTMLElement | null) {
       display:flex;
       flex-direction:column;
       box-shadow: 0 0 0 1px rgba(3,169,244,.08) inset, 0 18px 60px rgba(0,0,0,.35);
+      font-size: 12px;
+      line-height: 1.35;
     }
 
     .panelHead{
@@ -474,14 +500,15 @@ export function mountApp(root: HTMLElement | null) {
       background: rgba(3,169,244,.95);
       box-shadow: 0 0 14px rgba(3,169,244,.35);
     }
-    .panelTitle{ font-weight: 800; }
+    .panelTitle{ font-weight: 900; font-size: 12px; letter-spacing:.2px; }
     .pill{
-      font-size: 12px;
+      font-size: 11px;
       opacity:.85;
       padding: 6px 10px;
       border-radius: 999px;
       border: 1px solid rgba(255,255,255,.14);
       background: rgba(0,0,0,.18);
+      font-weight: 700;
     }
 
     .panelBody{
@@ -499,6 +526,17 @@ export function mountApp(root: HTMLElement | null) {
       border-radius: 16px;
       padding: 10px 12px;
       min-width:0;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    /* Make ALL text blocks consistent with your desired style */
+    .infoText{
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .infoText b{
+      font-weight: 700;
     }
 
     .infoGrid2{
@@ -513,6 +551,9 @@ export function mountApp(root: HTMLElement | null) {
       border-radius:14px;
       border:1px solid rgba(255,255,255,.12);
       background:rgba(0,0,0,.18);
+      font-size: 12px;
+      line-height: 1.35;
+      font-weight: 700;
     }
 
     .boardWrap{
@@ -538,8 +579,11 @@ export function mountApp(root: HTMLElement | null) {
       background:rgba(255,255,255,.05);
       display:flex;align-items:center;justify-content:center;
       cursor:pointer; position:relative;
-      user-select:none; font-size:12px;
+      user-select:none;
+      font-size: 11px;
+      line-height: 1.1;
       opacity:.95;
+      font-weight: 700;
     }
     .hex:hover{border-color:rgba(255,255,255,.35)}
     .hex.sel{outline:2px solid rgba(255,255,255,.6)}
@@ -585,24 +629,20 @@ export function mountApp(root: HTMLElement | null) {
       padding:2px 6px;border-radius:999px;
       border:1px solid rgba(255,255,255,.18);
       background:rgba(0,0,0,.30);
-      font-size:11px;line-height:1;
+      font-size: 10px;
+      line-height: 1;
+      font-weight: 800;
     }
     .trBadge{
       position:absolute;left:8px;top:8px;
       padding:2px 6px;border-radius:999px;
       border:1px solid rgba(255,255,255,.18);
       background:rgba(0,0,0,.30);
-      font-size:11px;line-height:1;
+      font-size: 10px;
+      line-height: 1;
+      font-weight: 900;
     }
-    
-      .infoText{
-        font-size: 12px;        /* try 11–13px */
-        line-height: 1.35;
-}
 
-.infoText b{
-  font-weight: 700;
-}
     .imgFrame{
       width:100%;
       height: 220px;
@@ -614,9 +654,10 @@ export function mountApp(root: HTMLElement | null) {
       align-items:center;
       justify-content:center;
       color: rgba(232,232,232,.7);
-      font-size: 12px;
+      font-size: 11px;
       text-align:center;
       padding: 10px;
+      line-height: 1.35;
     }
     .imgFrame img{
       width:100%;
@@ -905,7 +946,6 @@ export function mountApp(root: HTMLElement | null) {
     const right = el("div", "card");
     layout.append(left, right);
 
-    // Player
     const h2 = el("h2");
     h2.textContent = "Choose your player";
     left.appendChild(h2);
@@ -992,7 +1032,6 @@ export function mountApp(root: HTMLElement | null) {
     customCard.append(h3, drop, useCustom);
     left.appendChild(customCard);
 
-    // Monsters
     const mh2 = el("h2");
     mh2.textContent = monstersLabel();
     right.appendChild(mh2);
@@ -1036,7 +1075,6 @@ export function mountApp(root: HTMLElement | null) {
     }
     right.appendChild(mpresetWrap);
 
-    // Custom monster
     const customM = el("div", "card");
     (customM as HTMLElement).style.background = "rgba(0,0,0,.12)";
     (customM as HTMLElement).style.marginTop = "12px";
@@ -1107,7 +1145,6 @@ export function mountApp(root: HTMLElement | null) {
     customM.append(mh3, mdrop, addMonsterBtn);
     right.appendChild(customM);
 
-    // Footer
     const footer = el("div", "row");
     (footer as HTMLElement).style.marginTop = "14px";
     (footer as HTMLElement).style.justifyContent = "space-between";
@@ -1261,7 +1298,7 @@ export function mountApp(root: HTMLElement | null) {
     sub.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")}`;
     titleBox.append(title, sub);
 
-    // (2) middle column (INFO + MESSAGE)  ✅ moved here
+    // (2) middle column (INFO + MESSAGE)
     const mid = el("div", "gameHeaderMid");
 
     const infoGrid = el("div", "infoGrid2");
@@ -1269,13 +1306,13 @@ export function mountApp(root: HTMLElement | null) {
     const infoRight = el("div", "softCard infoText");
     infoGrid.append(infoLeft, infoRight);
 
-    const msgBar = el("div", "msgBar infoText");
+    const msgBar = el("div", "msgBar");
     mid.append(infoGrid, msgBar);
 
     // (3) controls column
-    const controls = el("div", "gameHeaderControls infoText");
+    const controls = el("div", "gameHeaderControls");
 
-    const scenarioSelect = el("select infoText"); as HTMLSelectElement;
+    const scenarioSelect = el("select") as HTMLSelectElement;
     scenarios.forEach((s: any, i: number) => {
       const opt = document.createElement("option");
       opt.value = String(i);
@@ -1284,18 +1321,18 @@ export function mountApp(root: HTMLElement | null) {
     });
     scenarioSelect.value = String(scenarioIndex);
 
-    const layerSelect = el("select infoText"); as HTMLSelectElement;
+    const layerSelect = el("select") as HTMLSelectElement;
 
-    const endTurnBtn = el("button infoText"); as HTMLButtonElement;
+    const endTurnBtn = el("button") as HTMLButtonElement;
     endTurnBtn.textContent = "End turn";
 
-    const resetBtn = el("button infoText"); as HTMLButtonElement;
+    const resetBtn = el("button") as HTMLButtonElement;
     resetBtn.textContent = "Reset run";
 
-    const forceRevealBtn = el("button infoText"); as HTMLButtonElement;
+    const forceRevealBtn = el("button") as HTMLButtonElement;
     forceRevealBtn.textContent = "Force reveal layer";
 
-    const exitBtn = el("button infoText"); as HTMLButtonElement;
+    const exitBtn = el("button") as HTMLButtonElement;
     exitBtn.textContent = "Exit";
 
     controls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
@@ -1321,22 +1358,22 @@ export function mountApp(root: HTMLElement | null) {
     storyPill.textContent = "Timeline";
     storyHead.append(storyLeftTag, storyPill);
 
-    const storyBody = el("div", "panelBody infoText");;
+    const storyBody = el("div", "panelBody");
     storyBody.append(
       (() => {
-        const a = el("div", "softCard infoText");;
+        const a = el("div", "softCard");
         a.innerHTML = `<b>Story log will live here later.</b>`;
         return a;
       })(),
       (() => {
-        const b = el("div", "softCard infoText");;
+        const b = el("div", "softCard");
         b.textContent = "Moves, discoveries, encounters, etc.";
         return b;
       })()
     );
     storyPanel.append(storyHead, storyBody);
 
-    // Board panel (ONLY the hex grid now)
+    // Board panel (ONLY the hex grid)
     const boardHead = el("div", "panelHead");
     const boardLeftTag = el("div", "leftTag");
     boardLeftTag.append(el("div", "panelDot"), (() => {
@@ -1402,7 +1439,6 @@ export function mountApp(root: HTMLElement | null) {
     wrap.append(headerGrid, grid);
     vGame.appendChild(wrap);
 
-    // ✅ These are exactly the functions you pasted, now targeting header-mid
     function renderInfoTop() {
       const s: any = scenario();
 
@@ -1541,7 +1577,6 @@ export function mountApp(root: HTMLElement | null) {
       renderImages();
     }
 
-    // Controls wiring
     exitBtn.addEventListener("click", () => {
       renderSetup();
       setScreen("setup");
@@ -1595,7 +1630,6 @@ export function mountApp(root: HTMLElement | null) {
       renderAll();
     });
 
-    // Boot
     setLayerOptions(layerSelect);
     if (state) enterLayer(state, currentLayer);
     revealWholeLayer(currentLayer);
