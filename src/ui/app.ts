@@ -124,7 +124,7 @@ function scenarioTileSet(s: any): string {
   return t || "demo";
 }
 
-/** Preset player image (place files at public/images/ui/players/p1.png, p2.png, ...) */
+/** Preset player image (place files at public/images/players/p1.png, p2.png, ...) */
 function presetPlayerImage(id: string): string {
   // IMPORTANT: no leading "/" so BASE_URL works on GitHub Pages
   return `images/ui/players/${id}.png`;
