@@ -1808,7 +1808,7 @@ function renderMiniMovingBoard() {
 
     const label = document.createElement("b");
     // show shift for proof (you can remove later)
-    label.textContent = `R${r}(${shiftLeft}):`;
+   label.textContent = `R${r}:`;
     rowEl.appendChild(label);
 
     for (const c of orderedCols) {
