@@ -1961,24 +1961,35 @@ function renderMiniMovingBoard() {
 
             const res = tryMove(state!, id);
 
-            if (res.ok) {
-              message = res.won
-                ? "🎉 You reached the goal!"
-                : res.triggeredTransition
-                ? "Moved (transition triggered)."
-                : "Moved.";
+        if (res.ok) {
+  logClick(id, true);
 
-              logClick(id, true);
+  // Update layer if the move/transition changed it
+  const playerCoord = idToCoord(state!.playerHexId);
+  if (playerCoord) currentLayer = playerCoord.layer;
 
-              const playerCoord = idToCoord(state!.playerHexId);
-              if (playerCoord) currentLayer = playerCoord.layer;
+  // AUTO end-turn after every successful move (unless you just won)
+  if (!res.won) {
+    endTurn(state!);
+    applyMiniShiftsForEndTurn();
 
-              setLayerOptions(layerSelect);
-              recomputeReachability();
-              rebuildTransitionIndexAndHighlights();
-              renderAll();
-              return;
-            } else {
+    // Keep fog: do NOT call revealWholeLayer here
+    enterLayer(state!, currentLayer);
+  }
+
+  message = res.won
+    ? "🎉 You reached the goal!"
+    : res.triggeredTransition
+    ? "Moved (transition triggered) — turn ended."
+    : "Moved — turn ended.";
+
+  setLayerOptions(layerSelect);
+  recomputeReachability();
+  rebuildTransitionIndexAndHighlights();
+  renderAll();
+  return;
+}
+ else {
               const reason = res.reason ?? "INVALID";
               message = `Move rejected: ${reason}`;
               logClick(id, false, reason);
@@ -2030,16 +2041,18 @@ function renderMiniMovingBoard() {
     });
 endTurnBtn.addEventListener("click", () => {
   if (!state) return;
+
   endTurn(state);
+  applyMiniShiftsForEndTurn();
 
-  applyMiniShiftsForEndTurn(); // <-- must be here
-
+  // Do NOT reveal whole layer here — keep fog.
   enterLayer(state, currentLayer);
-  revealWholeLayer(currentLayer);
   recomputeReachability();
+
   message = "Turn ended.";
   renderAll();
 });
+
 
     resetBtn.addEventListener("click", () => {
       startScenario(scenarioIndex);
