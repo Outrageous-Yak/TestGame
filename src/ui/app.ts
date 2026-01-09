@@ -183,6 +183,8 @@ export function mountApp(root: HTMLElement | null) {
 
   let reachMap: ReachMap = {};
   let reachable: Set<string> = new Set();
+// Mini-board shifting (UI-only): shiftLeft[layer][row] = cumulative left-rotation steps
+let miniShiftLeft: Record<number, Record<number, number>> = {};
 
   let transitionsAll: any[] = [];
   let transitionsByFrom = new Map<string, any[]>();
@@ -895,26 +897,29 @@ export function mountApp(root: HTMLElement | null) {
       font-weight: 900;
       min-width: 36px;
     }
-    .miniCell{
-      padding: 2px 6px;
-      border-radius: 999px;
-      border: 1px solid rgba(191,232,255,.12);
+     .miniCell{
+      width: 28px;
+      height: 24px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+
+      clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
+
+      border: 1px solid rgba(191,232,255,.14);
       background: rgba(0,0,0,.22);
-      opacity:.9;
+      opacity:.95;
       font-weight: 900;
+      line-height:1;
+      padding: 0; /* important: don't pill it */
     }
     .miniCell.on{
-      border-color: rgba(76,255,80,.55);
-      background: rgba(76,255,80,.16);
-      box-shadow: 0 0 0 1px rgba(76,255,80,.20) inset;
+      border-color: rgba(76,255,80,.65);
+      background: rgba(76,255,80,.18);
+      box-shadow: 0 0 0 1px rgba(76,255,80,.22) inset, 0 0 12px rgba(76,255,80,.22);
       color: rgba(234,242,255,.98);
     }
-    .miniNote{
-      margin-top: 8px;
-      opacity:.75;
-      font-weight: 800;
-      font-size: 11px;
-    }
+
 
     /* story log list */
     .logHeadRow{
@@ -1456,6 +1461,7 @@ export function mountApp(root: HTMLElement | null) {
     moveCount = 0;
     logs = [];
   }
+    miniShiftLeft = {};
 
   function logClick(id: string, ok: boolean, reason?: string) {
     moveCount += 1;
@@ -1662,6 +1668,39 @@ export function mountApp(root: HTMLElement | null) {
     function clamp(n: number, lo: number, hi: number) {
       return Math.max(lo, Math.min(hi, n));
     }
+  function getMovementRuleForLayer(layer: number): string {
+    const s: any = scenario();
+    const rule = s?.movement?.[String(layer)] ?? s?.movement?.[layer];
+    return String(rule ?? "NONE").toUpperCase();
+  }
+
+  function bumpMiniShift(layer: number, row: number, deltaLeft: number) {
+    if (!miniShiftLeft[layer]) miniShiftLeft[layer] = {};
+    miniShiftLeft[layer][row] = (miniShiftLeft[layer][row] ?? 0) + deltaLeft;
+  }
+
+  // Called when you press End turn (to mirror the demo’s shifting)
+  function applyMiniShiftsForEndTurn() {
+    const s: any = scenario();
+    const layers = Number(s?.layers ?? 1);
+
+    for (let L = 1; L <= layers; L++) {
+      const rule = getMovementRuleForLayer(L);
+
+      if (rule === "NONE") continue;
+
+      if (rule === "SEVEN_LEFT_SIX_RIGHT") {
+        // Match your described behavior: odd rows left, even rows right
+        for (let r = 1; r <= ROW_LENS.length; r++) {
+          if (r % 2 === 1) bumpMiniShift(L, r, +7);  // left 7
+          else bumpMiniShift(L, r, -6);             // right 6 (negative left)
+        }
+        continue;
+      }
+
+      // Fallback: unknown rule → do nothing (safe)
+    }
+  }
 
     function setHexLayoutVars() {
       const w = boardScroll.clientWidth;
@@ -1769,7 +1808,7 @@ export function mountApp(root: HTMLElement | null) {
 
         // Shift left by whatever the engine says the row currently is.
         // If your engine doesn't expose it yet, you'll see unshifted rows until you wire it.
-        const shiftLeft = getRowShiftLeft(layer, r);
+        const shiftLeft = miniShiftLeft?.[layer]?.[r] ?? 0;
 
         const orderedCols = rotateCols(len, shiftLeft);
 
@@ -1996,9 +2035,13 @@ export function mountApp(root: HTMLElement | null) {
       renderAll();
     });
 
-    endTurnBtn.addEventListener("click", () => {
+   endTurnBtn.addEventListener("click", () => {
       if (!state) return;
       endTurn(state);
+
+      // NEW: advance UI mini-board shifts
+      applyMiniShiftsForEndTurn();
+
       enterLayer(state, currentLayer);
       revealWholeLayer(currentLayer);
       recomputeReachability();
