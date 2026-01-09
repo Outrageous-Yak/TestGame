@@ -1496,24 +1496,31 @@ export function mountApp(root: HTMLElement | null) {
   }
 
   // Called when you press End turn (UI-only mini-map shift)
-  function applyMiniShiftsForEndTurn() {
-    const s: any = scenario();
-    const layers = Number(s?.layers ?? 1);
+function applyMiniShiftsForEndTurn() {
+  const s: any = scenario();
+  const layers = Number(s?.layers ?? 1);
 
-    for (let L = 1; L <= layers; L++) {
-      const rule = getMovementRuleForLayer(L);
-      if (rule === "NONE") continue;
+  for (let L = 1; L <= layers; L++) {
+    let rule = getMovementRuleForLayer(L);
 
-      if (rule === "SEVEN_LEFT_SIX_RIGHT") {
-        for (let r = 1; r <= ROW_LENS.length; r++) {
-          const len = ROW_LENS[r - 1] ?? 7;
-          // IMPORTANT: shift by 1 step (not 7/6 which cancels out visually)
-          if (len === 7) bumpMiniShift(L, r, +1); // left 1
-          if (len === 6) bumpMiniShift(L, r, -1); // right 1
-        }
+    // ✅ fallback: if scenario doesn't define movement, still animate the mini board
+    if (rule === "NONE") rule = "SEVEN_LEFT_SIX_RIGHT";
+
+    if (rule === "SEVEN_LEFT_SIX_RIGHT") {
+      // odd rows shift left, even rows shift right (1 step each end turn)
+      for (let r = 1; r <= ROW_LENS.length; r++) {
+        const len = ROW_LENS[r - 1] ?? 7;
+
+        if (r % 2 === 1) bumpMiniShift(L, r, +1); // left 1
+        else bumpMiniShift(L, r, -1); // right 1
+
+        // keep numbers small (optional but nice)
+        miniShiftLeft[L][r] = ((miniShiftLeft[L][r] % len) + len) % len;
       }
     }
   }
+}
+
 
   function startScenario(idx: number) {
     scenarioIndex = idx;
