@@ -21,7 +21,7 @@ type MonsterChoice = {
   kind: "preset" | "custom";
 };
 
-const BUILD_TAG = "BUILD_TAG_TRANSITIONS_V2_THICK_GLOW";
+const BUILD_TAG = "BUILD_TAG_TILES_DEMO_V1";
 
 function idToCoord(id: string): Coord | null {
   const m = /^L(\d+)-R(\d+)-C(\d+)$/.exec(id);
@@ -33,13 +33,6 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string) {
   const n = document.createElement(tag);
   if (cls) n.className = cls;
   return n;
-}
-
-function appendHint(parent: HTMLElement, txt: string) {
-  const h = el("div", "hint");
-  h.textContent = txt;
-  parent.appendChild(h);
-  return h;
 }
 
 function escapeHtml(str: string) {
@@ -108,8 +101,24 @@ function wireDropZone(
   });
 }
 
-function randId(prefix: string) {
-  return `${prefix}-${Math.random().toString(16).slice(2)}${Math.random().toString(16).slice(2)}`;
+/** Optional start-screen background (put file in public/images/ui/start-screen.jpg) */
+const START_BG_URL = "images/ui/start-screen.jpg";
+
+/** Tile folder base (you already created public/tiles/demo/...) */
+function toPublicUrl(p: string) {
+  return p.startsWith("/") ? p : `/${p}`;
+}
+
+function scenarioTileSet(s: any): string {
+  // Optional: allow scenario JSON to specify a tileset folder:
+  // { "tileset": "demo" } or { "theme": "demo" }
+  const t = String(s?.tileset ?? s?.tileSet ?? s?.theme ?? "demo").trim();
+  return t || "demo";
+}
+
+function presetPlayerImage(id: string): string | null {
+  // Optional. Put images in public/images/ui/players/p1.png, p2.png
+  return `images/ui/players/${id}.png`;
 }
 
 export function mountApp(root: HTMLElement | null) {
@@ -169,6 +178,12 @@ export function mountApp(root: HTMLElement | null) {
   let targetsSameLayer = new Map<string, string>();
   let outgoingFromSelected: any[] = [];
 
+  // NEW: Track the initial start hex (so START tile stays where you began)
+  let startHexId: string | null = null;
+
+  // NEW: active tileset folder (default demo, can be read from scenario)
+  let activeTileSet = "demo";
+
   // --------------------------
   // Styles
   // --------------------------
@@ -221,25 +236,6 @@ export function mountApp(root: HTMLElement | null) {
       overflow-x:hidden;
       font-size: var(--baseText);
       line-height: var(--line);
-    }
-    body::before{
-      content:"";
-      position:fixed;
-      inset:-60px;
-      pointer-events:none;
-      background:
-        conic-gradient(from 90deg at 50% 50%,
-          rgba(95,225,255,.06),
-          rgba(122,108,255,.05),
-          rgba(191,232,255,.06),
-          rgba(95,225,255,.06));
-      filter: blur(32px);
-      opacity:.55;
-      animation: prism 14s linear infinite;
-    }
-    @keyframes prism{
-      0%{ transform: rotate(0deg) scale(1.05); }
-      100%{ transform: rotate(360deg) scale(1.05); }
     }
 
     .shell{
@@ -392,6 +388,45 @@ export function mountApp(root: HTMLElement | null) {
       font-weight: 700;
     }
 
+    /* Start hero */
+    .startHero{
+      margin-top: 14px;
+      border-radius: 18px;
+      overflow:hidden;
+      border: 1px solid rgba(191,232,255,.14);
+      background: rgba(0,0,0,.18);
+      min-height: 220px;
+      position: relative;
+      box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset, 0 18px 40px rgba(0,0,0,.35);
+    }
+    .startHero img{
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      object-fit: cover;
+      display:block;
+      filter: saturate(1.05) contrast(1.03);
+    }
+    .startHero::after{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        radial-gradient(700px 340px at 20% 25%, rgba(95,225,255,.18), transparent 55%),
+        radial-gradient(700px 340px at 80% 60%, rgba(122,108,255,.18), transparent 60%),
+        linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.55));
+      pointer-events:none;
+    }
+    .startHeroLabel{
+      position:relative;
+      padding: 14px;
+      z-index: 1;
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap: 10px;
+      min-height: 220px;
+    }
+    .startHeroLabel b{font-size: 13px}
+
     /* ==========================
        GAME SCREEN (3 columns)
     ========================== */
@@ -405,18 +440,7 @@ export function mountApp(root: HTMLElement | null) {
       overflow:hidden;
       padding: 12px;
       min-height: calc(100vh - 140px);
-    }
-    .gameStage::before{
-      content:"";
-      position:absolute;
-      inset:0;
-      pointer-events:none;
-      opacity:.55;
-      background:
-        radial-gradient(circle at 18% 20%, rgba(95,225,255,.10), transparent 40%),
-        radial-gradient(circle at 85% 35%, rgba(122,108,255,.10), transparent 45%),
-        repeating-linear-gradient(135deg, rgba(191,232,255,.06) 0px, rgba(191,232,255,.06) 1px, transparent 1px, transparent 16px),
-        repeating-linear-gradient(45deg, rgba(95,225,255,.05) 0px, rgba(95,225,255,.05) 1px, transparent 1px, transparent 22px);
+      position:relative;
     }
 
     .gameWrap{
@@ -428,8 +452,6 @@ export function mountApp(root: HTMLElement | null) {
       min-height: calc(100vh - 170px);
     }
 
-    /* Header grid aligns to the 3 columns.
-       Controls span board+images (columns 2-3). */
     .gameHeader{
       display:grid;
       grid-template-columns: var(--leftW) 1fr var(--rightW);
@@ -437,9 +459,7 @@ export function mountApp(root: HTMLElement | null) {
       align-items:start;
       padding: 2px 2px 0;
     }
-    .gameHeaderLeft{
-      padding: 6px 6px 0;
-    }
+    .gameHeaderLeft{ padding: 6px 6px 0; }
     .gameHeaderTitle{
       font-size: 44px;
       font-weight: 900;
@@ -453,7 +473,7 @@ export function mountApp(root: HTMLElement | null) {
       opacity:.82;
     }
     .gameHeaderControls{
-      grid-column: 2 / 4;  /* spans board+images */
+      grid-column: 2 / 4;
       display:flex;
       justify-content:flex-end;
       align-items:center;
@@ -535,14 +555,8 @@ export function mountApp(root: HTMLElement | null) {
       min-width: 0;
     }
 
-    .infoText{
-      font-size: 12px;
-      line-height: 1.35;
-    }
-    .infoText b{
-      font-weight: 800;
-      color: rgba(234,242,255,.98);
-    }
+    .infoText{ font-size: 12px; line-height: 1.35; }
+    .infoText b{ font-weight: 800; color: rgba(234,242,255,.98); }
 
     .msgBar{
       margin-top: 10px;
@@ -555,7 +569,6 @@ export function mountApp(root: HTMLElement | null) {
       font-size: 12px;
     }
 
-    /* Board column layout */
     .boardBody{
       display:flex;
       flex-direction:column;
@@ -582,7 +595,6 @@ export function mountApp(root: HTMLElement | null) {
       padding-right: 4px;
     }
 
-    /* Rows */
     .hexRow{
       display:flex;
       gap: var(--hexGap);
@@ -590,15 +602,12 @@ export function mountApp(root: HTMLElement | null) {
       justify-content:flex-start;
       width: 100%;
     }
-    .hexRow.offset{
-      padding-left: var(--hexOffset);
-    }
+    .hexRow.offset{ padding-left: var(--hexOffset); }
 
-    /* ========= HEX GLOW BASE ========= */
+    /* ========= HEX BASE ========= */
     .hex{
       width: var(--hexW);
       height: var(--hexH);
-
       clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
       display:flex;
       align-items:center;
@@ -607,26 +616,18 @@ export function mountApp(root: HTMLElement | null) {
       position:relative;
       user-select:none;
 
-      font-size: clamp(9px, calc(var(--hexW) * 0.18), 12px);
-      line-height: 1.05;
-      font-weight: 800;
-
-      /* defaults */
+      /* glow defaults */
       --glow-color: rgba(255,255,255,.28);
       --glow-spread-color: rgba(255,255,255,.14);
-      --enhanced-glow-color: rgba(255,255,255,.55);
       --btn-color: rgba(255,255,255,.06);
 
       border: .18em solid var(--glow-color);
       background-color: var(--btn-color);
-      color: rgba(234,242,255,.92);
 
       box-shadow:
         0 0 .8em .18em var(--glow-color),
         0 0 2.2em .7em var(--glow-spread-color),
         inset 0 0 .55em .18em var(--glow-color);
-
-      text-shadow: 0 0 .45em var(--glow-color);
 
       transition:
         transform .12s ease,
@@ -634,6 +635,7 @@ export function mountApp(root: HTMLElement | null) {
         box-shadow .18s ease,
         background-color .18s ease,
         border-color .18s ease;
+      overflow: visible;
     }
 
     .hex::after{
@@ -653,15 +655,37 @@ export function mountApp(root: HTMLElement | null) {
     .hex:hover{
       transform: translateY(-1px) scale(1.02);
       filter: brightness(1.08);
-      background-color: color-mix(in srgb, var(--btn-color) 60%, white 40%);
+    }
+    .hex:active{ transform: translateY(0) scale(.99); }
+
+    /* Tile image */
+    .hexImg{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      clip-path: inherit;
+      border-radius: 0;
+      pointer-events:none;
+      z-index: 0;
     }
 
-    .hex:active{
-      transform: translateY(0) scale(.99);
-      box-shadow:
-        0 0 .55em .18em var(--glow-color),
-        0 0 1.6em .8em var(--glow-spread-color),
-        inset 0 0 .4em .18em var(--glow-color);
+    /* Overlay text (optional) */
+    .hexLabel{
+      position:relative;
+      z-index: 2;
+      font-size: 10px;
+      line-height: 1.05;
+      font-weight: 900;
+      letter-spacing: .2px;
+      color: rgba(234,242,255,.94);
+      text-shadow: 0 0 8px rgba(0,0,0,.65);
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 999px;
+      padding: 2px 6px;
+      opacity: .92;
     }
 
     /* State themes (variables only) */
@@ -684,19 +708,19 @@ export function mountApp(root: HTMLElement | null) {
       --glow-color: rgba(244,67,54,.95);
       --glow-spread-color: rgba(244,67,54,.45);
       --btn-color: rgba(244,67,54,.10);
-      opacity: .8;
+      opacity: .9;
     }
     .hex.missing{
       --glow-color: rgba(255,255,255,.12);
       --glow-spread-color: rgba(255,255,255,.06);
       --btn-color: rgba(255,255,255,.03);
-      opacity:.45;
+      opacity:.55;
     }
     .hex.fog{
       --glow-color: rgba(255,255,255,.18);
       --glow-spread-color: rgba(0,0,0,.45);
       --btn-color: rgba(0,0,0,.28);
-      opacity: .62;
+      opacity: .85;
     }
     .hex.trSrc{
       --glow-color: rgba(255,152,0,1);
@@ -715,16 +739,10 @@ export function mountApp(root: HTMLElement | null) {
       100%{filter:brightness(1)}
     }
 
-    /* Selected ring (keep subtle) */
     .hex.sel{
       outline: 2px solid rgba(234,242,255,.55);
       outline-offset: 2px;
     }
-
-    /* Priority overrides */
-    .hex.trTgt{ opacity: 1; }
-    .hex.player{ opacity: 1; }
-    .hex.goal{ opacity: 1; }
 
     /* Small markers */
     .miniDot{
@@ -734,6 +752,7 @@ export function mountApp(root: HTMLElement | null) {
       width:9px;height:9px;border-radius:999px;
       border:1px solid rgba(255,255,255,.35);
       background:rgba(255,255,255,.12);
+      z-index: 3;
     }
     .miniDot.player{background:rgba(76,175,80,1);border-color:rgba(76,175,80,1)}
     .miniDot.goal{background:rgba(255,193,7,1);border-color:rgba(255,193,7,1)}
@@ -748,6 +767,7 @@ export function mountApp(root: HTMLElement | null) {
       font-size:10px;
       line-height:1;
       font-weight: 900;
+      z-index: 3;
     }
     .trBadge{
       position:absolute;
@@ -760,9 +780,9 @@ export function mountApp(root: HTMLElement | null) {
       font-size:10px;
       line-height:1;
       font-weight: 900;
+      z-index: 3;
     }
 
-    /* Images column */
     .imgBox{
       height: 220px;
       border-radius: 16px;
@@ -785,28 +805,13 @@ export function mountApp(root: HTMLElement | null) {
       display:block;
     }
 
-    /* Mobile stack for game screen */
     @media (max-width: 1100px){
-      :root{
-        --leftW: 1fr;
-        --rightW: 1fr;
-      }
-      .gameHeader{
-        grid-template-columns: 1fr;
-      }
-      .gameHeaderControls{
-        grid-column: 1 / 2;
-        justify-content:flex-start;
-      }
-      .gameLayout{
-        grid-template-columns: 1fr;
-      }
-      .gameStage{
-        min-height: auto;
-      }
-      .gameWrap{
-        min-height: auto;
-      }
+      :root{ --leftW: 1fr; --rightW: 1fr; }
+      .gameHeader{ grid-template-columns: 1fr; }
+      .gameHeaderControls{ grid-column: 1 / 2; justify-content:flex-start; }
+      .gameLayout{ grid-template-columns: 1fr; }
+      .gameStage{ min-height: auto; }
+      .gameWrap{ min-height: auto; }
     }
   `;
   document.head.appendChild(style);
@@ -921,7 +926,20 @@ export function mountApp(root: HTMLElement | null) {
 
     row.append(regularBtn, kidsBtn);
 
-    card.append(h, p, row);
+    const hero = el("div", "startHero");
+    hero.innerHTML = `
+      <img src="${toPublicUrl(START_BG_URL)}" alt="start background"
+        onerror="this.style.display='none'"/>
+      <div class="startHeroLabel">
+        <div>
+          <b>Demo tiles:</b> <span class="muted">${escapeHtml("/tiles/demo/")}</span>
+          <div class="muted" style="margin-top:6px">Build: ${escapeHtml(BUILD_TAG)}</div>
+        </div>
+        <div class="pill">Ready</div>
+      </div>
+    `;
+
+    card.append(h, p, row, hero);
     vStart.appendChild(card);
   }
 
@@ -1119,7 +1137,7 @@ export function mountApp(root: HTMLElement | null) {
     customCard.append(h3, drop, useCustom);
     left.appendChild(customCard);
 
-    // Monsters
+    // Monsters (you said not needed now, but leaving selection UI harmless)
     const mh2 = el("h2");
     mh2.textContent = monstersLabel();
     right.appendChild(mh2);
@@ -1280,12 +1298,48 @@ export function mountApp(root: HTMLElement | null) {
     }
   }
 
+  function tileUrlForHex(id: string, h: any): string {
+    const s: any = scenario();
+    const tileset = activeTileSet || scenarioTileSet(s);
+
+    // Determine tile key (must match your filenames)
+    const { blocked, missing } = isBlockedOrMissing(h);
+
+    // Unrevealed gets FOG tile (unless missing)
+    if (missing) return toPublicUrl(`tiles/${tileset}/HOLE.png`);
+    if (blocked) return toPublicUrl(`tiles/${tileset}/BLOCKED.png`);
+    if (!isRevealed(h)) return toPublicUrl(`tiles/${tileset}/FOG.png`);
+
+    // Goal kind
+    if (String(h?.kind ?? "").toUpperCase() === "GOAL") return toPublicUrl(`tiles/${tileset}/GOAL.png`);
+
+    // Start (original starting location)
+    if (startHexId && id === startHexId) return toPublicUrl(`tiles/${tileset}/START.png`);
+
+    // Optional: show stairs tile if this hex is a transition source with UP/DOWN
+    const outgoing = transitionsByFrom.get(id) ?? [];
+    const hasDown = outgoing.some((t) => String(t.type ?? "").toUpperCase() === "DOWN");
+    const hasUp = outgoing.some((t) => String(t.type ?? "").toUpperCase() !== "DOWN"); // treat default as up
+
+    if (hasDown) return toPublicUrl(`tiles/${tileset}/STAIRS_DOWN.png`);
+    if (hasUp && outgoing.length) return toPublicUrl(`tiles/${tileset}/STAIRS_UP.png`);
+
+    // Default
+    return toPublicUrl(`tiles/${tileset}/NORMAL.png`);
+  }
+
   function startScenario(idx: number) {
     scenarioIndex = idx;
+
+    const s: any = scenario();
+    activeTileSet = scenarioTileSet(s);
 
     state = newGame(scenario());
     selectedId = state.playerHexId ?? null;
     currentLayer = idToCoord(state.playerHexId)?.layer ?? 1;
+
+    // Remember where the run began
+    startHexId = state.playerHexId ?? null;
 
     enterLayer(state, currentLayer);
     revealWholeLayer(currentLayer);
@@ -1295,7 +1349,7 @@ export function mountApp(root: HTMLElement | null) {
   }
 
   // --------------------------
-  // Screen 4: Game (3 columns)
+  // Screen 4: Game
   // --------------------------
   let gameBuilt = false;
   let boardResizeObserver: ResizeObserver | null = null;
@@ -1309,7 +1363,6 @@ export function mountApp(root: HTMLElement | null) {
     const stage = el("div", "gameStage");
     const wrap = el("div", "gameWrap");
 
-    // Header aligned to the 3 columns
     const header = el("div", "gameHeader");
 
     const headerLeft = el("div", "gameHeaderLeft");
@@ -1317,10 +1370,9 @@ export function mountApp(root: HTMLElement | null) {
     title.textContent = "Game";
     const sub = el("div", "gameHeaderSub");
     const sc: any = scenarios[scenarioIndex];
-    sub.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")}`;
+    sub.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")} | Tiles: ${activeTileSet}`;
     headerLeft.append(title, sub);
 
-    // Controls (span columns 2-3)
     const controls = el("div", "gameHeaderControls");
 
     const scenarioSelect = el("select") as HTMLSelectElement;
@@ -1366,10 +1418,9 @@ export function mountApp(root: HTMLElement | null) {
 
     controls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
 
-    header.append(headerLeft, el("div"), el("div")); // placeholders for grid columns
-    header.appendChild(controls); // controls span via CSS
+    header.append(headerLeft, el("div"), el("div"));
+    header.appendChild(controls);
 
-    // Main 3-column layout
     const layout = el("div", "gameLayout");
 
     // Left: Story log
@@ -1425,7 +1476,7 @@ export function mountApp(root: HTMLElement | null) {
         <b>Player</b>
         <span class="pill" style="padding:6px 10px">${escapeHtml(chosenPlayer?.name ?? "—")}</span>
       </div>
-      <div class="imgBox" style="margin-top:10px" id="playerImgBox">Preset player (no image yet).</div>
+      <div class="imgBox" style="margin-top:10px" id="playerImgBox">No player image.</div>
     `;
 
     const hexBox = el("div", "softCard");
@@ -1435,7 +1486,7 @@ export function mountApp(root: HTMLElement | null) {
         <b>Current Hex</b>
         <span class="pill" id="hexLabelPill" style="padding:6px 10px">—</span>
       </div>
-      <div class="imgBox" style="margin-top:10px" id="hexImgBox">NORMAL</div>
+      <div class="imgBox" style="margin-top:10px" id="hexImgBox">No hex image.</div>
     `;
 
     imgBody.append(playerBox, hexBox);
@@ -1448,32 +1499,24 @@ export function mountApp(root: HTMLElement | null) {
     vGame.appendChild(stage);
 
     // ---- Dynamic hex sizing to fill width (7 across) ----
-    // We measure the usable width of boardScroll and compute:
-    // hexW = (width - gap*(7-1)) / 7  with min/max.
     function clamp(n: number, lo: number, hi: number) {
       return Math.max(lo, Math.min(hi, n));
     }
 
     function setHexLayoutVars() {
-      // Use the boardScroll width; it matches the board content area
       const w = boardScroll.clientWidth;
       if (!w || w < 50) return;
 
-      const gap = 5; // user wanted 5
+      const gap = 5;
       const cols = 7;
       const minW = 46;
       const maxW = 92;
 
       const raw = (w - gap * (cols - 1)) / cols;
       const hexW = clamp(raw, minW, maxW);
-
-      // Good-looking hex height ratio for this clip-path
       const hexH = Math.round(hexW * 0.88);
-
-      // Offset for even rows = half a hex + half a gap
       const offset = Math.round((hexW + gap) / 2);
 
-      // Apply vars to board panel (so only board uses them)
       (boardPanel as HTMLElement).style.setProperty("--hexGap", `${gap}px`);
       (boardPanel as HTMLElement).style.setProperty("--hexW", `${Math.round(hexW)}px`);
       (boardPanel as HTMLElement).style.setProperty("--hexH", `${hexH}px`);
@@ -1485,6 +1528,42 @@ export function mountApp(root: HTMLElement | null) {
     boardResizeObserver.observe(boardScroll);
     window.addEventListener("resize", setHexLayoutVars, { passive: true });
 
+    // ---- Images panel rendering ----
+    function renderPlayerImageBox() {
+      const box = document.getElementById("playerImgBox");
+      if (!box) return;
+
+      let url: string | null = null;
+      if (chosenPlayer?.kind === "custom") url = chosenPlayer.imageDataUrl ?? null;
+      else if (chosenPlayer?.kind === "preset") url = toPublicUrl(presetPlayerImage(chosenPlayer.id) ?? "");
+
+      if (url && url !== "/") {
+        box.innerHTML = `<img src="${url}" alt="player"
+          onerror="this.remove(); this.parentElement && (this.parentElement.textContent='Player image not found.')">`;
+      } else {
+        box.textContent = "No player image.";
+      }
+    }
+
+    function renderCurrentHexImageBox() {
+      const pill = document.getElementById("hexLabelPill");
+      const box = document.getElementById("hexImgBox");
+      if (!pill || !box) return;
+
+      const pid = state?.playerHexId ?? "—";
+      pill.textContent = pid;
+
+      const h: any = getHex(state?.playerHexId ?? "");
+      const url = state?.playerHexId ? tileUrlForHex(state.playerHexId, h) : null;
+
+      if (url) {
+        box.innerHTML = `<img src="${url}" alt="hex"
+          onerror="this.remove(); this.parentElement && (this.parentElement.textContent='Hex image missing.')">`;
+      } else {
+        box.textContent = "—";
+      }
+    }
+
     // ---- Render functions ----
     function renderInfoTop() {
       const s: any = scenario();
@@ -1495,6 +1574,7 @@ export function mountApp(root: HTMLElement | null) {
         <div><b>Player:</b> ${escapeHtml(String(state?.playerHexId ?? "?"))}</div>
         <div><b>Goal:</b> ${escapeHtml(String(posId(s.goal)))}</div>
         <div><b>Layer:</b> ${escapeHtml(String(currentLayer))}</div>
+        <div><b>Tileset:</b> ${escapeHtml(activeTileSet)}</div>
       `;
 
       if (!selectedId) {
@@ -1519,12 +1599,6 @@ export function mountApp(root: HTMLElement | null) {
           <b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}
         </div>
       `;
-
-      const hexLabel = document.getElementById("hexLabelPill");
-      if (hexLabel) hexLabel.textContent = state?.playerHexId ?? "—";
-
-      const hexImg = document.getElementById("hexImgBox");
-      if (hexImg) hexImg.textContent = String(getHex(state?.playerHexId ?? "")?.kind ?? "NORMAL");
     }
 
     function renderMessage() {
@@ -1546,13 +1620,23 @@ export function mountApp(root: HTMLElement | null) {
           const info = reachMap[id];
 
           const btn = el("div", "hex");
-          btn.textContent = `R${r} C${c}`;
+
+          // Tile image
+          const img = document.createElement("img");
+          img.className = "hexImg";
+          img.src = tileUrlForHex(id, h);
+          img.alt = "tile";
+          btn.appendChild(img);
+
+          // Optional label (you can remove this if you want “image-only”)
+          const label = el("div", "hexLabel");
+          label.textContent = `R${r} C${c}`;
+          btn.appendChild(label);
 
           const { blocked, missing } = isBlockedOrMissing(h);
-          const isGoal = h?.kind === "GOAL";
+          const isGoal = String(h?.kind ?? "").toUpperCase() === "GOAL";
           const isPlayer = state.playerHexId === id;
 
-          // State classes (CSS variables handle the glow)
           if (missing) btn.classList.add("missing");
           if (blocked) btn.classList.add("blocked");
           if (!isRevealed(h)) btn.classList.add("fog");
@@ -1612,7 +1696,6 @@ export function mountApp(root: HTMLElement | null) {
         boardWrap.appendChild(row);
       }
 
-      // Make sure sizing recalcs after rows appear
       setHexLayoutVars();
     }
 
@@ -1621,6 +1704,8 @@ export function mountApp(root: HTMLElement | null) {
       renderInfoTop();
       renderMessage();
       renderBoard();
+      renderPlayerImageBox();
+      renderCurrentHexImageBox();
     }
 
     // ---- Events ----
