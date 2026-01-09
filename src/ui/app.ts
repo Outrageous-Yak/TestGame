@@ -902,7 +902,7 @@ export function mountApp(root: HTMLElement | null) {
     .miniBoardGrid{
       display:flex;
       flex-direction:column;
-      gap:2px;
+      gap:4px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       font-size: 11px;
       line-height: 1.25;
@@ -1639,14 +1639,6 @@ export function mountApp(root: HTMLElement | null) {
     const layout = el("div", "gameLayout");
 
     // Left: Story log
-      const miniBelow = el("div", "miniBoard");
-    miniBelow.innerHTML = `
-      <div class="miniBoardHead">
-        <div class="miniBoardTitle" id="miniBelowTitle">Layer —</div>
-        <div class="pill" id="miniBelowPill" style="padding:6px 10px">—</div>
-      </div>
-      <div class="miniBoardGrid" id="miniBelowGrid"></div>
-    `;
     const storyPanel = el("section", "panel");
     const storyHead = el("div", "panelHead");
     storyHead.innerHTML = `<div class="tag"><span class="dot"></span> Story Log</div><div class="pill">Moves</div>`;
