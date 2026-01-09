@@ -104,15 +104,15 @@ function wireDropZone(
 /** Optional start-screen background (put file in public/images/ui/start-screen.jpg) */
 const START_BG_URL = "images/ui/start-screen.jpg";
 
-/** Tile folder base (you already created public/tiles/demo/...) */
+/** Public URL helper (Vite base-aware) */
 function toPublicUrl(p: string) {
   const base = (import.meta as any).env?.BASE_URL ?? "/";
-  const clean = String(p).replace(/^\/+/, ""); // remove leading slashes
+  const clean = String(p).replace(/^\/+/, "");
   return base + clean;
 }
 
 function scenarioTileSet(s: any): string {
-  // Optional: allow scenario JSON to specify a tileset folder:
+  // Optional: scenario JSON can specify folder:
   // { "tileset": "demo" } or { "theme": "demo" }
   const t = String(s?.tileset ?? s?.tileSet ?? s?.theme ?? "demo").trim();
   return t || "demo";
@@ -147,6 +147,7 @@ export function mountApp(root: HTMLElement | null) {
     { id: "p2", name: "Pip", blurb: "Small steps, big wins." },
   ];
 
+  // (Not needed now, but kept)
   const MONSTER_PRESETS_REGULAR = [
     { id: "m1", name: "Boneguard", blurb: "Holds ground. Punishes carelessness." },
     { id: "m2", name: "Veilwing", blurb: "Skirmisher. Appears where you’re not looking." },
@@ -168,7 +169,14 @@ export function mountApp(root: HTMLElement | null) {
 
   let selectedId: string | null = null;
   let currentLayer = 1;
+
+  // message bar
   let message = "";
+  let moveCount = 0;
+
+  // Story log entries (Move 1 Lx-Ry-Cz ...)
+  type StoryEntry = { n: number; text: string; t: number };
+  let storyLog: StoryEntry[] = [];
 
   let reachMap: ReachMap = {};
   let reachable: Set<string> = new Set();
@@ -180,10 +188,10 @@ export function mountApp(root: HTMLElement | null) {
   let targetsSameLayer = new Map<string, string>();
   let outgoingFromSelected: any[] = [];
 
-  // NEW: Track the initial start hex (so START tile stays where you began)
+  // Track the initial start hex (so START tile stays where you began)
   let startHexId: string | null = null;
 
-  // NEW: active tileset folder (default demo, can be read from scenario)
+  // active tileset folder (default demo, can be read from scenario)
   let activeTileSet = "demo";
 
   // --------------------------
@@ -567,9 +575,15 @@ export function mountApp(root: HTMLElement | null) {
       border: 1px solid rgba(191,232,255,.14);
       background: rgba(10,16,34,.24);
       box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
-      font-weight: 800;
+      font-weight: 900;
       font-size: 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
     }
+    .msgLeft{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    .msgRight{opacity:.88; font-weight:900; white-space:nowrap;}
 
     .boardBody{
       display:flex;
@@ -637,8 +651,10 @@ export function mountApp(root: HTMLElement | null) {
         box-shadow .18s ease,
         background-color .18s ease,
         border-color .18s ease;
+
       overflow: hidden;
-      isolation: isolate; /* lets our glow layer sit above the image cleanly */
+      z-index: 1;
+      isolation: isolate; /* helps with stacking */
     }
 
     .hex::after{
@@ -653,6 +669,7 @@ export function mountApp(root: HTMLElement | null) {
       filter: blur(1.25em);
       opacity: .55;
       transform: perspective(1.5em) rotateX(35deg) scale(1, .6);
+      z-index: 1;
     }
 
     .hex:hover{
@@ -664,7 +681,7 @@ export function mountApp(root: HTMLElement | null) {
     /* Tile image */
     .hexImg{
       position:absolute;
-     inset: -3px;                /* overfill by a couple px (fixes side gaps) */
+      inset: -3px;                /* overfill by a couple px (fixes side gaps) */
       width: calc(100% + 6px);
       height: calc(100% + 10.5px);
       object-fit:cover;
@@ -679,7 +696,7 @@ export function mountApp(root: HTMLElement | null) {
     /* Overlay text (optional) */
     .hexLabel{
       position:relative;
-      z-index: 2;
+      z-index: 3;
       font-size: 10px;
       line-height: 1.05;
       font-weight: 900;
@@ -699,43 +716,6 @@ export function mountApp(root: HTMLElement | null) {
       --glow-spread-color: rgba(76,175,80,.45);
       --btn-color: rgba(76,175,80,.10);
     }
-
-    /* ===============================
-       Player current position (always-on)
-       Lime green glow
-    ================================ */
-/* Player current position (always visible, ABOVE the tile image) */
-.hex.player{
-  --glow-color: rgba(76, 255, 80, 1);
-  --glow-spread-color: rgba(76, 255, 80, .65);
-  --btn-color: rgba(76, 255, 80, .16);
-
-  z-index: 50;
-  opacity: 1;
-
-  /* Strong outside glow that can't be covered by the image */
-  filter:
-    brightness(1.14)
-    drop-shadow(0 0 16px rgba(76,255,80,.95))
-    drop-shadow(0 0 40px rgba(76,255,80,.65))
-    drop-shadow(0 0 70px rgba(76,255,80,.35));
-}
-
-/* Inner rim glow layer ABOVE the image */
-/* Bigger inner/rim glow ABOVE the image */
-.hex.player::before{
-  content:"";
-  position:absolute;
-  inset: -2px;          /* slightly larger overfill */
-  clip-path: inherit;
-  pointer-events:none;
-  z-index: 1;
-
-  box-shadow:
-    inset 0 0 1.35em .55em rgba(76,255,80,.98),
-    0 0 1.0em .28em rgba(76,255,80,.95),
-    0 0 2.2em .65em rgba(76,255,80,.55);
-}
 
     .hex.goal{
       --glow-color: rgba(255,193,7,1);
@@ -782,6 +762,35 @@ export function mountApp(root: HTMLElement | null) {
       outline-offset: 2px;
     }
 
+    /* ===============================
+       Player current position (always-on)
+       Lime green glow (BIGGER)
+       + FORCE OVER OTHER STATES
+    ================================ */
+    .hex.player,
+    .hex.player.reach,
+    .hex.player.trSrc,
+    .hex.player.trTgt,
+    .hex.player.goal,
+    .hex.player.fog,
+    .hex.player.blocked,
+    .hex.player.missing{
+      --glow-color: rgba(76, 255, 80, 1) !important;
+      --glow-spread-color: rgba(76, 255, 80, .65) !important;
+      --btn-color: rgba(76, 255, 80, .16) !important;
+
+      box-shadow:
+        0 0 1.55em .34em rgba(76, 255, 80, 1),
+        0 0 4.4em 1.65em rgba(76, 255, 80, .65),
+        inset 0 0 .95em .34em rgba(76, 255, 80, 1) !important;
+
+      filter: brightness(1.18) !important;
+      opacity: 1 !important;
+      z-index: 6; /* sit above neighbors */
+    }
+
+    .hex.player.trTgt{ animation: none !important; }
+
     /* Small markers */
     .miniDot{
       position:absolute;
@@ -790,9 +799,9 @@ export function mountApp(root: HTMLElement | null) {
       width:9px;height:9px;border-radius:999px;
       border:1px solid rgba(255,255,255,.35);
       background:rgba(255,255,255,.12);
-      z-index: 3;
+      z-index: 4;
     }
-    .miniDot.player{background:rgba(76,175,80,1);border-color:rgba(76,175,80,1)}
+    .miniDot.player{background:rgba(76,255,80,1);border-color:rgba(76,255,80,1)}
     .miniDot.goal{background:rgba(255,193,7,1);border-color:rgba(255,193,7,1)}
     .dist{
       position:absolute;
@@ -805,7 +814,7 @@ export function mountApp(root: HTMLElement | null) {
       font-size:10px;
       line-height:1;
       font-weight: 900;
-      z-index: 3;
+      z-index: 4;
     }
     .trBadge{
       position:absolute;
@@ -818,8 +827,34 @@ export function mountApp(root: HTMLElement | null) {
       font-size:10px;
       line-height:1;
       font-weight: 900;
-      z-index: 3;
+      z-index: 4;
     }
+
+    /* Story log list */
+    .storyList{
+      margin: 10px 0 0 0;
+      padding: 0;
+      list-style: none;
+      display:flex;
+      flex-direction:column;
+      gap: 6px;
+      font-weight: 900;
+      font-size: 12px;
+    }
+    .storyItem{
+      border: 1px solid rgba(191,232,255,.10);
+      background: rgba(0,0,0,.18);
+      border-radius: 12px;
+      padding: 8px 10px;
+      box-shadow: 0 0 0 1px rgba(95,225,255,.04) inset;
+      display:flex;
+      justify-content:space-between;
+      gap: 10px;
+      align-items:center;
+      min-width:0;
+    }
+    .storyItem span:first-child{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    .storyTime{opacity:.75; font-weight: 800; font-size: 11px; white-space:nowrap;}
 
     .imgBox{
       height: 220px;
@@ -881,8 +916,7 @@ export function mountApp(root: HTMLElement | null) {
   function setScreen(next: Screen) {
     screen = next;
     [vStart, vSelect, vSetup, vGame].forEach((v) => v.classList.remove("active"));
-    const name =
-      next === "start" ? "Start" : next === "select" ? "Select Game" : next === "setup" ? "Setup" : "In Game";
+    const name = next === "start" ? "Start" : next === "select" ? "Select Game" : next === "setup" ? "Setup" : "In Game";
     crumb.textContent = name;
 
     if (next === "start") vStart.classList.add("active");
@@ -1175,7 +1209,7 @@ export function mountApp(root: HTMLElement | null) {
     customCard.append(h3, drop, useCustom);
     left.appendChild(customCard);
 
-    // Monsters (you said not needed now, but leaving selection UI harmless)
+    // Monsters (kept but not required)
     const mh2 = el("h2");
     mh2.textContent = monstersLabel();
     right.appendChild(mh2);
@@ -1360,6 +1394,19 @@ export function mountApp(root: HTMLElement | null) {
     return toPublicUrl(`tiles/${tileset}/NORMAL.png`);
   }
 
+  function resetStoryAndMoves() {
+    moveCount = 0;
+    storyLog = [];
+    message = "";
+  }
+
+  function pushStory(text: string) {
+    const n = moveCount;
+    storyLog.unshift({ n, text, t: Date.now() });
+    // keep it sane
+    if (storyLog.length > 200) storyLog = storyLog.slice(0, 200);
+  }
+
   function startScenario(idx: number) {
     scenarioIndex = idx;
 
@@ -1376,7 +1423,7 @@ export function mountApp(root: HTMLElement | null) {
     revealWholeLayer(currentLayer);
     recomputeReachability();
 
-    message = "";
+    resetStoryAndMoves();
   }
 
   // --------------------------
@@ -1457,14 +1504,21 @@ export function mountApp(root: HTMLElement | null) {
     // Left: Story log
     const storyPanel = el("section", "panel");
     const storyHead = el("div", "panelHead");
-    storyHead.innerHTML = `<div class="tag"><span class="dot"></span> Story Log</div><div class="pill">Timeline</div>`;
+    storyHead.innerHTML = `<div class="tag"><span class="dot"></span> Story Log</div><div class="pill">Moves</div>`;
     const storyBody = el("div", "panelBody");
-    const storyCard1 = el("div", "softCard infoText");
-    storyCard1.innerHTML = `<b>Story log</b> will live here later.`;
-    const storyCard2 = el("div", "softCard infoText");
-    storyCard2.style.marginTop = "10px";
-    storyCard2.textContent = "Moves, discoveries, encounters, etc.";
-    storyBody.append(storyCard1, storyCard2);
+
+    const storyCard = el("div", "softCard infoText");
+    storyCard.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <b>Clicks / Moves</b>
+        <span class="pill" id="movePill">Moves: 0</span>
+      </div>
+      <ul class="storyList" id="storyList"></ul>
+      <div class="hint" style="margin-top:10px; opacity:.78">
+        (Logs every hex click. If a move is rejected, it’s marked.)
+      </div>
+    `;
+    storyBody.append(storyCard);
     storyPanel.append(storyHead, storyBody);
 
     // Middle: Board
@@ -1484,6 +1538,9 @@ export function mountApp(root: HTMLElement | null) {
     infoTop.append(infoLeft, infoRight);
 
     const msgBar = el("div", "msgBar");
+    const msgLeft = el("div", "msgLeft");
+    const msgRight = el("div", "msgRight");
+    msgBar.append(msgLeft, msgRight);
 
     const boardScroll = el("div", "boardScroll");
     const boardWrap = el("div");
@@ -1595,6 +1652,32 @@ export function mountApp(root: HTMLElement | null) {
       }
     }
 
+    function fmtTime(ms: number) {
+      const d = new Date(ms);
+      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+
+    function renderStoryLog() {
+      const list = document.getElementById("storyList");
+      const pill = document.getElementById("movePill");
+      if (pill) pill.textContent = `Moves: ${moveCount}`;
+      if (!list) return;
+
+      if (!storyLog.length) {
+        list.innerHTML = `<li class="storyItem"><span class="muted">No moves yet.</span><span class="storyTime">—</span></li>`;
+        return;
+      }
+
+      list.innerHTML = storyLog
+        .slice(0, 60)
+        .map((e) => {
+          const safe = escapeHtml(e.text);
+          const tm = escapeHtml(fmtTime(e.t));
+          return `<li class="storyItem"><span>${safe}</span><span class="storyTime">${tm}</span></li>`;
+        })
+        .join("");
+    }
+
     // ---- Render functions ----
     function renderInfoTop() {
       const s: any = scenario();
@@ -1633,7 +1716,8 @@ export function mountApp(root: HTMLElement | null) {
     }
 
     function renderMessage() {
-      msgBar.textContent = message || "Ready.";
+      msgLeft.textContent = message || "Ready.";
+      msgRight.textContent = `Moves: ${moveCount}`;
     }
 
     function renderBoard() {
@@ -1659,7 +1743,7 @@ export function mountApp(root: HTMLElement | null) {
           img.alt = "tile";
           btn.appendChild(img);
 
-          // Optional label (you can remove this if you want “image-only”)
+          // Optional label (remove if you want image-only)
           const label = el("div", "hexLabel");
           label.textContent = `R${r} C${c}`;
           btn.appendChild(label);
@@ -1668,24 +1752,17 @@ export function mountApp(root: HTMLElement | null) {
           const isGoal = String(h?.kind ?? "").toUpperCase() === "GOAL";
           const isPlayer = state.playerHexId === id;
 
-          // ---- CHANGED: player is sovereign (no fog/reach styling) ----
           if (missing) btn.classList.add("missing");
           if (blocked) btn.classList.add("blocked");
-
-          if (isPlayer) {
-            btn.classList.add("player");
-          } else {
-            if (!isRevealed(h)) btn.classList.add("fog");
-            if (info?.reachable) btn.classList.add("reach");
-          }
-
+          if (!isRevealed(h)) btn.classList.add("fog");
+          if (info?.reachable) btn.classList.add("reach");
           if (isGoal) btn.classList.add("goal");
+          if (isPlayer) btn.classList.add("player");
           if (selectedId === id) btn.classList.add("sel");
 
-          // ---- CHANGED: don't add transition styles to player ----
-          if (!isPlayer && sourcesOnLayer.has(id)) btn.classList.add("trSrc");
+          if (sourcesOnLayer.has(id)) btn.classList.add("trSrc");
 
-          if (!isPlayer && targetsSameLayer.has(id)) {
+          if (targetsSameLayer.has(id)) {
             btn.classList.add("trTgt");
             const badge = el("div", "trBadge");
             badge.textContent = targetsSameLayer.get(id)!;
@@ -1695,7 +1772,7 @@ export function mountApp(root: HTMLElement | null) {
           if (isPlayer) btn.appendChild(el("div", "miniDot player"));
           else if (isGoal) btn.appendChild(el("div", "miniDot goal"));
 
-          if (!isPlayer && info?.reachable && info.distance != null) {
+          if (info?.reachable && info.distance != null) {
             const d = el("div", "dist");
             d.textContent = String(info.distance);
             btn.appendChild(d);
@@ -1705,8 +1782,12 @@ export function mountApp(root: HTMLElement | null) {
             selectedId = id;
             rebuildTransitionIndexAndHighlights();
 
+            // Count + log EVERY click as a "Move N ..."
+            moveCount += 1;
+
             const res = tryMove(state!, id);
             if (res.ok) {
+              pushStory(`Move ${moveCount} ${id}`);
               message = res.won
                 ? "🎉 You reached the goal!"
                 : res.triggeredTransition
@@ -1722,6 +1803,8 @@ export function mountApp(root: HTMLElement | null) {
               renderAll();
               return;
             } else {
+              const reason = res.reason ? ` (rejected: ${res.reason})` : " (rejected)";
+              pushStory(`Move ${moveCount} ${id}${reason}`);
               message = res.reason ? `Move rejected: ${res.reason}` : "Move rejected.";
             }
 
@@ -1742,6 +1825,7 @@ export function mountApp(root: HTMLElement | null) {
       renderInfoTop();
       renderMessage();
       renderBoard();
+      renderStoryLog();
       renderPlayerImageBox();
       renderCurrentHexImageBox();
     }
