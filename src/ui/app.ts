@@ -183,8 +183,9 @@ export function mountApp(root: HTMLElement | null) {
 
   let reachMap: ReachMap = {};
   let reachable: Set<string> = new Set();
-// Mini-board shifting (UI-only): shiftLeft[layer][row] = cumulative left-rotation steps
-let miniShiftLeft: Record<number, Record<number, number>> = {};
+
+  // Mini-board shifting (UI-only): shiftLeft[layer][row] = cumulative left-rotation steps
+  let miniShiftLeft: Record<number, Record<number, number>> = {};
 
   let transitionsAll: any[] = [];
   let transitionsByFrom = new Map<string, any[]>();
@@ -857,6 +858,7 @@ let miniShiftLeft: Record<number, Record<number, number>> = {};
       object-fit: cover;
       display:block;
     }
+
     /* ---- Mini moving board (Images panel) ---- */
     .miniBoard{
       border-radius: 16px;
@@ -897,21 +899,19 @@ let miniShiftLeft: Record<number, Record<number, number>> = {};
       font-weight: 900;
       min-width: 36px;
     }
-     .miniCell{
+    .miniCell{
       width: 28px;
       height: 24px;
       display:inline-flex;
       align-items:center;
       justify-content:center;
-
       clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
-
       border: 1px solid rgba(191,232,255,.14);
       background: rgba(0,0,0,.22);
       opacity:.95;
       font-weight: 900;
       line-height:1;
-      padding: 0; /* important: don't pill it */
+      padding: 0;
     }
     .miniCell.on{
       border-color: rgba(76,255,80,.65);
@@ -919,7 +919,12 @@ let miniShiftLeft: Record<number, Record<number, number>> = {};
       box-shadow: 0 0 0 1px rgba(76,255,80,.22) inset, 0 0 12px rgba(76,255,80,.22);
       color: rgba(234,242,255,.98);
     }
-
+    .miniNote{
+      margin-top: 8px;
+      opacity:.75;
+      font-weight: 800;
+      font-size: 11px;
+    }
 
     /* story log list */
     .logHeadRow{
@@ -1460,8 +1465,8 @@ let miniShiftLeft: Record<number, Record<number, number>> = {};
   function resetRunLog() {
     moveCount = 0;
     logs = [];
-  }
     miniShiftLeft = {};
+  }
 
   function logClick(id: string, ok: boolean, reason?: string) {
     moveCount += 1;
@@ -1474,6 +1479,36 @@ let miniShiftLeft: Record<number, Record<number, number>> = {};
     });
     // keep last ~200
     if (logs.length > 200) logs = logs.slice(0, 200);
+  }
+
+  function getMovementRuleForLayer(layer: number): string {
+    const s: any = scenario();
+    const rule = s?.movement?.[String(layer)] ?? s?.movement?.[layer];
+    return String(rule ?? "NONE").toUpperCase();
+  }
+
+  function bumpMiniShift(layer: number, row: number, deltaLeft: number) {
+    if (!miniShiftLeft[layer]) miniShiftLeft[layer] = {};
+    miniShiftLeft[layer][row] = (miniShiftLeft[layer][row] ?? 0) + deltaLeft;
+  }
+
+  // Called when you press End turn (UI-only mini-map shift)
+  function applyMiniShiftsForEndTurn() {
+    const s: any = scenario();
+    const layers = Number(s?.layers ?? 1);
+
+    for (let L = 1; L <= layers; L++) {
+      const rule = getMovementRuleForLayer(L);
+      if (rule === "NONE") continue;
+
+      if (rule === "SEVEN_LEFT_SIX_RIGHT") {
+        // odd rows left 7, even rows right 6
+        for (let r = 1; r <= ROW_LENS.length; r++) {
+          if (r % 2 === 1) bumpMiniShift(L, r, +7);
+          else bumpMiniShift(L, r, -6);
+        }
+      }
+    }
   }
 
   function startScenario(idx: number) {
@@ -1518,7 +1553,9 @@ let miniShiftLeft: Record<number, Record<number, number>> = {};
     title.textContent = "Game";
     const sub = el("div", "gameHeaderSub");
     const sc: any = scenarios[scenarioIndex];
-    sub.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")} | Tiles: ${activeTileSet}`;
+    sub.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")} | Tiles: ${
+      activeTileSet
+    }`;
     headerLeft.append(title, sub);
 
     const controls = el("div", "gameHeaderControls");
@@ -1621,10 +1658,10 @@ let miniShiftLeft: Record<number, Record<number, number>> = {};
     // Right: Images
     const imgPanel = el("section", "panel");
     const imgHead = el("div", "panelHead");
-       imgHead.innerHTML = `<div class="tag"><span class="dot"></span> Images</div><div class="pill">Now</div>`;
+    imgHead.innerHTML = `<div class="tag"><span class="dot"></span> Images</div><div class="pill">Now</div>`;
     const imgBody = el("div", "panelBody");
 
-    // NEW: mini moving-board (static display of the shifting mapping)
+    // Mini moving-board (UI-only moving map)
     const miniBoard = el("div", "miniBoard");
     miniBoard.innerHTML = `
       <div class="miniBoardHead">
@@ -1636,7 +1673,6 @@ let miniShiftLeft: Record<number, Record<number, number>> = {};
     `;
 
     const playerBox = el("div", "softCard");
-
     playerBox.innerHTML = `
       <div class="infoText" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
         <b>Player</b>
@@ -1668,39 +1704,6 @@ let miniShiftLeft: Record<number, Record<number, number>> = {};
     function clamp(n: number, lo: number, hi: number) {
       return Math.max(lo, Math.min(hi, n));
     }
-  function getMovementRuleForLayer(layer: number): string {
-    const s: any = scenario();
-    const rule = s?.movement?.[String(layer)] ?? s?.movement?.[layer];
-    return String(rule ?? "NONE").toUpperCase();
-  }
-
-  function bumpMiniShift(layer: number, row: number, deltaLeft: number) {
-    if (!miniShiftLeft[layer]) miniShiftLeft[layer] = {};
-    miniShiftLeft[layer][row] = (miniShiftLeft[layer][row] ?? 0) + deltaLeft;
-  }
-
-  // Called when you press End turn (to mirror the demo’s shifting)
-  function applyMiniShiftsForEndTurn() {
-    const s: any = scenario();
-    const layers = Number(s?.layers ?? 1);
-
-    for (let L = 1; L <= layers; L++) {
-      const rule = getMovementRuleForLayer(L);
-
-      if (rule === "NONE") continue;
-
-      if (rule === "SEVEN_LEFT_SIX_RIGHT") {
-        // Match your described behavior: odd rows left, even rows right
-        for (let r = 1; r <= ROW_LENS.length; r++) {
-          if (r % 2 === 1) bumpMiniShift(L, r, +7);  // left 7
-          else bumpMiniShift(L, r, -6);             // right 6 (negative left)
-        }
-        continue;
-      }
-
-      // Fallback: unknown rule → do nothing (safe)
-    }
-  }
 
     function setHexLayoutVars() {
       const w = boardScroll.clientWidth;
@@ -1762,31 +1765,11 @@ let miniShiftLeft: Record<number, Record<number, number>> = {};
         box.textContent = "—";
       }
     }
+
     function rotateCols(len: number, shiftLeft: number) {
-      const cols = Array.from({ length: len }, (_, i) => i + 1); // [1..len]
+      const cols = Array.from({ length: len }, (_, i) => i + 1);
       const s = ((shiftLeft % len) + len) % len;
       return cols.slice(s).concat(cols.slice(0, s));
-    }
-
-    // Best-effort: read per-row shift from state if the engine exposes it.
-    // If none exists, shift is 0 (static display).
-    function getRowShiftLeft(layer: number, row: number): number {
-      const st: any = state as any;
-
-      // Common patterns you might already have (or can add easily in engine):
-      // st.rowShiftLeft?.[layer]?.[row]
-      // st.rowShiftLeft?.[`${layer}-${row}`]
-      // st.layerRowShift?.[layer]?.[row]
-      // st.shifts?.[layer]?.[row]
-      const a =
-        st?.rowShiftLeft?.[layer]?.[row] ??
-        st?.layerRowShift?.[layer]?.[row] ??
-        st?.shifts?.[layer]?.[row] ??
-        st?.rowShiftLeft?.[`${layer}-${row}`] ??
-        st?.layerRowShift?.[`${layer}-${row}`] ??
-        st?.shifts?.[`${layer}-${row}`];
-
-      return Number.isFinite(a) ? Number(a) : 0;
     }
 
     function renderMiniMovingBoard() {
@@ -1805,11 +1788,7 @@ let miniShiftLeft: Record<number, Record<number, number>> = {};
 
       for (let r = 1; r <= ROW_LENS.length; r++) {
         const len = ROW_LENS[r - 1] ?? 7;
-
-        // Shift left by whatever the engine says the row currently is.
-        // If your engine doesn't expose it yet, you'll see unshifted rows until you wire it.
         const shiftLeft = miniShiftLeft?.[layer]?.[r] ?? 0;
-
         const orderedCols = rotateCols(len, shiftLeft);
 
         const rowEl = el("div", "miniRow");
@@ -1819,7 +1798,7 @@ let miniShiftLeft: Record<number, Record<number, number>> = {};
 
         for (const c of orderedCols) {
           const cell = el("span", "miniCell");
-          cell.textContent = `C${c}`;
+          cell.textContent = String(c);
           if (r === playerRow && c === playerCol) cell.classList.add("on");
           rowEl.appendChild(cell);
         }
@@ -1889,7 +1868,6 @@ let miniShiftLeft: Record<number, Record<number, number>> = {};
       const left = document.getElementById("msgLeft");
       if (!left) return;
 
-      // If no reachable tiles at all, add a clear hint
       const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
       const stuckHint =
         layerReachable === 0
@@ -2010,7 +1988,7 @@ let miniShiftLeft: Record<number, Record<number, number>> = {};
       renderPlayerImageBox();
       renderCurrentHexImageBox();
       renderStoryLog();
-       renderMiniMovingBoard();
+      renderMiniMovingBoard();
     }
 
     // ---- Events ----
@@ -2035,11 +2013,11 @@ let miniShiftLeft: Record<number, Record<number, number>> = {};
       renderAll();
     });
 
-   endTurnBtn.addEventListener("click", () => {
+    endTurnBtn.addEventListener("click", () => {
       if (!state) return;
       endTurn(state);
 
-      // NEW: advance UI mini-board shifts
+      // advance UI mini-map shifts
       applyMiniShiftsForEndTurn();
 
       enterLayer(state, currentLayer);
