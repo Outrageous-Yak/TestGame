@@ -550,6 +550,11 @@ export function mountApp(root: HTMLElement | null) {
       font-weight: 800;
       white-space: nowrap;
     }
+    .pill.red{
+      color: rgba(255,145,145,.92);
+      border-color: rgba(255,120,120,.26);
+      background: rgba(255,0,0,.06);
+    }
 
     .panelBody{
       padding: 12px;
@@ -861,14 +866,24 @@ export function mountApp(root: HTMLElement | null) {
       display:block;
     }
 
-    /* ---- Mini moving board (Images panel) ---- */
+    /* ---- Mini moving boards ---- */
+    .miniStrip{
+      display:grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      min-width: 0;
+    }
+    @media (max-width: 1100px){
+      .miniStrip{ grid-template-columns: 1fr; }
+    }
+
     .miniBoard{
       border-radius: 16px;
       border: 1px solid rgba(191,232,255,.14);
       background: rgba(10,16,34,.20);
       box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
       padding: 10px 12px;
-      margin-bottom: 10px;
+      min-width: 0;
     }
     .miniBoardHead{
       display:flex;
@@ -876,12 +891,14 @@ export function mountApp(root: HTMLElement | null) {
       justify-content:space-between;
       gap:10px;
       margin-bottom: 8px;
+      flex-wrap:wrap;
     }
     .miniBoardTitle{
       font-weight: 900;
       font-size: 12px;
       opacity:.92;
     }
+    .miniBoardTitle.red{ color: rgba(255,145,145,.92); opacity: 1; }
     .miniBoardGrid{
       display:flex;
       flex-direction:column;
@@ -918,11 +935,17 @@ export function mountApp(root: HTMLElement | null) {
       line-height:1;
       padding: 0;
     }
+    .miniCell.ghost{
+      opacity:.35;
+      background: rgba(0,0,0,.16);
+      border-color: rgba(191,232,255,.10);
+    }
     .miniCell.on{
       border-color: rgba(76,255,80,.65);
       background: rgba(76,255,80,.18);
       box-shadow: 0 0 0 1px rgba(76,255,80,.22) inset, 0 0 12px rgba(76,255,80,.22);
       color: rgba(234,242,255,.98);
+      opacity: 1;
     }
     .miniNote{
       margin-top: 8px;
@@ -1649,6 +1672,38 @@ export function mountApp(root: HTMLElement | null) {
     const infoRight = el("div", "softCard infoText");
     infoTop.append(infoLeft, infoRight);
 
+    // === 3 mini boards (left/below, center/current, right/above) ===
+    const miniStrip = el("div", "miniStrip");
+
+    const miniBelow = el("div", "miniBoard");
+    miniBelow.innerHTML = `
+      <div class="miniBoardHead">
+        <div class="miniBoardTitle" id="miniBelowTitle">Layer —</div>
+        <div class="pill" id="miniBelowPill" style="padding:6px 10px">—</div>
+      </div>
+      <div class="miniBoardGrid" id="miniBelowGrid"></div>
+    `;
+
+    const miniCurrent = el("div", "miniBoard");
+    miniCurrent.innerHTML = `
+      <div class="miniBoardHead">
+        <div class="miniBoardTitle" id="miniCurrentTitle">Moving Map</div>
+        <div class="pill" id="miniCurrentPill" style="padding:6px 10px">Layer —</div>
+      </div>
+      <div class="miniBoardGrid" id="miniCurrentGrid"></div>
+    `;
+
+    const miniAbove = el("div", "miniBoard");
+    miniAbove.innerHTML = `
+      <div class="miniBoardHead">
+        <div class="miniBoardTitle" id="miniAboveTitle">Layer —</div>
+        <div class="pill" id="miniAbovePill" style="padding:6px 10px">—</div>
+      </div>
+      <div class="miniBoardGrid" id="miniAboveGrid"></div>
+    `;
+
+    miniStrip.append(miniBelow, miniCurrent, miniAbove);
+
     const msgBar = el("div", "msgBar");
     msgBar.innerHTML = `<div class="msgLeft" id="msgLeft">Ready.</div><div class="msgRight" id="msgRight">Moves: 0</div>`;
 
@@ -1659,7 +1714,7 @@ export function mountApp(root: HTMLElement | null) {
     boardWrap.style.padding = "4px 4px 12px";
     boardScroll.appendChild(boardWrap);
 
-    boardBody.append(infoTop, msgBar, boardScroll);
+    boardBody.append(infoTop, miniStrip, msgBar, boardScroll);
     boardPanel.append(boardHead, boardBody);
 
     // Right: Images
@@ -1668,7 +1723,7 @@ export function mountApp(root: HTMLElement | null) {
     imgHead.innerHTML = `<div class="tag"><span class="dot"></span> Images</div><div class="pill">Now</div>`;
     const imgBody = el("div", "panelBody");
 
-    // Mini moving-board (UI-only moving map)
+    // Keep existing moving-board in Images panel (so nothing is removed)
     const miniBoard = el("div", "miniBoard");
     miniBoard.innerHTML = `
       <div class="miniBoardHead">
@@ -1783,6 +1838,151 @@ export function mountApp(root: HTMLElement | null) {
       return cols.slice(s).concat(cols.slice(0, s));
     }
 
+    function renderMiniGrid(opts: {
+      layer: number;
+      gridEl: HTMLElement;
+      titleEl: HTMLElement;
+      pillEl: HTMLElement;
+      showNumbers: boolean;
+      redTitle?: boolean;
+      redPill?: boolean;
+      titleText: string;
+      pillText: string;
+      // highlight uses CURRENT PLAYER col/row even when showing other layers (as you described)
+      highlightPlayer: boolean;
+    }) {
+      const { layer, gridEl, titleEl, pillEl, showNumbers, redTitle, redPill, titleText, pillText, highlightPlayer } =
+        opts;
+
+      titleEl.textContent = titleText;
+      titleEl.classList.toggle("red", !!redTitle);
+      pillEl.textContent = pillText;
+      pillEl.classList.toggle("red", !!redPill);
+
+      const pc = idToCoord(state?.playerHexId ?? "");
+      const playerRow = pc?.row ?? -1;
+      const playerCol = pc?.col ?? -1;
+
+      gridEl.innerHTML = "";
+
+      for (let r = 1; r <= ROW_LENS.length; r++) {
+        const len = ROW_LENS[r - 1] ?? 7;
+        const shiftLeft = miniShiftLeft?.[layer]?.[r] ?? 0;
+        const orderedCols = rotateCols(len, shiftLeft);
+
+        const rowEl = el("div", "miniRow");
+        if (r % 2 === 0) rowEl.classList.add("offset");
+
+        const label = document.createElement("b");
+        label.textContent = `R${r}:`;
+        rowEl.appendChild(label);
+
+        for (const c of orderedCols) {
+          const cell = el("span", "miniCell");
+          if (!showNumbers) cell.classList.add("ghost");
+
+          cell.textContent = showNumbers ? String(c) : "";
+
+          if (highlightPlayer && r === playerRow && c === playerCol) cell.classList.add("on");
+
+          rowEl.appendChild(cell);
+        }
+
+        gridEl.appendChild(rowEl);
+      }
+    }
+
+    // Main 3-mini-board strip: below/current/above relative to player
+    function renderBoardMiniStrip() {
+      const s: any = scenario();
+      const layers = Number(s?.layers ?? 1);
+
+      const belowLayer = currentLayer - 1;
+      const aboveLayer = currentLayer + 1;
+
+      const belowGrid = document.getElementById("miniBelowGrid");
+      const belowTitle = document.getElementById("miniBelowTitle");
+      const belowPill = document.getElementById("miniBelowPill");
+
+      const curGrid = document.getElementById("miniCurrentGrid");
+      const curTitle = document.getElementById("miniCurrentTitle");
+      const curPill = document.getElementById("miniCurrentPill");
+
+      const aboveGrid = document.getElementById("miniAboveGrid");
+      const aboveTitle = document.getElementById("miniAboveTitle");
+      const abovePill = document.getElementById("miniAbovePill");
+
+      if (!belowGrid || !belowTitle || !belowPill || !curGrid || !curTitle || !curPill || !aboveGrid || !aboveTitle || !abovePill)
+        return;
+
+      // LEFT (below)
+      if (belowLayer < 1) {
+        renderMiniGrid({
+          layer: 1, // doesn't matter; used only for shift lookups
+          gridEl: belowGrid,
+          titleEl: belowTitle,
+          pillEl: belowPill,
+          showNumbers: false,
+          redTitle: true,
+          redPill: true,
+          titleText: "NO LAYER BELOW",
+          pillText: "—",
+          highlightPlayer: false,
+        });
+      } else {
+        renderMiniGrid({
+          layer: belowLayer,
+          gridEl: belowGrid,
+          titleEl: belowTitle,
+          pillEl: belowPill,
+          showNumbers: true,
+          titleText: `Layer ${belowLayer}`,
+          pillText: `Layer ${belowLayer}`,
+          highlightPlayer: true,
+        });
+      }
+
+      // CENTER (current)
+      renderMiniGrid({
+        layer: currentLayer,
+        gridEl: curGrid,
+        titleEl: curTitle,
+        pillEl: curPill,
+        showNumbers: true,
+        titleText: "Moving Map",
+        pillText: `Layer ${currentLayer}`,
+        highlightPlayer: true,
+      });
+
+      // RIGHT (above)
+      if (aboveLayer > layers) {
+        renderMiniGrid({
+          layer: layers, // doesn't matter; used only for shift lookups
+          gridEl: aboveGrid,
+          titleEl: aboveTitle,
+          pillEl: abovePill,
+          showNumbers: false,
+          redTitle: true,
+          redPill: true,
+          titleText: "NO LAYER ABOVE",
+          pillText: "—",
+          highlightPlayer: false,
+        });
+      } else {
+        renderMiniGrid({
+          layer: aboveLayer,
+          gridEl: aboveGrid,
+          titleEl: aboveTitle,
+          pillEl: abovePill,
+          showNumbers: true,
+          titleText: `Layer ${aboveLayer}`,
+          pillText: `Layer ${aboveLayer}`,
+          highlightPlayer: true,
+        });
+      }
+    }
+
+    // Existing Images-panel minimap (current layer only) — kept
     function renderMiniMovingBoard() {
       const grid = document.getElementById("miniBoardGrid");
       const pill = document.getElementById("miniLayerPill");
@@ -1999,12 +2199,13 @@ export function mountApp(root: HTMLElement | null) {
     function renderAll() {
       rebuildTransitionIndexAndHighlights();
       renderInfoTop();
+      renderBoardMiniStrip(); // ✅ new 3-mini-board logic
       renderMessage();
       renderBoard();
       renderPlayerImageBox();
       renderCurrentHexImageBox();
       renderStoryLog();
-      renderMiniMovingBoard();
+      renderMiniMovingBoard(); // kept
     }
 
     // ---- Events ----
