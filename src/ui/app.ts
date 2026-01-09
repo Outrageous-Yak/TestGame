@@ -125,8 +125,9 @@ function scenarioTileSet(s: any): string {
 }
 
 function presetPlayerImage(id: string): string | null {
-  return `/images/ui/players/${id}.png`;
+  return `images/ui/players/${id}.png`;
 }
+
 
 function timeHHMM() {
   const d = new Date();
