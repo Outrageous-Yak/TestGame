@@ -902,7 +902,7 @@ export function mountApp(root: HTMLElement | null) {
     .miniBoardGrid{
       display:flex;
       flex-direction:column;
-      gap:4px;
+      gap:2px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       font-size: 11px;
       line-height: 1.25;
