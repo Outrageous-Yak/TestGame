@@ -883,14 +883,14 @@ export function mountApp(root: HTMLElement | null) {
     .miniBoardGrid{
       display:flex;
       flex-direction:column;
-      gap:6px;
+      gap:4px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       font-size: 11px;
       line-height: 1.25;
     }
     .miniRow{
       display:flex;
-      gap:8px;
+      gap:4px;
       align-items:center;
       flex-wrap:wrap;
     }
