@@ -624,7 +624,7 @@ export function mountApp(root: HTMLElement | null) {
       --glow-spread-color: rgba(255,255,255,.14);
       --btn-color: rgba(255,255,255,.06);
 
-      border: .18em solid var(--glow-color);
+      border: none;
       background-color: var(--btn-color);
 
       box-shadow:
@@ -672,6 +672,8 @@ export function mountApp(root: HTMLElement | null) {
       border-radius: 0;
       pointer-events:none;
       z-index: 0;
+      transform: scale(1.04);
+      transform-origin: center;
     }
 
     /* Overlay text (optional) */
