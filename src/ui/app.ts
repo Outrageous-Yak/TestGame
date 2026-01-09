@@ -111,7 +111,6 @@ function toPublicUrl(p: string) {
   return base + clean;
 }
 
-
 function scenarioTileSet(s: any): string {
   // Optional: allow scenario JSON to specify a tileset folder:
   // { "tileset": "demo" } or { "theme": "demo" }
@@ -699,29 +698,26 @@ export function mountApp(root: HTMLElement | null) {
       --glow-spread-color: rgba(76,175,80,.45);
       --btn-color: rgba(76,175,80,.10);
     }
- /* ===============================
-   Player current position (always-on)
-   Lime green glow
-================================ */
-.hex.player{
-  /* Core glow colors */
-  --glow-color: rgba(76, 255, 80, 1);        /* lime green */
-  --glow-spread-color: rgba(76, 255, 80, .55);
-  --btn-color: rgba(76, 255, 80, .14);
 
-  /* Strong, readable glow */
-  box-shadow:
-    0 0 1.1em .25em var(--glow-color),
-    0 0 3.2em 1.1em var(--glow-spread-color),
-    inset 0 0 .7em .25em var(--glow-color);
+    /* ===============================
+       Player current position (always-on)
+       Lime green glow
+    ================================ */
+    .hex.player{
+      --glow-color: rgba(76, 255, 80, 1);
+      --glow-spread-color: rgba(76, 255, 80, .55);
+      --btn-color: rgba(76, 255, 80, .14);
 
-  /* Slight lift so it stands out */
-  filter: brightness(1.12);
+      box-shadow:
+        0 0 1.1em .25em var(--glow-color),
+        0 0 3.2em 1.1em var(--glow-spread-color),
+        inset 0 0 .7em .25em var(--glow-color);
 
-  /* Ensure it wins over other states */
-  opacity: 1;
-  z-index: 2;
-}
+      filter: brightness(1.12);
+      opacity: 1;
+      z-index: 2;
+    }
+
     .hex.goal{
       --glow-color: rgba(255,193,7,1);
       --glow-spread-color: rgba(255,193,7,.55);
@@ -766,39 +762,6 @@ export function mountApp(root: HTMLElement | null) {
       outline: 2px solid rgba(234,242,255,.55);
       outline-offset: 2px;
     }
-
-
-/* If the player is also trTgt (which applies an animation),
-   remove that animation so lime stays stable */
-.hex.player.trTgt{
-  animation: none !important;
-}
-/* FORCE player tile to always be lime (correct !important placement) */
-.hex.player,
-.hex.player.reach,
-.hex.player.trSrc,
-.hex.player.trTgt,
-.hex.player.goal,
-.hex.player.fog,
-.hex.player.blocked,
-.hex.player.missing{
-  --glow-color: rgba(76, 255, 80, 1) !important;
-  --glow-spread-color: rgba(76, 255, 80, .60) !important;
-  --btn-color: rgba(76, 255, 80, .14) !important;
-
-  box-shadow:
-    0 0 1.2em .28em rgba(76, 255, 80, 1),
-    0 0 3.4em 1.2em rgba(76, 255, 80, .60),
-    inset 0 0 .75em .28em rgba(76, 255, 80, 1) !important;
-
-  filter: brightness(1.15) !important;
-  opacity: 1 !important;
-}
-
-/* If player is also a transition target, stop the cyan pulse */
-.hex.player.trTgt{
-  animation: none !important;
-}
 
     /* Small markers */
     .miniDot{
@@ -1358,29 +1321,23 @@ export function mountApp(root: HTMLElement | null) {
     const s: any = scenario();
     const tileset = activeTileSet || scenarioTileSet(s);
 
-    // Determine tile key (must match your filenames)
     const { blocked, missing } = isBlockedOrMissing(h);
 
-    // Unrevealed gets FOG tile (unless missing)
     if (missing) return toPublicUrl(`tiles/${tileset}/HOLE.png`);
     if (blocked) return toPublicUrl(`tiles/${tileset}/BLOCKED.png`);
     if (!isRevealed(h)) return toPublicUrl(`tiles/${tileset}/FOG.png`);
 
-    // Goal kind
     if (String(h?.kind ?? "").toUpperCase() === "GOAL") return toPublicUrl(`tiles/${tileset}/GOAL.png`);
 
-    // Start (original starting location)
     if (startHexId && id === startHexId) return toPublicUrl(`tiles/${tileset}/START.png`);
 
-    // Optional: show stairs tile if this hex is a transition source with UP/DOWN
     const outgoing = transitionsByFrom.get(id) ?? [];
     const hasDown = outgoing.some((t) => String(t.type ?? "").toUpperCase() === "DOWN");
-    const hasUp = outgoing.some((t) => String(t.type ?? "").toUpperCase() !== "DOWN"); // treat default as up
+    const hasUp = outgoing.some((t) => String(t.type ?? "").toUpperCase() !== "DOWN");
 
     if (hasDown) return toPublicUrl(`tiles/${tileset}/STAIRS_DOWN.png`);
     if (hasUp && outgoing.length) return toPublicUrl(`tiles/${tileset}/STAIRS_UP.png`);
 
-    // Default
     return toPublicUrl(`tiles/${tileset}/NORMAL.png`);
   }
 
@@ -1394,7 +1351,6 @@ export function mountApp(root: HTMLElement | null) {
     selectedId = state.playerHexId ?? null;
     currentLayer = idToCoord(state.playerHexId)?.layer ?? 1;
 
-    // Remember where the run began
     startHexId = state.playerHexId ?? null;
 
     enterLayer(state, currentLayer);
@@ -1664,12 +1620,6 @@ export function mountApp(root: HTMLElement | null) {
     function renderBoard() {
       boardWrap.innerHTML = "";
       if (!state) return;
-// Always render the layer the player is actually on (so .player exists and glows)
-const pLayer = idToCoord(state.playerHexId ?? "")?.layer ?? currentLayer;
-if (pLayer !== currentLayer) {
-  currentLayer = pLayer;
-  layerSelect.value = String(currentLayer);
-}
 
       for (let r = 1; r <= ROW_LENS.length; r++) {
         const len = ROW_LENS[r - 1] ?? 7;
@@ -1699,17 +1649,24 @@ if (pLayer !== currentLayer) {
           const isGoal = String(h?.kind ?? "").toUpperCase() === "GOAL";
           const isPlayer = state.playerHexId === id;
 
+          // ---- CHANGED: player is sovereign (no fog/reach styling) ----
           if (missing) btn.classList.add("missing");
           if (blocked) btn.classList.add("blocked");
-          if (!isRevealed(h)) btn.classList.add("fog");
-          if (info?.reachable) btn.classList.add("reach");
+
+          if (isPlayer) {
+            btn.classList.add("player");
+          } else {
+            if (!isRevealed(h)) btn.classList.add("fog");
+            if (info?.reachable) btn.classList.add("reach");
+          }
+
           if (isGoal) btn.classList.add("goal");
-          if (isPlayer) btn.classList.add("player");
           if (selectedId === id) btn.classList.add("sel");
 
-          if (sourcesOnLayer.has(id)) btn.classList.add("trSrc");
+          // ---- CHANGED: don't add transition styles to player ----
+          if (!isPlayer && sourcesOnLayer.has(id)) btn.classList.add("trSrc");
 
-          if (targetsSameLayer.has(id)) {
+          if (!isPlayer && targetsSameLayer.has(id)) {
             btn.classList.add("trTgt");
             const badge = el("div", "trBadge");
             badge.textContent = targetsSameLayer.get(id)!;
@@ -1719,7 +1676,7 @@ if (pLayer !== currentLayer) {
           if (isPlayer) btn.appendChild(el("div", "miniDot player"));
           else if (isGoal) btn.appendChild(el("div", "miniDot goal"));
 
-          if (info?.reachable && info.distance != null) {
+          if (!isPlayer && info?.reachable && info.distance != null) {
             const d = el("div", "dist");
             d.textContent = String(info.distance);
             btn.appendChild(d);
