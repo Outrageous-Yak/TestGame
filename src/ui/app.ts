@@ -106,8 +106,11 @@ const START_BG_URL = "images/ui/start-screen.jpg";
 
 /** Tile folder base (you already created public/tiles/demo/...) */
 function toPublicUrl(p: string) {
-  return p.startsWith("/") ? p : `/${p}`;
+  const base = (import.meta as any).env?.BASE_URL ?? "/";
+  const clean = String(p).replace(/^\/+/, ""); // remove leading slashes
+  return base + clean;
 }
+
 
 function scenarioTileSet(s: any): string {
   // Optional: allow scenario JSON to specify a tileset folder:
