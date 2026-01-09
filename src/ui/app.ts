@@ -664,8 +664,8 @@ export function mountApp(root: HTMLElement | null) {
     /* Tile image */
     .hexImg{
       position:absolute;
-     inset: -5px;                /* overfill by a couple px (fixes side gaps) */
-      width: calc(100% + 5px);
+     inset: -2px;                /* overfill by a couple px (fixes side gaps) */
+      width: calc(100% + 8px);
       height: calc(100% + 4px);
       object-fit:cover;
       clip-path: inherit;
