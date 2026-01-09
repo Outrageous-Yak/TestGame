@@ -900,9 +900,8 @@ export function mountApp(root: HTMLElement | null) {
       min-width: 36px;
     }
     .miniRow.offset{
-  padding-left: calc((28px + 4px) / 2); /* (miniCell width + miniRow gap)/2 */
-}
-
+      padding-left: calc((28px + 4px) / 2); /* (miniCell width + miniRow gap)/2 */
+    }
     .miniCell{
       width: 28px;
       height: 24px;
@@ -1506,10 +1505,11 @@ export function mountApp(root: HTMLElement | null) {
       if (rule === "NONE") continue;
 
       if (rule === "SEVEN_LEFT_SIX_RIGHT") {
-        // odd rows left 7, even rows right 6
         for (let r = 1; r <= ROW_LENS.length; r++) {
-          if (r % 2 === 1) bumpMiniShift(L, r, +7);
-          else bumpMiniShift(L, r, -6);
+          const len = ROW_LENS[r - 1] ?? 7;
+          // IMPORTANT: shift by 1 step (not 7/6 which cancels out visually)
+          if (len === 7) bumpMiniShift(L, r, +1); // left 1
+          if (len === 6) bumpMiniShift(L, r, -1); // right 1
         }
       }
     }
@@ -1787,8 +1787,7 @@ export function mountApp(root: HTMLElement | null) {
       const pc = idToCoord(state?.playerHexId ?? "");
       const playerRow = pc?.row ?? -1;
       const playerCol = pc?.col ?? -1;
-const rowEl = el("div", "miniRow");
-if (r % 2 === 0) rowEl.classList.add("offset");
+
       grid.innerHTML = "";
 
       for (let r = 1; r <= ROW_LENS.length; r++) {
@@ -1797,6 +1796,8 @@ if (r % 2 === 0) rowEl.classList.add("offset");
         const orderedCols = rotateCols(len, shiftLeft);
 
         const rowEl = el("div", "miniRow");
+        if (r % 2 === 0) rowEl.classList.add("offset"); // ✅ stagger like main board
+
         const label = document.createElement("b");
         label.textContent = `R${r}:`;
         rowEl.appendChild(label);
@@ -2022,7 +2023,7 @@ if (r % 2 === 0) rowEl.classList.add("offset");
       if (!state) return;
       endTurn(state);
 
-      // advance UI mini-map shifts
+      // ✅ advance UI mini-map shifts (now actually moves)
       applyMiniShiftsForEndTurn();
 
       enterLayer(state, currentLayer);
