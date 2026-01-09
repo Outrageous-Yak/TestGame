@@ -1664,6 +1664,12 @@ export function mountApp(root: HTMLElement | null) {
     function renderBoard() {
       boardWrap.innerHTML = "";
       if (!state) return;
+// Always render the layer the player is actually on (so .player exists and glows)
+const pLayer = idToCoord(state.playerHexId ?? "")?.layer ?? currentLayer;
+if (pLayer !== currentLayer) {
+  currentLayer = pLayer;
+  layerSelect.value = String(currentLayer);
+}
 
       for (let r = 1; r <= ROW_LENS.length; r++) {
         const len = ROW_LENS[r - 1] ?? 7;
