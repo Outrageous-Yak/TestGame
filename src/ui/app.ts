@@ -638,7 +638,7 @@ export function mountApp(root: HTMLElement | null) {
         box-shadow .18s ease,
         background-color .18s ease,
         border-color .18s ease;
-      overflow: visible;
+      overflow: hidden;
     }
 
     .hex::after{
@@ -664,9 +664,9 @@ export function mountApp(root: HTMLElement | null) {
     /* Tile image */
     .hexImg{
       position:absolute;
-      inset:0;
-      width:100%;
-      height:100%;
+     inset: -2px;                /* overfill by a couple px (fixes side gaps) */
+      width: calc(100% + 4px);
+      height: calc(100% + 4px);
       object-fit:cover;
       clip-path: inherit;
       border-radius: 0;
