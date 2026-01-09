@@ -766,6 +766,36 @@ export function mountApp(root: HTMLElement | null) {
       outline: 2px solid rgba(234,242,255,.55);
       outline-offset: 2px;
     }
+/* ===============================
+   FORCE player tile to always be lime,
+   even if it is also reach/trSrc/trTgt/goal/fog/etc.
+================================ */
+.hex.player,
+.hex.player.reach,
+.hex.player.trSrc,
+.hex.player.trTgt,
+.hex.player.goal,
+.hex.player.fog,
+.hex.player.blocked,
+.hex.player.missing{
+  --glow-color: rgba(76, 255, 80, 1) !important;
+  --glow-spread-color: rgba(76, 255, 80, .60) !important;
+  --btn-color: rgba(76, 255, 80, .14) !important;
+
+  box-shadow:
+    0 0 1.2em .28em rgba(76, 255, 80, 1),
+    0 0 3.4em 1.2em rgba(76, 255, 80, .60),
+    inset 0 0 .75em .28em rgba(76, 255, 80, 1) !important;
+
+  filter: brightness(1.15) !important;
+  opacity: 1 !important;
+}
+
+/* If the player is also trTgt (which applies an animation),
+   remove that animation so lime stays stable */
+.hex.player.trTgt{
+  animation: none !important;
+}
 
     /* Small markers */
     .miniDot{
