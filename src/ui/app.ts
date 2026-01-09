@@ -1502,24 +1502,22 @@ function applyMiniShiftsForEndTurn() {
 
   for (let L = 1; L <= layers; L++) {
     let rule = getMovementRuleForLayer(L);
-
-    // ✅ fallback: if scenario doesn't define movement, still animate the mini board
-    if (rule === "NONE") rule = "SEVEN_LEFT_SIX_RIGHT";
+    if (rule === "NONE") rule = "SEVEN_LEFT_SIX_RIGHT"; // fallback for demo
 
     if (rule === "SEVEN_LEFT_SIX_RIGHT") {
-      // odd rows shift left, even rows shift right (1 step each end turn)
       for (let r = 1; r <= ROW_LENS.length; r++) {
         const len = ROW_LENS[r - 1] ?? 7;
 
-        if (r % 2 === 1) bumpMiniShift(L, r, +1); // left 1
-        else bumpMiniShift(L, r, -1); // right 1
+        if (r % 2 === 1) bumpMiniShift(L, r, +1); // odd rows: left 1
+        else bumpMiniShift(L, r, -1);            // even rows: right 1
 
-        // keep numbers small (optional but nice)
+        // keep it bounded (optional, but nice)
         miniShiftLeft[L][r] = ((miniShiftLeft[L][r] % len) + len) % len;
       }
     }
   }
 }
+
 
 
   function startScenario(idx: number) {
@@ -1782,43 +1780,43 @@ function applyMiniShiftsForEndTurn() {
       const s = ((shiftLeft % len) + len) % len;
       return cols.slice(s).concat(cols.slice(0, s));
     }
+function renderMiniMovingBoard() {
+  const grid = document.getElementById("miniBoardGrid");
+  const pill = document.getElementById("miniLayerPill");
+  if (!grid || !pill) return;
 
-    function renderMiniMovingBoard() {
-      const grid = document.getElementById("miniBoardGrid");
-      const pill = document.getElementById("miniLayerPill");
-      if (!grid || !pill) return;
+  const layer = currentLayer;
+  pill.textContent = `Layer ${layer}`;
 
-      const layer = currentLayer;
-      pill.textContent = `Layer ${layer}`;
+  const pc = idToCoord(state?.playerHexId ?? "");
+  const playerRow = pc?.row ?? -1;
+  const playerCol = pc?.col ?? -1;
 
-      const pc = idToCoord(state?.playerHexId ?? "");
-      const playerRow = pc?.row ?? -1;
-      const playerCol = pc?.col ?? -1;
+  grid.innerHTML = "";
 
-      grid.innerHTML = "";
+  for (let r = 1; r <= ROW_LENS.length; r++) {
+    const len = ROW_LENS[r - 1] ?? 7;
 
-      for (let r = 1; r <= ROW_LENS.length; r++) {
-        const len = ROW_LENS[r - 1] ?? 7;
-        const shiftLeft = miniShiftLeft?.[layer]?.[r] ?? 0;
-        const orderedCols = rotateCols(len, shiftLeft);
+    const shiftLeft = miniShiftLeft?.[layer]?.[r] ?? 0;
+    const orderedCols = rotateCols(len, shiftLeft);
 
-        const rowEl = el("div", "miniRow");
-        if (r % 2 === 0) rowEl.classList.add("offset"); // ✅ stagger like main board
+    const rowEl = el("div", "miniRow");
+    if (r % 2 === 0) rowEl.classList.add("offset");
 
-        const label = document.createElement("b");
-        label.textContent = `R${r}:`;
-        rowEl.appendChild(label);
+    const label = document.createElement("b");
+    label.textContent = `R${r}:`;
+    rowEl.appendChild(label);
 
-        for (const c of orderedCols) {
-          const cell = el("span", "miniCell");
-          cell.textContent = String(c);
-          if (r === playerRow && c === playerCol) cell.classList.add("on");
-          rowEl.appendChild(cell);
-        }
-
-        grid.appendChild(rowEl);
-      }
+    for (const c of orderedCols) {
+      const cell = el("span", "miniCell");
+      cell.textContent = String(c);
+      if (r === playerRow && c === playerCol) cell.classList.add("on");
+      rowEl.appendChild(cell);
     }
+
+    grid.appendChild(rowEl);
+  }
+}
 
     function renderStoryLog() {
       const pill = document.getElementById("movesPill");
