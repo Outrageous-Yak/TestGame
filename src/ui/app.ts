@@ -666,7 +666,7 @@ export function mountApp(root: HTMLElement | null) {
       position:absolute;
      inset: -4px;                /* overfill by a couple px (fixes side gaps) */
       width: calc(100% + 6px);
-      height: calc(100% + 2px);
+      height: calc(100% + 12px);
       object-fit:cover;
       clip-path: inherit;
       border-radius: 0;
