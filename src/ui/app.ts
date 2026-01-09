@@ -899,6 +899,10 @@ export function mountApp(root: HTMLElement | null) {
       font-weight: 900;
       min-width: 36px;
     }
+    .miniRow.offset{
+  padding-left: calc((28px + 4px) / 2); /* (miniCell width + miniRow gap)/2 */
+}
+
     .miniCell{
       width: 28px;
       height: 24px;
@@ -1783,7 +1787,8 @@ export function mountApp(root: HTMLElement | null) {
       const pc = idToCoord(state?.playerHexId ?? "");
       const playerRow = pc?.row ?? -1;
       const playerCol = pc?.col ?? -1;
-
+const rowEl = el("div", "miniRow");
+if (r % 2 === 0) rowEl.classList.add("offset");
       grid.innerHTML = "";
 
       for (let r = 1; r <= ROW_LENS.length; r++) {
