@@ -855,6 +855,66 @@ export function mountApp(root: HTMLElement | null) {
       object-fit: cover;
       display:block;
     }
+    /* ---- Mini moving board (Images panel) ---- */
+    .miniBoard{
+      border-radius: 16px;
+      border: 1px solid rgba(191,232,255,.14);
+      background: rgba(10,16,34,.20);
+      box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+    }
+    .miniBoardHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom: 8px;
+    }
+    .miniBoardTitle{
+      font-weight: 900;
+      font-size: 12px;
+      opacity:.92;
+    }
+    .miniBoardGrid{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 11px;
+      line-height: 1.25;
+    }
+    .miniRow{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .miniRow b{
+      opacity:.9;
+      font-weight: 900;
+      min-width: 36px;
+    }
+    .miniCell{
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(191,232,255,.12);
+      background: rgba(0,0,0,.22);
+      opacity:.9;
+      font-weight: 900;
+    }
+    .miniCell.on{
+      border-color: rgba(76,255,80,.55);
+      background: rgba(76,255,80,.16);
+      box-shadow: 0 0 0 1px rgba(76,255,80,.20) inset;
+      color: rgba(234,242,255,.98);
+    }
+    .miniNote{
+      margin-top: 8px;
+      opacity:.75;
+      font-weight: 800;
+      font-size: 11px;
+    }
 
     /* story log list */
     .logHeadRow{
@@ -1555,10 +1615,22 @@ export function mountApp(root: HTMLElement | null) {
     // Right: Images
     const imgPanel = el("section", "panel");
     const imgHead = el("div", "panelHead");
-    imgHead.innerHTML = `<div class="tag"><span class="dot"></span> Images</div><div class="pill">Now</div>`;
+       imgHead.innerHTML = `<div class="tag"><span class="dot"></span> Images</div><div class="pill">Now</div>`;
     const imgBody = el("div", "panelBody");
 
+    // NEW: mini moving-board (static display of the shifting mapping)
+    const miniBoard = el("div", "miniBoard");
+    miniBoard.innerHTML = `
+      <div class="miniBoardHead">
+        <div class="miniBoardTitle">Moving Map</div>
+        <div class="pill" id="miniLayerPill" style="padding:6px 10px">Layer —</div>
+      </div>
+      <div class="miniBoardGrid" id="miniBoardGrid"></div>
+      <div class="miniNote">Shows current row ordering (wraparound). Green = your current column.</div>
+    `;
+
     const playerBox = el("div", "softCard");
+
     playerBox.innerHTML = `
       <div class="infoText" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
         <b>Player</b>
@@ -1577,7 +1649,7 @@ export function mountApp(root: HTMLElement | null) {
       <div class="imgBox" style="margin-top:10px" id="hexImgBox">No hex image.</div>
     `;
 
-    imgBody.append(playerBox, hexBox);
+    imgBody.append(miniBoard, playerBox, hexBox);
     imgPanel.append(imgHead, imgBody);
 
     layout.append(storyPanel, boardPanel, imgPanel);
@@ -1649,6 +1721,71 @@ export function mountApp(root: HTMLElement | null) {
           onerror="this.remove(); this.parentElement && (this.parentElement.textContent='Hex image missing.')">`;
       } else {
         box.textContent = "—";
+      }
+    }
+    function rotateCols(len: number, shiftLeft: number) {
+      const cols = Array.from({ length: len }, (_, i) => i + 1); // [1..len]
+      const s = ((shiftLeft % len) + len) % len;
+      return cols.slice(s).concat(cols.slice(0, s));
+    }
+
+    // Best-effort: read per-row shift from state if the engine exposes it.
+    // If none exists, shift is 0 (static display).
+    function getRowShiftLeft(layer: number, row: number): number {
+      const st: any = state as any;
+
+      // Common patterns you might already have (or can add easily in engine):
+      // st.rowShiftLeft?.[layer]?.[row]
+      // st.rowShiftLeft?.[`${layer}-${row}`]
+      // st.layerRowShift?.[layer]?.[row]
+      // st.shifts?.[layer]?.[row]
+      const a =
+        st?.rowShiftLeft?.[layer]?.[row] ??
+        st?.layerRowShift?.[layer]?.[row] ??
+        st?.shifts?.[layer]?.[row] ??
+        st?.rowShiftLeft?.[`${layer}-${row}`] ??
+        st?.layerRowShift?.[`${layer}-${row}`] ??
+        st?.shifts?.[`${layer}-${row}`];
+
+      return Number.isFinite(a) ? Number(a) : 0;
+    }
+
+    function renderMiniMovingBoard() {
+      const grid = document.getElementById("miniBoardGrid");
+      const pill = document.getElementById("miniLayerPill");
+      if (!grid || !pill) return;
+
+      const layer = currentLayer;
+      pill.textContent = `Layer ${layer}`;
+
+      const pc = idToCoord(state?.playerHexId ?? "");
+      const playerRow = pc?.row ?? -1;
+      const playerCol = pc?.col ?? -1;
+
+      grid.innerHTML = "";
+
+      for (let r = 1; r <= ROW_LENS.length; r++) {
+        const len = ROW_LENS[r - 1] ?? 7;
+
+        // Shift left by whatever the engine says the row currently is.
+        // If your engine doesn't expose it yet, you'll see unshifted rows until you wire it.
+        const shiftLeft = getRowShiftLeft(layer, r);
+
+        const orderedCols = rotateCols(len, shiftLeft);
+
+        const rowEl = el("div", "miniRow");
+        const label = document.createElement("b");
+        label.textContent = `R${r}:`;
+        rowEl.appendChild(label);
+
+        for (const c of orderedCols) {
+          const cell = el("span", "miniCell");
+          cell.textContent = `C${c}`;
+          if (r === playerRow && c === playerCol) cell.classList.add("on");
+          rowEl.appendChild(cell);
+        }
+
+        grid.appendChild(rowEl);
       }
     }
 
@@ -1834,6 +1971,7 @@ export function mountApp(root: HTMLElement | null) {
       renderPlayerImageBox();
       renderCurrentHexImageBox();
       renderStoryLog();
+       renderMiniMovingBoard();
     }
 
     // ---- Events ----
