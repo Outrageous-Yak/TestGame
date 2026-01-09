@@ -21,6 +21,14 @@ type MonsterChoice = {
   kind: "preset" | "custom";
 };
 
+type LogEntry = {
+  n: number;
+  id: string;
+  ok: boolean;
+  reason?: string;
+  t: string; // HH:MM
+};
+
 const BUILD_TAG = "BUILD_TAG_TILES_DEMO_V1";
 
 function idToCoord(id: string): Coord | null {
@@ -104,7 +112,7 @@ function wireDropZone(
 /** Optional start-screen background (put file in public/images/ui/start-screen.jpg) */
 const START_BG_URL = "images/ui/start-screen.jpg";
 
-/** Public URL helper (Vite base-aware) */
+/** Tile folder base (you already created public/tiles/demo/...) */
 function toPublicUrl(p: string) {
   const base = (import.meta as any).env?.BASE_URL ?? "/";
   const clean = String(p).replace(/^\/+/, "");
@@ -112,15 +120,19 @@ function toPublicUrl(p: string) {
 }
 
 function scenarioTileSet(s: any): string {
-  // Optional: scenario JSON can specify folder:
-  // { "tileset": "demo" } or { "theme": "demo" }
   const t = String(s?.tileset ?? s?.tileSet ?? s?.theme ?? "demo").trim();
   return t || "demo";
 }
 
 function presetPlayerImage(id: string): string | null {
-  // Optional. Put images in public/images/ui/players/p1.png, p2.png
   return `images/ui/players/${id}.png`;
+}
+
+function timeHHMM() {
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
 }
 
 export function mountApp(root: HTMLElement | null) {
@@ -132,12 +144,10 @@ export function mountApp(root: HTMLElement | null) {
   let screen: Screen = "start";
   let mode: Mode | null = null;
 
-  // Loaded per-mode after Screen 1
   let scenarios: Scenario[] = [];
   let initialPath = "";
   let scenarioIndex = 0;
 
-  // Setup selections (Screen 3)
   const PLAYER_PRESETS_REGULAR = [
     { id: "p1", name: "Aeris", blurb: "A calm force. Moves with intent." },
     { id: "p2", name: "Devlan", blurb: "A wary hunter. Reads the board." },
@@ -147,7 +157,7 @@ export function mountApp(root: HTMLElement | null) {
     { id: "p2", name: "Pip", blurb: "Small steps, big wins." },
   ];
 
-  // (Not needed now, but kept)
+  // kept (harmless) even if you’re not using enemies
   const MONSTER_PRESETS_REGULAR = [
     { id: "m1", name: "Boneguard", blurb: "Holds ground. Punishes carelessness." },
     { id: "m2", name: "Veilwing", blurb: "Skirmisher. Appears where you’re not looking." },
@@ -163,36 +173,29 @@ export function mountApp(root: HTMLElement | null) {
   let chosenMonsters: MonsterChoice[] = [];
 
   // --------------------------
-  // Game State (Screen 4)
+  // Game state
   // --------------------------
   let state: GameState | null = null;
 
   let selectedId: string | null = null;
   let currentLayer = 1;
-
-  // message bar
   let message = "";
-  let moveCount = 0;
-
-  // Story log entries (Move 1 Lx-Ry-Cz ...)
-  type StoryEntry = { n: number; text: string; t: number };
-  let storyLog: StoryEntry[] = [];
 
   let reachMap: ReachMap = {};
   let reachable: Set<string> = new Set();
 
-  // Transition index + highlights
   let transitionsAll: any[] = [];
   let transitionsByFrom = new Map<string, any[]>();
   let sourcesOnLayer = new Set<string>();
   let targetsSameLayer = new Map<string, string>();
   let outgoingFromSelected: any[] = [];
 
-  // Track the initial start hex (so START tile stays where you began)
   let startHexId: string | null = null;
-
-  // active tileset folder (default demo, can be read from scenario)
   let activeTileSet = "demo";
+
+  // Move counter + story log
+  let moveCount = 0;
+  let logs: LogEntry[] = [];
 
   // --------------------------
   // Styles
@@ -216,18 +219,15 @@ export function mountApp(root: HTMLElement | null) {
 
       --radius: 18px;
 
-      /* Game layout widths */
-      --leftW: 340px;   /* story log */
-      --rightW: 320px;  /* images */
+      --leftW: 340px;
+      --rightW: 320px;
       --gap: 12px;
 
-      /* Hex layout vars (set by JS via ResizeObserver) */
       --hexGap: 5px;
       --hexW: 64px;
       --hexH: 56px;
       --hexOffset: 34px;
 
-      /* Text sizing */
       --baseText: 12px;
       --line: 1.35;
     }
@@ -398,7 +398,6 @@ export function mountApp(root: HTMLElement | null) {
       font-weight: 700;
     }
 
-    /* Start hero */
     .startHero{
       margin-top: 14px;
       border-radius: 18px;
@@ -437,9 +436,6 @@ export function mountApp(root: HTMLElement | null) {
     }
     .startHeroLabel b{font-size: 13px}
 
-    /* ==========================
-       GAME SCREEN (3 columns)
-    ========================== */
     .gameStage{
       border-radius: calc(var(--radius) + 6px);
       border: 1px solid rgba(191,232,255,.18);
@@ -568,6 +564,7 @@ export function mountApp(root: HTMLElement | null) {
     .infoText{ font-size: 12px; line-height: 1.35; }
     .infoText b{ font-weight: 800; color: rgba(234,242,255,.98); }
 
+    /* msgBar now shows message + move counter */
     .msgBar{
       margin-top: 10px;
       padding: 10px 12px;
@@ -575,15 +572,16 @@ export function mountApp(root: HTMLElement | null) {
       border: 1px solid rgba(191,232,255,.14);
       background: rgba(10,16,34,.24);
       box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
-      font-weight: 900;
+      font-weight: 800;
       font-size: 12px;
+
       display:flex;
       align-items:center;
       justify-content:space-between;
-      gap: 10px;
+      gap: 12px;
     }
     .msgLeft{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-    .msgRight{opacity:.88; font-weight:900; white-space:nowrap;}
+    .msgRight{flex:0 0 auto; opacity:.92}
 
     .boardBody{
       display:flex;
@@ -632,7 +630,6 @@ export function mountApp(root: HTMLElement | null) {
       position:relative;
       user-select:none;
 
-      /* glow defaults */
       --glow-color: rgba(255,255,255,.28);
       --glow-spread-color: rgba(255,255,255,.14);
       --btn-color: rgba(255,255,255,.06);
@@ -653,8 +650,6 @@ export function mountApp(root: HTMLElement | null) {
         border-color .18s ease;
 
       overflow: hidden;
-      z-index: 1;
-      isolation: isolate; /* helps with stacking */
     }
 
     .hex::after{
@@ -669,7 +664,6 @@ export function mountApp(root: HTMLElement | null) {
       filter: blur(1.25em);
       opacity: .55;
       transform: perspective(1.5em) rotateX(35deg) scale(1, .6);
-      z-index: 1;
     }
 
     .hex:hover{
@@ -681,7 +675,7 @@ export function mountApp(root: HTMLElement | null) {
     /* Tile image */
     .hexImg{
       position:absolute;
-      inset: -3px;                /* overfill by a couple px (fixes side gaps) */
+      inset: -3px;
       width: calc(100% + 6px);
       height: calc(100% + 10.5px);
       object-fit:cover;
@@ -696,7 +690,7 @@ export function mountApp(root: HTMLElement | null) {
     /* Overlay text (optional) */
     .hexLabel{
       position:relative;
-      z-index: 3;
+      z-index: 2;
       font-size: 10px;
       line-height: 1.05;
       font-weight: 900;
@@ -710,12 +704,52 @@ export function mountApp(root: HTMLElement | null) {
       opacity: .92;
     }
 
-    /* State themes (variables only) */
+    /* Reachable tiles: BLUE/CYAN glow */
     .hex.reach{
-      --glow-color: rgba(76,175,80,.95);
-      --glow-spread-color: rgba(76,175,80,.45);
-      --btn-color: rgba(76,175,80,.10);
+      --glow-color: rgba(0, 200, 255, 1);
+      --glow-spread-color: rgba(0, 200, 255, .55);
+      --btn-color: rgba(0, 200, 255, .10);
+
+      box-shadow:
+        0 0 1.0em .22em var(--glow-color),
+        0 0 2.8em .95em var(--glow-spread-color),
+        inset 0 0 .65em .22em var(--glow-color);
     }
+
+    /* Non-reachable: looks disabled */
+    .hex.notReach{
+      opacity: .58;
+      filter: saturate(.82) brightness(.92);
+      cursor: not-allowed;
+    }
+    .hex.notReach:hover{
+      transform: none;
+      filter: saturate(.82) brightness(.92);
+    }
+
+    /* Player current position (always-on) — LIME, always wins */
+    .hex.player,
+    .hex.player.reach,
+    .hex.player.trSrc,
+    .hex.player.trTgt,
+    .hex.player.goal,
+    .hex.player.fog,
+    .hex.player.blocked,
+    .hex.player.missing{
+      --glow-color: rgba(76, 255, 80, 1) !important;
+      --glow-spread-color: rgba(76, 255, 80, .70) !important;
+      --btn-color: rgba(76, 255, 80, .16) !important;
+
+      box-shadow:
+        0 0 1.35em .30em rgba(76, 255, 80, 1),
+        0 0 3.9em  1.35em rgba(76, 255, 80, .70),
+        inset 0 0 .90em .30em rgba(76, 255, 80, 1) !important;
+
+      filter: brightness(1.18) !important;
+      opacity: 1 !important;
+      z-index: 4;
+    }
+    .hex.player.trTgt{ animation: none !important; }
 
     .hex.goal{
       --glow-color: rgba(255,193,7,1);
@@ -762,36 +796,6 @@ export function mountApp(root: HTMLElement | null) {
       outline-offset: 2px;
     }
 
-    /* ===============================
-       Player current position (always-on)
-       Lime green glow (BIGGER)
-       + FORCE OVER OTHER STATES
-    ================================ */
-    .hex.player,
-    .hex.player.reach,
-    .hex.player.trSrc,
-    .hex.player.trTgt,
-    .hex.player.goal,
-    .hex.player.fog,
-    .hex.player.blocked,
-    .hex.player.missing{
-      --glow-color: rgba(76, 255, 80, 1) !important;
-      --glow-spread-color: rgba(76, 255, 80, .65) !important;
-      --btn-color: rgba(76, 255, 80, .16) !important;
-
-      box-shadow:
-        0 0 1.55em .34em rgba(76, 255, 80, 1),
-        0 0 4.4em 1.65em rgba(76, 255, 80, .65),
-        inset 0 0 .95em .34em rgba(76, 255, 80, 1) !important;
-
-      filter: brightness(1.18) !important;
-      opacity: 1 !important;
-      z-index: 6; /* sit above neighbors */
-    }
-
-    .hex.player.trTgt{ animation: none !important; }
-
-    /* Small markers */
     .miniDot{
       position:absolute;
       right:8px;
@@ -799,7 +803,7 @@ export function mountApp(root: HTMLElement | null) {
       width:9px;height:9px;border-radius:999px;
       border:1px solid rgba(255,255,255,.35);
       background:rgba(255,255,255,.12);
-      z-index: 4;
+      z-index: 3;
     }
     .miniDot.player{background:rgba(76,255,80,1);border-color:rgba(76,255,80,1)}
     .miniDot.goal{background:rgba(255,193,7,1);border-color:rgba(255,193,7,1)}
@@ -814,7 +818,7 @@ export function mountApp(root: HTMLElement | null) {
       font-size:10px;
       line-height:1;
       font-weight: 900;
-      z-index: 4;
+      z-index: 3;
     }
     .trBadge{
       position:absolute;
@@ -827,34 +831,8 @@ export function mountApp(root: HTMLElement | null) {
       font-size:10px;
       line-height:1;
       font-weight: 900;
-      z-index: 4;
+      z-index: 3;
     }
-
-    /* Story log list */
-    .storyList{
-      margin: 10px 0 0 0;
-      padding: 0;
-      list-style: none;
-      display:flex;
-      flex-direction:column;
-      gap: 6px;
-      font-weight: 900;
-      font-size: 12px;
-    }
-    .storyItem{
-      border: 1px solid rgba(191,232,255,.10);
-      background: rgba(0,0,0,.18);
-      border-radius: 12px;
-      padding: 8px 10px;
-      box-shadow: 0 0 0 1px rgba(95,225,255,.04) inset;
-      display:flex;
-      justify-content:space-between;
-      gap: 10px;
-      align-items:center;
-      min-width:0;
-    }
-    .storyItem span:first-child{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-    .storyTime{opacity:.75; font-weight: 800; font-size: 11px; white-space:nowrap;}
 
     .imgBox{
       height: 220px;
@@ -877,6 +855,25 @@ export function mountApp(root: HTMLElement | null) {
       object-fit: cover;
       display:block;
     }
+
+    /* story log list */
+    .logHeadRow{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      margin-bottom: 10px;
+    }
+    .logList{ display:flex; flex-direction:column; gap:10px; }
+    .logItem{
+      display:flex; justify-content:space-between; align-items:center; gap:12px;
+      border-radius: 14px;
+      border: 1px solid rgba(191,232,255,.14);
+      background: rgba(10,16,34,.26);
+      box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
+      padding: 10px 12px;
+      font-weight: 900;
+    }
+    .logItem .t{ opacity:.78; font-weight:800; }
+    .logItem.bad{ border-color: rgba(255,120,120,.22); }
+    .logSmall{ margin-top: 10px; opacity:.82; font-weight:800; }
 
     @media (max-width: 1100px){
       :root{ --leftW: 1fr; --rightW: 1fr; }
@@ -916,7 +913,8 @@ export function mountApp(root: HTMLElement | null) {
   function setScreen(next: Screen) {
     screen = next;
     [vStart, vSelect, vSetup, vGame].forEach((v) => v.classList.remove("active"));
-    const name = next === "start" ? "Start" : next === "select" ? "Select Game" : next === "setup" ? "Setup" : "In Game";
+    const name =
+      next === "start" ? "Start" : next === "select" ? "Select Game" : next === "setup" ? "Setup" : "In Game";
     crumb.textContent = name;
 
     if (next === "start") vStart.classList.add("active");
@@ -1209,7 +1207,7 @@ export function mountApp(root: HTMLElement | null) {
     customCard.append(h3, drop, useCustom);
     left.appendChild(customCard);
 
-    // Monsters (kept but not required)
+    // Monsters (not needed now; kept)
     const mh2 = el("h2");
     mh2.textContent = monstersLabel();
     right.appendChild(mh2);
@@ -1394,17 +1392,22 @@ export function mountApp(root: HTMLElement | null) {
     return toPublicUrl(`tiles/${tileset}/NORMAL.png`);
   }
 
-  function resetStoryAndMoves() {
+  function resetRunLog() {
     moveCount = 0;
-    storyLog = [];
-    message = "";
+    logs = [];
   }
 
-  function pushStory(text: string) {
-    const n = moveCount;
-    storyLog.unshift({ n, text, t: Date.now() });
-    // keep it sane
-    if (storyLog.length > 200) storyLog = storyLog.slice(0, 200);
+  function logClick(id: string, ok: boolean, reason?: string) {
+    moveCount += 1;
+    logs.unshift({
+      n: moveCount,
+      id,
+      ok,
+      reason,
+      t: timeHHMM(),
+    });
+    // keep last ~200
+    if (logs.length > 200) logs = logs.slice(0, 200);
   }
 
   function startScenario(idx: number) {
@@ -1423,7 +1426,8 @@ export function mountApp(root: HTMLElement | null) {
     revealWholeLayer(currentLayer);
     recomputeReachability();
 
-    resetStoryAndMoves();
+    message = "";
+    resetRunLog();
   }
 
   // --------------------------
@@ -1507,18 +1511,16 @@ export function mountApp(root: HTMLElement | null) {
     storyHead.innerHTML = `<div class="tag"><span class="dot"></span> Story Log</div><div class="pill">Moves</div>`;
     const storyBody = el("div", "panelBody");
 
-    const storyCard = el("div", "softCard infoText");
+    const storyCard = el("div", "softCard");
     storyCard.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-        <b>Clicks / Moves</b>
-        <span class="pill" id="movePill">Moves: 0</span>
+      <div class="logHeadRow">
+        <div class="infoText"><b>Clicks / Moves</b></div>
+        <div class="pill" id="movesPill">Moves: 0</div>
       </div>
-      <ul class="storyList" id="storyList"></ul>
-      <div class="hint" style="margin-top:10px; opacity:.78">
-        (Logs every hex click. If a move is rejected, it’s marked.)
-      </div>
+      <div class="logList" id="logList"></div>
+      <div class="logSmall">(Logs every hex click. If a move is rejected, it’s marked.)</div>
     `;
-    storyBody.append(storyCard);
+    storyBody.appendChild(storyCard);
     storyPanel.append(storyHead, storyBody);
 
     // Middle: Board
@@ -1538,9 +1540,7 @@ export function mountApp(root: HTMLElement | null) {
     infoTop.append(infoLeft, infoRight);
 
     const msgBar = el("div", "msgBar");
-    const msgLeft = el("div", "msgLeft");
-    const msgRight = el("div", "msgRight");
-    msgBar.append(msgLeft, msgRight);
+    msgBar.innerHTML = `<div class="msgLeft" id="msgLeft">Ready.</div><div class="msgRight" id="msgRight">Moves: 0</div>`;
 
     const boardScroll = el("div", "boardScroll");
     const boardWrap = el("div");
@@ -1616,7 +1616,7 @@ export function mountApp(root: HTMLElement | null) {
     boardResizeObserver.observe(boardScroll);
     window.addEventListener("resize", setHexLayoutVars, { passive: true });
 
-    // ---- Images panel rendering ----
+    // ---- Panels rendering ----
     function renderPlayerImageBox() {
       const box = document.getElementById("playerImgBox");
       if (!box) return;
@@ -1652,33 +1652,27 @@ export function mountApp(root: HTMLElement | null) {
       }
     }
 
-    function fmtTime(ms: number) {
-      const d = new Date(ms);
-      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    }
-
     function renderStoryLog() {
-      const list = document.getElementById("storyList");
-      const pill = document.getElementById("movePill");
+      const pill = document.getElementById("movesPill");
+      const list = document.getElementById("logList");
+      const msgRight = document.getElementById("msgRight");
       if (pill) pill.textContent = `Moves: ${moveCount}`;
+      if (msgRight) msgRight.textContent = `Moves: ${moveCount}`;
       if (!list) return;
 
-      if (!storyLog.length) {
-        list.innerHTML = `<li class="storyItem"><span class="muted">No moves yet.</span><span class="storyTime">—</span></li>`;
-        return;
+      list.innerHTML = "";
+      for (const e of logs.slice(0, 40)) {
+        const item = el("div", "logItem");
+        if (!e.ok) item.classList.add("bad");
+        const left = el("div");
+        left.textContent = e.ok ? `Move ${e.n} ${e.id}` : `Move ${e.n} ${e.id} (rejected: ${e.reason ?? "INVALID"})`;
+        const right = el("div", "t");
+        right.textContent = e.t;
+        item.append(left, right);
+        list.appendChild(item);
       }
-
-      list.innerHTML = storyLog
-        .slice(0, 60)
-        .map((e) => {
-          const safe = escapeHtml(e.text);
-          const tm = escapeHtml(fmtTime(e.t));
-          return `<li class="storyItem"><span>${safe}</span><span class="storyTime">${tm}</span></li>`;
-        })
-        .join("");
     }
 
-    // ---- Render functions ----
     function renderInfoTop() {
       const s: any = scenario();
 
@@ -1716,8 +1710,17 @@ export function mountApp(root: HTMLElement | null) {
     }
 
     function renderMessage() {
-      msgLeft.textContent = message || "Ready.";
-      msgRight.textContent = `Moves: ${moveCount}`;
+      const left = document.getElementById("msgLeft");
+      if (!left) return;
+
+      // If no reachable tiles at all, add a clear hint
+      const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
+      const stuckHint =
+        layerReachable === 0
+          ? " No legal moves on this layer. Try another layer (or reset / find stairs)."
+          : "";
+
+      left.textContent = (message || "Ready.") + stuckHint;
     }
 
     function renderBoard() {
@@ -1743,7 +1746,7 @@ export function mountApp(root: HTMLElement | null) {
           img.alt = "tile";
           btn.appendChild(img);
 
-          // Optional label (remove if you want image-only)
+          // Optional label
           const label = el("div", "hexLabel");
           label.textContent = `R${r} C${c}`;
           btn.appendChild(label);
@@ -1778,21 +1781,24 @@ export function mountApp(root: HTMLElement | null) {
             btn.appendChild(d);
           }
 
+          // Make non-reachable look disabled (except player tile)
+          const canMove = !!info?.reachable;
+          if (!canMove && !isPlayer) btn.classList.add("notReach");
+
           btn.addEventListener("click", () => {
             selectedId = id;
             rebuildTransitionIndexAndHighlights();
 
-            // Count + log EVERY click as a "Move N ..."
-            moveCount += 1;
-
             const res = tryMove(state!, id);
+
             if (res.ok) {
-              pushStory(`Move ${moveCount} ${id}`);
               message = res.won
                 ? "🎉 You reached the goal!"
                 : res.triggeredTransition
                 ? "Moved (transition triggered)."
                 : "Moved.";
+
+              logClick(id, true);
 
               const playerCoord = idToCoord(state!.playerHexId);
               if (playerCoord) currentLayer = playerCoord.layer;
@@ -1803,9 +1809,9 @@ export function mountApp(root: HTMLElement | null) {
               renderAll();
               return;
             } else {
-              const reason = res.reason ? ` (rejected: ${res.reason})` : " (rejected)";
-              pushStory(`Move ${moveCount} ${id}${reason}`);
-              message = res.reason ? `Move rejected: ${res.reason}` : "Move rejected.";
+              const reason = res.reason ?? "INVALID";
+              message = `Move rejected: ${reason}`;
+              logClick(id, false, reason);
             }
 
             renderAll();
@@ -1825,9 +1831,9 @@ export function mountApp(root: HTMLElement | null) {
       renderInfoTop();
       renderMessage();
       renderBoard();
-      renderStoryLog();
       renderPlayerImageBox();
       renderCurrentHexImageBox();
+      renderStoryLog();
     }
 
     // ---- Events ----
