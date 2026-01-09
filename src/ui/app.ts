@@ -112,10 +112,10 @@ function wireDropZone(
 /** Optional start-screen background (put file in public/images/ui/start-screen.jpg) */
 const START_BG_URL = "images/ui/start-screen.jpg";
 
-/** Tile folder base (you already created public/tiles/demo/...) */
+/** GitHub Pages-safe public URL helper (respects Vite BASE_URL). */
 function toPublicUrl(p: string) {
   const base = (import.meta as any).env?.BASE_URL ?? "/";
-  const clean = String(p).replace(/^\/+/, "");
+  const clean = String(p).replace(/^\/+/, ""); // IMPORTANT: remove leading slash
   return base + clean;
 }
 
@@ -124,10 +124,11 @@ function scenarioTileSet(s: any): string {
   return t || "demo";
 }
 
-function presetPlayerImage(id: string): string | null {
+/** Preset player image (place files at public/images/ui/players/p1.png, p2.png, ...) */
+function presetPlayerImage(id: string): string {
+  // IMPORTANT: no leading "/" so BASE_URL works on GitHub Pages
   return `images/ui/players/${id}.png`;
 }
-
 
 function timeHHMM() {
   const d = new Date();
@@ -1481,7 +1482,6 @@ export function mountApp(root: HTMLElement | null) {
       reason,
       t: timeHHMM(),
     });
-    // keep last ~200
     if (logs.length > 200) logs = logs.slice(0, 200);
   }
 
@@ -1496,33 +1496,27 @@ export function mountApp(root: HTMLElement | null) {
     miniShiftLeft[layer][row] = (miniShiftLeft[layer][row] ?? 0) + deltaLeft;
   }
 
-  // Called when you press End turn (UI-only mini-map shift)
-function applyMiniShiftsForEndTurn() {
-  const s: any = scenario();
-  const layers = Number(s?.layers ?? 1);
+  // UI-only minimap shifting
+  function applyMiniShiftsForEndTurn() {
+    const s: any = scenario();
+    const layers = Number(s?.layers ?? 1);
 
-  for (let L = 1; L <= layers; L++) {
-    // Many scenarios have NONE; for the UI mini-map demo we still want visible motion.
-    const ruleRaw = getMovementRuleForLayer(L);
-    const rule = ruleRaw === "NONE" ? "DEMO_SHIFT" : ruleRaw;
+    for (let L = 1; L <= layers; L++) {
+      const ruleRaw = getMovementRuleForLayer(L);
+      const rule = ruleRaw === "NONE" ? "DEMO_SHIFT" : ruleRaw;
 
-    // Demo rule: odd rows shift left 1, even rows shift right 1
-    if (rule === "DEMO_SHIFT" || rule === "SEVEN_LEFT_SIX_RIGHT") {
-      for (let r = 1; r <= ROW_LENS.length; r++) {
-        const len = ROW_LENS[r - 1] ?? 7;
+      if (rule === "DEMO_SHIFT" || rule === "SEVEN_LEFT_SIX_RIGHT") {
+        for (let r = 1; r <= ROW_LENS.length; r++) {
+          const len = ROW_LENS[r - 1] ?? 7;
 
-        if (r % 2 === 1) bumpMiniShift(L, r, +1);
-        else bumpMiniShift(L, r, -1);
+          if (r % 2 === 1) bumpMiniShift(L, r, +1);
+          else bumpMiniShift(L, r, -1);
 
-        // keep bounded so it doesn’t grow forever
-        miniShiftLeft[L][r] = ((miniShiftLeft[L][r] % len) + len) % len;
+          miniShiftLeft[L][r] = ((miniShiftLeft[L][r] % len) + len) % len;
+        }
       }
     }
   }
-}
-
-
-
 
   function startScenario(idx: number) {
     scenarioIndex = idx;
@@ -1747,12 +1741,16 @@ function applyMiniShiftsForEndTurn() {
     function renderPlayerImageBox() {
       const box = document.getElementById("playerImgBox");
       if (!box) return;
-console.log("PLAYER IMG URL:", url);
+
       let url: string | null = null;
       if (chosenPlayer?.kind === "custom") url = chosenPlayer.imageDataUrl ?? null;
-      else if (chosenPlayer?.kind === "preset") url = toPublicUrl(presetPlayerImage(chosenPlayer.id) ?? "");
+      else if (chosenPlayer?.kind === "preset") url = toPublicUrl(presetPlayerImage(chosenPlayer.id));
 
-      if (url && url !== "/") {
+      // Debug (safe): shows exactly what path is being requested
+      // eslint-disable-next-line no-console
+      console.log("PLAYER IMG URL:", url);
+
+      if (url) {
         box.innerHTML = `<img src="${url}" alt="player"
           onerror="this.remove(); this.parentElement && (this.parentElement.textContent='Player image not found.')">`;
       } else {
@@ -1784,45 +1782,44 @@ console.log("PLAYER IMG URL:", url);
       const s = ((shiftLeft % len) + len) % len;
       return cols.slice(s).concat(cols.slice(0, s));
     }
-function renderMiniMovingBoard() {
-  const grid = document.getElementById("miniBoardGrid");
-  const pill = document.getElementById("miniLayerPill");
-  if (!grid || !pill) return;
 
-  const layer = currentLayer;
-  pill.textContent = `Layer ${layer}`;
+    function renderMiniMovingBoard() {
+      const grid = document.getElementById("miniBoardGrid");
+      const pill = document.getElementById("miniLayerPill");
+      if (!grid || !pill) return;
 
-  const pc = idToCoord(state?.playerHexId ?? "");
-  const playerRow = pc?.row ?? -1;
-  const playerCol = pc?.col ?? -1;
+      const layer = currentLayer;
+      pill.textContent = `Layer ${layer}`;
 
-  grid.innerHTML = "";
+      const pc = idToCoord(state?.playerHexId ?? "");
+      const playerRow = pc?.row ?? -1;
+      const playerCol = pc?.col ?? -1;
 
-  for (let r = 1; r <= ROW_LENS.length; r++) {
-    const len = ROW_LENS[r - 1] ?? 7;
-    const shiftLeft = miniShiftLeft?.[layer]?.[r] ?? 0;
+      grid.innerHTML = "";
 
-    const orderedCols = rotateCols(len, shiftLeft);
+      for (let r = 1; r <= ROW_LENS.length; r++) {
+        const len = ROW_LENS[r - 1] ?? 7;
+        const shiftLeft = miniShiftLeft?.[layer]?.[r] ?? 0;
 
-    const rowEl = el("div", "miniRow");
-    if (r % 2 === 0) rowEl.classList.add("offset");
+        const orderedCols = rotateCols(len, shiftLeft);
 
-    const label = document.createElement("b");
-    // show shift for proof (you can remove later)
-   label.textContent = `R${r}:`;
-    rowEl.appendChild(label);
+        const rowEl = el("div", "miniRow");
+        if (r % 2 === 0) rowEl.classList.add("offset");
 
-    for (const c of orderedCols) {
-      const cell = el("span", "miniCell");
-      cell.textContent = String(c);
-      if (r === playerRow && c === playerCol) cell.classList.add("on");
-      rowEl.appendChild(cell);
+        const label = document.createElement("b");
+        label.textContent = `R${r}:`;
+        rowEl.appendChild(label);
+
+        for (const c of orderedCols) {
+          const cell = el("span", "miniCell");
+          cell.textContent = String(c);
+          if (r === playerRow && c === playerCol) cell.classList.add("on");
+          rowEl.appendChild(cell);
+        }
+
+        grid.appendChild(rowEl);
+      }
     }
-
-    grid.appendChild(rowEl);
-  }
-}
-
 
     function renderStoryLog() {
       const pill = document.getElementById("movesPill");
@@ -1887,9 +1884,7 @@ function renderMiniMovingBoard() {
 
       const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
       const stuckHint =
-        layerReachable === 0
-          ? " No legal moves on this layer. Try another layer (or reset / find stairs)."
-          : "";
+        layerReachable === 0 ? " No legal moves on this layer. Try another layer (or reset / find stairs)." : "";
 
       left.textContent = (message || "Ready.") + stuckHint;
     }
@@ -1910,14 +1905,12 @@ function renderMiniMovingBoard() {
 
           const btn = el("div", "hex");
 
-          // Tile image
           const img = document.createElement("img");
           img.className = "hexImg";
           img.src = tileUrlForHex(id, h);
           img.alt = "tile";
           btn.appendChild(img);
 
-          // Optional label
           const label = el("div", "hexLabel");
           label.textContent = `R${r} C${c}`;
           btn.appendChild(label);
@@ -1952,7 +1945,6 @@ function renderMiniMovingBoard() {
             btn.appendChild(d);
           }
 
-          // Make non-reachable look disabled (except player tile)
           const canMove = !!info?.reachable;
           if (!canMove && !isPlayer) btn.classList.add("notReach");
 
@@ -1962,35 +1954,31 @@ function renderMiniMovingBoard() {
 
             const res = tryMove(state!, id);
 
-        if (res.ok) {
-  logClick(id, true);
+            if (res.ok) {
+              logClick(id, true);
 
-  // Update layer if the move/transition changed it
-  const playerCoord = idToCoord(state!.playerHexId);
-  if (playerCoord) currentLayer = playerCoord.layer;
+              const playerCoord = idToCoord(state!.playerHexId);
+              if (playerCoord) currentLayer = playerCoord.layer;
 
-  // AUTO end-turn after every successful move (unless you just won)
-  if (!res.won) {
-    endTurn(state!);
-    applyMiniShiftsForEndTurn();
+              // AUTO end-turn after successful move (unless won)
+              if (!res.won) {
+                endTurn(state!);
+                applyMiniShiftsForEndTurn();
+                enterLayer(state!, currentLayer); // keep fog (no revealWholeLayer)
+              }
 
-    // Keep fog: do NOT call revealWholeLayer here
-    enterLayer(state!, currentLayer);
-  }
+              message = res.won
+                ? "🎉 You reached the goal!"
+                : res.triggeredTransition
+                ? "Moved (transition triggered) — turn ended."
+                : "Moved — turn ended.";
 
-  message = res.won
-    ? "🎉 You reached the goal!"
-    : res.triggeredTransition
-    ? "Moved (transition triggered) — turn ended."
-    : "Moved — turn ended.";
-
-  setLayerOptions(layerSelect);
-  recomputeReachability();
-  rebuildTransitionIndexAndHighlights();
-  renderAll();
-  return;
-}
- else {
+              setLayerOptions(layerSelect);
+              recomputeReachability();
+              rebuildTransitionIndexAndHighlights();
+              renderAll();
+              return;
+            } else {
               const reason = res.reason ?? "INVALID";
               message = `Move rejected: ${reason}`;
               logClick(id, false, reason);
@@ -2040,20 +2028,20 @@ function renderMiniMovingBoard() {
       recomputeReachability();
       renderAll();
     });
-endTurnBtn.addEventListener("click", () => {
-  if (!state) return;
 
-  endTurn(state);
-  applyMiniShiftsForEndTurn();
+    endTurnBtn.addEventListener("click", () => {
+      if (!state) return;
 
-  // Do NOT reveal whole layer here — keep fog.
-  enterLayer(state, currentLayer);
-  recomputeReachability();
+      endTurn(state);
+      applyMiniShiftsForEndTurn();
 
-  message = "Turn ended.";
-  renderAll();
-});
+      // Do NOT reveal whole layer — keep fog.
+      enterLayer(state, currentLayer);
+      recomputeReachability();
 
+      message = "Turn ended.";
+      renderAll();
+    });
 
     resetBtn.addEventListener("click", () => {
       startScenario(scenarioIndex);
