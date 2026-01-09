@@ -766,10 +766,14 @@ export function mountApp(root: HTMLElement | null) {
       outline: 2px solid rgba(234,242,255,.55);
       outline-offset: 2px;
     }
-/* ===============================
-   FORCE player tile to always be lime,
-   even if it is also reach/trSrc/trTgt/goal/fog/etc.
-================================ */
+
+
+/* If the player is also trTgt (which applies an animation),
+   remove that animation so lime stays stable */
+.hex.player.trTgt{
+  animation: none !important;
+}
+/* FORCE player tile to always be lime (correct !important placement) */
 .hex.player,
 .hex.player.reach,
 .hex.player.trSrc,
@@ -791,8 +795,7 @@ export function mountApp(root: HTMLElement | null) {
   opacity: 1 !important;
 }
 
-/* If the player is also trTgt (which applies an animation),
-   remove that animation so lime stays stable */
+/* If player is also a transition target, stop the cyan pulse */
 .hex.player.trTgt{
   animation: none !important;
 }
