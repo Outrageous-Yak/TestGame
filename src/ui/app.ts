@@ -665,7 +665,7 @@ export function mountApp(root: HTMLElement | null) {
     .hexImg{
       position:absolute;
      inset: -4px;                /* overfill by a couple px (fixes side gaps) */
-      width: calc(100% + 8px);
+      width: calc(100%);
       height: calc(100%);
       object-fit:cover;
       clip-path: inherit;
