@@ -638,6 +638,7 @@ export function mountApp(root: HTMLElement | null) {
         background-color .18s ease,
         border-color .18s ease;
       overflow: hidden;
+      isolation: isolate; /* lets our glow layer sit above the image cleanly */
     }
 
     .hex::after{
@@ -703,20 +704,37 @@ export function mountApp(root: HTMLElement | null) {
        Player current position (always-on)
        Lime green glow
     ================================ */
-    .hex.player{
-      --glow-color: rgba(76, 255, 80, 1);
-      --glow-spread-color: rgba(76, 255, 80, .55);
-      --btn-color: rgba(76, 255, 80, .14);
+/* Player current position (always visible, ABOVE the tile image) */
+.hex.player{
+  --glow-color: rgba(76, 255, 80, 1);
+  --glow-spread-color: rgba(76, 255, 80, .60);
+  --btn-color: rgba(76, 255, 80, .14);
 
-      box-shadow:
-        0 0 1.1em .25em var(--glow-color),
-        0 0 3.2em 1.1em var(--glow-spread-color),
-        inset 0 0 .7em .25em var(--glow-color);
+  z-index: 50;               /* beat neighboring tiles if any overlap */
+  opacity: 1;
 
-      filter: brightness(1.12);
-      opacity: 1;
-      z-index: 2;
-    }
+  /* Strong outside glow that can't be covered by the image */
+  filter:
+    brightness(1.12)
+    drop-shadow(0 0 10px rgba(76,255,80,.85))
+    drop-shadow(0 0 24px rgba(76,255,80,.55));
+}
+
+/* Inner rim glow layer ABOVE the image */
+.hex.player::before{
+  content:"";
+  position:absolute;
+  inset: -1px;               /* tiny overfill to avoid edge gaps */
+  clip-path: inherit;
+  pointer-events:none;
+  z-index: 1;
+
+  /* inside glow + subtle rim */
+  box-shadow:
+    inset 0 0 .95em .35em rgba(76,255,80,.95),
+    0 0 .65em .18em rgba(76,255,80,.85);
+}
+
 
     .hex.goal{
       --glow-color: rgba(255,193,7,1);
