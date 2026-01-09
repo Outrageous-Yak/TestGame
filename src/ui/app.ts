@@ -1747,7 +1747,7 @@ function applyMiniShiftsForEndTurn() {
     function renderPlayerImageBox() {
       const box = document.getElementById("playerImgBox");
       if (!box) return;
-
+console.log("PLAYER IMG URL:", url);
       let url: string | null = null;
       if (chosenPlayer?.kind === "custom") url = chosenPlayer.imageDataUrl ?? null;
       else if (chosenPlayer?.kind === "preset") url = toPublicUrl(presetPlayerImage(chosenPlayer.id) ?? "");
