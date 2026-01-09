@@ -1501,22 +1501,25 @@ function applyMiniShiftsForEndTurn() {
   const layers = Number(s?.layers ?? 1);
 
   for (let L = 1; L <= layers; L++) {
-    let rule = getMovementRuleForLayer(L);
-    if (rule === "NONE") rule = "SEVEN_LEFT_SIX_RIGHT"; // fallback for demo
+    // Many scenarios have NONE; for the UI mini-map demo we still want visible motion.
+    const ruleRaw = getMovementRuleForLayer(L);
+    const rule = ruleRaw === "NONE" ? "DEMO_SHIFT" : ruleRaw;
 
-    if (rule === "SEVEN_LEFT_SIX_RIGHT") {
+    // Demo rule: odd rows shift left 1, even rows shift right 1
+    if (rule === "DEMO_SHIFT" || rule === "SEVEN_LEFT_SIX_RIGHT") {
       for (let r = 1; r <= ROW_LENS.length; r++) {
         const len = ROW_LENS[r - 1] ?? 7;
 
-        if (r % 2 === 1) bumpMiniShift(L, r, +1); // odd rows: left 1
-        else bumpMiniShift(L, r, -1);            // even rows: right 1
+        if (r % 2 === 1) bumpMiniShift(L, r, +1);
+        else bumpMiniShift(L, r, -1);
 
-        // keep it bounded (optional, but nice)
+        // keep bounded so it doesn’t grow forever
         miniShiftLeft[L][r] = ((miniShiftLeft[L][r] % len) + len) % len;
       }
     }
   }
 }
+
 
 
 
@@ -1796,15 +1799,16 @@ function renderMiniMovingBoard() {
 
   for (let r = 1; r <= ROW_LENS.length; r++) {
     const len = ROW_LENS[r - 1] ?? 7;
-
     const shiftLeft = miniShiftLeft?.[layer]?.[r] ?? 0;
+
     const orderedCols = rotateCols(len, shiftLeft);
 
     const rowEl = el("div", "miniRow");
     if (r % 2 === 0) rowEl.classList.add("offset");
 
     const label = document.createElement("b");
-    label.textContent = `R${r}:`;
+    // show shift for proof (you can remove later)
+    label.textContent = `R${r}(${shiftLeft}):`;
     rowEl.appendChild(label);
 
     for (const c of orderedCols) {
@@ -1817,6 +1821,7 @@ function renderMiniMovingBoard() {
     grid.appendChild(rowEl);
   }
 }
+
 
     function renderStoryLog() {
       const pill = document.getElementById("movesPill");
@@ -2023,20 +2028,18 @@ function renderMiniMovingBoard() {
       recomputeReachability();
       renderAll();
     });
+endTurnBtn.addEventListener("click", () => {
+  if (!state) return;
+  endTurn(state);
 
-    endTurnBtn.addEventListener("click", () => {
-      if (!state) return;
-      endTurn(state);
+  applyMiniShiftsForEndTurn(); // <-- must be here
 
-      // ✅ advance UI mini-map shifts (now actually moves)
-      applyMiniShiftsForEndTurn();
-
-      enterLayer(state, currentLayer);
-      revealWholeLayer(currentLayer);
-      recomputeReachability();
-      message = "Turn ended.";
-      renderAll();
-    });
+  enterLayer(state, currentLayer);
+  revealWholeLayer(currentLayer);
+  recomputeReachability();
+  message = "Turn ended.";
+  renderAll();
+});
 
     resetBtn.addEventListener("click", () => {
       startScenario(scenarioIndex);
