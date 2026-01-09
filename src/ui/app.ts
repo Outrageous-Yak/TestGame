@@ -707,34 +707,35 @@ export function mountApp(root: HTMLElement | null) {
 /* Player current position (always visible, ABOVE the tile image) */
 .hex.player{
   --glow-color: rgba(76, 255, 80, 1);
-  --glow-spread-color: rgba(76, 255, 80, .60);
-  --btn-color: rgba(76, 255, 80, .14);
+  --glow-spread-color: rgba(76, 255, 80, .65);
+  --btn-color: rgba(76, 255, 80, .16);
 
-  z-index: 50;               /* beat neighboring tiles if any overlap */
+  z-index: 50;
   opacity: 1;
 
   /* Strong outside glow that can't be covered by the image */
   filter:
-    brightness(1.12)
-    drop-shadow(0 0 10px rgba(76,255,80,.85))
-    drop-shadow(0 0 24px rgba(76,255,80,.55));
+    brightness(1.14)
+    drop-shadow(0 0 16px rgba(76,255,80,.95))
+    drop-shadow(0 0 40px rgba(76,255,80,.65))
+    drop-shadow(0 0 70px rgba(76,255,80,.35));
 }
 
 /* Inner rim glow layer ABOVE the image */
+/* Bigger inner/rim glow ABOVE the image */
 .hex.player::before{
   content:"";
   position:absolute;
-  inset: -1px;               /* tiny overfill to avoid edge gaps */
+  inset: -2px;          /* slightly larger overfill */
   clip-path: inherit;
   pointer-events:none;
   z-index: 1;
 
-  /* inside glow + subtle rim */
   box-shadow:
-    inset 0 0 .95em .35em rgba(76,255,80,.95),
-    0 0 .65em .18em rgba(76,255,80,.85);
+    inset 0 0 1.35em .55em rgba(76,255,80,.98),
+    0 0 1.0em .28em rgba(76,255,80,.95),
+    0 0 2.2em .65em rgba(76,255,80,.55);
 }
-
 
     .hex.goal{
       --glow-color: rgba(255,193,7,1);
