@@ -699,11 +699,29 @@ export function mountApp(root: HTMLElement | null) {
       --glow-spread-color: rgba(76,175,80,.45);
       --btn-color: rgba(76,175,80,.10);
     }
-    .hex.player{
-      --glow-color: rgba(76,175,80,1);
-      --glow-spread-color: rgba(76,175,80,.55);
-      --btn-color: rgba(76,175,80,.18);
-    }
+ /* ===============================
+   Player current position (always-on)
+   Lime green glow
+================================ */
+.hex.player{
+  /* Core glow colors */
+  --glow-color: rgba(76, 255, 80, 1);        /* lime green */
+  --glow-spread-color: rgba(76, 255, 80, .55);
+  --btn-color: rgba(76, 255, 80, .14);
+
+  /* Strong, readable glow */
+  box-shadow:
+    0 0 1.1em .25em var(--glow-color),
+    0 0 3.2em 1.1em var(--glow-spread-color),
+    inset 0 0 .7em .25em var(--glow-color);
+
+  /* Slight lift so it stands out */
+  filter: brightness(1.12);
+
+  /* Ensure it wins over other states */
+  opacity: 1;
+  z-index: 2;
+}
     .hex.goal{
       --glow-color: rgba(255,193,7,1);
       --glow-spread-color: rgba(255,193,7,.55);
