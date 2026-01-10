@@ -695,7 +695,7 @@ export function mountApp(root: HTMLElement | null) {
       background-size: cover;
       background-position: center;
       filter: blur(5px) saturate(1.0) contrast(1.03);
-      opacity: .30;
+      opacity: .90;
       transform: scale(1.04);
     }
     .boardBg::after{
@@ -988,7 +988,7 @@ export function mountApp(root: HTMLElement | null) {
       background-position:center;
 
       filter: blur(3px) saturate(1.05) contrast(1.05);
-      opacity:.38;
+      opacity:.9;
 
       transform: scale(1.02);
       pointer-events:none;
