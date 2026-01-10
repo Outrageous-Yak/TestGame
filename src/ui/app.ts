@@ -1593,15 +1593,7 @@ export function mountApp(root: HTMLElement | null) {
       activeTileSet
     }`;
     headerLeft.append(title, sub);
-    const miniBelow = el("div", "miniBoard");
-    miniBelow.innerHTML = `
-      <div class="miniBoardHead">
-        <div class="miniBoardTitle" id="miniBelowTitle">Layer —</div>
-        <div class="pill" id="miniBelowPill" style="padding:6px 10px">—</div>
-      </div>
-      <div class="miniBoardGrid" id="miniBelowGrid"></div>
-      <div class="miniNote">Layer below (relative). (No player marker here.)</div>
-    `;
+
     const controls = el("div", "gameHeaderControls");
 
     const scenarioSelect = el("select") as HTMLSelectElement;
