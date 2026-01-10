@@ -224,7 +224,7 @@ export function mountApp(root: HTMLElement | null) {
 
       --radius: 18px;
 
-      --leftW: 340px;
+      --leftW: 320px;
       --rightW: 320px;
       --gap: 12px;
 
