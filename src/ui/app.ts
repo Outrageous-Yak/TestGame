@@ -2004,11 +2004,11 @@ export function mountApp(root: HTMLElement | null) {
       const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
 
       hudSelected.innerHTML = `
-        <div><b>Selected:</b> ${escapeHtml(selectedId)}</div>
-        <div><b>Kind:</b> ${escapeHtml(String(h?.kind ?? "?"))}</div>
-        <div><b>Reachable:</b> ${escapeHtml(info?.reachable ? "yes" : "no")}</div>
-        <div><b>Distance:</b> ${escapeHtml(String(info?.distance ?? "—"))}</div>
-        <div style="margin-top:8px; opacity:.9">
+        <div><b>Selected:</b> ${escapeHtml(selectedId)}
+        <b>Kind:</b> ${escapeHtml(String(h?.kind ?? "?"))}
+        <b>Reachable:</b> ${escapeHtml(info?.reachable ? "yes" : "no")}
+        <b>Distance:</b> ${escapeHtml(String(info?.distance ?? "—"))}
+        
           <b>Reachable:</b> ${reachable.size} (layer ${currentLayer}: ${layerReachable})<br/>
           <b>Transitions:</b> ${transitionsAll.length} · <b>Sources (layer):</b> ${sourcesOnLayer.size} · <b>Outgoing:</b> ${outgoingFromSelected.length}<br/>
           <b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}
