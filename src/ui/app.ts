@@ -224,8 +224,7 @@ export function mountApp(root: HTMLElement | null) {
 
       --radius: 18px;
 
-      --leftW: 320px;
-      --rightW: 320px;
+      --sideW: 320px; /* both side columns same width */
       --gap: 12px;
 
       --hexGap: 5px;
@@ -253,12 +252,63 @@ export function mountApp(root: HTMLElement | null) {
       line-height: var(--line);
     }
 
+    /* ===== Hex overlay + flowing wave (background polish) ===== */
+    body::before{
+      content:"";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+
+      opacity: .22;
+      mix-blend-mode: screen;
+
+      background:
+        linear-gradient(135deg,
+          rgba(0,0,0,0) 0%,
+          rgba(95,225,255,0) 35%,
+          rgba(95,225,255,.95) 50%,
+          rgba(95,225,255,0) 65%,
+          rgba(0,0,0,0) 100%);
+
+      background-size: 220% 220%;
+      animation: hexWave 10s linear infinite;
+      filter: blur(.2px) saturate(1.15);
+    }
+
+    body::after{
+      content:"";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+
+      opacity: .14;
+
+      --s: 44px;
+      --h: calc(var(--s) * 0.57735);
+      background:
+        linear-gradient(60deg, rgba(191,232,255,.24) 12%, transparent 12.5%, transparent 87%, rgba(191,232,255,.24) 87.5%, rgba(191,232,255,.24)),
+        linear-gradient(-60deg, rgba(191,232,255,.24) 12%, transparent 12.5%, transparent 87%, rgba(191,232,255,.24) 87.5%, rgba(191,232,255,.24)),
+        linear-gradient(0deg, rgba(191,232,255,.18) 2%, transparent 2.5%, transparent 97.5%, rgba(191,232,255,.18) 98%);
+      background-size: var(--s) calc(var(--h) * 2);
+      background-position: 0 0, 0 0, calc(var(--s)/2) var(--h);
+      mix-blend-mode: screen;
+      filter: blur(.2px);
+    }
+
+    @keyframes hexWave{
+      0%   { background-position: 120% 120%; opacity:.16; }
+      50%  { opacity:.28; }
+      100% { background-position: -20% -20%; opacity:.16; }
+    }
+
     .shell{
       width: min(1480px, calc(100vw - 36px));
       margin: 0 auto;
       padding: 18px 0 26px;
       position:relative;
-      z-index:1;
+      z-index:1; /* keep UI above background overlay */
       color: var(--ink);
     }
     .shell.kids{
@@ -268,50 +318,32 @@ export function mountApp(root: HTMLElement | null) {
       --violet: #9a7cff;
     }
 
-    /* === TOP LINE (HEXLOG + meta + controls on one line) === */
     .topBar{
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:12px;
-      flex-wrap:nowrap;
+      flex-wrap:wrap;
       padding: 0 6px;
       margin-bottom: 14px;
     }
-    .topLeftLine{
-      display:flex;
-      align-items:center;
-      gap:12px;
-      min-width: 0;
-      overflow:hidden;
-    }
-    .brand{display:flex; align-items:center; gap:10px; flex: 0 0 auto;}
+    .brand{display:flex; align-items:center; gap:10px;}
     .dotBrand{
       width:8px;height:8px;border-radius:999px;
       background: radial-gradient(circle at 30% 30%, var(--ice), var(--aqua));
       box-shadow: 0 0 12px rgba(95,225,255,.35);
-      margin-top: 1px;
+      margin-top: 0;
     }
     .brandTitle{
       font-weight:900;
       letter-spacing:.5px;
       font-size: 16px;
-      white-space:nowrap;
     }
-    .topMeta{
-      opacity:.82;
+    .crumb{
+      opacity:.85;
       font-size: 12px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      min-width: 0;
-    }
-    .topControls{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      flex-wrap:nowrap;
-      flex: 0 0 auto;
+      padding-top: 2px;
+      text-align:right;
     }
 
     .view{ display:none; }
@@ -346,7 +378,6 @@ export function mountApp(root: HTMLElement | null) {
       box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 10px 24px rgba(0,0,0,.25);
       font-size: 12px;
       font-weight: 800;
-      white-space: nowrap;
     }
     .btn:hover{border-color:rgba(191,232,255,.30); filter: brightness(1.06);}
     .btn.primary{
@@ -482,9 +513,94 @@ export function mountApp(root: HTMLElement | null) {
       min-height: calc(100vh - 170px);
     }
 
+    /* ===== Full-width HUD header (spans 3 columns) ===== */
+    .hudHeader{
+      border-radius: var(--radius);
+      border: 1px solid rgba(160, 210, 255, .22);
+      background: rgba(10,16,34,.45);
+      box-shadow:
+        0 0 0 1px rgba(95,225,255,.08) inset,
+        0 18px 40px rgba(0,0,0,.20);
+      overflow:hidden;
+    }
+    .hudHeaderHead{
+      padding:10px 12px;
+      border-bottom: 1px solid rgba(191,232,255,.14);
+      background: linear-gradient(180deg, rgba(10,16,34,.62), rgba(10,16,34,.28));
+      backdrop-filter: blur(10px);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .hudTitleRow{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      min-width: 0;
+    }
+    .tag{
+      font-size:11px;
+      color: var(--muted);
+      display:flex;
+      align-items:center;
+      gap:8px;
+      opacity:.95;
+      font-weight: 800;
+      letter-spacing:.2px;
+    }
+    .dot{
+      width:8px; height:8px; border-radius:99px;
+      background: radial-gradient(circle at 30% 30%, var(--ice), var(--aqua));
+      box-shadow: 0 0 12px rgba(95,225,255,.35);
+    }
+    .pill{
+      font-size:11px;
+      color: var(--muted);
+      padding:6px 10px;
+      border-radius:999px;
+      border: 1px solid rgba(191,232,255,.16);
+      background: rgba(10,16,34,.30);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .hudControls{
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      gap: 10px;
+      flex-wrap:wrap;
+    }
+
+    .hudBody{
+      padding: 12px;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      min-width: 0;
+    }
+    @media (max-width: 980px){
+      .hudBody{ grid-template-columns: 1fr; }
+    }
+
+    .softCard{
+      border-radius: 16px;
+      border: 1px solid rgba(191,232,255,.14);
+      background: rgba(10,16,34,.28);
+      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 12px 28px rgba(0,0,0,.28);
+      padding: 12px;
+      min-width: 0;
+    }
+
+    .infoText{ font-size: 12px; line-height: 1.35; }
+    .infoText b{ font-weight: 800; color: rgba(234,242,255,.98); }
+
     .gameLayout{
       display:grid;
-      grid-template-columns: var(--leftW) 1fr var(--rightW);
+      grid-template-columns: var(--sideW) 1fr var(--sideW);
       gap: var(--gap);
       min-height: 0;
       flex: 1;
@@ -514,58 +630,14 @@ export function mountApp(root: HTMLElement | null) {
       gap:12px;
       flex-wrap:wrap;
     }
-    .tag{
-      font-size:11px;
-      color: var(--muted);
-      display:flex;
-      align-items:center;
-      gap:8px;
-      opacity:.95;
-      font-weight: 800;
-      letter-spacing:.2px;
-    }
-    .dot{
-      width:8px; height:8px; border-radius:99px;
-      background: radial-gradient(circle at 30% 30%, var(--ice), var(--aqua));
-      box-shadow: 0 0 12px rgba(95,225,255,.35);
-    }
-    .pill{
-      font-size:11px;
-      color: var(--muted);
-      padding:6px 10px;
-      border-radius:999px;
-      border: 1px solid rgba(191,232,255,.16);
-      background: rgba(10,16,34,.30);
-      font-weight: 800;
-      white-space: nowrap;
-    }
-    .pill.red{
-      color: rgba(255,145,145,.92);
-      border-color: rgba(255,120,120,.26);
-      background: rgba(255,0,0,.06);
-    }
-
     .panelBody{
       padding: 12px;
       overflow:auto;
       min-height: 0;
     }
 
-    .softCard{
-      border-radius: 16px;
-      border: 1px solid rgba(191,232,255,.14);
-      background: rgba(10,16,34,.28);
-      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 12px 28px rgba(0,0,0,.28);
-      padding: 12px;
-      min-width: 0;
-    }
-
-    .infoText{ font-size: 12px; line-height: 1.35; }
-    .infoText b{ font-weight: 800; color: rgba(234,242,255,.98); }
-
-    /* msgBar now shows message + move counter */
+    /* msgBar now in middle column, above board */
     .msgBar{
-      margin-top: 10px;
       padding: 10px 12px;
       border-radius: 14px;
       border: 1px solid rgba(191,232,255,.14);
@@ -573,46 +645,64 @@ export function mountApp(root: HTMLElement | null) {
       box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
       font-weight: 800;
       font-size: 12px;
-
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap: 12px;
+      margin-bottom: 10px;
     }
     .msgLeft{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
     .msgRight{flex:0 0 auto; opacity:.92}
 
-    .boardBody{
+    /* ===== Middle board container (centered) ===== */
+    .boardArea{
       display:flex;
       flex-direction:column;
-      gap: 10px;
-      padding: 12px;
-      overflow:hidden;
       min-height: 0;
-      flex: 1;
-    }
-
-    /* 3-up info row: left info, compact mini, right info */
-    .infoTop{
-      display:grid;
-      grid-template-columns: 1fr auto 1fr;
-      gap: 10px;
-      min-width: 0;
-      align-items: start;
-    }
-    @media (max-width: 980px){
-      .infoTop{ grid-template-columns: 1fr; }
-      .topBar{ flex-wrap: wrap; }
-      .topControls{ width: 100%; flex-wrap: wrap; justify-content:flex-start; }
-      .topLeftLine{ width: 100%; }
-      .topMeta{ width: 100%; }
     }
 
     .boardScroll{
+      position:relative;
       flex: 1;
       min-height: 0;
       overflow:auto;
       padding-right: 4px;
+      border-radius: 16px;
+    }
+
+    .boardBg{
+      position:absolute;
+      inset: 0;
+      pointer-events:none;
+      z-index: 0;
+      background-size: cover;
+      background-position: center;
+      filter: blur(10px) saturate(.95);
+      opacity: .20;
+      transform: scale(1.06);
+    }
+    .boardBg::after{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        radial-gradient(900px 500px at 20% 20%, rgba(95,225,255,.20), transparent 55%),
+        radial-gradient(900px 500px at 80% 65%, rgba(122,108,255,.18), transparent 60%),
+        linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.55));
+    }
+
+    .boardCenter{
+      position:relative;
+      z-index: 1;
+      display:flex;
+      justify-content:center;
+      width:100%;
+      padding: 4px 4px 12px;
+    }
+
+    .boardWrap{
+      display:grid;
+      gap: 10px;
+      width: max-content; /* allow centering */
     }
 
     .hexRow{
@@ -743,7 +833,7 @@ export function mountApp(root: HTMLElement | null) {
     .hex.player.blocked,
     .hex.player.missing{
       --glow-color: rgba(76, 255, 80, 1) !important;
-     --glow-spread-color: rgba(76, 255, 80, .70) !important;
+      --glow-spread-color: rgba(76, 255, 80, .70) !important;
       --btn-color: rgba(76, 255, 80, .16) !important;
 
       box-shadow:
@@ -840,29 +930,26 @@ export function mountApp(root: HTMLElement | null) {
       z-index: 3;
     }
 
-    .imgBox{
-      height: 220px;
-      border-radius: 16px;
+    /* story log list */
+    .logHeadRow{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      margin-bottom: 10px;
+    }
+    .logList{ display:flex; flex-direction:column; gap:10px; }
+    .logItem{
+      display:flex; justify-content:space-between; align-items:center; gap:12px;
+      border-radius: 14px;
       border: 1px solid rgba(191,232,255,.14);
-      background: rgba(0,0,0,.18);
-      overflow:hidden;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      text-align:center;
-      padding: 10px;
-      color: rgba(234,242,255,.82);
-      font-weight: 800;
-      font-size: 12px;
+      background: rgba(10,16,34,.26);
+      box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
+      padding: 10px 12px;
+      font-weight: 900;
     }
-    .imgBox img{
-      width:100%;
-      height:100%;
-      object-fit: cover;
-      display:block;
-    }
+    .logItem .t{ opacity:.78; font-weight:800; }
+    .logItem.bad{ border-color: rgba(255,120,120,.22); }
+    .logSmall{ margin-top: 10px; opacity:.82; font-weight:800; }
 
-    /* ---- Mini boards (all use same styles) ---- */
+    /* ---- Mini boards (right column) ---- */
     .miniBoard{
       border-radius: 16px;
       border: 1px solid rgba(191,232,255,.14);
@@ -870,16 +957,28 @@ export function mountApp(root: HTMLElement | null) {
       box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
       padding: 10px 12px;
       margin-bottom: 10px;
-      min-width: 0;
+      overflow:hidden;
+      position:relative;
     }
-    .miniBoard.compact{
-      padding: 10px 10px;
-      margin-bottom: 0;
-      width: clamp(220px, 30vw, 320px);
+    .miniBoard.bgPlayer::before{
+      content:"";
+      position:absolute; inset:0;
+      background-size: cover;
+      background-position:center;
+      filter: blur(10px) saturate(.95);
+      opacity:.22;
+      transform: scale(1.06);
+      pointer-events:none;
     }
-    @media (max-width: 980px){
-      .miniBoard.compact{ width: 100%; }
+    .miniBoard.bgPlayer::after{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        radial-gradient(700px 340px at 30% 25%, rgba(95,225,255,.22), transparent 55%),
+        linear-gradient(180deg, rgba(0,0,0,.12), rgba(0,0,0,.55));
+      pointer-events:none;
     }
+    .miniBoard > *{ position:relative; z-index:1; }
 
     .miniBoardHead{
       display:flex;
@@ -887,16 +986,18 @@ export function mountApp(root: HTMLElement | null) {
       justify-content:space-between;
       gap:10px;
       margin-bottom: 8px;
-      flex-wrap:wrap;
     }
     .miniBoardTitle{
       font-weight: 900;
       font-size: 12px;
       opacity:.92;
+      display:flex;
+      align-items:center;
+      gap:8px;
     }
-    .miniBoardTitle.red{
-      color: rgba(255,145,145,.92);
-      opacity: 1;
+    .miniWarn{
+      color: rgba(255,120,120,.95);
+      font-weight: 900;
     }
     .miniBoardGrid{
       display:flex;
@@ -933,18 +1034,17 @@ export function mountApp(root: HTMLElement | null) {
       font-weight: 900;
       line-height:1;
       padding: 0;
-    }
-    .miniCell.ghost{
-      opacity:.35;
-      background: rgba(0,0,0,.16);
-      border-color: rgba(191,232,255,.10);
+      color: rgba(234,242,255,.9);
     }
     .miniCell.on{
       border-color: rgba(76,255,80,.65);
       background: rgba(76,255,80,.18);
       box-shadow: 0 0 0 1px rgba(76,255,80,.22) inset, 0 0 12px rgba(76,255,80,.22);
       color: rgba(234,242,255,.98);
-      opacity: 1;
+    }
+    .miniCell.empty{
+      opacity:.60;
+      color: rgba(234,242,255,.35);
     }
     .miniNote{
       margin-top: 8px;
@@ -953,27 +1053,8 @@ export function mountApp(root: HTMLElement | null) {
       font-size: 11px;
     }
 
-    /* story log list */
-    .logHeadRow{
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-      margin-bottom: 10px;
-    }
-    .logList{ display:flex; flex-direction:column; gap:10px; }
-    .logItem{
-      display:flex; justify-content:space-between; align-items:center; gap:12px;
-      border-radius: 14px;
-      border: 1px solid rgba(191,232,255,.14);
-      background: rgba(10,16,34,.26);
-      box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
-      padding: 10px 12px;
-      font-weight: 900;
-    }
-    .logItem .t{ opacity:.78; font-weight:800; }
-    .logItem.bad{ border-color: rgba(255,120,120,.22); }
-    .logSmall{ margin-top: 10px; opacity:.82; font-weight:800; }
-
     @media (max-width: 1100px){
-      :root{ --leftW: 1fr; --rightW: 1fr; }
+      :root{ --sideW: 1fr; }
       .gameLayout{ grid-template-columns: 1fr; }
       .gameStage{ min-height: auto; }
       .gameWrap{ min-height: auto; }
@@ -987,28 +1068,15 @@ export function mountApp(root: HTMLElement | null) {
   root.innerHTML = "";
   const shell = el("div", "shell");
 
-  // TOP BAR: HEXLOG + meta + controls
   const topBar = el("div", "topBar");
-
-  const topLeftLine = el("div", "topLeftLine");
-
   const brand = el("div", "brand");
   const brandDot = el("div", "dotBrand");
   const brandTitle = el("div", "brandTitle");
   brandTitle.textContent = "HEXLOG";
   brand.append(brandDot, brandTitle);
 
-  const topMeta = el("div", "topMeta");
-  topMeta.id = "topMeta";
-  topMeta.textContent = "Start";
-
-  topLeftLine.append(brand, topMeta);
-
-  const topControls = el("div", "topControls");
-  topControls.id = "topControls";
-  (topControls as HTMLElement).style.display = "none";
-
-  topBar.append(topLeftLine, topControls);
+  const crumb = el("div", "crumb");
+  topBar.append(brand, crumb);
 
   const vStart = el("section", "view");
   const vSelect = el("section", "view");
@@ -1018,27 +1086,17 @@ export function mountApp(root: HTMLElement | null) {
   shell.append(topBar, vStart, vSelect, vSetup, vGame);
   root.appendChild(shell);
 
-  function setTopBarState(next: Screen) {
-    const name = next === "start" ? "Start" : next === "select" ? "Select Game" : next === "setup" ? "Setup" : "In Game";
-
-    if (next !== "game") {
-      topMeta.textContent = name;
-      (topControls as HTMLElement).style.display = "none";
-    } else {
-      (topControls as HTMLElement).style.display = "flex";
-    }
-  }
-
   function setScreen(next: Screen) {
     screen = next;
     [vStart, vSelect, vSetup, vGame].forEach((v) => v.classList.remove("active"));
+    const name =
+      next === "start" ? "Start" : next === "select" ? "Select Game" : next === "setup" ? "Setup" : "In Game";
+    crumb.textContent = name;
 
     if (next === "start") vStart.classList.add("active");
     if (next === "select") vSelect.classList.add("active");
     if (next === "setup") vSetup.classList.add("active");
     if (next === "game") vGame.classList.add("active");
-
-    setTopBarState(next);
   }
 
   function applyModeTheme() {
@@ -1390,7 +1448,6 @@ export function mountApp(root: HTMLElement | null) {
       startScenario(scenarioIndex);
       renderGameScreen();
       setScreen("game");
-      // meta will be set by renderAll()
     });
 
     const rightPack = el("div", "row");
@@ -1597,9 +1654,16 @@ export function mountApp(root: HTMLElement | null) {
     const stage = el("div", "gameStage");
     const wrap = el("div", "gameWrap");
 
-    // Build top-right controls ONCE, attach into topBar
-    const topControlsHost = document.getElementById("topControls") as HTMLElement | null;
-    const topMetaHost = document.getElementById("topMeta") as HTMLElement | null;
+    // ===== HUD header (③ + ⑤ merged, spans all columns) =====
+    const hud = el("section", "hudHeader");
+    const hudHead = el("div", "hudHeaderHead");
+
+    const hudLeft = el("div", "hudTitleRow");
+    hudLeft.innerHTML = `<div class="tag"><span class="dot"></span> HUD</div><div class="pill">Build: ${escapeHtml(
+      BUILD_TAG
+    )}</div>`;
+
+    const hudControls = el("div", "hudControls");
 
     const scenarioSelect = el("select") as HTMLSelectElement;
     scenarioSelect.style.fontSize = "12px";
@@ -1609,8 +1673,6 @@ export function mountApp(root: HTMLElement | null) {
     scenarioSelect.style.border = "1px solid rgba(191,232,255,.18)";
     scenarioSelect.style.background = "rgba(10,16,34,.35)";
     scenarioSelect.style.color = "rgba(234,242,255,.92)";
-    scenarioSelect.style.minWidth = "160px";
-
     scenarios.forEach((s: any, i: number) => {
       const opt = document.createElement("option");
       opt.value = String(i);
@@ -1627,7 +1689,6 @@ export function mountApp(root: HTMLElement | null) {
     layerSelect.style.border = "1px solid rgba(191,232,255,.18)";
     layerSelect.style.background = "rgba(10,16,34,.35)";
     layerSelect.style.color = "rgba(234,242,255,.92)";
-    layerSelect.style.minWidth = "110px";
 
     const endTurnBtn = el("button", "btn") as HTMLButtonElement;
     endTurnBtn.textContent = "End turn";
@@ -1645,29 +1706,25 @@ export function mountApp(root: HTMLElement | null) {
       setScreen("setup");
     });
 
-    if (topControlsHost) {
-      topControlsHost.innerHTML = "";
-      topControlsHost.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
-    }
+    hudControls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
 
+    hudHead.append(hudLeft, hudControls);
+
+    const hudBody = el("div", "hudBody");
+    const hudScenario = el("div", "softCard infoText");
+    const hudSelected = el("div", "softCard infoText");
+    hudBody.append(hudScenario, hudSelected);
+
+    hud.append(hudHead, hudBody);
+
+    // ===== 3-column layout =====
     const layout = el("div", "gameLayout");
 
-    // Left: Story log
+    // Left: Story log only
     const storyPanel = el("section", "panel");
     const storyHead = el("div", "panelHead");
     storyHead.innerHTML = `<div class="tag"><span class="dot"></span> Story Log</div><div class="pill">Moves</div>`;
     const storyBody = el("div", "panelBody");
-
-    // BELOW mini-board (goes above story)
-    const miniBelow = el("div", "miniBoard");
-    miniBelow.innerHTML = `
-      <div class="miniBoardHead">
-        <div class="miniBoardTitle" id="miniBelowTitle">Layer —</div>
-        <div class="pill" id="miniBelowPill" style="padding:6px 10px">—</div>
-      </div>
-      <div class="miniBoardGrid" id="miniBelowGrid"></div>
-      <div class="miniNote">Layer below (relative). (No player marker here.)</div>
-    `;
 
     const storyCard = el("div", "softCard");
     storyCard.innerHTML = `
@@ -1678,91 +1735,78 @@ export function mountApp(root: HTMLElement | null) {
       <div class="logList" id="logList"></div>
       <div class="logSmall">(Logs every hex click. If a move is rejected, it’s marked.)</div>
     `;
-    storyBody.append(miniBelow, storyCard);
+    storyBody.appendChild(storyCard);
     storyPanel.append(storyHead, storyBody);
 
-    // Middle: Board
+    // Middle: msgBar + centered board
     const boardPanel = el("section", "panel");
     const boardHead = el("div", "panelHead");
-    const boardTitle = el("div", "tag");
-    boardTitle.innerHTML = `<span class="dot"></span> Board`;
-    const boardPill = el("div", "pill");
-    boardPill.textContent = `Build: ${BUILD_TAG}`;
-    boardHead.append(boardTitle, boardPill);
+    boardHead.innerHTML = `<div class="tag"><span class="dot"></span> Board</div><div class="pill">Now</div>`;
+    const boardBody = el("div", "panelBody");
+    boardBody.style.overflow = "hidden";
 
-    const boardBody = el("div", "boardBody");
-
-    const infoTop = el("div", "infoTop");
-    const infoLeft = el("div", "softCard infoText");
-    const currentMini = el("div", "miniBoard compact");
-    const infoRight = el("div", "softCard infoText");
-
-    // CURRENT mini-board (squeezed between info boxes)
-    currentMini.innerHTML = `
-      <div class="miniBoardHead">
-        <div class="miniBoardTitle" id="miniCurrentTitle">Moving Map</div>
-        <div class="pill" id="miniCurrentPill" style="padding:6px 10px">Layer —</div>
-      </div>
-      <div class="miniBoardGrid" id="miniCurrentGrid"></div>
-    `;
-
-    infoTop.append(infoLeft, currentMini, infoRight);
+    const boardArea = el("div", "boardArea");
 
     const msgBar = el("div", "msgBar");
     msgBar.innerHTML = `<div class="msgLeft" id="msgLeft">Ready.</div><div class="msgRight" id="msgRight">Moves: 0</div>`;
 
     const boardScroll = el("div", "boardScroll");
-    const boardWrap = el("div");
-    boardWrap.style.display = "grid";
-    boardWrap.style.gap = "10px";
-    boardWrap.style.padding = "4px 4px 12px";
-    boardScroll.appendChild(boardWrap);
+    const boardBg = el("div", "boardBg");
+    boardBg.id = "boardBg";
+    const boardCenter = el("div", "boardCenter");
+    const boardWrap = el("div", "boardWrap");
+    boardWrap.id = "boardWrap";
 
-    boardBody.append(infoTop, msgBar, boardScroll);
+    boardCenter.appendChild(boardWrap);
+    boardScroll.append(boardBg, boardCenter);
+
+    boardArea.append(msgBar, boardScroll);
+    boardBody.appendChild(boardArea);
     boardPanel.append(boardHead, boardBody);
 
-    // Right: Images
+    // Right: 3 mini boards (above / current / below)
     const imgPanel = el("section", "panel");
     const imgHead = el("div", "panelHead");
-    imgHead.innerHTML = `<div class="tag"><span class="dot"></span> Images</div><div class="pill">Now</div>`;
+    imgHead.innerHTML = `<div class="tag"><span class="dot"></span> Layers</div><div class="pill">Mini</div>`;
     const imgBody = el("div", "panelBody");
 
-    // ABOVE mini-board (replaces old minimap in Images column)
     const miniAbove = el("div", "miniBoard");
     miniAbove.innerHTML = `
       <div class="miniBoardHead">
-        <div class="miniBoardTitle" id="miniAboveTitle">Layer —</div>
+        <div class="miniBoardTitle">Above</div>
         <div class="pill" id="miniAbovePill" style="padding:6px 10px">—</div>
       </div>
       <div class="miniBoardGrid" id="miniAboveGrid"></div>
-      <div class="miniNote">Layer above (relative). (No player marker here.)</div>
+      <div class="miniNote" id="miniAboveNote"></div>
     `;
 
-    const playerBox = el("div", "softCard");
-    playerBox.innerHTML = `
-      <div class="infoText" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-        <b>Player</b>
-        <span class="pill" style="padding:6px 10px">${escapeHtml(chosenPlayer?.name ?? "—")}</span>
+    const miniCurrent = el("div", "miniBoard bgPlayer");
+    miniCurrent.id = "miniCurrentBoard";
+    miniCurrent.innerHTML = `
+      <div class="miniBoardHead">
+        <div class="miniBoardTitle">Current</div>
+        <div class="pill" id="miniCurrentPill" style="padding:6px 10px">—</div>
       </div>
-      <div class="imgBox" style="margin-top:10px" id="playerImgBox">No player image.</div>
+      <div class="miniBoardGrid" id="miniCurrentGrid"></div>
+      <div class="miniNote" id="miniCurrentNote"></div>
     `;
 
-    const hexBox = el("div", "softCard");
-    hexBox.style.marginTop = "10px";
-    hexBox.innerHTML = `
-      <div class="infoText" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-        <b>Current Hex</b>
-        <span class="pill" id="hexLabelPill" style="padding:6px 10px">—</span>
+    const miniBelow = el("div", "miniBoard");
+    miniBelow.innerHTML = `
+      <div class="miniBoardHead">
+        <div class="miniBoardTitle">Below</div>
+        <div class="pill" id="miniBelowPill" style="padding:6px 10px">—</div>
       </div>
-      <div class="imgBox" style="margin-top:10px" id="hexImgBox">No hex image.</div>
+      <div class="miniBoardGrid" id="miniBelowGrid"></div>
+      <div class="miniNote" id="miniBelowNote"></div>
     `;
 
-    imgBody.append(miniAbove, playerBox, hexBox);
+    imgBody.append(miniAbove, miniCurrent, miniBelow);
     imgPanel.append(imgHead, imgBody);
 
     layout.append(storyPanel, boardPanel, imgPanel);
 
-    wrap.append(layout);
+    wrap.append(hud, layout);
     stage.appendChild(wrap);
     vGame.appendChild(stage);
 
@@ -1796,53 +1840,117 @@ export function mountApp(root: HTMLElement | null) {
     boardResizeObserver.observe(boardScroll);
     window.addEventListener("resize", setHexLayoutVars, { passive: true });
 
-    // ---- Mini board helpers ----
+    // ===== Helpers for mini boards =====
     function rotateCols(len: number, shiftLeft: number) {
       const cols = Array.from({ length: len }, (_, i) => i + 1);
       const s = ((shiftLeft % len) + len) % len;
       return cols.slice(s).concat(cols.slice(0, s));
     }
 
-    function renderMiniGrid(opts: {
-      layerForShifts: number;
-      gridEl: HTMLElement;
-      titleEl: HTMLElement;
-      pillEl: HTMLElement;
-      showNumbers: boolean;
-      redTitle?: boolean;
-      redPill?: boolean;
-      titleText: string;
-      pillText: string;
-      highlightPlayer: boolean;
-    }) {
-      const {
-        layerForShifts,
-        gridEl,
-        titleEl,
-        pillEl,
-        showNumbers,
-        redTitle,
-        redPill,
-        titleText,
-        pillText,
-        highlightPlayer,
-      } = opts;
+    function getScenarioLayerCount(): number {
+      const s: any = scenario();
+      return Number(s?.layers ?? 1);
+    }
 
-      titleEl.textContent = titleText;
-      titleEl.classList.toggle("red", !!redTitle);
-      pillEl.textContent = pillText;
-      pillEl.classList.toggle("red", !!redPill);
+    function getPlayerImageUrl(): string | null {
+      if (chosenPlayer?.kind === "custom") return chosenPlayer.imageDataUrl ?? null;
+      if (chosenPlayer?.kind === "preset") return toPublicUrl(presetPlayerImage(chosenPlayer.id));
+      return null;
+    }
+
+    function setMiniCurrentBackground() {
+      const board = document.getElementById("miniCurrentBoard") as HTMLElement | null;
+      if (!board) return;
+
+      const url = getPlayerImageUrl();
+      if (!url) {
+        board.style.removeProperty("--miniBg");
+        board.style.setProperty("background-image", "");
+        // clear pseudo background via inline for ::before
+        (board as any).style.setProperty("--playerBg", "");
+        (board.style as any).removeProperty("--playerBg");
+        // easiest: set background-image on the element and use it from ::before with inherit not possible.
+        // We'll set CSS variable and read it in inline style of ::before by setting background-image directly on board
+        board.style.setProperty("background-image", "");
+        board.classList.remove("bgPlayer");
+        board.classList.add("bgPlayer"); // keep class; ::before will use inline background-image below
+      }
+
+      // Use the element's inline background-image; ::before doesn't inherit, so we set it directly on ::before via CSS? Not possible.
+      // Workaround: set it on the element, and use it on ::before via background-image: inherit; (not reliable).
+      // Instead: we set it on the element and also set it on a dataset and update a <style> tag? Too heavy.
+      // Simple approach: set it on the element, and adjust CSS to read background-image from the element itself by using ::before{background-image: var(--miniBg);}
+      // We'll do that: set CSS variable.
+      board.style.setProperty("--miniBg", url ? `url("${url}")` : "");
+      // eslint-disable-next-line no-console
+      console.log("MINI CURRENT BG:", url);
+    }
+
+    // patch: ensure the CSS uses --miniBg
+    // (This is safe even if called multiple times; style tag already exists)
+    // We cannot easily edit the existing CSS string here, so we set inline style on the element's ::before via variable used in CSS:
+    // In our CSS above, .miniBoard.bgPlayer::before uses background-size/position but not background-image.
+    // We'll set background-image on the element itself, and also set background-image on ::before by setting it on element and using background-image: var(--miniBg) via inline style attribute:
+    // We will do it by setting style property directly on the element and updating its class style via a new <style> rule only once.
+    const extraMiniBgStyle = document.createElement("style");
+    extraMiniBgStyle.textContent = `.miniBoard.bgPlayer::before{ background-image: var(--miniBg); }`;
+    document.head.appendChild(extraMiniBgStyle);
+
+    function renderMiniBoardGeneric(opts: {
+      gridId: string;
+      pillId: string;
+      noteId: string;
+      layer: number;
+      showPlayer: boolean;
+      invalidLabel: "NO LAYER ABOVE" | "NO LAYER BELOW" | "NO SUCH LAYER";
+    }) {
+      const grid = document.getElementById(opts.gridId);
+      const pill = document.getElementById(opts.pillId);
+      const note = document.getElementById(opts.noteId);
+      if (!grid || !pill || !note) return;
+
+      const maxLayer = getScenarioLayerCount();
+      const layer = opts.layer;
 
       const pc = idToCoord(state?.playerHexId ?? "");
-      const playerLayer = pc?.layer ?? -1;
       const playerRow = pc?.row ?? -1;
       const playerCol = pc?.col ?? -1;
 
-      gridEl.innerHTML = "";
+      grid.innerHTML = "";
+
+      const valid = layer >= 1 && layer <= maxLayer;
+
+      if (!valid) {
+        pill.innerHTML = `<span class="miniWarn">${escapeHtml(opts.invalidLabel)}</span>`;
+        note.textContent = "No tiles on this side. Showing empty outline only.";
+
+        for (let r = 1; r <= ROW_LENS.length; r++) {
+          const len = ROW_LENS[r - 1] ?? 7;
+          const rowEl = el("div", "miniRow");
+          if (r % 2 === 0) rowEl.classList.add("offset");
+
+          const label = document.createElement("b");
+          label.textContent = `R${r}:`;
+          rowEl.appendChild(label);
+
+          for (let i = 0; i < len; i++) {
+            const cell = el("span", "miniCell empty");
+            cell.textContent = "";
+            rowEl.appendChild(cell);
+          }
+
+          grid.appendChild(rowEl);
+        }
+        return;
+      }
+
+      pill.textContent = `Layer ${layer}`;
+      note.textContent = opts.showPlayer ? "Green = your current column (this layer only)." : "Structure only (no player).";
 
       for (let r = 1; r <= ROW_LENS.length; r++) {
         const len = ROW_LENS[r - 1] ?? 7;
-        const shiftLeft = miniShiftLeft?.[layerForShifts]?.[r] ?? 0;
+        const shiftLeft = miniShiftLeft?.[layer]?.[r] ?? 0;
+
         const orderedCols = rotateCols(len, shiftLeft);
 
         const rowEl = el("div", "miniRow");
@@ -1854,154 +1962,16 @@ export function mountApp(root: HTMLElement | null) {
 
         for (const c of orderedCols) {
           const cell = el("span", "miniCell");
-          if (!showNumbers) cell.classList.add("ghost");
-          cell.textContent = showNumbers ? String(c) : "";
-
-          if (highlightPlayer && playerLayer === currentLayer && r === playerRow && c === playerCol) {
-            cell.classList.add("on");
-          }
-
+          cell.textContent = String(c);
+          if (opts.showPlayer && r === playerRow && c === playerCol && layer === currentLayer) cell.classList.add("on");
           rowEl.appendChild(cell);
         }
 
-        gridEl.appendChild(rowEl);
+        grid.appendChild(rowEl);
       }
     }
 
-    function scenarioLayerCount(): number {
-      const s: any = scenario();
-      return Number(s?.layers ?? 1);
-    }
-
-    function renderBelowMiniBoard() {
-      const layers = scenarioLayerCount();
-      const belowLayer = currentLayer - 1;
-
-      const grid = document.getElementById("miniBelowGrid");
-      const titleEl = document.getElementById("miniBelowTitle");
-      const pillEl = document.getElementById("miniBelowPill");
-      if (!grid || !titleEl || !pillEl) return;
-
-      if (belowLayer < 1 || belowLayer > layers) {
-        renderMiniGrid({
-          layerForShifts: 1,
-          gridEl: grid,
-          titleEl,
-          pillEl,
-          showNumbers: false,
-          redTitle: true,
-          redPill: true,
-          titleText: "NO LAYER BELOW",
-          pillText: "—",
-          highlightPlayer: false,
-        });
-      } else {
-        renderMiniGrid({
-          layerForShifts: belowLayer,
-          gridEl: grid,
-          titleEl,
-          pillEl,
-          showNumbers: true,
-          titleText: `Layer ${belowLayer}`,
-          pillText: `Layer ${belowLayer}`,
-          highlightPlayer: false,
-        });
-      }
-    }
-
-    function renderCurrentMiniBoard() {
-      const grid = document.getElementById("miniCurrentGrid");
-      const titleEl = document.getElementById("miniCurrentTitle");
-      const pillEl = document.getElementById("miniCurrentPill");
-      if (!grid || !titleEl || !pillEl) return;
-
-      renderMiniGrid({
-        layerForShifts: currentLayer,
-        gridEl: grid,
-        titleEl,
-        pillEl,
-        showNumbers: true,
-        titleText: "Moving Map",
-        pillText: `Layer ${currentLayer}`,
-        highlightPlayer: true, // only CURRENT shows player
-      });
-    }
-
-    function renderAboveMiniBoard() {
-      const layers = scenarioLayerCount();
-      const aboveLayer = currentLayer + 1;
-
-      const grid = document.getElementById("miniAboveGrid");
-      const titleEl = document.getElementById("miniAboveTitle");
-      const pillEl = document.getElementById("miniAbovePill");
-      if (!grid || !titleEl || !pillEl) return;
-
-      if (aboveLayer < 1 || aboveLayer > layers) {
-        renderMiniGrid({
-          layerForShifts: layers,
-          gridEl: grid,
-          titleEl,
-          pillEl,
-          showNumbers: false,
-          redTitle: true,
-          redPill: true,
-          titleText: "NO LAYER ABOVE",
-          pillText: "—",
-          highlightPlayer: false,
-        });
-      } else {
-        renderMiniGrid({
-          layerForShifts: aboveLayer,
-          gridEl: grid,
-          titleEl,
-          pillEl,
-          showNumbers: true,
-          titleText: `Layer ${aboveLayer}`,
-          pillText: `Layer ${aboveLayer}`,
-          highlightPlayer: false,
-        });
-      }
-    }
-
-    // ---- Panels rendering ----
-    function renderPlayerImageBox() {
-      const box = document.getElementById("playerImgBox");
-      if (!box) return;
-
-      let url: string | null = null;
-      if (chosenPlayer?.kind === "custom") url = chosenPlayer.imageDataUrl ?? null;
-      else if (chosenPlayer?.kind === "preset") url = toPublicUrl(presetPlayerImage(chosenPlayer.id));
-
-      // eslint-disable-next-line no-console
-      console.log("PLAYER IMG URL:", url);
-
-      if (url) {
-        box.innerHTML = `<img src="${url}" alt="player"
-          onerror="this.remove(); this.parentElement && (this.parentElement.textContent='Player image not found.')">`;
-      } else {
-        box.textContent = "No player image.";
-      }
-    }
-
-    function renderCurrentHexImageBox() {
-      const pill = document.getElementById("hexLabelPill");
-      const box = document.getElementById("hexImgBox");
-      if (!pill || !box) return;
-
-      const pid = state?.playerHexId ?? "—";
-      pill.textContent = pid;
-
-      const h: any = getHex(state?.playerHexId ?? "");
-      const url = state?.playerHexId ? tileUrlForHex(state.playerHexId, h) : null;
-
-      if (url) {
-        box.innerHTML = `<img src="${url}" alt="hex"
-          onerror="this.remove(); this.parentElement && (this.parentElement.textContent='Hex image missing.')">`;
-      } else {
-        box.textContent = "—";
-      }
-    }
-
+    // ===== Rendering: log + HUD + msg + board + minis =====
     function renderStoryLog() {
       const pill = document.getElementById("movesPill");
       const list = document.getElementById("logList");
@@ -2023,10 +1993,11 @@ export function mountApp(root: HTMLElement | null) {
       }
     }
 
-    function renderInfoTop() {
+    function renderHudHeader() {
       const s: any = scenario();
 
-      infoLeft.innerHTML = `
+      // left side: scenario info (③)
+      hudScenario.innerHTML = `
         <div><b>Scenario:</b> ${escapeHtml(String(s.name ?? s.title ?? s.id ?? ""))}</div>
         <div><b>Mode:</b> ${escapeHtml(String(mode ?? "—"))}</div>
         <div><b>Player:</b> ${escapeHtml(String(state?.playerHexId ?? "?"))}</div>
@@ -2035,8 +2006,9 @@ export function mountApp(root: HTMLElement | null) {
         <div><b>Tileset:</b> ${escapeHtml(activeTileSet)}</div>
       `;
 
+      // right side: selected info (⑤)
       if (!selectedId) {
-        infoRight.innerHTML = `<div class="hint">No selection.</div>`;
+        hudSelected.innerHTML = `<div class="hint">No selection.</div>`;
         return;
       }
 
@@ -2046,7 +2018,7 @@ export function mountApp(root: HTMLElement | null) {
 
       const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
 
-      infoRight.innerHTML = `
+      hudSelected.innerHTML = `
         <div><b>Selected:</b> ${escapeHtml(selectedId)}</div>
         <div><b>Kind:</b> ${escapeHtml(String(h?.kind ?? "?"))}</div>
         <div><b>Reachable:</b> ${escapeHtml(info?.reachable ? "yes" : "no")}</div>
@@ -2068,6 +2040,60 @@ export function mountApp(root: HTMLElement | null) {
         layerReachable === 0 ? " No legal moves on this layer. Try another layer (or reset / find stairs)." : "";
 
       left.textContent = (message || "Ready.") + stuckHint;
+    }
+
+    function renderBoardBackgroundFromCurrentHex() {
+      const bg = document.getElementById("boardBg") as HTMLElement | null;
+      if (!bg) return;
+
+      const pid = state?.playerHexId ?? "";
+      if (!pid) {
+        bg.style.backgroundImage = "";
+        return;
+      }
+      const h: any = getHex(pid);
+      const url = tileUrlForHex(pid, h);
+      bg.style.backgroundImage = `url("${url}")`;
+    }
+
+    function renderMiniBoards() {
+      const maxLayer = getScenarioLayerCount();
+
+      // above
+      renderMiniBoardGeneric({
+        gridId: "miniAboveGrid",
+        pillId: "miniAbovePill",
+        noteId: "miniAboveNote",
+        layer: currentLayer + 1,
+        showPlayer: false,
+        invalidLabel: "NO LAYER ABOVE",
+      });
+
+      // current (only one with player)
+      renderMiniBoardGeneric({
+        gridId: "miniCurrentGrid",
+        pillId: "miniCurrentPill",
+        noteId: "miniCurrentNote",
+        layer: currentLayer,
+        showPlayer: true,
+        invalidLabel: "NO SUCH LAYER",
+      });
+
+      // below
+      renderMiniBoardGeneric({
+        gridId: "miniBelowGrid",
+        pillId: "miniBelowPill",
+        noteId: "miniBelowNote",
+        layer: currentLayer - 1,
+        showPlayer: false,
+        invalidLabel: "NO LAYER BELOW",
+      });
+
+      // keep player background on current mini board
+      setMiniCurrentBackground();
+
+      // if scenario has only 1 layer, above/below will show warnings automatically
+      void maxLayer;
     }
 
     function renderBoard() {
@@ -2177,28 +2203,14 @@ export function mountApp(root: HTMLElement | null) {
       setHexLayoutVars();
     }
 
-    function renderTopMeta() {
-      if (!topMetaHost) return;
-      const scn: any = scenarios[scenarioIndex];
-      topMetaHost.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(scn?.name ?? scn?.title ?? scn?.id ?? "")} | Tiles: ${activeTileSet}`;
-    }
-
     function renderAll() {
       rebuildTransitionIndexAndHighlights();
-      renderTopMeta();
-
-      renderInfoTop();
-
-      // 3 minis in different sections:
-      renderBelowMiniBoard(); // Story column
-      renderCurrentMiniBoard(); // Between info boxes (only one with player marker)
-      renderAboveMiniBoard(); // Images column
-
+      renderHudHeader();
       renderMessage();
+      renderBoardBackgroundFromCurrentHex();
       renderBoard();
-      renderPlayerImageBox();
-      renderCurrentHexImageBox();
       renderStoryLog();
+      renderMiniBoards();
     }
 
     // ---- Events ----
