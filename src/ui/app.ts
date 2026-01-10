@@ -240,6 +240,15 @@ export function mountApp(root: HTMLElement | null) {
 
       --baseText: 12px;
       --line: 1.35;
+
+      /* Pastel rainbow (reversed top->bottom: violet -> red) */
+      --p-violet: #d9c7ff;
+      --p-indigo: #c9d3ff;
+      --p-blue:   #c7e3ff;
+      --p-green:  #c9f5df;
+      --p-yellow: #fff4c2;
+      --p-orange: #ffe0bf;
+      --p-red:    #ffd0d6;
     }
 
     *{ box-sizing:border-box; }
@@ -733,110 +742,148 @@ export function mountApp(root: HTMLElement | null) {
     }
     .hexRow.offset{ padding-left: var(--hexOffset); }
 
+    /* ===========================
+       CLOUD TILE (replaces hex)
+       =========================== */
+
     .hex{
       width: var(--hexW);
       height: var(--hexH);
-      clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
       display:flex;
       align-items:center;
       justify-content:center;
       cursor:pointer;
       position:relative;
       user-select:none;
+      overflow: visible;
 
-      --glow-color: rgba(255,255,255,.28);
-      --glow-spread-color: rgba(255,255,255,.14);
-      --btn-color: rgba(255,255,255,.06);
+      /* cloud mask */
+      --cloudMask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 160'><path d='M63 120c-18 0-33-12-33-28 0-15 12-26 26-28C58 44 74 30 94 30c20 0 37 14 41 33 3-1 7-2 11-2 18 0 33 13 33 30s-15 29-33 29H63z'/></svg>");
 
-      border: none;
-      background-color: var(--btn-color);
+      -webkit-mask-image: var(--cloudMask);
+      -webkit-mask-repeat: no-repeat;
+      -webkit-mask-size: 100% 100%;
+      -webkit-mask-position: center;
 
-      box-shadow:
-        0 0 .8em .18em var(--glow-color),
-        0 0 2.2em .7em var(--glow-spread-color),
-        inset 0 0 .55em .18em var(--glow-color);
+      mask-image: var(--cloudMask);
+      mask-repeat: no-repeat;
+      mask-size: 100% 100%;
+      mask-position: center;
+
+      /* row fill defaults */
+      --fill: var(--p-blue);
+
+      /* state glow (defaults off) */
+      --stateGlow: rgba(0,0,0,0);
+      --stateGlow2: rgba(0,0,0,0);
+
+      /* depth shadow follows alpha (mask) */
+      --shadow: drop-shadow(0 10px 18px rgba(0,0,0,.22));
+
+      background:
+        radial-gradient(120% 120% at 30% 25%, rgba(255,255,255,.55), rgba(255,255,255,.12) 55%, rgba(255,255,255,.06) 100%),
+        linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.06)),
+        var(--fill);
+
+      filter: var(--shadow);
 
       transition:
         transform .12s ease,
         filter .12s ease,
-        box-shadow .18s ease,
-        background-color .18s ease;
-
-      overflow: hidden;
+        opacity .18s ease;
     }
 
-    .hex::after{
-      pointer-events:none;
+    /* Bright glowing white outline + optional colored state glow */
+    .hex::before{
       content:"";
       position:absolute;
-      left:-6%;
-      right:-6%;
-      top:105%;
-      height:90%;
-      background-color: var(--glow-spread-color);
-      filter: blur(1.25em);
-      opacity: .55;
-      transform: perspective(1.5em) rotateX(35deg) scale(1, .6);
+      inset:-2px;
+      pointer-events:none;
+      z-index: 1;
+
+      background: rgba(255,255,255,.95);
+
+      -webkit-mask-image: var(--cloudMask);
+      -webkit-mask-repeat: no-repeat;
+      -webkit-mask-size: 100% 100%;
+      -webkit-mask-position: center;
+
+      mask-image: var(--cloudMask);
+      mask-repeat: no-repeat;
+      mask-size: 100% 100%;
+      mask-position: center;
+
+      filter:
+        drop-shadow(0 0 8px rgba(255,255,255,.90))
+        drop-shadow(0 0 18px rgba(255,255,255,.55))
+        drop-shadow(0 0 16px var(--stateGlow))
+        drop-shadow(0 0 34px var(--stateGlow2));
+
+      opacity: .98;
     }
 
     .hex:hover{
       transform: translateY(-1px) scale(1.02);
-      filter: brightness(1.08);
+      filter: brightness(1.06) saturate(1.02) var(--shadow);
     }
     .hex:active{ transform: translateY(0) scale(.99); }
 
-    .hexImg{
-      position:absolute;
-      inset: -2px;
-      width: calc(100% + 4px);
-      height: calc(100% + 9px);
-      object-fit:cover;
-      clip-path: inherit;
-      pointer-events:none;
-      z-index: 0;
-      transform: scale(1.02);
-      transform-origin: center;
-      filter: saturate(1.02) contrast(1.02);
-    }
+    /* row->pastel mapping (top row violet, bottom row red) */
+    .hex[data-row="0"]{ --fill: var(--p-violet); }
+    .hex[data-row="1"]{ --fill: var(--p-indigo); }
+    .hex[data-row="2"]{ --fill: var(--p-blue); }
+    .hex[data-row="3"]{ --fill: var(--p-green); }
+    .hex[data-row="4"]{ --fill: var(--p-yellow); }
+    .hex[data-row="5"]{ --fill: var(--p-orange); }
+    .hex[data-row="6"]{ --fill: var(--p-red); }
 
-    /* You can hide labels by setting opacity:0; later if you want */
+    /* Labels: no background, always 2 rows, centered, readable */
     .hexLabel{
       position:relative;
       z-index: 2;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap: 2px;
+
       font-size: 10px;
       line-height: 1.05;
-      font-weight: 900;
+      font-weight: 950;
       letter-spacing: .2px;
-      color: rgba(234,242,255,.94);
-      text-shadow: 0 0 8px rgba(0,0,0,.65);
-      background: rgba(0,0,0,.18);
-      border: 1px solid rgba(255,255,255,.10);
-      border-radius: 999px;
-      padding: 2px 6px;
-      opacity: .92;
+
+      background: none;
+      border: none;
+      border-radius: 0;
+      padding: 0;
+      opacity: .96;
+
+      color: rgba(255,255,255,.96);
+      text-shadow:
+        -1px -1px 0 rgba(0,0,0,.55),
+         1px -1px 0 rgba(0,0,0,.55),
+        -1px  1px 0 rgba(0,0,0,.55),
+         1px  1px 0 rgba(0,0,0,.55),
+         0    2px 6px rgba(0,0,0,.30);
     }
 
+    /* Reachable (blue glow, keep white outline) */
     .hex.reach{
-      --glow-color: rgba(0, 200, 255, 1);
-      --glow-spread-color: rgba(0, 200, 255, .55);
-      --btn-color: rgba(0, 200, 255, .10);
-
-      box-shadow:
-        0 0 1.0em .22em var(--glow-color),
-        0 0 2.8em .95em var(--glow-spread-color),
-        inset 0 0 .65em .22em var(--glow-color);
+      --stateGlow: rgba(0, 200, 255, 0.95);
+      --stateGlow2: rgba(0, 200, 255, 0.55);
     }
 
     .hex.notReach{
       opacity: .58;
-      filter: saturate(.82) brightness(.92);
+      filter: saturate(.82) brightness(.92) var(--shadow);
       cursor: not-allowed;
     }
     .hex.notReach:hover{
       transform: none;
-      filter: saturate(.82) brightness(.92);
+      filter: saturate(.82) brightness(.92) var(--shadow);
     }
 
+    /* Player (green glow, strongest) */
     .hex.player,
     .hex.player.reach,
     .hex.player.trSrc,
@@ -845,59 +892,59 @@ export function mountApp(root: HTMLElement | null) {
     .hex.player.fog,
     .hex.player.blocked,
     .hex.player.missing{
-      --glow-color: rgba(76, 255, 80, 1) !important;
-      --glow-spread-color: rgba(76, 255, 80, .70) !important;
-      --btn-color: rgba(76, 255, 80, .16) !important;
-
-      box-shadow:
-        0 0 1.35em .30em rgba(76, 255, 80, 1),
-        0 0 3.9em  1.35em rgba(76, 255, 80, .70),
-        inset 0 0 .90em .30em rgba(76, 255, 80, 1) !important;
-
-      filter: brightness(1.18) !important;
+      --stateGlow: rgba(76, 255, 80, 1) !important;
+      --stateGlow2: rgba(76, 255, 80, .70) !important;
       opacity: 1 !important;
       z-index: 4;
+      filter: brightness(1.12) var(--shadow) !important;
     }
     .hex.player.trTgt{ animation: none !important; }
 
+    /* Goal: gold-ish (doesn't override row fill too aggressively) */
     .hex.goal{
-      --glow-color: rgba(255,193,7,1);
-      --glow-spread-color: rgba(255,193,7,.55);
-      --btn-color: rgba(255,193,7,.14);
+      --stateGlow: rgba(255,193,7,1);
+      --stateGlow2: rgba(255,193,7,.55);
+      filter: brightness(1.03) var(--shadow);
     }
+
     .hex.blocked{
-      --glow-color: rgba(244,67,54,.95);
-      --glow-spread-color: rgba(244,67,54,.45);
-      --btn-color: rgba(244,67,54,.10);
-      opacity: .9;
+      --stateGlow: rgba(244,67,54,.95);
+      --stateGlow2: rgba(244,67,54,.45);
+      filter: saturate(1.02) brightness(.98) var(--shadow);
+      opacity: .92;
     }
+
     .hex.missing{
-      --glow-color: rgba(255,255,255,.12);
-      --glow-spread-color: rgba(255,255,255,.06);
-      --btn-color: rgba(255,255,255,.03);
+      --stateGlow: rgba(255,255,255,.18);
+      --stateGlow2: rgba(255,255,255,.10);
+      filter: saturate(.85) brightness(.92) var(--shadow);
       opacity:.55;
     }
+
     .hex.fog{
-      --glow-color: rgba(255,255,255,.18);
-      --glow-spread-color: rgba(0,0,0,.45);
-      --btn-color: rgba(0,0,0,.28);
-      opacity: .85;
+      /* make fog feel like a dark cloud on top of the pastel */
+      background:
+        radial-gradient(120% 120% at 30% 25%, rgba(255,255,255,.18), rgba(0,0,0,.18) 55%, rgba(0,0,0,.25) 100%),
+        linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.22)),
+        var(--fill);
+      --stateGlow: rgba(255,255,255,.18);
+      --stateGlow2: rgba(0,0,0,.45);
+      opacity: .90;
     }
+
     .hex.trSrc{
-      --glow-color: rgba(255,152,0,1);
-      --glow-spread-color: rgba(255,152,0,.55);
-      --btn-color: rgba(255,152,0,.10);
+      --stateGlow: rgba(255,152,0,1);
+      --stateGlow2: rgba(255,152,0,.55);
     }
     .hex.trTgt{
-      --glow-color: rgba(3,169,244,1);
-      --glow-spread-color: rgba(3,169,244,.55);
-      --btn-color: rgba(3,169,244,.10);
+      --stateGlow: rgba(3,169,244,1);
+      --stateGlow2: rgba(3,169,244,.55);
       animation: pulse 1.2s ease-in-out infinite;
     }
     @keyframes pulse{
-      0%{filter:brightness(1)}
-      50%{filter:brightness(1.35)}
-      100%{filter:brightness(1)}
+      0%{filter:brightness(1) var(--shadow)}
+      50%{filter:brightness(1.25) var(--shadow)}
+      100%{filter:brightness(1) var(--shadow)}
     }
 
     .hex.sel{
@@ -1559,29 +1606,6 @@ export function mountApp(root: HTMLElement | null) {
     }
   }
 
-  function tileUrlForHex(id: string, h: any): string {
-    const s: any = scenario();
-    const tileset = activeTileSet || scenarioTileSet(s);
-
-    const { blocked, missing } = isBlockedOrMissing(h);
-
-    if (missing) return toPublicUrl(`tiles/${tileset}/HOLE.png`);
-    if (blocked) return toPublicUrl(`tiles/${tileset}/BLOCKED.png`);
-    if (!isRevealed(h)) return toPublicUrl(`tiles/${tileset}/FOG.png`);
-
-    if (String(h?.kind ?? "").toUpperCase() === "GOAL") return toPublicUrl(`tiles/${tileset}/GOAL.png`);
-    if (startHexId && id === startHexId) return toPublicUrl(`tiles/${tileset}/START.png`);
-
-    const outgoing = transitionsByFrom.get(id) ?? [];
-    const hasDown = outgoing.some((t) => String(t.type ?? "").toUpperCase() === "DOWN");
-    const hasUp = outgoing.some((t) => String(t.type ?? "").toUpperCase() !== "DOWN");
-
-    if (hasDown) return toPublicUrl(`tiles/${tileset}/STAIRS_DOWN.png`);
-    if (hasUp && outgoing.length) return toPublicUrl(`tiles/${tileset}/STAIRS_UP.png`);
-
-    return toPublicUrl(`tiles/${tileset}/NORMAL.png`);
-  }
-
   function resetRunLog() {
     moveCount = 0;
     logs = [];
@@ -2135,15 +2159,12 @@ export function mountApp(root: HTMLElement | null) {
 
           const btn = el("div", "hex");
 
-          const img = document.createElement("img");
-          img.className = "hexImg";
-          img.src = tileUrlForHex(id, h);
-          img.alt = "tile";
-          btn.appendChild(img);
+          // ✅ set row index for pastel mapping (0..6)
+          (btn as HTMLElement).dataset.row = String(r - 1);
 
-          // Keep label for now; you can hide via CSS if you want
+          // ✅ label: 2 lines, centered, no background
           const label = el("div", "hexLabel");
-          label.textContent = `R${r} C${c}`;
+          label.innerHTML = `<div>R${r}</div><div>C${c}</div>`;
           btn.appendChild(label);
 
           const { blocked, missing } = isBlockedOrMissing(h);
