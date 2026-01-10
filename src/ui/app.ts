@@ -683,7 +683,7 @@ export function mountApp(root: HTMLElement | null) {
   overflow:auto;
   padding-right: 4px;
   border-radius: 16px;
-
+max-height: 100%;
   aspect-ratio: 1 / 1; /* ← ADD THIS */
 }
 
