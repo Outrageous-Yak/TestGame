@@ -224,7 +224,7 @@ export function mountApp(root: HTMLElement | null) {
 
       --radius: 18px;
 
-      --sideW: 320px; /* both side columns same width */
+      --sideW: 320px; /* right column (layers) width; story column uses this too */
       --gap: 12px;
 
       --hexGap: 5px;
@@ -513,7 +513,7 @@ export function mountApp(root: HTMLElement | null) {
       min-height: calc(100vh - 170px);
     }
 
-    /* ===== Full-width HUD header (spans 3 columns) ===== */
+    /* ===== Full-width HUD header ===== */
     .hudHeader{
       border-radius: var(--radius);
       border: 1px solid rgba(160, 210, 255, .22);
@@ -577,11 +577,11 @@ export function mountApp(root: HTMLElement | null) {
 
     .hudBody{
       padding: 12px;
-      display:block; /* (CHANGED) body just holds ONE card now */
+      display:block;
       min-width: 0;
     }
 
-    /* (NEW) one card, two columns inside (the "2nd image" layout) */
+    /* one card, two columns inside */
     .hudWide{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -604,12 +604,22 @@ export function mountApp(root: HTMLElement | null) {
     .infoText{ font-size: 12px; line-height: 1.35; }
     .infoText b{ font-weight: 800; color: rgba(234,242,255,.98); }
 
+    /* ===== TWO MAIN COLUMNS (left main + right layers) ===== */
     .gameLayout{
       display:grid;
-      grid-template-columns: var(--sideW) 1fr var(--sideW);
+      grid-template-columns: 1fr var(--sideW);
       gap: var(--gap);
       min-height: 0;
       flex: 1;
+    }
+
+    /* Left main column contains story + board columns */
+    .leftMainGrid{
+      display:grid;
+      grid-template-columns: var(--sideW) 1fr;
+      gap: var(--gap);
+      min-height: 0;
+      min-width: 0;
     }
 
     .panel{
@@ -676,6 +686,7 @@ export function mountApp(root: HTMLElement | null) {
       border-radius: 16px;
     }
 
+    /* LESS BLUR / MORE VISIBLE board background */
     .boardBg{
       position:absolute;
       inset: 0;
@@ -683,9 +694,9 @@ export function mountApp(root: HTMLElement | null) {
       z-index: 0;
       background-size: cover;
       background-position: center;
-      filter: blur(10px) saturate(.95);
-      opacity: .20;
-      transform: scale(1.06);
+      filter: blur(5px) saturate(1.0) contrast(1.03);
+      opacity: .30;
+      transform: scale(1.04);
     }
     .boardBg::after{
       content:"";
@@ -774,19 +785,21 @@ export function mountApp(root: HTMLElement | null) {
     }
     .hex:active{ transform: translateY(0) scale(.99); }
 
-    /* Tile image */
+    /* Tile image (SHARPER) */
     .hexImg{
       position:absolute;
-      inset: -3px;
-      width: calc(100% + 6px);
-      height: calc(100% + 10.5px);
-      object-fit:cover;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
       clip-path: inherit;
-      border-radius: 0;
       pointer-events:none;
       z-index: 0;
-      transform: scale(1.04);
-      transform-origin: center;
+
+      transform: translateZ(0);
+      backface-visibility: hidden;
+
+      filter: saturate(1.08) contrast(1.06);
     }
 
     /* Overlay text (optional) */
@@ -966,14 +979,18 @@ export function mountApp(root: HTMLElement | null) {
       overflow:hidden;
       position:relative;
     }
+
+    /* LESS BLUR / MORE VISIBLE player portrait background */
     .miniBoard.bgPlayer::before{
       content:"";
       position:absolute; inset:0;
       background-size: cover;
       background-position:center;
-      filter: blur(10px) saturate(.95);
-      opacity:.22;
-      transform: scale(1.06);
+
+      filter: blur(3px) saturate(1.05) contrast(1.05);
+      opacity:.38;
+
+      transform: scale(1.02);
       pointer-events:none;
     }
     .miniBoard.bgPlayer::after{
@@ -1062,6 +1079,7 @@ export function mountApp(root: HTMLElement | null) {
     @media (max-width: 1100px){
       :root{ --sideW: 1fr; }
       .gameLayout{ grid-template-columns: 1fr; }
+      .leftMainGrid{ grid-template-columns: 1fr; }
       .gameStage{ min-height: auto; }
       .gameWrap{ min-height: auto; }
     }
@@ -1660,7 +1678,7 @@ export function mountApp(root: HTMLElement | null) {
     const stage = el("div", "gameStage");
     const wrap = el("div", "gameWrap");
 
-    // ===== HUD header (③ + ⑤) =====
+    // ===== HUD header =====
     const hud = el("section", "hudHeader");
     const hudHead = el("div", "hudHeaderHead");
 
@@ -1715,7 +1733,6 @@ export function mountApp(root: HTMLElement | null) {
     hudControls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
     hudHead.append(hudLeft, hudControls);
 
-    // (CHANGED) ONE card (hudWide) containing two columns
     const hudBody = el("div", "hudBody");
     const hudWide = el("div", "softCard hudWide");
     const hudScenario = el("div", "infoText");
@@ -1725,10 +1742,13 @@ export function mountApp(root: HTMLElement | null) {
 
     hud.append(hudHead, hudBody);
 
-    // ===== 3-column layout =====
+    // ===== TWO MAIN COLUMNS =====
     const layout = el("div", "gameLayout");
 
-    // Left: Story log only
+    // Left main: two columns inside (Story + Board)
+    const leftMain = el("div", "leftMainGrid");
+
+    // Left inner: Story log only
     const storyPanel = el("section", "panel");
     const storyHead = el("div", "panelHead");
     storyHead.innerHTML = `<div class="tag"><span class="dot"></span> Story Log</div><div class="pill">Moves</div>`;
@@ -1746,7 +1766,7 @@ export function mountApp(root: HTMLElement | null) {
     storyBody.appendChild(storyCard);
     storyPanel.append(storyHead, storyBody);
 
-    // Middle: msgBar + centered board
+    // Right inner: msgBar + centered board
     const boardPanel = el("section", "panel");
     const boardHead = el("div", "panelHead");
     boardHead.innerHTML = `<div class="tag"><span class="dot"></span> Board</div><div class="pill">Now</div>`;
@@ -1772,11 +1792,13 @@ export function mountApp(root: HTMLElement | null) {
     boardBody.appendChild(boardArea);
     boardPanel.append(boardHead, boardBody);
 
-    // Right: 3 mini boards (above / current / below)
-    const imgPanel = el("section", "panel");
-    const imgHead = el("div", "panelHead");
-    imgHead.innerHTML = `<div class="tag"><span class="dot"></span> Layers</div><div class="pill">Mini</div>`;
-    const imgBody = el("div", "panelBody");
+    leftMain.append(storyPanel, boardPanel);
+
+    // Right main: Layers only (3 mini boards)
+    const layersPanel = el("section", "panel");
+    const layersHead = el("div", "panelHead");
+    layersHead.innerHTML = `<div class="tag"><span class="dot"></span> Layers</div><div class="pill">Mini</div>`;
+    const layersBody = el("div", "panelBody");
 
     const miniAbove = el("div", "miniBoard");
     miniAbove.innerHTML = `
@@ -1809,10 +1831,10 @@ export function mountApp(root: HTMLElement | null) {
       <div class="miniNote" id="miniBelowNote"></div>
     `;
 
-    imgBody.append(miniAbove, miniCurrent, miniBelow);
-    imgPanel.append(imgHead, imgBody);
+    layersBody.append(miniAbove, miniCurrent, miniBelow);
+    layersPanel.append(layersHead, layersBody);
 
-    layout.append(storyPanel, boardPanel, imgPanel);
+    layout.append(leftMain, layersPanel);
 
     wrap.append(hud, layout);
     stage.appendChild(wrap);
@@ -1877,8 +1899,6 @@ export function mountApp(root: HTMLElement | null) {
 
       const url = getPlayerImageUrl();
       board.style.setProperty("--miniBg", url ? `url("${url}")` : "");
-      // eslint-disable-next-line no-console
-      console.log("MINI CURRENT BG:", url);
     }
 
     function renderMiniBoardGeneric(opts: {
@@ -1981,17 +2001,17 @@ export function mountApp(root: HTMLElement | null) {
     function renderHudHeader() {
       const s: any = scenario();
 
-      // left side: scenario info (③)
       hudScenario.innerHTML = `
-        <div><b>Scenario:</b> ${escapeHtml(String(s.name ?? s.title ?? s.id ?? ""))}
-        <b>Mode:</b> ${escapeHtml(String(mode ?? "—"))}
-        <b>Player:</b> ${escapeHtml(String(state?.playerHexId ?? "?"))}<br/>
-        <b>Goal:</b> ${escapeHtml(String(posId(s.goal)))}
-       <b>Layer:</b> ${escapeHtml(String(currentLayer))}
-        <b>Tileset:</b> ${escapeHtml(activeTileSet)}</div>
+        <div>
+          <b>Scenario:</b> ${escapeHtml(String(s.name ?? s.title ?? s.id ?? ""))}
+          &nbsp; <b>Mode:</b> ${escapeHtml(String(mode ?? "—"))}
+          &nbsp; <b>Player:</b> ${escapeHtml(String(state?.playerHexId ?? "?"))}<br/>
+          <b>Goal:</b> ${escapeHtml(String(posId(s.goal)))}
+          &nbsp; <b>Layer:</b> ${escapeHtml(String(currentLayer))}
+          &nbsp; <b>Tileset:</b> ${escapeHtml(activeTileSet)}
+        </div>
       `;
 
-      // right side: selected info (⑤)
       if (!selectedId) {
         hudSelected.innerHTML = `<div class="hint">No selection.</div>`;
         return;
@@ -2000,19 +2020,19 @@ export function mountApp(root: HTMLElement | null) {
       const h: any = getHex(selectedId);
       const { blocked, missing } = isBlockedOrMissing(h);
       const info = reachMap[selectedId];
-
       const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
 
       hudSelected.innerHTML = `
-        <div><b>Selected:</b> ${escapeHtml(selectedId)}
-        <b>Kind:</b> ${escapeHtml(String(h?.kind ?? "?"))}
-        <b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}<br/>
-        <b>Reachable:</b> ${escapeHtml(info?.reachable ? "yes" : "no")}
-        <b>Distance:</b> ${escapeHtml(String(info?.distance ?? "—"))}
-        
-          <b>Reachable:</b> ${reachable.size} (layer ${currentLayer}: ${layerReachable})
-          <b>Transitions:</b> ${transitionsAll.length} · <b>Sources (layer):</b> ${sourcesOnLayer.size} · <b>Outgoing:</b> ${outgoingFromSelected.length}
-          <b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}
+        <div>
+          <b>Selected:</b> ${escapeHtml(selectedId)}
+          &nbsp; <b>Kind:</b> ${escapeHtml(String(h?.kind ?? "?"))}
+          &nbsp; <b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}<br/>
+          <b>Reachable:</b> ${escapeHtml(info?.reachable ? "yes" : "no")}
+          &nbsp; <b>Distance:</b> ${escapeHtml(String(info?.distance ?? "—"))}
+          &nbsp; <b>Reachable:</b> ${reachable.size} (layer ${currentLayer}: ${layerReachable})
+          &nbsp; <b>Transitions:</b> ${transitionsAll.length}
+          · <b>Sources (layer):</b> ${sourcesOnLayer.size}
+          · <b>Outgoing:</b> ${outgoingFromSelected.length}
         </div>
       `;
     }
