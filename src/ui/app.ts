@@ -224,7 +224,7 @@ export function mountApp(root: HTMLElement | null) {
 
       --radius: 18px;
 
-      --sideW: 320px; /* right column (layers) width; story column uses this too */
+      --sideW: 320px;
       --gap: 12px;
 
       --hexGap: 5px;
@@ -308,7 +308,7 @@ export function mountApp(root: HTMLElement | null) {
       margin: 0 auto;
       padding: 18px 0 26px;
       position:relative;
-      z-index:1; /* keep UI above background overlay */
+      z-index:1;
       color: var(--ink);
     }
     .shell.kids{
@@ -513,7 +513,7 @@ export function mountApp(root: HTMLElement | null) {
       min-height: calc(100vh - 170px);
     }
 
-    /* ===== Full-width HUD header ===== */
+    /* ===== Full-width HUD header (spans BOTH main columns) ===== */
     .hudHeader{
       border-radius: var(--radius);
       border: 1px solid rgba(160, 210, 255, .22);
@@ -604,22 +604,21 @@ export function mountApp(root: HTMLElement | null) {
     .infoText{ font-size: 12px; line-height: 1.35; }
     .infoText b{ font-weight: 800; color: rgba(234,242,255,.98); }
 
-    /* ===== TWO MAIN COLUMNS (left main + right layers) ===== */
+    /* ====== (CHANGED) 2 MAIN COLUMNS ====== */
     .gameLayout{
       display:grid;
-      grid-template-columns: 1fr var(--sideW);
+      grid-template-columns: 1fr var(--sideW); /* left main + right layers only */
       gap: var(--gap);
       min-height: 0;
       flex: 1;
     }
 
-    /* Left main column contains story + board columns */
-    .leftMainGrid{
+    /* left main splits into Story + Board */
+    .mainLeft{
       display:grid;
-      grid-template-columns: var(--sideW) 1fr;
+      grid-template-columns: var(--sideW) 1fr; /* story + board */
       gap: var(--gap);
       min-height: 0;
-      min-width: 0;
     }
 
     .panel{
@@ -652,7 +651,7 @@ export function mountApp(root: HTMLElement | null) {
       min-height: 0;
     }
 
-    /* msgBar now in middle column, above board */
+    /* msgBar now in board panel, above board */
     .msgBar{
       padding: 10px 12px;
       border-radius: 14px;
@@ -670,7 +669,7 @@ export function mountApp(root: HTMLElement | null) {
     .msgLeft{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
     .msgRight{flex:0 0 auto; opacity:.92}
 
-    /* ===== Middle board container (centered) ===== */
+    /* ===== Board container (centered) ===== */
     .boardArea{
       display:flex;
       flex-direction:column;
@@ -686,7 +685,7 @@ export function mountApp(root: HTMLElement | null) {
       border-radius: 16px;
     }
 
-    /* LESS BLUR / MORE VISIBLE board background */
+    /* (CHANGED) less blur, more visible tile background */
     .boardBg{
       position:absolute;
       inset: 0;
@@ -694,16 +693,16 @@ export function mountApp(root: HTMLElement | null) {
       z-index: 0;
       background-size: cover;
       background-position: center;
-      filter: blur(5px) saturate(1.0) contrast(1.03);
-      opacity: .30;
-      transform: scale(1.04);
+      filter: blur(6px) saturate(1.0) contrast(1.02);
+      opacity: .28;
+      transform: scale(1.05);
     }
     .boardBg::after{
       content:"";
       position:absolute; inset:0;
       background:
-        radial-gradient(900px 500px at 20% 20%, rgba(95,225,255,.20), transparent 55%),
-        radial-gradient(900px 500px at 80% 65%, rgba(122,108,255,.18), transparent 60%),
+        radial-gradient(900px 500px at 20% 20%, rgba(95,225,255,.18), transparent 55%),
+        radial-gradient(900px 500px at 80% 65%, rgba(122,108,255,.16), transparent 60%),
         linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.55));
     }
 
@@ -719,7 +718,7 @@ export function mountApp(root: HTMLElement | null) {
     .boardWrap{
       display:grid;
       gap: 10px;
-      width: max-content; /* allow centering */
+      width: max-content;
     }
 
     .hexRow{
@@ -785,21 +784,20 @@ export function mountApp(root: HTMLElement | null) {
     }
     .hex:active{ transform: translateY(0) scale(.99); }
 
-    /* Tile image (SHARPER) */
+    /* Tile image */
     .hexImg{
       position:absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
+      inset: -2px;
+      width: calc(100% + 4px);
+      height: calc(100% + 9px);
+      object-fit:cover;
       clip-path: inherit;
+      border-radius: 0;
       pointer-events:none;
       z-index: 0;
-
-      transform: translateZ(0);
-      backface-visibility: hidden;
-
-      filter: saturate(1.08) contrast(1.06);
+      transform: scale(1.02);
+      transform-origin: center;
+      filter: saturate(1.02) contrast(1.02);
     }
 
     /* Overlay text (optional) */
@@ -980,25 +978,23 @@ export function mountApp(root: HTMLElement | null) {
       position:relative;
     }
 
-    /* LESS BLUR / MORE VISIBLE player portrait background */
+    /* (CHANGED) less blur, more visible player background */
     .miniBoard.bgPlayer::before{
       content:"";
       position:absolute; inset:0;
       background-size: cover;
       background-position:center;
-
-      filter: blur(3px) saturate(1.05) contrast(1.05);
-      opacity:.38;
-
-      transform: scale(1.02);
+      filter: blur(6px) saturate(1.02) contrast(1.03);
+      opacity:.30;
+      transform: scale(1.05);
       pointer-events:none;
     }
     .miniBoard.bgPlayer::after{
       content:"";
       position:absolute; inset:0;
       background:
-        radial-gradient(700px 340px at 30% 25%, rgba(95,225,255,.22), transparent 55%),
-        linear-gradient(180deg, rgba(0,0,0,.12), rgba(0,0,0,.55));
+        radial-gradient(700px 340px at 30% 25%, rgba(95,225,255,.20), transparent 55%),
+        linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.55));
       pointer-events:none;
     }
     .miniBoard > *{ position:relative; z-index:1; }
@@ -1076,10 +1072,10 @@ export function mountApp(root: HTMLElement | null) {
       font-size: 11px;
     }
 
+    /* responsive */
     @media (max-width: 1100px){
-      :root{ --sideW: 1fr; }
       .gameLayout{ grid-template-columns: 1fr; }
-      .leftMainGrid{ grid-template-columns: 1fr; }
+      .mainLeft{ grid-template-columns: 1fr; }
       .gameStage{ min-height: auto; }
       .gameWrap{ min-height: auto; }
     }
@@ -1683,7 +1679,9 @@ export function mountApp(root: HTMLElement | null) {
     const hudHead = el("div", "hudHeaderHead");
 
     const hudLeft = el("div", "hudTitleRow");
-    
+    hudLeft.innerHTML = `<div class="tag"><span class="dot"></span> HUD</div><div class="pill">Build: ${escapeHtml(
+      BUILD_TAG
+    )}</div>`;
 
     const hudControls = el("div", "hudControls");
 
@@ -1737,16 +1735,15 @@ export function mountApp(root: HTMLElement | null) {
     const hudSelected = el("div", "infoText");
     hudWide.append(hudScenario, hudSelected);
     hudBody.append(hudWide);
-
     hud.append(hudHead, hudBody);
 
-    // ===== TWO MAIN COLUMNS =====
+    // ===== 2-main-column layout =====
     const layout = el("div", "gameLayout");
+    const mainLeft = el("div", "mainLeft"); // (CHANGED) story + board live inside this
+    // Right main: layers only
+    // -------------------------
 
-    // Left main: two columns inside (Story + Board)
-    const leftMain = el("div", "leftMainGrid");
-
-    // Left inner: Story log only
+    // Left->Story panel
     const storyPanel = el("section", "panel");
     const storyHead = el("div", "panelHead");
     storyHead.innerHTML = `<div class="tag"><span class="dot"></span> Story Log</div><div class="pill">Moves</div>`;
@@ -1764,7 +1761,7 @@ export function mountApp(root: HTMLElement | null) {
     storyBody.appendChild(storyCard);
     storyPanel.append(storyHead, storyBody);
 
-    // Right inner: msgBar + centered board
+    // Left->Board panel
     const boardPanel = el("section", "panel");
     const boardHead = el("div", "panelHead");
     boardHead.innerHTML = `<div class="tag"><span class="dot"></span> Board</div><div class="pill">Now</div>`;
@@ -1790,13 +1787,14 @@ export function mountApp(root: HTMLElement | null) {
     boardBody.appendChild(boardArea);
     boardPanel.append(boardHead, boardBody);
 
-    leftMain.append(storyPanel, boardPanel);
+    // Put story + board into left main
+    mainLeft.append(storyPanel, boardPanel);
 
-    // Right main: Layers only (3 mini boards)
-    const layersPanel = el("section", "panel");
-    const layersHead = el("div", "panelHead");
-    layersHead.innerHTML = `<div class="tag"><span class="dot"></span> Layers</div><div class="pill">Mini</div>`;
-    const layersBody = el("div", "panelBody");
+    // Right->Layers panel
+    const imgPanel = el("section", "panel");
+    const imgHead = el("div", "panelHead");
+    imgHead.innerHTML = `<div class="tag"><span class="dot"></span> Layers</div><div class="pill">Mini</div>`;
+    const imgBody = el("div", "panelBody");
 
     const miniAbove = el("div", "miniBoard");
     miniAbove.innerHTML = `
@@ -1829,10 +1827,11 @@ export function mountApp(root: HTMLElement | null) {
       <div class="miniNote" id="miniBelowNote"></div>
     `;
 
-    layersBody.append(miniAbove, miniCurrent, miniBelow);
-    layersPanel.append(layersHead, layersBody);
+    imgBody.append(miniAbove, miniCurrent, miniBelow);
+    imgPanel.append(imgHead, imgBody);
 
-    layout.append(leftMain, layersPanel);
+    // Put left main + right layers into the 2-column layout
+    layout.append(mainLeft, imgPanel);
 
     wrap.append(hud, layout);
     stage.appendChild(wrap);
@@ -2001,12 +2000,12 @@ export function mountApp(root: HTMLElement | null) {
 
       hudScenario.innerHTML = `
         <div>
-          <b>Scenario:</b> ${escapeHtml(String(s.name ?? s.title ?? s.id ?? ""))}
-          &nbsp; <b>Mode:</b> ${escapeHtml(String(mode ?? "—"))}
-          &nbsp; <b>Player:</b> ${escapeHtml(String(state?.playerHexId ?? "?"))}<br/>
-          <b>Goal:</b> ${escapeHtml(String(posId(s.goal)))}
-          &nbsp; <b>Layer:</b> ${escapeHtml(String(currentLayer))}
-          &nbsp; <b>Tileset:</b> ${escapeHtml(activeTileSet)}
+          <b>Scenario:</b> ${escapeHtml(String(s.name ?? s.title ?? s.id ?? ""))}&nbsp;&nbsp;
+          <b>Mode:</b> ${escapeHtml(String(mode ?? "—"))}&nbsp;&nbsp;
+          <b>Player:</b> ${escapeHtml(String(state?.playerHexId ?? "?"))}<br/>
+          <b>Goal:</b> ${escapeHtml(String(posId(s.goal)))}&nbsp;&nbsp;
+          <b>Layer:</b> ${escapeHtml(String(currentLayer))}&nbsp;&nbsp;
+          <b>Tileset:</b> ${escapeHtml(activeTileSet)}
         </div>
       `;
 
@@ -2018,19 +2017,20 @@ export function mountApp(root: HTMLElement | null) {
       const h: any = getHex(selectedId);
       const { blocked, missing } = isBlockedOrMissing(h);
       const info = reachMap[selectedId];
+
       const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
 
       hudSelected.innerHTML = `
         <div>
-          <b>Selected:</b> ${escapeHtml(selectedId)}
-          &nbsp; <b>Kind:</b> ${escapeHtml(String(h?.kind ?? "?"))}
-          &nbsp; <b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}<br/>
-          <b>Reachable:</b> ${escapeHtml(info?.reachable ? "yes" : "no")}
-          &nbsp; <b>Distance:</b> ${escapeHtml(String(info?.distance ?? "—"))}
-          &nbsp; <b>Reachable:</b> ${reachable.size} (layer ${currentLayer}: ${layerReachable})
-          &nbsp; <b>Transitions:</b> ${transitionsAll.length}
-          · <b>Sources (layer):</b> ${sourcesOnLayer.size}
-          · <b>Outgoing:</b> ${outgoingFromSelected.length}
+          <b>Selected:</b> ${escapeHtml(selectedId)}&nbsp;&nbsp;
+          <b>Kind:</b> ${escapeHtml(String(h?.kind ?? "?"))}&nbsp;&nbsp;
+          <b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}<br/>
+          <b>Reachable:</b> ${escapeHtml(info?.reachable ? "yes" : "no")}&nbsp;&nbsp;
+          <b>Distance:</b> ${escapeHtml(String(info?.distance ?? "—"))}&nbsp;&nbsp;
+          <b>Reachable:</b> ${reachable.size} (layer ${currentLayer}: ${layerReachable})&nbsp;&nbsp;
+          <b>Transitions:</b> ${transitionsAll.length} · <b>Sources (layer):</b> ${sourcesOnLayer.size} · <b>Outgoing:</b> ${
+        outgoingFromSelected.length
+      }
         </div>
       `;
     }
