@@ -1873,29 +1873,23 @@ export function mountApp(root: HTMLElement | null) {
     }
 
     // Scale boardWrap down if needed so it always fits the square (no scroll ever)
-    function fitBoardWrapToSquare() {
-      const size = boardScroll.clientWidth;
-      if (!size || size < 50) return;
+  function fitBoardWrapToSquare() {
+  const size = boardScroll.clientWidth;
+  if (!size || size < 50) return;
 
-      // a little margin from square edges
-      const margin = 18;
-      const targetW = Math.max(1, size - margin * 2);
-      const targetH = Math.max(1, size - margin * 2);
+  const margin = 18;
+  const targetW = Math.max(1, size - margin * 2);
+  const targetH = Math.max(1, size - margin * 2);
 
-      const rect = boardWrap.getBoundingClientRect();
-      const w = rect.width || 1;
-      const h = rect.height || 1;
+  // ✅ use unscaled content size (transform doesn't affect scrollWidth/scrollHeight)
+  const w = boardWrap.scrollWidth || 1;
+  const h = boardWrap.scrollHeight || 1;
 
-      const s = Math.min(targetW / w, targetH / h, 1);
-      boardWrap.style.setProperty("--boardScale", String(s));
-    }
+  const s = Math.min(targetW / w, targetH / h, 1);
+  boardWrap.style.setProperty("--boardScale", String(s));
+}
 
-    if (boardResizeObserver) boardResizeObserver.disconnect();
-    boardResizeObserver = new ResizeObserver(() => {
-      setHexLayoutVars();
-      // after resizing vars, boardWrap will change size; queue fit on next frame
-      requestAnimationFrame(() => fitBoardWrapToSquare());
-    });
+
     boardResizeObserver.observe(boardScroll);
 
     if (boardBodyResizeObserver) boardBodyResizeObserver.disconnect();
@@ -2160,7 +2154,9 @@ export function mountApp(root: HTMLElement | null) {
           const { blocked, missing } = isBlockedOrMissing(h);
           const isGoal = String(h?.kind ?? "").toUpperCase() === "GOAL";
           const isPlayer = state.playerHexId === id;
-
+setBoardSquare();
+setHexLayoutVars();
+requestAnimationFrame(() => fitBoardWrapToSquare());
           if (missing) btn.classList.add("missing");
           if (blocked) btn.classList.add("blocked");
           if (!isRevealed(h)) btn.classList.add("fog");
