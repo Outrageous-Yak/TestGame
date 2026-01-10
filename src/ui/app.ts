@@ -503,19 +503,6 @@ export function mountApp(root: HTMLElement | null) {
       min-height: calc(100vh - 140px);
       position:relative;
     }
-    
-.hudWide{
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  align-items: start;
-}
-
-@media (max-width: 980px){
-  .hudWide{
-    grid-template-columns: 1fr;
-  }
-}
 
     .gameWrap{
       position:relative;
@@ -590,13 +577,19 @@ export function mountApp(root: HTMLElement | null) {
 
     .hudBody{
       padding: 12px;
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      display:block; /* (CHANGED) body just holds ONE card now */
       min-width: 0;
     }
+
+    /* (NEW) one card, two columns inside (the "2nd image" layout) */
+    .hudWide{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-items:start;
+    }
     @media (max-width: 980px){
-      .hudBody{ grid-template-columns: 1fr; }
+      .hudWide{ grid-template-columns: 1fr; }
     }
 
     .softCard{
@@ -1667,7 +1660,7 @@ export function mountApp(root: HTMLElement | null) {
     const stage = el("div", "gameStage");
     const wrap = el("div", "gameWrap");
 
-    // ===== HUD header (③ + ⑤ merged, spans all columns) =====
+    // ===== HUD header (③ + ⑤) =====
     const hud = el("section", "hudHeader");
     const hudHead = el("div", "hudHeaderHead");
 
@@ -1720,23 +1713,17 @@ export function mountApp(root: HTMLElement | null) {
     });
 
     hudControls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
-
     hudHead.append(hudLeft, hudControls);
 
-   const hudBody = el("div", "hudBody");
+    // (CHANGED) ONE card (hudWide) containing two columns
+    const hudBody = el("div", "hudBody");
+    const hudWide = el("div", "softCard hudWide");
+    const hudScenario = el("div", "infoText");
+    const hudSelected = el("div", "infoText");
+    hudWide.append(hudScenario, hudSelected);
+    hudBody.append(hudWide);
 
-// ONE wide card
-const hudWide = el("div", "softCard hudWide");
-
-// two inner columns (no softCard here)
-const hudScenario = el("div", "infoText");
-const hudSelected = el("div", "infoText");
-
-hudWide.append(hudScenario, hudSelected);
-hudBody.append(hudWide);
-
-hud.append(hudHead, hudBody);
-
+    hud.append(hudHead, hudBody);
 
     // ===== 3-column layout =====
     const layout = el("div", "gameLayout");
@@ -1879,45 +1866,22 @@ hud.append(hudHead, hudBody);
       return null;
     }
 
+    // Ensure .miniBoard.bgPlayer::before reads --miniBg
+    const extraMiniBgStyle = document.createElement("style");
+    extraMiniBgStyle.textContent = `.miniBoard.bgPlayer::before{ background-image: var(--miniBg); }`;
+    document.head.appendChild(extraMiniBgStyle);
+
     function setMiniCurrentBackground() {
       const board = document.getElementById("miniCurrentBoard") as HTMLElement | null;
       if (!board) return;
 
       const url = getPlayerImageUrl();
-      if (!url) {
-        board.style.removeProperty("--miniBg");
-        board.style.setProperty("background-image", "");
-        // clear pseudo background via inline for ::before
-        (board as any).style.setProperty("--playerBg", "");
-        (board.style as any).removeProperty("--playerBg");
-        // easiest: set background-image on the element and use it from ::before with inherit not possible.
-        // We'll set CSS variable and read it in inline style of ::before by setting background-image directly on board
-        board.style.setProperty("background-image", "");
-        board.classList.remove("bgPlayer");
-        board.classList.add("bgPlayer"); // keep class; ::before will use inline background-image below
-      }
-
-      // Use the element's inline background-image; ::before doesn't inherit, so we set it directly on ::before via CSS? Not possible.
-      // Workaround: set it on the element, and use it on ::before via background-image: inherit; (not reliable).
-      // Instead: we set it on the element and also set it on a dataset and update a <style> tag? Too heavy.
-      // Simple approach: set it on the element, and adjust CSS to read background-image from the element itself by using ::before{background-image: var(--miniBg);}
-      // We'll do that: set CSS variable.
       board.style.setProperty("--miniBg", url ? `url("${url}")` : "");
       // eslint-disable-next-line no-console
       console.log("MINI CURRENT BG:", url);
     }
 
-    // patch: ensure the CSS uses --miniBg
-    // (This is safe even if called multiple times; style tag already exists)
-    // We cannot easily edit the existing CSS string here, so we set inline style on the element's ::before via variable used in CSS:
-    // In our CSS above, .miniBoard.bgPlayer::before uses background-size/position but not background-image.
-    // We'll set background-image on the element itself, and also set background-image on ::before by setting it on element and using background-image: var(--miniBg) via inline style attribute:
-    // We will do it by setting style property directly on the element and updating its class style via a new <style> rule only once.
-    const extraMiniBgStyle = document.createElement("style");
-    extraMiniBgStyle.textContent = `.miniBoard.bgPlayer::before{ background-image: var(--miniBg); }`;
-    document.head.appendChild(extraMiniBgStyle);
-
-    function MiniBoardGeneric(opts: {
+    function renderMiniBoardGeneric(opts: {
       gridId: string;
       pillId: string;
       noteId: string;
@@ -2078,9 +2042,6 @@ hud.append(hudHead, hudBody);
     }
 
     function renderMiniBoards() {
-      const maxLayer = getScenarioLayerCount();
-
-      // above
       renderMiniBoardGeneric({
         gridId: "miniAboveGrid",
         pillId: "miniAbovePill",
@@ -2090,7 +2051,6 @@ hud.append(hudHead, hudBody);
         invalidLabel: "NO LAYER ABOVE",
       });
 
-      // current (only one with player)
       renderMiniBoardGeneric({
         gridId: "miniCurrentGrid",
         pillId: "miniCurrentPill",
@@ -2100,7 +2060,6 @@ hud.append(hudHead, hudBody);
         invalidLabel: "NO SUCH LAYER",
       });
 
-      // below
       renderMiniBoardGeneric({
         gridId: "miniBelowGrid",
         pillId: "miniBelowPill",
@@ -2110,11 +2069,7 @@ hud.append(hudHead, hudBody);
         invalidLabel: "NO LAYER BELOW",
       });
 
-      // keep player background on current mini board
       setMiniCurrentBackground();
-
-      // if scenario has only 1 layer, above/below will show warnings automatically
-      void maxLayer;
     }
 
     function renderBoard() {
