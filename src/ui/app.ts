@@ -268,32 +268,50 @@ export function mountApp(root: HTMLElement | null) {
       --violet: #9a7cff;
     }
 
+    /* === TOP LINE (HEXLOG + meta + controls on one line) === */
     .topBar{
       display:flex;
-      align-items:flex-start;
+      align-items:center;
       justify-content:space-between;
       gap:12px;
-      flex-wrap:wrap;
+      flex-wrap:nowrap;
       padding: 0 6px;
       margin-bottom: 14px;
     }
-    .brand{display:flex; align-items:center; gap:10px;}
+    .topLeftLine{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width: 0;
+      overflow:hidden;
+    }
+    .brand{display:flex; align-items:center; gap:10px; flex: 0 0 auto;}
     .dotBrand{
       width:8px;height:8px;border-radius:999px;
       background: radial-gradient(circle at 30% 30%, var(--ice), var(--aqua));
       box-shadow: 0 0 12px rgba(95,225,255,.35);
-      margin-top: 7px;
+      margin-top: 1px;
     }
     .brandTitle{
       font-weight:900;
       letter-spacing:.5px;
       font-size: 16px;
+      white-space:nowrap;
     }
-    .crumb{
-      opacity:.85;
+    .topMeta{
+      opacity:.82;
       font-size: 12px;
-      padding-top: 2px;
-      text-align:right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+    .topControls{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:nowrap;
+      flex: 0 0 auto;
     }
 
     .view{ display:none; }
@@ -328,6 +346,7 @@ export function mountApp(root: HTMLElement | null) {
       box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 10px 24px rgba(0,0,0,.25);
       font-size: 12px;
       font-weight: 800;
+      white-space: nowrap;
     }
     .btn:hover{border-color:rgba(191,232,255,.30); filter: brightness(1.06);}
     .btn.primary{
@@ -463,36 +482,6 @@ export function mountApp(root: HTMLElement | null) {
       min-height: calc(100vh - 170px);
     }
 
-    .gameHeader{
-      display:grid;
-      grid-template-columns: var(--leftW) 1fr var(--rightW);
-      gap: var(--gap);
-      align-items:start;
-      padding: 2px 2px 0;
-    }
-    .gameHeaderLeft{ padding: 6px 6px 0; }
-    .gameHeaderTitle{
-      font-size: 44px;
-      font-weight: 900;
-      letter-spacing:.2px;
-      margin:0;
-      line-height: 1.05;
-    }
-    .gameHeaderSub{
-      margin-top: 6px;
-      font-size: 12px;
-      opacity:.82;
-    }
-    .gameHeaderControls{
-      grid-column: 2 / 4;
-      display:flex;
-      justify-content:flex-end;
-      align-items:center;
-      gap: 10px;
-      flex-wrap:wrap;
-      padding: 6px 6px 0;
-    }
-
     .gameLayout{
       display:grid;
       grid-template-columns: var(--leftW) 1fr var(--rightW);
@@ -613,6 +602,10 @@ export function mountApp(root: HTMLElement | null) {
     }
     @media (max-width: 980px){
       .infoTop{ grid-template-columns: 1fr; }
+      .topBar{ flex-wrap: wrap; }
+      .topControls{ width: 100%; flex-wrap: wrap; justify-content:flex-start; }
+      .topLeftLine{ width: 100%; }
+      .topMeta{ width: 100%; }
     }
 
     .boardScroll{
@@ -750,7 +743,7 @@ export function mountApp(root: HTMLElement | null) {
     .hex.player.blocked,
     .hex.player.missing{
       --glow-color: rgba(76, 255, 80, 1) !important;
-      --glow-spread-color: rgba(76, 255, 80, .70) !important;
+     --glow-spread-color: rgba(76, 255, 80, .70) !important;
       --btn-color: rgba(76, 255, 80, .16) !important;
 
       box-shadow:
@@ -981,8 +974,6 @@ export function mountApp(root: HTMLElement | null) {
 
     @media (max-width: 1100px){
       :root{ --leftW: 1fr; --rightW: 1fr; }
-      .gameHeader{ grid-template-columns: 1fr; }
-      .gameHeaderControls{ grid-column: 1 / 2; justify-content:flex-start; }
       .gameLayout{ grid-template-columns: 1fr; }
       .gameStage{ min-height: auto; }
       .gameWrap{ min-height: auto; }
@@ -996,15 +987,28 @@ export function mountApp(root: HTMLElement | null) {
   root.innerHTML = "";
   const shell = el("div", "shell");
 
+  // TOP BAR: HEXLOG + meta + controls
   const topBar = el("div", "topBar");
+
+  const topLeftLine = el("div", "topLeftLine");
+
   const brand = el("div", "brand");
   const brandDot = el("div", "dotBrand");
   const brandTitle = el("div", "brandTitle");
   brandTitle.textContent = "HEXLOG";
   brand.append(brandDot, brandTitle);
 
-  const crumb = el("div", "crumb");
-  topBar.append(brand, crumb);
+  const topMeta = el("div", "topMeta");
+  topMeta.id = "topMeta";
+  topMeta.textContent = "Start";
+
+  topLeftLine.append(brand, topMeta);
+
+  const topControls = el("div", "topControls");
+  topControls.id = "topControls";
+  (topControls as HTMLElement).style.display = "none";
+
+  topBar.append(topLeftLine, topControls);
 
   const vStart = el("section", "view");
   const vSelect = el("section", "view");
@@ -1014,17 +1018,27 @@ export function mountApp(root: HTMLElement | null) {
   shell.append(topBar, vStart, vSelect, vSetup, vGame);
   root.appendChild(shell);
 
+  function setTopBarState(next: Screen) {
+    const name = next === "start" ? "Start" : next === "select" ? "Select Game" : next === "setup" ? "Setup" : "In Game";
+
+    if (next !== "game") {
+      topMeta.textContent = name;
+      (topControls as HTMLElement).style.display = "none";
+    } else {
+      (topControls as HTMLElement).style.display = "flex";
+    }
+  }
+
   function setScreen(next: Screen) {
     screen = next;
     [vStart, vSelect, vSetup, vGame].forEach((v) => v.classList.remove("active"));
-    const name =
-      next === "start" ? "Start" : next === "select" ? "Select Game" : next === "setup" ? "Setup" : "In Game";
-    crumb.textContent = name;
 
     if (next === "start") vStart.classList.add("active");
     if (next === "select") vSelect.classList.add("active");
     if (next === "setup") vSetup.classList.add("active");
     if (next === "game") vGame.classList.add("active");
+
+    setTopBarState(next);
   }
 
   function applyModeTheme() {
@@ -1376,6 +1390,7 @@ export function mountApp(root: HTMLElement | null) {
       startScenario(scenarioIndex);
       renderGameScreen();
       setScreen("game");
+      // meta will be set by renderAll()
     });
 
     const rightPack = el("div", "row");
@@ -1582,19 +1597,9 @@ export function mountApp(root: HTMLElement | null) {
     const stage = el("div", "gameStage");
     const wrap = el("div", "gameWrap");
 
-    const header = el("div", "gameHeader");
-
-    const headerLeft = el("div", "gameHeaderLeft");
-    const title = el("div", "gameHeaderTitle");
-    title.textContent = "Game";
-    const sub = el("div", "gameHeaderSub");
-    const sc: any = scenarios[scenarioIndex];
-    sub.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")} | Tiles: ${
-      activeTileSet
-    }`;
-    headerLeft.append(title, sub);
-
-    const controls = el("div", "gameHeaderControls");
+    // Build top-right controls ONCE, attach into topBar
+    const topControlsHost = document.getElementById("topControls") as HTMLElement | null;
+    const topMetaHost = document.getElementById("topMeta") as HTMLElement | null;
 
     const scenarioSelect = el("select") as HTMLSelectElement;
     scenarioSelect.style.fontSize = "12px";
@@ -1604,6 +1609,8 @@ export function mountApp(root: HTMLElement | null) {
     scenarioSelect.style.border = "1px solid rgba(191,232,255,.18)";
     scenarioSelect.style.background = "rgba(10,16,34,.35)";
     scenarioSelect.style.color = "rgba(234,242,255,.92)";
+    scenarioSelect.style.minWidth = "160px";
+
     scenarios.forEach((s: any, i: number) => {
       const opt = document.createElement("option");
       opt.value = String(i);
@@ -1620,6 +1627,7 @@ export function mountApp(root: HTMLElement | null) {
     layerSelect.style.border = "1px solid rgba(191,232,255,.18)";
     layerSelect.style.background = "rgba(10,16,34,.35)";
     layerSelect.style.color = "rgba(234,242,255,.92)";
+    layerSelect.style.minWidth = "110px";
 
     const endTurnBtn = el("button", "btn") as HTMLButtonElement;
     endTurnBtn.textContent = "End turn";
@@ -1637,10 +1645,10 @@ export function mountApp(root: HTMLElement | null) {
       setScreen("setup");
     });
 
-    controls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
-
-    header.append(headerLeft, el("div"), el("div"));
-    header.appendChild(controls);
+    if (topControlsHost) {
+      topControlsHost.innerHTML = "";
+      topControlsHost.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
+    }
 
     const layout = el("div", "gameLayout");
 
@@ -1754,7 +1762,7 @@ export function mountApp(root: HTMLElement | null) {
 
     layout.append(storyPanel, boardPanel, imgPanel);
 
-    wrap.append(header, layout);
+    wrap.append(layout);
     stage.appendChild(wrap);
     vGame.appendChild(stage);
 
@@ -2169,14 +2177,22 @@ export function mountApp(root: HTMLElement | null) {
       setHexLayoutVars();
     }
 
+    function renderTopMeta() {
+      if (!topMetaHost) return;
+      const scn: any = scenarios[scenarioIndex];
+      topMetaHost.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(scn?.name ?? scn?.title ?? scn?.id ?? "")} | Tiles: ${activeTileSet}`;
+    }
+
     function renderAll() {
       rebuildTransitionIndexAndHighlights();
+      renderTopMeta();
+
       renderInfoTop();
 
       // 3 minis in different sections:
-      renderBelowMiniBoard();   // Story column
+      renderBelowMiniBoard(); // Story column
       renderCurrentMiniBoard(); // Between info boxes (only one with player marker)
-      renderAboveMiniBoard();   // Images column
+      renderAboveMiniBoard(); // Images column
 
       renderMessage();
       renderBoard();
