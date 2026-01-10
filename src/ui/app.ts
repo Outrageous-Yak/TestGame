@@ -1983,12 +1983,12 @@ export function mountApp(root: HTMLElement | null) {
 
       // left side: scenario info (③)
       hudScenario.innerHTML = `
-        <div><b>Scenario:</b> ${escapeHtml(String(s.name ?? s.title ?? s.id ?? ""))}</div>
-        <div><b>Mode:</b> ${escapeHtml(String(mode ?? "—"))}</div>
-        <div><b>Player:</b> ${escapeHtml(String(state?.playerHexId ?? "?"))}</div>
-        <div><b>Goal:</b> ${escapeHtml(String(posId(s.goal)))}</div>
-        <div><b>Layer:</b> ${escapeHtml(String(currentLayer))}</div>
-        <div><b>Tileset:</b> ${escapeHtml(activeTileSet)}</div>
+        <div><b>Scenario:</b> ${escapeHtml(String(s.name ?? s.title ?? s.id ?? ""))}
+        <b>Mode:</b> ${escapeHtml(String(mode ?? "—"))}
+        <b>Player:</b> ${escapeHtml(String(state?.playerHexId ?? "?"))}<br/>
+        <b>Goal:</b> ${escapeHtml(String(posId(s.goal)))}
+       <b>Layer:</b> ${escapeHtml(String(currentLayer))}
+        <b>Tileset:</b> ${escapeHtml(activeTileSet)}</div>
       `;
 
       // right side: selected info (⑤)
@@ -2006,11 +2006,12 @@ export function mountApp(root: HTMLElement | null) {
       hudSelected.innerHTML = `
         <div><b>Selected:</b> ${escapeHtml(selectedId)}
         <b>Kind:</b> ${escapeHtml(String(h?.kind ?? "?"))}
+        <b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}<br/>
         <b>Reachable:</b> ${escapeHtml(info?.reachable ? "yes" : "no")}
         <b>Distance:</b> ${escapeHtml(String(info?.distance ?? "—"))}
         
-          <b>Reachable:</b> ${reachable.size} (layer ${currentLayer}: ${layerReachable})<br/>
-          <b>Transitions:</b> ${transitionsAll.length} · <b>Sources (layer):</b> ${sourcesOnLayer.size} · <b>Outgoing:</b> ${outgoingFromSelected.length}<br/>
+          <b>Reachable:</b> ${reachable.size} (layer ${currentLayer}: ${layerReachable})
+          <b>Transitions:</b> ${transitionsAll.length} · <b>Sources (layer):</b> ${sourcesOnLayer.size} · <b>Outgoing:</b> ${outgoingFromSelected.length}
           <b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}
         </div>
       `;
