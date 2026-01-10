@@ -1582,6 +1582,75 @@ export function mountApp(root: HTMLElement | null) {
     const stage = el("div", "gameStage");
     const wrap = el("div", "gameWrap");
 
+    const header = el("div", "gameHeader");
+
+    const headerLeft = el("div", "gameHeaderLeft");
+    const title = el("div", "gameHeaderTitle");
+    title.textContent = "Game";
+    const sub = el("div", "gameHeaderSub");
+    const sc: any = scenarios[scenarioIndex];
+    sub.textContent = `Mode: ${mode ?? "—"} | Scenario: ${String(sc?.name ?? sc?.title ?? sc?.id ?? "")} | Tiles: ${
+      activeTileSet
+    }`;
+    headerLeft.append(title, sub);
+    const miniBelow = el("div", "miniBoard");
+    miniBelow.innerHTML = `
+      <div class="miniBoardHead">
+        <div class="miniBoardTitle" id="miniBelowTitle">Layer —</div>
+        <div class="pill" id="miniBelowPill" style="padding:6px 10px">—</div>
+      </div>
+      <div class="miniBoardGrid" id="miniBelowGrid"></div>
+      <div class="miniNote">Layer below (relative). (No player marker here.)</div>
+    `;
+    const controls = el("div", "gameHeaderControls");
+
+    const scenarioSelect = el("select") as HTMLSelectElement;
+    scenarioSelect.style.fontSize = "12px";
+    scenarioSelect.style.fontWeight = "800";
+    scenarioSelect.style.borderRadius = "999px";
+    scenarioSelect.style.padding = "8px 12px";
+    scenarioSelect.style.border = "1px solid rgba(191,232,255,.18)";
+    scenarioSelect.style.background = "rgba(10,16,34,.35)";
+    scenarioSelect.style.color = "rgba(234,242,255,.92)";
+    scenarios.forEach((s: any, i: number) => {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = String((s as any).name ?? (s as any).title ?? (s as any).id ?? `Scenario ${i + 1}`);
+      scenarioSelect.appendChild(opt);
+    });
+    scenarioSelect.value = String(scenarioIndex);
+
+    const layerSelect = el("select") as HTMLSelectElement;
+    layerSelect.style.fontSize = "12px";
+    layerSelect.style.fontWeight = "800";
+    layerSelect.style.borderRadius = "999px";
+    layerSelect.style.padding = "8px 12px";
+    layerSelect.style.border = "1px solid rgba(191,232,255,.18)";
+    layerSelect.style.background = "rgba(10,16,34,.35)";
+    layerSelect.style.color = "rgba(234,242,255,.92)";
+
+    const endTurnBtn = el("button", "btn") as HTMLButtonElement;
+    endTurnBtn.textContent = "End turn";
+
+    const resetBtn = el("button", "btn") as HTMLButtonElement;
+    resetBtn.textContent = "Reset run";
+
+    const forceRevealBtn = el("button", "btn") as HTMLButtonElement;
+    forceRevealBtn.textContent = "Force reveal layer";
+
+    const exitBtn = el("button", "btn") as HTMLButtonElement;
+    exitBtn.textContent = "Exit";
+    exitBtn.addEventListener("click", () => {
+      renderSetup();
+      setScreen("setup");
+    });
+
+    controls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
+
+    header.append(headerLeft, el("div"), el("div"));
+    header.appendChild(controls);
+
+    const layout = el("div", "gameLayout");
 
     // Left: Story log
     const storyPanel = el("section", "panel");
