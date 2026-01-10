@@ -676,14 +676,17 @@ export function mountApp(root: HTMLElement | null) {
       min-height: 0;
     }
 
-    .boardScroll{
-      position:relative;
-      flex: 1;
-      min-height: 0;
-      overflow:auto;
-      padding-right: 4px;
-      border-radius: 16px;
-    }
+   .boardScroll{
+  position:relative;
+  flex: 1;
+  min-height: 0;
+  overflow:auto;
+  padding-right: 4px;
+  border-radius: 16px;
+
+  aspect-ratio: 1 / 1; /* ← ADD THIS */
+}
+
 
     /* (CHANGED) less blur, more visible tile background */
     .boardBg{
