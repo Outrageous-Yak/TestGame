@@ -31,6 +31,15 @@ type LogEntry = {
 
 const BUILD_TAG = "BUILD_TAG_TILES_DEMO_V1";
 
+/** Optional start-screen background (put file in public/images/ui/start-screen.jpg) */
+const START_BG_URL = "images/ui/start-screen.jpg";
+
+/**
+ * Board BACKGROUND image (put file in public/images/ui/board-bg.png)
+ * This is the tower-grid illusion background (NO labels).
+ */
+const BOARD_BG_URL = "images/ui/board-bg.png";
+
 function idToCoord(id: string): Coord | null {
   const m = /^L(\d+)-R(\d+)-C(\d+)$/.exec(id);
   if (!m) return null;
@@ -108,9 +117,6 @@ function wireDropZone(
     onImage(url);
   });
 }
-
-/** Optional start-screen background (put file in public/images/ui/start-screen.jpg) */
-const START_BG_URL = "images/ui/start-screen.jpg";
 
 /** GitHub Pages-safe public URL helper (respects Vite BASE_URL). */
 function toPublicUrl(p: string) {
@@ -252,17 +258,14 @@ export function mountApp(root: HTMLElement | null) {
       line-height: var(--line);
     }
 
-    /* ===== Hex overlay + flowing wave (background polish) ===== */
     body::before{
       content:"";
       position: fixed;
       inset: 0;
       pointer-events: none;
       z-index: 0;
-
       opacity: .22;
       mix-blend-mode: screen;
-
       background:
         linear-gradient(135deg,
           rgba(0,0,0,0) 0%,
@@ -270,7 +273,6 @@ export function mountApp(root: HTMLElement | null) {
           rgba(95,225,255,.95) 50%,
           rgba(95,225,255,0) 65%,
           rgba(0,0,0,0) 100%);
-
       background-size: 220% 220%;
       animation: hexWave 10s linear infinite;
       filter: blur(.2px) saturate(1.15);
@@ -282,9 +284,7 @@ export function mountApp(root: HTMLElement | null) {
       inset: 0;
       pointer-events: none;
       z-index: 0;
-
       opacity: .14;
-
       --s: 44px;
       --h: calc(var(--s) * 0.57735);
       background:
@@ -513,7 +513,6 @@ export function mountApp(root: HTMLElement | null) {
       min-height: calc(100vh - 170px);
     }
 
-    /* ===== Full-width HUD header (spans BOTH main columns) ===== */
     .hudHeader{
       border-radius: var(--radius);
       border: 1px solid rgba(160, 210, 255, .22);
@@ -581,7 +580,6 @@ export function mountApp(root: HTMLElement | null) {
       min-width: 0;
     }
 
-    /* one card, two columns inside */
     .hudWide{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -604,19 +602,17 @@ export function mountApp(root: HTMLElement | null) {
     .infoText{ font-size: 12px; line-height: 1.35; }
     .infoText b{ font-weight: 800; color: rgba(234,242,255,.98); }
 
-    /* ====== (CHANGED) 2 MAIN COLUMNS ====== */
     .gameLayout{
       display:grid;
-      grid-template-columns: 1fr var(--sideW); /* left main + right layers only */
+      grid-template-columns: 1fr var(--sideW);
       gap: var(--gap);
       min-height: 0;
       flex: 1;
     }
 
-    /* left main splits into Story + Board */
     .mainLeft{
       display:grid;
-      grid-template-columns: var(--sideW) 1fr; /* story + board */
+      grid-template-columns: var(--sideW) 1fr;
       gap: var(--gap);
       min-height: 0;
     }
@@ -651,7 +647,6 @@ export function mountApp(root: HTMLElement | null) {
       min-height: 0;
     }
 
-    /* msgBar now in board panel, above board */
     .msgBar{
       padding: 10px 12px;
       border-radius: 14px;
@@ -669,26 +664,24 @@ export function mountApp(root: HTMLElement | null) {
     .msgLeft{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
     .msgRight{flex:0 0 auto; opacity:.92}
 
-    /* ===== Board container (centered) ===== */
+    /* ===== Board container (NO scroll, square, centered) ===== */
     .boardArea{
       display:flex;
       flex-direction:column;
       min-height: 0;
+      height: 100%;
     }
 
-   .boardScroll{
-  position:relative;
-  flex: 1;
-  min-height: 0;
-  overflow:auto;
-  padding-right: 4px;
-  border-radius: 16px;
-max-height: 100%;
-  aspect-ratio: 1 / 1; /* ← ADD THIS */
-}
+    .boardScroll{
+      position:relative;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;              /* ✅ no scrollbars */
+      border-radius: 16px;
+      margin: 0 auto;                /* ✅ centered */
+      /* width/height are set in JS to keep it perfectly square based on available space */
+    }
 
-
-    /* (CHANGED) less blur, more visible tile background */
     .boardBg{
       position:absolute;
       inset: 0;
@@ -696,32 +689,38 @@ max-height: 100%;
       z-index: 0;
       background-size: cover;
       background-position: center;
-      filter: blur(6px) saturate(1.0) contrast(1.02);
-      opacity: .28;
-      transform: scale(1.05);
+      background-repeat: no-repeat;
+      opacity: 1;                    /* ✅ show the tower background clearly */
+      filter: none;                  /* ✅ no blur */
+      transform: none;
     }
     .boardBg::after{
       content:"";
       position:absolute; inset:0;
+      /* subtle vignette so edges feel contained */
       background:
-        radial-gradient(900px 500px at 20% 20%, rgba(95,225,255,.18), transparent 55%),
-        radial-gradient(900px 500px at 80% 65%, rgba(122,108,255,.16), transparent 60%),
-        linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.55));
+        radial-gradient(900px 500px at 20% 20%, rgba(95,225,255,.10), transparent 60%),
+        radial-gradient(900px 500px at 80% 65%, rgba(122,108,255,.10), transparent 60%),
+        linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.35));
     }
 
     .boardCenter{
       position:relative;
       z-index: 1;
-      display:flex;
-      justify-content:center;
       width:100%;
-      padding: 4px 4px 12px;
+      height:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding: 0;
     }
 
     .boardWrap{
       display:grid;
       gap: 10px;
       width: max-content;
+      transform: scale(var(--boardScale, 1));
+      transform-origin: center center;
     }
 
     .hexRow{
@@ -733,7 +732,6 @@ max-height: 100%;
     }
     .hexRow.offset{ padding-left: var(--hexOffset); }
 
-    /* ========= HEX BASE ========= */
     .hex{
       width: var(--hexW);
       height: var(--hexH);
@@ -787,7 +785,6 @@ max-height: 100%;
     }
     .hex:active{ transform: translateY(0) scale(.99); }
 
-    /* Tile image */
     .hexImg{
       position:absolute;
       inset: -2px;
@@ -795,7 +792,6 @@ max-height: 100%;
       height: calc(100% + 9px);
       object-fit:cover;
       clip-path: inherit;
-      border-radius: 0;
       pointer-events:none;
       z-index: 0;
       transform: scale(1.02);
@@ -803,7 +799,6 @@ max-height: 100%;
       filter: saturate(1.02) contrast(1.02);
     }
 
-    /* Overlay text (optional) */
     .hexLabel{
       position:relative;
       z-index: 2;
@@ -820,7 +815,6 @@ max-height: 100%;
       opacity: .92;
     }
 
-    /* Reachable tiles: BLUE/CYAN glow */
     .hex.reach{
       --glow-color: rgba(0, 200, 255, 1);
       --glow-spread-color: rgba(0, 200, 255, .55);
@@ -832,7 +826,6 @@ max-height: 100%;
         inset 0 0 .65em .22em var(--glow-color);
     }
 
-    /* Non-reachable: looks disabled */
     .hex.notReach{
       opacity: .58;
       filter: saturate(.82) brightness(.92);
@@ -843,7 +836,6 @@ max-height: 100%;
       filter: saturate(.82) brightness(.92);
     }
 
-    /* Player current position (always-on) — LIME, always wins */
     .hex.player,
     .hex.player.reach,
     .hex.player.trSrc,
@@ -950,7 +942,6 @@ max-height: 100%;
       z-index: 3;
     }
 
-    /* story log list */
     .logHeadRow{
       display:flex; align-items:center; justify-content:space-between; gap:10px;
       margin-bottom: 10px;
@@ -969,7 +960,6 @@ max-height: 100%;
     .logItem.bad{ border-color: rgba(255,120,120,.22); }
     .logSmall{ margin-top: 10px; opacity:.82; font-weight:800; }
 
-    /* ---- Mini boards (right column) ---- */
     .miniBoard{
       border-radius: 16px;
       border: 1px solid rgba(191,232,255,.14);
@@ -981,7 +971,6 @@ max-height: 100%;
       position:relative;
     }
 
-    /* (CHANGED) less blur, more visible player background */
     .miniBoard.bgPlayer::before{
       content:"";
       position:absolute; inset:0;
@@ -1075,7 +1064,6 @@ max-height: 100%;
       font-size: 11px;
     }
 
-    /* responsive */
     @media (max-width: 1100px){
       .gameLayout{ grid-template-columns: 1fr; }
       .mainLeft{ grid-template-columns: 1fr; }
@@ -1319,7 +1307,6 @@ max-height: 100%;
     const right = el("div", "card");
     layout.append(left, right);
 
-    // Player
     const h2 = el("h2");
     h2.textContent = "Choose your player";
     left.appendChild(h2);
@@ -1406,7 +1393,6 @@ max-height: 100%;
     customCard.append(h3, drop, useCustom);
     left.appendChild(customCard);
 
-    // Monsters (not needed now; kept)
     const mh2 = el("h2");
     mh2.textContent = monstersLabel();
     right.appendChild(mh2);
@@ -1450,7 +1436,6 @@ max-height: 100%;
     }
     right.appendChild(mpresetWrap);
 
-    // Footer
     const footer = el("div", "row");
     (footer as HTMLElement).style.marginTop = "14px";
     (footer as HTMLElement).style.justifyContent = "space-between";
@@ -1620,7 +1605,6 @@ max-height: 100%;
     miniShiftLeft[layer][row] = (miniShiftLeft[layer][row] ?? 0) + deltaLeft;
   }
 
-  // UI-only minimap shifting
   function applyMiniShiftsForEndTurn() {
     const s: any = scenario();
     const layers = Number(s?.layers ?? 1);
@@ -1667,6 +1651,7 @@ max-height: 100%;
   // --------------------------
   let gameBuilt = false;
   let boardResizeObserver: ResizeObserver | null = null;
+  let boardBodyResizeObserver: ResizeObserver | null = null;
 
   function renderGameScreen() {
     if (gameBuilt) return;
@@ -1677,7 +1662,6 @@ max-height: 100%;
     const stage = el("div", "gameStage");
     const wrap = el("div", "gameWrap");
 
-    // ===== HUD header =====
     const hud = el("section", "hudHeader");
     const hudHead = el("div", "hudHeaderHead");
 
@@ -1740,13 +1724,10 @@ max-height: 100%;
     hudBody.append(hudWide);
     hud.append(hudHead, hudBody);
 
-    // ===== 2-main-column layout =====
     const layout = el("div", "gameLayout");
-    const mainLeft = el("div", "mainLeft"); // (CHANGED) story + board live inside this
-    // Right main: layers only
-    // -------------------------
+    const mainLeft = el("div", "mainLeft");
 
-    // Left->Story panel
+    // Story
     const storyPanel = el("section", "panel");
     const storyHead = el("div", "panelHead");
     storyHead.innerHTML = `<div class="tag"><span class="dot"></span> Story Log</div><div class="pill">Moves</div>`;
@@ -1764,7 +1745,7 @@ max-height: 100%;
     storyBody.appendChild(storyCard);
     storyPanel.append(storyHead, storyBody);
 
-    // Left->Board panel
+    // Board
     const boardPanel = el("section", "panel");
     const boardHead = el("div", "panelHead");
     boardHead.innerHTML = `<div class="tag"><span class="dot"></span> Board</div><div class="pill">Now</div>`;
@@ -1790,10 +1771,9 @@ max-height: 100%;
     boardBody.appendChild(boardArea);
     boardPanel.append(boardHead, boardBody);
 
-    // Put story + board into left main
     mainLeft.append(storyPanel, boardPanel);
 
-    // Right->Layers panel
+    // Layers
     const imgPanel = el("section", "panel");
     const imgHead = el("div", "panelHead");
     imgHead.innerHTML = `<div class="tag"><span class="dot"></span> Layers</div><div class="pill">Mini</div>`;
@@ -1833,14 +1813,37 @@ max-height: 100%;
     imgBody.append(miniAbove, miniCurrent, miniBelow);
     imgPanel.append(imgHead, imgBody);
 
-    // Put left main + right layers into the 2-column layout
     layout.append(mainLeft, imgPanel);
 
     wrap.append(hud, layout);
     stage.appendChild(wrap);
     vGame.appendChild(stage);
 
-    // ---- Dynamic hex sizing to fill width (7 across) ----
+    // ===== Square board sizing (NO scroll, always centered) =====
+    function setBoardSquare() {
+      // available space inside boardBody is: boardBody height minus msgBar
+      const bodyW = boardBody.clientWidth;
+      const bodyH = boardBody.clientHeight;
+
+      // msgBar is above boardScroll
+      const msgH = msgBar.offsetHeight || 0;
+
+      // give a little breathing room so it isn't touching edges
+      const pad = 6;
+
+      const availW = Math.max(0, bodyW - pad * 2);
+      const availH = Math.max(0, bodyH - msgH - pad * 2);
+
+      const size = Math.floor(Math.max(0, Math.min(availW, availH)));
+
+      // if too small, just bail
+      if (!size || size < 50) return;
+
+      boardScroll.style.width = `${size}px`;
+      boardScroll.style.height = `${size}px`;
+    }
+
+    // ---- Dynamic hex sizing (7 across) ----
     function clamp(n: number, lo: number, hi: number) {
       return Math.max(lo, Math.min(hi, n));
     }
@@ -1849,12 +1852,16 @@ max-height: 100%;
       const w = boardScroll.clientWidth;
       if (!w || w < 50) return;
 
-      const gap = 5;
+      // Keep some inner margin so towers show between tiles
+      const innerPad = 18; // space inside the square
+      const usable = Math.max(50, w - innerPad * 2);
+
+      const gap = 6; // slightly bigger than 5 so background shows better
       const cols = 7;
       const minW = 46;
       const maxW = 92;
 
-      const raw = (w - gap * (cols - 1)) / cols;
+      const raw = (usable - gap * (cols - 1)) / cols;
       const hexW = clamp(raw, minW, maxW);
       const hexH = Math.round(hexW * 0.88);
       const offset = Math.round((hexW + gap) / 2);
@@ -1865,10 +1872,49 @@ max-height: 100%;
       (boardPanel as HTMLElement).style.setProperty("--hexOffset", `${offset}px`);
     }
 
+    // Scale boardWrap down if needed so it always fits the square (no scroll ever)
+    function fitBoardWrapToSquare() {
+      const size = boardScroll.clientWidth;
+      if (!size || size < 50) return;
+
+      // a little margin from square edges
+      const margin = 18;
+      const targetW = Math.max(1, size - margin * 2);
+      const targetH = Math.max(1, size - margin * 2);
+
+      const rect = boardWrap.getBoundingClientRect();
+      const w = rect.width || 1;
+      const h = rect.height || 1;
+
+      const s = Math.min(targetW / w, targetH / h, 1);
+      boardWrap.style.setProperty("--boardScale", String(s));
+    }
+
     if (boardResizeObserver) boardResizeObserver.disconnect();
-    boardResizeObserver = new ResizeObserver(() => setHexLayoutVars());
+    boardResizeObserver = new ResizeObserver(() => {
+      setHexLayoutVars();
+      // after resizing vars, boardWrap will change size; queue fit on next frame
+      requestAnimationFrame(() => fitBoardWrapToSquare());
+    });
     boardResizeObserver.observe(boardScroll);
-    window.addEventListener("resize", setHexLayoutVars, { passive: true });
+
+    if (boardBodyResizeObserver) boardBodyResizeObserver.disconnect();
+    boardBodyResizeObserver = new ResizeObserver(() => {
+      setBoardSquare();
+      setHexLayoutVars();
+      requestAnimationFrame(() => fitBoardWrapToSquare());
+    });
+    boardBodyResizeObserver.observe(boardBody);
+
+    window.addEventListener(
+      "resize",
+      () => {
+        setBoardSquare();
+        setHexLayoutVars();
+        requestAnimationFrame(() => fitBoardWrapToSquare());
+      },
+      { passive: true }
+    );
 
     // ===== Helpers for mini boards =====
     function rotateCols(len: number, shiftLeft: number) {
@@ -1888,7 +1934,6 @@ max-height: 100%;
       return null;
     }
 
-    // Ensure .miniBoard.bgPlayer::before reads --miniBg
     const extraMiniBgStyle = document.createElement("style");
     extraMiniBgStyle.textContent = `.miniBoard.bgPlayer::before{ background-image: var(--miniBg); }`;
     document.head.appendChild(extraMiniBgStyle);
@@ -1976,7 +2021,7 @@ max-height: 100%;
       }
     }
 
-    // ===== Rendering: log + HUD + msg + board + minis =====
+    // ===== Rendering =====
     function renderStoryLog() {
       const pill = document.getElementById("movesPill");
       const list = document.getElementById("logList");
@@ -2049,18 +2094,10 @@ max-height: 100%;
       left.textContent = (message || "Ready.") + stuckHint;
     }
 
-    function renderBoardBackgroundFromCurrentHex() {
+    function renderBoardBackgroundFixed() {
       const bg = document.getElementById("boardBg") as HTMLElement | null;
       if (!bg) return;
-
-      const pid = state?.playerHexId ?? "";
-      if (!pid) {
-        bg.style.backgroundImage = "";
-        return;
-      }
-      const h: any = getHex(pid);
-      const url = tileUrlForHex(pid, h);
-      bg.style.backgroundImage = `url("${url}")`;
+      bg.style.backgroundImage = `url("${toPublicUrl(BOARD_BG_URL)}")`;
     }
 
     function renderMiniBoards() {
@@ -2165,11 +2202,10 @@ max-height: 100%;
               const playerCoord = idToCoord(state!.playerHexId);
               if (playerCoord) currentLayer = playerCoord.layer;
 
-              // AUTO end-turn after successful move (unless won)
               if (!res.won) {
                 endTurn(state!);
                 applyMiniShiftsForEndTurn();
-                enterLayer(state!, currentLayer); // keep fog (no revealWholeLayer)
+                enterLayer(state!, currentLayer);
               }
 
               message = res.won
@@ -2198,14 +2234,17 @@ max-height: 100%;
         boardWrap.appendChild(row);
       }
 
+      // after (re)rendering board, fit it to the square
+      setBoardSquare();
       setHexLayoutVars();
+      requestAnimationFrame(() => fitBoardWrapToSquare());
     }
 
     function renderAll() {
       rebuildTransitionIndexAndHighlights();
       renderHudHeader();
       renderMessage();
-      renderBoardBackgroundFromCurrentHex();
+      renderBoardBackgroundFixed();
       renderBoard();
       renderStoryLog();
       renderMiniBoards();
@@ -2239,7 +2278,6 @@ max-height: 100%;
       endTurn(state);
       applyMiniShiftsForEndTurn();
 
-      // Do NOT reveal whole layer — keep fog.
       enterLayer(state, currentLayer);
       recomputeReachability();
 
@@ -2264,12 +2302,15 @@ max-height: 100%;
       renderAll();
     });
 
-    // ---- Boot game view ----
+    // ---- Boot ----
     setLayerOptions(layerSelect);
     if (state) enterLayer(state, currentLayer);
     revealWholeLayer(currentLayer);
     recomputeReachability();
     rebuildTransitionIndexAndHighlights();
+
+    // set square and background immediately
+    setBoardSquare();
     setHexLayoutVars();
     renderAll();
   }
