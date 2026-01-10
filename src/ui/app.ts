@@ -233,7 +233,7 @@ export function mountApp(root: HTMLElement | null) {
       --sideW: 320px;
       --gap: 12px;
 
-      --hexGap: 5px;
+      --hexGap: 6px;
       --hexW: 64px;
       --hexH: 56px;
       --hexOffset: 34px;
@@ -258,6 +258,7 @@ export function mountApp(root: HTMLElement | null) {
       line-height: var(--line);
     }
 
+    /* subtle animated overlay (global) */
     body::before{
       content:"";
       position: fixed;
@@ -670,6 +671,7 @@ export function mountApp(root: HTMLElement | null) {
       flex-direction:column;
       min-height: 0;
       height: 100%;
+      width: 100%;
     }
 
     .boardScroll{
@@ -679,7 +681,7 @@ export function mountApp(root: HTMLElement | null) {
       overflow: hidden;              /* ✅ no scrollbars */
       border-radius: 16px;
       margin: 0 auto;                /* ✅ centered */
-      /* width/height are set in JS to keep it perfectly square based on available space */
+      /* width/height set via JS so it’s perfectly square */
     }
 
     .boardBg{
@@ -690,14 +692,13 @@ export function mountApp(root: HTMLElement | null) {
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
-      opacity: 1;                    /* ✅ show the tower background clearly */
-      filter: none;                  /* ✅ no blur */
+      opacity: 1;
+      filter: none;
       transform: none;
     }
     .boardBg::after{
       content:"";
       position:absolute; inset:0;
-      /* subtle vignette so edges feel contained */
       background:
         radial-gradient(900px 500px at 20% 20%, rgba(95,225,255,.10), transparent 60%),
         radial-gradient(900px 500px at 80% 65%, rgba(122,108,255,.10), transparent 60%),
@@ -759,8 +760,7 @@ export function mountApp(root: HTMLElement | null) {
         transform .12s ease,
         filter .12s ease,
         box-shadow .18s ease,
-        background-color .18s ease,
-        border-color .18s ease;
+        background-color .18s ease;
 
       overflow: hidden;
     }
@@ -799,6 +799,7 @@ export function mountApp(root: HTMLElement | null) {
       filter: saturate(1.02) contrast(1.02);
     }
 
+    /* You can hide labels by setting opacity:0; later if you want */
     .hexLabel{
       position:relative;
       z-index: 2;
@@ -942,6 +943,7 @@ export function mountApp(root: HTMLElement | null) {
       z-index: 3;
     }
 
+    /* story log */
     .logHeadRow{
       display:flex; align-items:center; justify-content:space-between; gap:10px;
       margin-bottom: 10px;
@@ -960,6 +962,7 @@ export function mountApp(root: HTMLElement | null) {
     .logItem.bad{ border-color: rgba(255,120,120,.22); }
     .logSmall{ margin-top: 10px; opacity:.82; font-weight:800; }
 
+    /* mini boards */
     .miniBoard{
       border-radius: 16px;
       border: 1px solid rgba(191,232,255,.14);
@@ -1064,6 +1067,7 @@ export function mountApp(root: HTMLElement | null) {
       font-size: 11px;
     }
 
+    /* responsive */
     @media (max-width: 1100px){
       .gameLayout{ grid-template-columns: 1fr; }
       .mainLeft{ grid-template-columns: 1fr; }
@@ -1307,6 +1311,7 @@ export function mountApp(root: HTMLElement | null) {
     const right = el("div", "card");
     layout.append(left, right);
 
+    // Player
     const h2 = el("h2");
     h2.textContent = "Choose your player";
     left.appendChild(h2);
@@ -1393,6 +1398,7 @@ export function mountApp(root: HTMLElement | null) {
     customCard.append(h3, drop, useCustom);
     left.appendChild(customCard);
 
+    // Monsters (kept)
     const mh2 = el("h2");
     mh2.textContent = monstersLabel();
     right.appendChild(mh2);
@@ -1436,6 +1442,7 @@ export function mountApp(root: HTMLElement | null) {
     }
     right.appendChild(mpresetWrap);
 
+    // Footer
     const footer = el("div", "row");
     (footer as HTMLElement).style.marginTop = "14px";
     (footer as HTMLElement).style.justifyContent = "space-between";
@@ -1563,7 +1570,6 @@ export function mountApp(root: HTMLElement | null) {
     if (!isRevealed(h)) return toPublicUrl(`tiles/${tileset}/FOG.png`);
 
     if (String(h?.kind ?? "").toUpperCase() === "GOAL") return toPublicUrl(`tiles/${tileset}/GOAL.png`);
-
     if (startHexId && id === startHexId) return toPublicUrl(`tiles/${tileset}/START.png`);
 
     const outgoing = transitionsByFrom.get(id) ?? [];
@@ -1605,6 +1611,7 @@ export function mountApp(root: HTMLElement | null) {
     miniShiftLeft[layer][row] = (miniShiftLeft[layer][row] ?? 0) + deltaLeft;
   }
 
+  // UI-only minimap shifting
   function applyMiniShiftsForEndTurn() {
     const s: any = scenario();
     const layers = Number(s?.layers ?? 1);
@@ -1650,7 +1657,6 @@ export function mountApp(root: HTMLElement | null) {
   // Screen 4: Game
   // --------------------------
   let gameBuilt = false;
-  let boardResizeObserver: ResizeObserver | null = null;
   let boardBodyResizeObserver: ResizeObserver | null = null;
 
   function renderGameScreen() {
@@ -1662,6 +1668,7 @@ export function mountApp(root: HTMLElement | null) {
     const stage = el("div", "gameStage");
     const wrap = el("div", "gameWrap");
 
+    // ===== HUD header =====
     const hud = el("section", "hudHeader");
     const hudHead = el("div", "hudHeaderHead");
 
@@ -1724,10 +1731,11 @@ export function mountApp(root: HTMLElement | null) {
     hudBody.append(hudWide);
     hud.append(hudHead, hudBody);
 
+    // ===== Layout =====
     const layout = el("div", "gameLayout");
     const mainLeft = el("div", "mainLeft");
 
-    // Story
+    // Story panel
     const storyPanel = el("section", "panel");
     const storyHead = el("div", "panelHead");
     storyHead.innerHTML = `<div class="tag"><span class="dot"></span> Story Log</div><div class="pill">Moves</div>`;
@@ -1745,14 +1753,17 @@ export function mountApp(root: HTMLElement | null) {
     storyBody.appendChild(storyCard);
     storyPanel.append(storyHead, storyBody);
 
-    // Board
+    // Board panel
     const boardPanel = el("section", "panel");
     const boardHead = el("div", "panelHead");
     boardHead.innerHTML = `<div class="tag"><span class="dot"></span> Board</div><div class="pill">Now</div>`;
     const boardBody = el("div", "panelBody");
     boardBody.style.overflow = "hidden";
+    boardBody.style.display = "flex";
+    boardBody.style.flexDirection = "column";
 
     const boardArea = el("div", "boardArea");
+    boardArea.style.flex = "1";
 
     const msgBar = el("div", "msgBar");
     msgBar.innerHTML = `<div class="msgLeft" id="msgLeft">Ready.</div><div class="msgRight" id="msgRight">Moves: 0</div>`;
@@ -1773,7 +1784,7 @@ export function mountApp(root: HTMLElement | null) {
 
     mainLeft.append(storyPanel, boardPanel);
 
-    // Layers
+    // Layers panel (right)
     const imgPanel = el("section", "panel");
     const imgHead = el("div", "panelHead");
     imgHead.innerHTML = `<div class="tag"><span class="dot"></span> Layers</div><div class="pill">Mini</div>`;
@@ -1814,36 +1825,28 @@ export function mountApp(root: HTMLElement | null) {
     imgPanel.append(imgHead, imgBody);
 
     layout.append(mainLeft, imgPanel);
-
     wrap.append(hud, layout);
     stage.appendChild(wrap);
     vGame.appendChild(stage);
 
-    // ===== Square board sizing (NO scroll, always centered) =====
+    // ===== Square board sizing + stable fit (no scroll, no pulsing) =====
     function setBoardSquare() {
-      // available space inside boardBody is: boardBody height minus msgBar
       const bodyW = boardBody.clientWidth;
       const bodyH = boardBody.clientHeight;
-
-      // msgBar is above boardScroll
       const msgH = msgBar.offsetHeight || 0;
 
-      // give a little breathing room so it isn't touching edges
       const pad = 6;
-
       const availW = Math.max(0, bodyW - pad * 2);
       const availH = Math.max(0, bodyH - msgH - pad * 2);
 
+      // try to use full width, but never exceed height
       const size = Math.floor(Math.max(0, Math.min(availW, availH)));
-
-      // if too small, just bail
       if (!size || size < 50) return;
 
       boardScroll.style.width = `${size}px`;
       boardScroll.style.height = `${size}px`;
     }
 
-    // ---- Dynamic hex sizing (7 across) ----
     function clamp(n: number, lo: number, hi: number) {
       return Math.max(lo, Math.min(hi, n));
     }
@@ -1852,11 +1855,11 @@ export function mountApp(root: HTMLElement | null) {
       const w = boardScroll.clientWidth;
       if (!w || w < 50) return;
 
-      // Keep some inner margin so towers show between tiles
-      const innerPad = 18; // space inside the square
+      // Let background "towers" show between tiles
+      const innerPad = 18;
       const usable = Math.max(50, w - innerPad * 2);
 
-      const gap = 6; // slightly bigger than 5 so background shows better
+      const gap = 6;
       const cols = 7;
       const minW = 46;
       const maxW = 92;
@@ -1872,43 +1875,33 @@ export function mountApp(root: HTMLElement | null) {
       (boardPanel as HTMLElement).style.setProperty("--hexOffset", `${offset}px`);
     }
 
-    // Scale boardWrap down if needed so it always fits the square (no scroll ever)
-  function fitBoardWrapToSquare() {
-  const size = boardScroll.clientWidth;
-  if (!size || size < 50) return;
+    function fitBoardWrapToSquare() {
+      const size = boardScroll.clientWidth;
+      if (!size || size < 50) return;
 
-  const margin = 18;
-  const targetW = Math.max(1, size - margin * 2);
-  const targetH = Math.max(1, size - margin * 2);
+      const margin = 18;
+      const targetW = Math.max(1, size - margin * 2);
+      const targetH = Math.max(1, size - margin * 2);
 
-  // ✅ use unscaled content size (transform doesn't affect scrollWidth/scrollHeight)
-  const w = boardWrap.scrollWidth || 1;
-  const h = boardWrap.scrollHeight || 1;
+      // ✅ unscaled content size (transform doesn't affect scrollWidth/scrollHeight)
+      const w = boardWrap.scrollWidth || 1;
+      const h = boardWrap.scrollHeight || 1;
 
-  const s = Math.min(targetW / w, targetH / h, 1);
-  boardWrap.style.setProperty("--boardScale", String(s));
-}
+      const s = Math.min(targetW / w, targetH / h, 1);
+      boardWrap.style.setProperty("--boardScale", String(s));
+    }
 
-
-    boardResizeObserver.observe(boardScroll);
-
-    if (boardBodyResizeObserver) boardBodyResizeObserver.disconnect();
-    boardBodyResizeObserver = new ResizeObserver(() => {
+    function relayoutBoard() {
       setBoardSquare();
       setHexLayoutVars();
       requestAnimationFrame(() => fitBoardWrapToSquare());
-    });
+    }
+
+    if (boardBodyResizeObserver) boardBodyResizeObserver.disconnect();
+    boardBodyResizeObserver = new ResizeObserver(() => relayoutBoard());
     boardBodyResizeObserver.observe(boardBody);
 
-    window.addEventListener(
-      "resize",
-      () => {
-        setBoardSquare();
-        setHexLayoutVars();
-        requestAnimationFrame(() => fitBoardWrapToSquare());
-      },
-      { passive: true }
-    );
+    window.addEventListener("resize", relayoutBoard, { passive: true });
 
     // ===== Helpers for mini boards =====
     function rotateCols(len: number, shiftLeft: number) {
@@ -1928,6 +1921,7 @@ export function mountApp(root: HTMLElement | null) {
       return null;
     }
 
+    // Ensure .miniBoard.bgPlayer::before reads --miniBg
     const extraMiniBgStyle = document.createElement("style");
     extraMiniBgStyle.textContent = `.miniBoard.bgPlayer::before{ background-image: var(--miniBg); }`;
     document.head.appendChild(extraMiniBgStyle);
@@ -2147,6 +2141,7 @@ export function mountApp(root: HTMLElement | null) {
           img.alt = "tile";
           btn.appendChild(img);
 
+          // Keep label for now; you can hide via CSS if you want
           const label = el("div", "hexLabel");
           label.textContent = `R${r} C${c}`;
           btn.appendChild(label);
@@ -2154,9 +2149,7 @@ export function mountApp(root: HTMLElement | null) {
           const { blocked, missing } = isBlockedOrMissing(h);
           const isGoal = String(h?.kind ?? "").toUpperCase() === "GOAL";
           const isPlayer = state.playerHexId === id;
-setBoardSquare();
-setHexLayoutVars();
-requestAnimationFrame(() => fitBoardWrapToSquare());
+
           if (missing) btn.classList.add("missing");
           if (blocked) btn.classList.add("blocked");
           if (!isRevealed(h)) btn.classList.add("fog");
@@ -2198,10 +2191,11 @@ requestAnimationFrame(() => fitBoardWrapToSquare());
               const playerCoord = idToCoord(state!.playerHexId);
               if (playerCoord) currentLayer = playerCoord.layer;
 
+              // AUTO end-turn after successful move (unless won)
               if (!res.won) {
                 endTurn(state!);
                 applyMiniShiftsForEndTurn();
-                enterLayer(state!, currentLayer);
+                enterLayer(state!, currentLayer); // keep fog (no revealWholeLayer)
               }
 
               message = res.won
@@ -2230,10 +2224,8 @@ requestAnimationFrame(() => fitBoardWrapToSquare());
         boardWrap.appendChild(row);
       }
 
-      // after (re)rendering board, fit it to the square
-      setBoardSquare();
-      setHexLayoutVars();
-      requestAnimationFrame(() => fitBoardWrapToSquare());
+      // After render: stable relayout (no scroll, fit-to-square)
+      relayoutBoard();
     }
 
     function renderAll() {
@@ -2274,6 +2266,7 @@ requestAnimationFrame(() => fitBoardWrapToSquare());
       endTurn(state);
       applyMiniShiftsForEndTurn();
 
+      // Do NOT reveal whole layer — keep fog.
       enterLayer(state, currentLayer);
       recomputeReachability();
 
@@ -2298,16 +2291,16 @@ requestAnimationFrame(() => fitBoardWrapToSquare());
       renderAll();
     });
 
-    // ---- Boot ----
+    // ---- Boot game view ----
     setLayerOptions(layerSelect);
     if (state) enterLayer(state, currentLayer);
     revealWholeLayer(currentLayer);
     recomputeReachability();
     rebuildTransitionIndexAndHighlights();
 
-    // set square and background immediately
-    setBoardSquare();
-    setHexLayoutVars();
+    // background + square sizing immediately
+    renderBoardBackgroundFixed();
+    relayoutBoard();
     renderAll();
   }
 
