@@ -503,6 +503,19 @@ export function mountApp(root: HTMLElement | null) {
       min-height: calc(100vh - 140px);
       position:relative;
     }
+    
+.hudWide{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+@media (max-width: 980px){
+  .hudWide{
+    grid-template-columns: 1fr;
+  }
+}
 
     .gameWrap{
       position:relative;
@@ -1710,12 +1723,20 @@ export function mountApp(root: HTMLElement | null) {
 
     hudHead.append(hudLeft, hudControls);
 
-    const hudBody = el("div", "hudBody");
-    const hudScenario = el("div", "softCard infoText");
-    const hudSelected = el("div", "softCard infoText");
-    hudBody.append(hudScenario, hudSelected);
+   const hudBody = el("div", "hudBody");
 
-    hud.append(hudHead, hudBody);
+// ONE wide card
+const hudWide = el("div", "softCard hudWide");
+
+// two inner columns (no softCard here)
+const hudScenario = el("div", "infoText");
+const hudSelected = el("div", "infoText");
+
+hudWide.append(hudScenario, hudSelected);
+hudBody.append(hudWide);
+
+hud.append(hudHead, hudBody);
+
 
     // ===== 3-column layout =====
     const layout = el("div", "gameLayout");
@@ -1896,7 +1917,7 @@ export function mountApp(root: HTMLElement | null) {
     extraMiniBgStyle.textContent = `.miniBoard.bgPlayer::before{ background-image: var(--miniBg); }`;
     document.head.appendChild(extraMiniBgStyle);
 
-    function renderMiniBoardGeneric(opts: {
+    function MiniBoardGeneric(opts: {
       gridId: string;
       pillId: string;
       noteId: string;
