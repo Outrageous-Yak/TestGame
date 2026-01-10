@@ -1678,69 +1678,6 @@ export function mountApp(root: HTMLElement | null) {
     const stage = el("div", "gameStage");
     const wrap = el("div", "gameWrap");
 
-    // ===== HUD header =====
-    const hud = el("section", "hudHeader");
-    const hudHead = el("div", "hudHeaderHead");
-
-    const hudLeft = el("div", "hudTitleRow");
-    hudLeft.innerHTML = `<div class="tag"><span class="dot"></span> HUD</div><div class="pill">Build: ${escapeHtml(
-      BUILD_TAG
-    )}</div>`;
-
-    const hudControls = el("div", "hudControls");
-
-    const scenarioSelect = el("select") as HTMLSelectElement;
-    scenarioSelect.style.fontSize = "12px";
-    scenarioSelect.style.fontWeight = "800";
-    scenarioSelect.style.borderRadius = "999px";
-    scenarioSelect.style.padding = "8px 12px";
-    scenarioSelect.style.border = "1px solid rgba(191,232,255,.18)";
-    scenarioSelect.style.background = "rgba(10,16,34,.35)";
-    scenarioSelect.style.color = "rgba(234,242,255,.92)";
-    scenarios.forEach((s: any, i: number) => {
-      const opt = document.createElement("option");
-      opt.value = String(i);
-      opt.textContent = String((s as any).name ?? (s as any).title ?? (s as any).id ?? `Scenario ${i + 1}`);
-      scenarioSelect.appendChild(opt);
-    });
-    scenarioSelect.value = String(scenarioIndex);
-
-    const layerSelect = el("select") as HTMLSelectElement;
-    layerSelect.style.fontSize = "12px";
-    layerSelect.style.fontWeight = "800";
-    layerSelect.style.borderRadius = "999px";
-    layerSelect.style.padding = "8px 12px";
-    layerSelect.style.border = "1px solid rgba(191,232,255,.18)";
-    layerSelect.style.background = "rgba(10,16,34,.35)";
-    layerSelect.style.color = "rgba(234,242,255,.92)";
-
-    const endTurnBtn = el("button", "btn") as HTMLButtonElement;
-    endTurnBtn.textContent = "End turn";
-
-    const resetBtn = el("button", "btn") as HTMLButtonElement;
-    resetBtn.textContent = "Reset run";
-
-    const forceRevealBtn = el("button", "btn") as HTMLButtonElement;
-    forceRevealBtn.textContent = "Force reveal layer";
-
-    const exitBtn = el("button", "btn") as HTMLButtonElement;
-    exitBtn.textContent = "Exit";
-    exitBtn.addEventListener("click", () => {
-      renderSetup();
-      setScreen("setup");
-    });
-
-    hudControls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
-    hudHead.append(hudLeft, hudControls);
-
-    const hudBody = el("div", "hudBody");
-    const hudWide = el("div", "softCard hudWide");
-    const hudScenario = el("div", "infoText");
-    const hudSelected = el("div", "infoText");
-    hudWide.append(hudScenario, hudSelected);
-    hudBody.append(hudWide);
-
-    hud.append(hudHead, hudBody);
 
     // ===== TWO MAIN COLUMNS =====
     const layout = el("div", "gameLayout");
