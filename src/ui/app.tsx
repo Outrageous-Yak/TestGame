@@ -1,5 +1,5 @@
 // src/ui/app.tsx
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 
 import type { GameState, Scenario, Hex } from "../engine/types";
 import { assertScenario } from "../engine/scenario";
@@ -25,7 +25,7 @@ type Coord = { layer: number; row: number; col: number };
 const BUILD_TAG = "BUILD_TAG_TILES_DEMO_V1";
 
 /** Full-screen background image for the entire game screen */
-const GAME_BG_URL = "images/ui/board-bg.png"; // use your cloud image here if you want
+const GAME_BG_URL = "images/ui/board-bg.png";
 
 /* =========================================================
    Helpers
@@ -57,9 +57,9 @@ async function loadScenario(path: string): Promise<Scenario> {
 
 function getHexFromState(state: GameState | null, id: string): Hex | undefined {
   if (!state) return undefined;
-  const m: any = (state as any)esById;
+  const m: any = (state as any).hexesById;
   if (m?.get) return m.get(id);
-  return (state as any)esById?.[id];
+  return (state as any).hexesById?.[id];
 }
 
 function isBlockedOrMissing(hex: any): { blocked: boolean; missing: boolean } {
@@ -68,7 +68,7 @@ function isBlockedOrMissing(hex: any): { blocked: boolean; missing: boolean } {
 }
 
 /* =========================================================
-   Minimal presets (kept simple)
+   Minimal presets
 ========================================================= */
 const PLAYER_PRESETS_REGULAR = [
   { id: "p1", name: "Aeris" },
@@ -83,18 +83,14 @@ function scenarioLabel(s: any, i: number) {
    App
 ========================================================= */
 export default function App() {
-  // screens
   const [screen, setScreen] = useState<Screen>("start");
   const [mode, setMode] = useState<Mode | null>(null);
 
-  // scenarios
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [scenarioIndex, setScenarioIndex] = useState<number>(0);
 
-  // setup choices
   const [chosenPlayer, setChosenPlayer] = useState<PlayerChoice | null>(null);
 
-  // game state
   const [state, setState] = useState<GameState | null>(null);
   const [currentLayer, setCurrentLayer] = useState<number>(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -126,7 +122,6 @@ export default function App() {
 
     setScenarios(list);
 
-    // pick initial scenario if possible
     const initialBase = manifest.initial.split("/").pop()?.replace(".json", "") ?? "";
     const idx = Math.max(
       0,
@@ -172,7 +167,7 @@ export default function App() {
   );
 
   /* --------------------------
-     Board click (keep gameplay)
+     Board click
   -------------------------- */
   const tryMoveToId = useCallback(
     (id: string) => {
@@ -195,9 +190,8 @@ export default function App() {
         setSelectedId(newPlayerId ?? id);
 
         recomputeReachability(state);
-        setState({ ...(state as any) }); // force render
+        setState({ ...(state as any) });
       } else {
-        // rejected move still forces selection + rerender
         recomputeReachability(state);
         setState({ ...(state as any) });
       }
@@ -205,25 +199,15 @@ export default function App() {
     [state, currentLayer, recomputeReachability, revealWholeLayer]
   );
 
-  /* --------------------------
-     Derived for minis
-  -------------------------- */
   const belowLayer = currentLayer - 1;
   const aboveLayer = currentLayer + 1;
 
-  /* =========================================================
-     Render
-  ========================================================= */
   return (
     <div className="appRoot">
       <style>{CSS}</style>
 
       {/* ONE global full-screen background image */}
-      <div
-        className="globalBg"
-        aria-hidden="true"
-        style={{ backgroundImage: `url("${toPublicUrl(GAME_BG_URL)}")` }}
-      />
+      <div className="globalBg" aria-hidden="true" style={{ backgroundImage: `url("${toPublicUrl(GAME_BG_URL)}")` }} />
       <div className="globalBgOverlay" aria-hidden="true" />
 
       {/* START */}
@@ -234,7 +218,10 @@ export default function App() {
             <div className="cardMeta">Build: {BUILD_TAG}</div>
 
             <div className="row">
-              <button className="btn primary" onClick={() => loadModeContent("regular").catch((e) => alert(String(e?.message ?? e)))}>
+              <button
+                className="btn primary"
+                onClick={() => loadModeContent("regular").catch((e) => alert(String(e?.message ?? e)))}
+              >
                 Regular
               </button>
               <button className="btn" onClick={() => loadModeContent("kids").catch((e) => alert(String(e?.message ?? e)))}>
@@ -255,13 +242,7 @@ export default function App() {
               {scenarios.map((s: any, i: number) => {
                 const selected = i === scenarioIndex;
                 return (
-                  <div
-                    key={i}
-                    className={"selectTile" + (selected ? " selected" : "")}
-                    onClick={() => setScenarioIndex(i)}
-                    role="button"
-                    tabIndex={0}
-                  >
+                  <div key={i} className={"selectTile" + (selected ? " selected" : "")} onClick={() => setScenarioIndex(i)} role="button" tabIndex={0}>
                     <div className="selectTileTitle">{scenarioLabel(s, i)}</div>
                     <div className="selectTileDesc">{String(s?.desc ?? s?.description ?? "")}</div>
                   </div>
@@ -448,16 +429,19 @@ function HexBoard(props: {
   showPlayerOnMini?: boolean;
 }) {
   const { kind, activeLayer, state, selectedId, reachable, reachMap, onCellClick, showCoords, showPlayerOnMini } = props;
-
   const playerId = state?.playerHexId ?? null;
 
   return (
     <div className={"hexBoard " + (kind === "main" ? "hexBoardMain" : "hexBoardMini")} data-layer={activeLayer}>
       {ROW_LENS.map((len, rIdx) => {
         const row = rIdx + 1;
-        const odd = row % 2 === 1;
+
+        // IMPORTANT: to make rows 2/4/6 line up like your reference,
+        // the *even* rows get the horizontal offset (not the odd ones).
+        const even = row % 2 === 0;
+
         return (
-          <div key={row} className={"hexRow" + (odd ? " odd" : " even")} data-row={row}>
+          <div key={row} className={"hexRow" + (even ? " even" : " odd")} data-row={row}>
             {Array.from({ length: len }, (_, cIdx) => {
               const col = cIdx + 1;
               const id = `L${activeLayer}-R${row}-C${col}`;
@@ -684,7 +668,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .barSeg[data-layer="6"]{ background: var(--L6); }
 .barSeg[data-layer="7"]{ background: var(--L7); }
 
-/* active segment glows its OWN color */
 .barSeg.isActive{
   outline: 1px solid rgba(255,255,255,.25);
   z-index: 3;
@@ -699,51 +682,52 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   border-radius: 999px;
 }
 
-/* HEX BOARD GEOMETRY (Honeycomb connected but NOT overlapping too much) */
-Board{
+/* =========================================================
+   HEX BOARD GEOMETRY
+   IMPORTANT CHANGE:
+   - Rows 2/4/6 (even rows) are offset, not odd rows.
+========================================================= */
+.hexBoard{
   --hexW: 74px;
   --hexH: calc(var(--hexW) * 0.8660254); /* √3/2 */
-  --hexGap: 10px;        /* <-- increase to spread out more */
-  --hexOverlap: 0.08;    /* <-- smaller overlap (was 0.25) */
+  --hexGap: 10px;        /* spacing between cells */
+  --hexOverlap: 0.08;    /* slight “honeycomb touch” without ugly overlap */
   display: grid;
   justify-content: center;
   gap: 0;
   user-select: none;
 }
 
-BoardMain{ --hexW: 82px; }
-BoardMini{ --hexW: 24px; --hexGap: 5px; --hexOverlap: 0.06; }
+.hexBoardMain{ --hexW: 82px; }
+.hexBoardMini{ --hexW: 24px; --hexGap: 5px; --hexOverlap: 0.06; }
 
-Row{
+.hexRow{
   display: flex;
   height: var(--hexH);
   align-items: center;
   justify-content: center;
 }
 
-/* row offset = half a hex + half the gap */
-Row.odd{
+/* Offset EVEN rows to match your reference (rows 2,4,6) */
+.hexRow.even{
   margin-left: calc((var(--hexW) + var(--hexGap)) * 0.5);
 }
 
-/* hex tile */
 .hex{
   width: var(--hexW);
   height: var(--hexH);
-
   margin-right: calc((var(--hexW) * -1 * var(--hexOverlap)) + var(--hexGap));
-
   clip-path: polygon(
     25% 0%, 75% 0%,
     100% 50%,
     75% 100%, 25% 100%,
     0% 50%
   );
-
   position: relative;
-  background: rgba(255,255,255,.10);
 
-  /* 👇 black outline for EVERY hex (all boards) */
+  background: rgba(255,255,255,.14);
+
+  /* Black outline on EVERY hex (all 4 boards) */
   border: 1px solid rgba(0,0,0,.75);
   box-shadow:
     0 0 0 1px rgba(0,0,0,.35) inset,
@@ -752,16 +736,14 @@ Row.odd{
   cursor: default;
 }
 
-
 .hexBoardMain .hex{ cursor: pointer; }
 
-/* MINIs = NO colored rows */
+/* MINIs: no colored rows (same base look) */
 .hexBoardMini .hex{
   background: rgba(255,255,255,.14);
-  border-color: rgba(255,255,255,.16);
 }
 
-/* Labels: crisp + high contrast everywhere */
+/* Labels: crisp + ALWAYS full strength */
 .hexLabel{
   position: absolute;
   inset: 0;
@@ -778,10 +760,7 @@ Row.odd{
   z-index: 3;
   pointer-events: none;
 
-  /* stronger outline */
   -webkit-text-stroke: 1px rgba(0,0,0,.75);
-
-  /* fallback outline + glow */
   text-shadow:
     -1px -1px 0 rgba(0,0,0,.75),
      1px -1px 0 rgba(0,0,0,.75),
@@ -790,10 +769,8 @@ Row.odd{
      0 0 12px rgba(0,0,0,.45);
 }
 
-/* size tuning: main board vs minis */
 .hexBoardMain .hexLabel{ font-size: 13px; }
 .hexBoardMini .hexLabel{ font-size: 9px; -webkit-text-stroke: .8px rgba(0,0,0,.75); }
-
 
 /* Reachable: BLUE glow */
 .hex.reach{
@@ -804,7 +781,7 @@ Row.odd{
   filter: brightness(1.6);
 }
 
-/* Player: GREEN glow (strong) */
+/* Player: GREEN glow */
 .hex.player{
   box-shadow:
     0 0 0 2px rgba(255,255,255,.18) inset,
@@ -820,8 +797,8 @@ Row.odd{
   outline-offset: 2px;
 }
 
-/* ---- IMPORTANT: do NOT dim the whole tile (it dims the label). ---- */
-/* Reset any dimming on the tile itself */
+/* IMPORTANT: Never dim the label.
+   We dim using overlays only. */
 .hex.notReach,
 .hex.blocked,
 .hex.missing{
@@ -829,35 +806,19 @@ Row.odd{
   filter: none;
 }
 
-/* We'll dim with an overlay instead */
 .hex::before{
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 0; /* clip-path handles shape */
   pointer-events: none;
-  z-index: 1;       /* below label */
-  opacity: 0;       /* default off */
+  z-index: 1; /* below label */
+  opacity: 0;
 }
 
-/* Not reachable: dim only the tile surface */
-.hex.notReach{
-  cursor: not-allowed;
-}
-.hex.notReach::before{
-  background: rgba(0,0,0,.28);
-  opacity: 1;
-}
-
-/* blocked/missing: stronger dim */
-.hex.blocked::before{
-  background: rgba(0,0,0,.34);
-  opacity: 1;
-}
-.hex.missing::before{
-  background: rgba(0,0,0,.48);
-  opacity: 1;
-}
+.hex.notReach{ cursor: not-allowed; }
+.hex.notReach::before{ background: rgba(0,0,0,.28); opacity: 1; }
+.hex.blocked::before{ background: rgba(0,0,0,.34); opacity: 1; }
+.hex.missing::before{ background: rgba(0,0,0,.48); opacity: 1; }
 
 /* ===========================
    MINI BOARDS (3D tilt away)
@@ -870,15 +831,12 @@ Row.odd{
   width: min(1080px, calc(100vw - 44px));
 }
 
-/* make them straight but leaning back like your image */
 .miniCard3D{
   border-radius: 18px;
   padding: 12px;
   background: rgba(255,255,255,.10);
   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.16);
   transform-style: preserve-3d;
-
-  /* tilt away */
   transform: perspective(900px) rotateX(18deg);
 }
 
@@ -911,12 +869,10 @@ Row.odd{
   font-weight: 1000;
 }
 
-/* subtle tints only on the mini card shell, NOT on tiles */
 .tone-below{ background: linear-gradient(180deg, rgba(255, 220, 120, .28), rgba(255,255,255,.10)); }
 .tone-current{ background: linear-gradient(180deg, rgba(120,235,170,.28), rgba(255,255,255,.10)); }
 .tone-above{ background: linear-gradient(180deg, rgba(120, 220, 255, .28), rgba(255,255,255,.10)); }
 
-/* responsive */
 @media (max-width: 980px){
   .gameLayout{ grid-template-columns: 1fr; }
   .barWrap{ justify-content: center; }
