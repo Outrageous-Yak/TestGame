@@ -34,7 +34,10 @@ const BUILD_TAG = "BUILD_TAG_TILES_DEMO_V1";
 /** Optional start-screen background (put file in public/images/ui/start-screen.jpg) */
 const START_BG_URL = "images/ui/start-screen.jpg";
 
-/** Optional board background (put file in public/images/ui/board-bg.png) */
+/**
+ * Board BACKGROUND image (put file in public/images/ui/board-bg.png)
+ * This is the tower-grid illusion background (NO labels).
+ */
 const BOARD_BG_URL = "images/ui/board-bg.png";
 
 function idToCoord(id: string): Coord | null {
@@ -122,11 +125,6 @@ function toPublicUrl(p: string) {
   return base + clean;
 }
 
-function scenarioTileSet(s: any): string {
-  const t = String(s?.tileset ?? s?.tileSet ?? s?.theme ?? "demo").trim();
-  return t || "demo";
-}
-
 /** Preset player image (place files at public/images/players/p1.png, p2.png, ...) */
 function presetPlayerImage(id: string): string {
   return `images/players/${id}.png`;
@@ -198,7 +196,6 @@ export function mountApp(root: HTMLElement | null) {
   let outgoingFromSelected: any[] = [];
 
   let startHexId: string | null = null;
-  let activeTileSet = "demo";
 
   // Move counter + story log
   let moveCount = 0;
@@ -227,27 +224,21 @@ export function mountApp(root: HTMLElement | null) {
       --radius: 18px;
       --gap: 12px;
 
+      --tileGap: 6px;
+      --tileSize: 72px;
+      --tileOffset: 39px;
+
+      /* Pastel rainbow reversed (R1 violet -> R7 red) */
+      --r1: rgba(190, 170, 255, .42); /* violet */
+      --r2: rgba(155, 170, 255, .40); /* indigo */
+      --r3: rgba(150, 210, 255, .40); /* blue */
+      --r4: rgba(165, 245, 205, .40); /* green */
+      --r5: rgba(255, 245, 170, .38); /* yellow */
+      --r6: rgba(255, 215, 170, .38); /* orange */
+      --r7: rgba(255, 170, 190, .38); /* red */
+
       --baseText: 12px;
       --line: 1.35;
-
-      /* Dashboard squares */
-      --dashPad: 12px;
-      --dashGap: 12px;
-
-      /* Board sizing inside its square */
-      --tileGap: 8px;
-      --tileW: 64px;  /* set via JS to fit 7-wide */
-      --tileH: 52px;  /* set via JS */
-      --tileOffset: 36px;
-
-      /* Pastel rainbow (reversed): row1 violet -> row7 red */
-      --row1: #cbb8ff; /* pastel violet */
-      --row2: #b9c9ff; /* pastel indigo */
-      --row3: #b9e3ff; /* pastel blue */
-      --row4: #bdf7e2; /* pastel green */
-      --row5: #f7f4b8; /* pastel yellow */
-      --row6: #ffd7b8; /* pastel orange */
-      --row7: #ffb8c8; /* pastel red/pink */
     }
 
     *{ box-sizing:border-box; }
@@ -261,48 +252,18 @@ export function mountApp(root: HTMLElement | null) {
         radial-gradient(900px 700px at 85% 30%, rgba(122,108,255,.12), transparent 55%),
         radial-gradient(1000px 900px at 50% 110%, rgba(0,170,255,.08), transparent 55%),
         linear-gradient(180deg, var(--bg0), var(--bg1));
-      overflow:hidden;
+      overflow-x:hidden;
       font-size: var(--baseText);
       line-height: var(--line);
     }
 
-    /* subtle animated overlay (global) */
-    body::before{
-      content:"";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-      opacity: .18;
-      mix-blend-mode: screen;
-      background:
-        linear-gradient(135deg,
-          rgba(0,0,0,0) 0%,
-          rgba(95,225,255,0) 35%,
-          rgba(95,225,255,.95) 50%,
-          rgba(95,225,255,0) 65%,
-          rgba(0,0,0,0) 100%);
-      background-size: 220% 220%;
-      animation: dashWave 10s linear infinite;
-      filter: blur(.2px) saturate(1.15);
-    }
-    @keyframes dashWave{
-      0%   { background-position: 120% 120%; opacity:.14; }
-      50%  { opacity:.22; }
-      100% { background-position: -20% -20%; opacity:.14; }
-    }
-
     .shell{
       width: min(1480px, calc(100vw - 36px));
-      height: calc(100vh - 24px);
       margin: 0 auto;
-      padding: 18px 0 18px;
+      padding: 18px 0 26px;
       position:relative;
       z-index:1;
-      display:flex;
-      flex-direction:column;
-      gap: 12px;
-      min-height: 0;
+      color: var(--ink);
     }
     .shell.kids{
       --card: rgba(10, 22, 50, .52);
@@ -318,6 +279,7 @@ export function mountApp(root: HTMLElement | null) {
       gap:12px;
       flex-wrap:wrap;
       padding: 0 6px;
+      margin-bottom: 14px;
     }
     .brand{display:flex; align-items:center; gap:10px;}
     .dotBrand{
@@ -337,8 +299,8 @@ export function mountApp(root: HTMLElement | null) {
       text-align:right;
     }
 
-    .view{ display:none; min-height: 0; }
-    .view.active{ display:block; min-height: 0; }
+    .view{ display:none; }
+    .view.active{ display:block; }
 
     .card{
       border: 1px solid var(--stroke2);
@@ -482,8 +444,8 @@ export function mountApp(root: HTMLElement | null) {
     }
     .startHeroLabel b{font-size: 13px}
 
-    /* ===== New Dashboard (6 equal squares) ===== */
-    .dashStage{
+    /* ===== Game grid (2 rows x 3 cols = 6 equal cells) ===== */
+    .gameStage{
       border-radius: calc(var(--radius) + 6px);
       border: 1px solid rgba(191,232,255,.18);
       background: linear-gradient(180deg, rgba(10,16,34,.58), rgba(10,16,34,.30));
@@ -491,60 +453,31 @@ export function mountApp(root: HTMLElement | null) {
         0 0 0 1px rgba(95,225,255,.08) inset,
         0 18px 60px rgba(0,0,0,.55);
       overflow:hidden;
-      padding: var(--dashPad);
-      flex: 1;
-      min-height: 0;
-      display:flex;
-      flex-direction:column;
-      gap: var(--dashGap);
+      padding: 12px;
+      position:relative;
     }
-
-    .dashGrid{
-      flex: 1;
-      min-height: 0;
+    .gameGrid{
       display:grid;
-      grid-template-columns: repeat(3, 1fr);
-      grid-template-rows: repeat(2, 1fr);
-      gap: var(--dashGap);
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      gap: var(--gap);
+      height: calc(100vh - 160px);
+      min-height: 560px;
     }
-
-    /* Each cell is a square: force by aspect-ratio and let grid rows follow */
-    .dashCell{
+    .panel{
       border-radius: var(--radius);
       border: 1px solid rgba(160, 210, 255, .22);
       background: rgba(10,16,34,.45);
+      overflow:hidden;
       box-shadow:
         0 0 0 1px rgba(95,225,255,.08) inset,
         0 18px 40px rgba(0,0,0,.35);
-      overflow:hidden;
-      min-width: 0;
-      min-height: 0;
-      aspect-ratio: 1 / 1;
       display:flex;
       flex-direction:column;
+      min-width: 0;
+      min-height: 0;
     }
-
-    /* If the viewport is short, allow cells to stretch a little (still close to square) */
-    @media (max-height: 760px){
-      .dashCell{ aspect-ratio: auto; }
-    }
-
-    /* Responsive fallback: stack to 2 columns on narrower screens */
-    @media (max-width: 1100px){
-      body{ overflow:auto; }
-      .shell{ height:auto; min-height: 100vh; }
-      .dashGrid{
-        grid-template-columns: repeat(2, 1fr);
-        grid-template-rows: auto;
-      }
-      .dashCell{ aspect-ratio: 1 / 1; }
-    }
-    @media (max-width: 760px){
-      .dashGrid{ grid-template-columns: 1fr; }
-      .dashCell{ aspect-ratio: auto; min-height: 280px; }
-    }
-
-    .cellHead{
+    .panelHead{
       padding:10px 12px;
       border-bottom: 1px solid rgba(191,232,255,.14);
       background: linear-gradient(180deg, rgba(10,16,34,.62), rgba(10,16,34,.28));
@@ -554,12 +487,13 @@ export function mountApp(root: HTMLElement | null) {
       justify-content:space-between;
       gap:12px;
       flex-wrap:wrap;
+      min-height: 48px;
     }
-    .cellBody{
+    .panelBody{
       padding: 12px;
-      min-height: 0;
-      flex: 1;
       overflow:auto;
+      min-height: 0;
+      min-width: 0;
     }
     .tag{
       font-size:11px;
@@ -568,7 +502,7 @@ export function mountApp(root: HTMLElement | null) {
       align-items:center;
       gap:8px;
       opacity:.95;
-      font-weight: 800;
+      font-weight: 900;
       letter-spacing:.2px;
     }
     .dot{
@@ -587,25 +521,37 @@ export function mountApp(root: HTMLElement | null) {
       white-space: nowrap;
     }
 
-    /* Message bar (top-left cell) */
-    .msgBar{
-      padding: 10px 12px;
+    /* Responsive fallback for high zoom / small screens */
+    @media (max-width: 1180px){
+      .gameGrid{
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-rows: auto;
+        height: auto;
+        min-height: 0;
+      }
+    }
+    @media (max-width: 760px){
+      .gameGrid{ grid-template-columns: 1fr; }
+    }
+
+    /* ===== Top-left (Message + Moves) ===== */
+    .msgBox{
       border-radius: 14px;
       border: 1px solid rgba(191,232,255,.14);
       background: rgba(10,16,34,.24);
       box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
+      padding: 10px 12px;
       font-weight: 900;
       font-size: 12px;
       display:flex;
-      align-items:center;
+      align-items:flex-start;
       justify-content:space-between;
       gap: 12px;
       margin-bottom: 10px;
     }
-    .msgLeft{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    .msgLeft{min-width:0; overflow:hidden; text-overflow:ellipsis;}
     .msgRight{flex:0 0 auto; opacity:.92}
 
-    /* Story log list */
     .logList{ display:flex; flex-direction:column; gap:10px; }
     .logItem{
       display:flex; justify-content:space-between; align-items:center; gap:12px;
@@ -620,24 +566,76 @@ export function mountApp(root: HTMLElement | null) {
     .logItem.bad{ border-color: rgba(255,120,120,.22); }
     .logSmall{ margin-top: 10px; opacity:.82; font-weight:800; }
 
-    /* ===== Board cell (bottom-center) ===== */
-    .boardCellBody{
-      padding: 10px;
+    /* ===== Mini boards (circle cells) ===== */
+    .miniBoardGrid{
       display:flex;
       flex-direction:column;
-      gap: 10px;
-      min-height: 0;
-      overflow:hidden;
+      gap:8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 11px;
+      line-height: 1.25;
     }
+    .miniRow{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .miniRow b{
+      opacity:.9;
+      font-weight: 900;
+      min-width: 34px;
+    }
+    .miniRow.offset{
+      padding-left: calc((24px + 8px) / 2);
+    }
+    .miniCell{
+      width: 24px;
+      height: 24px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius: 999px;
+      border: 1px solid rgba(191,232,255,.14);
+      background: rgba(0,0,0,.22);
+      opacity:.95;
+      font-weight: 900;
+      line-height:1;
+      padding: 0;
+      color: rgba(234,242,255,.9);
+    }
+    .miniCell.on{
+      border-color: rgba(76,255,80,.75);
+      background: rgba(76,255,80,.18);
+      box-shadow: 0 0 0 2px rgba(76,255,80,.18) inset, 0 0 16px rgba(76,255,80,.22);
+      color: rgba(234,242,255,.98);
+    }
+    .miniCell.empty{
+      opacity:.45;
+      color: rgba(234,242,255,.25);
+    }
+    .miniNote{
+      margin-top: 10px;
+      opacity:.75;
+      font-weight: 800;
+      font-size: 11px;
+    }
+    .miniWarn{ color: rgba(255,120,120,.95); font-weight: 900; }
 
+    /* ===== Main board (square inside square; no extra "cloud bumps") ===== */
+    .boardCell{
+      display:flex;
+      flex-direction:column;
+      height: 100%;
+      min-height: 0;
+    }
     .boardSquare{
       position:relative;
       flex: 1;
       min-height: 0;
-      overflow:hidden;
+      overflow: hidden;     /* no scrollbars */
       border-radius: 16px;
-      border: 1px solid rgba(191,232,255,.14);
-      background: rgba(0,0,0,.18);
+      margin: 0 auto;
     }
     .boardBg{
       position:absolute;
@@ -653,11 +651,10 @@ export function mountApp(root: HTMLElement | null) {
       content:"";
       position:absolute; inset:0;
       background:
-        radial-gradient(900px 500px at 20% 20%, rgba(95,225,255,.10), transparent 60%),
-        radial-gradient(900px 500px at 80% 65%, rgba(122,108,255,.10), transparent 60%),
-        linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.35));
+        radial-gradient(900px 500px at 20% 20%, rgba(95,225,255,.08), transparent 60%),
+        radial-gradient(900px 500px at 80% 65%, rgba(122,108,255,.08), transparent 60%),
+        linear-gradient(180deg, rgba(0,0,0,.06), rgba(0,0,0,.28));
     }
-
     .boardCenter{
       position:relative;
       z-index: 1;
@@ -668,244 +665,126 @@ export function mountApp(root: HTMLElement | null) {
       justify-content:center;
       padding: 0;
     }
-
     .boardWrap{
       display:grid;
       gap: 10px;
       width: max-content;
       transform: scale(var(--boardScale, 1));
       transform-origin: center center;
-      will-change: transform;
     }
-
-    .hexRow{
+    .tileRow{
       display:flex;
       gap: var(--tileGap);
       align-items:center;
       justify-content:flex-start;
       width: 100%;
     }
-    .hexRow.offset{ padding-left: var(--tileOffset); }
+    .tileRow.offset{ padding-left: var(--tileOffset); }
 
-    /* ===== Cloud tiles (instead of hex) ===== */
-    .hex{
-      width: var(--tileW);
-      height: var(--tileH);
-      position:relative;
+    .cloud{
+      width: var(--tileSize);
+      height: var(--tileSize);
+      border-radius: 999px; /* single shape ONLY (removes the two extra bumps) */
+      display:flex;
+      align-items:center;
+      justify-content:center;
       cursor:pointer;
+      position:relative;
       user-select:none;
-      display:grid;
-      place-items:center;
+      overflow:hidden;
 
-      /* per-tile fill */
-      background: var(--fill, rgba(255,255,255,.08));
-
-      /* cloud body */
-      border-radius: 999px;
+      /* bright glowing white border */
       border: 2px solid rgba(255,255,255,.92);
 
-      /* bright glowing white outline */
+      /* soft pastel fill (set via --fill) */
+      background:
+        radial-gradient(circle at 30% 28%, rgba(255,255,255,.35), transparent 45%),
+        radial-gradient(circle at 70% 75%, rgba(0,0,0,.10), transparent 55%),
+        var(--fill, rgba(255,255,255,.18));
+
       box-shadow:
-        0 0 10px rgba(255,255,255,.55),
-        0 0 24px rgba(255,255,255,.35),
-        inset 0 0 18px rgba(255,255,255,.18);
+        0 0 0 2px rgba(255,255,255,.10) inset,
+        0 0 18px rgba(255,255,255,.22);
 
-      transition: transform .12s ease, filter .12s ease, box-shadow .18s ease, opacity .18s ease;
+      transition: transform .12s ease, filter .12s ease, box-shadow .18s ease;
     }
+    .cloud:hover{ transform: translateY(-1px) scale(1.02); filter: brightness(1.06); }
+    .cloud:active{ transform: translateY(0) scale(.99); }
 
-    /* cloud bumps */
-    .hex::before,
-    .hex::after{
-      content:"";
-      position:absolute;
-      background: inherit;
-      border: inherit;
-      border-radius: 999px;
-      box-shadow: inherit;
-      pointer-events:none;
-    }
-
-    .hex::before{
-      width: 62%;
-      height: 62%;
-      left: 8%;
-      top: -16%;
-    }
-    .hex::after{
-      width: 68%;
-      height: 68%;
-      right: 6%;
-      top: -10%;
-    }
-
-    .hex:hover{
-      transform: translateY(-1px) scale(1.02);
-      filter: brightness(1.03) saturate(1.02);
-    }
-    .hex:active{ transform: translateY(0) scale(.99); }
+    /* Row fills */
+    .cloud[data-row="1"]{ --fill: var(--r1); }
+    .cloud[data-row="2"]{ --fill: var(--r2); }
+    .cloud[data-row="3"]{ --fill: var(--r3); }
+    .cloud[data-row="4"]{ --fill: var(--r4); }
+    .cloud[data-row="5"]{ --fill: var(--r5); }
+    .cloud[data-row="6"]{ --fill: var(--r6); }
+    .cloud[data-row="7"]{ --fill: var(--r7); }
 
     /* Labels: centered, always 2 rows, NO background */
-    .hexLabel{
+    .cloudLabel{
       position:relative;
       z-index: 2;
-      font-size: 11px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
       line-height: 1.05;
       font-weight: 1000;
       letter-spacing: .2px;
-      text-align:center;
-      white-space: pre-line;
-      padding: 0;
-      background: none;
-      border: none;
-      color: rgba(255,255,255,.96);
+      color: rgba(255,255,255,.95);
+      /* black outline via multi-shadow */
       text-shadow:
-        0 2px 8px rgba(0,0,0,.55),
-        -1px 0 rgba(0,0,0,.50),
-        1px 0 rgba(0,0,0,.50),
-        0 -1px rgba(0,0,0,.50),
-        0 1px rgba(0,0,0,.50);
-      -webkit-text-stroke: 0.6px rgba(0,0,0,.55);
+        -1px -1px 0 rgba(0,0,0,.65),
+        1px -1px 0 rgba(0,0,0,.65),
+        -1px 1px 0 rgba(0,0,0,.65),
+        1px 1px 0 rgba(0,0,0,.65),
+        0 0 10px rgba(0,0,0,.35);
+      background: transparent;
+      border: none;
+      padding: 0;
     }
 
-    /* Reachable: blue glow */
-    .hex.reach{
+    /* Reachable tiles: subtle blue glow (no extra rings) */
+    .cloud.reach{
       box-shadow:
-        0 0 12px rgba(0, 200, 255, .85),
-        0 0 28px rgba(0, 200, 255, .55),
-        inset 0 0 16px rgba(0, 200, 255, .22);
-      border-color: rgba(255,255,255,.96);
+        0 0 0 2px rgba(255,255,255,.12) inset,
+        0 0 18px rgba(0,200,255,.35),
+        0 0 44px rgba(0,200,255,.20);
+      filter: brightness(1.03);
     }
 
-    /* Not reachable: dim */
-    .hex.notReach{
-      opacity: .55;
-      filter: saturate(.86) brightness(.95);
-      cursor: not-allowed;
-    }
-    .hex.notReach:hover{ transform:none; }
-
-    /* Player: green glow */
-    .hex.player{
+    /* Player tile: keep THIS highlight */
+    .cloud.player{
       box-shadow:
-        0 0 14px rgba(76,255,80, .90),
-        0 0 34px rgba(76,255,80, .62),
-        inset 0 0 18px rgba(76,255,80, .18);
-      filter: brightness(1.06);
-      opacity: 1 !important;
+        0 0 0 2px rgba(255,255,255,.18) inset,
+        0 0 24px rgba(76,255,80,.60),
+        0 0 70px rgba(76,255,80,.40);
+      filter: brightness(1.12);
       z-index: 4;
     }
 
-    /* Goal: gold glow */
-    .hex.goal{
-      box-shadow:
-        0 0 14px rgba(255,193,7, .90),
-        0 0 34px rgba(255,193,7, .58),
-        inset 0 0 18px rgba(255,193,7, .18);
+    /* Not reachable: dim only */
+    .cloud.notReach{
+      opacity: .58;
+      filter: saturate(.86) brightness(.92);
+      cursor: not-allowed;
     }
+    .cloud.notReach:hover{ transform:none; filter: saturate(.86) brightness(.92); }
 
-    /* Fog/blocked/missing still show via tone + glow, but we keep “cloud” look */
-    .hex.blocked{
-      opacity: .92;
-      filter: saturate(.92) brightness(.92);
-      box-shadow:
-        0 0 12px rgba(244,67,54,.70),
-        0 0 28px rgba(244,67,54,.42),
-        inset 0 0 14px rgba(244,67,54,.18);
-    }
-    .hex.missing{
-      opacity: .45;
-      filter: grayscale(.2) brightness(.85);
-      box-shadow:
-        0 0 8px rgba(255,255,255,.20),
-        0 0 18px rgba(255,255,255,.10),
-        inset 0 0 10px rgba(255,255,255,.08);
-    }
-    .hex.fog{
-      opacity: .80;
-      filter: grayscale(.15) contrast(.96) brightness(.92);
-      box-shadow:
-        0 0 10px rgba(255,255,255,.28),
-        0 0 22px rgba(0,0,0,.35),
-        inset 0 0 14px rgba(0,0,0,.18);
-    }
-
-    .hex.sel{
-      outline: 2px solid rgba(234,242,255,.70);
+    /* Selected: thin outline only */
+    .cloud.sel{
+      outline: 2px solid rgba(234,242,255,.55);
       outline-offset: 2px;
     }
 
-    .dist{
-      position:absolute;
-      left:8px;
-      bottom:8px;
-      padding:2px 6px;
-      border-radius:999px;
-      border:1px solid rgba(191,232,255,.14);
-      background:rgba(0,0,0,.30);
-      font-size:10px;
-      line-height:1;
-      font-weight: 900;
-      z-index: 3;
-    }
-    .trBadge{
-      position:absolute;
-      left:8px;
-      top:8px;
-      padding:2px 6px;
-      border-radius:999px;
-      border:1px solid rgba(191,232,255,.14);
-      background:rgba(0,0,0,.30);
-      font-size:10px;
-      line-height:1;
-      font-weight: 900;
-      z-index: 3;
-    }
+    /* blocked/missing/fog: keep subtle, no extra shapes */
+    .cloud.blocked{ opacity: .70; filter: grayscale(.35) brightness(.90); }
+    .cloud.missing{ opacity: .45; filter: grayscale(.70) brightness(.82); }
+    .cloud.fog{ opacity: .80; filter: saturate(.80) brightness(.92); }
 
-    /* Mini boards */
-    .miniBoardGrid{
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 11px;
-      line-height: 1.25;
-    }
-    .miniRow{ display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
-    .miniRow b{ opacity:.9; font-weight: 900; min-width: 36px; }
-    .miniRow.offset{ padding-left: calc((28px + 4px) / 2); }
-
-    .miniCell{
-      width: 28px;
-      height: 24px;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      border-radius: 999px;
-      border: 1px solid rgba(191,232,255,.14);
-      background: rgba(0,0,0,.22);
-      opacity:.95;
-      font-weight: 900;
-      line-height:1;
-      padding: 0;
-      color: rgba(234,242,255,.9);
-    }
-    .miniCell.on{
-      border-color: rgba(76,255,80,.65);
-      background: rgba(76,255,80,.18);
-      box-shadow: 0 0 0 1px rgba(76,255,80,.22) inset, 0 0 12px rgba(76,255,80,.22);
-      color: rgba(234,242,255,.98);
-    }
-    .miniCell.empty{
-      opacity:.60;
-      color: rgba(234,242,255,.35);
-    }
-    .miniNote{
-      margin-top: 8px;
-      opacity:.75;
-      font-weight: 800;
-      font-size: 11px;
-    }
-    .miniWarn{ color: rgba(255,120,120,.95); font-weight: 900; }
+    .infoText{ font-size: 12px; line-height: 1.35; }
+    .infoText b{ font-weight: 900; color: rgba(234,242,255,.98); }
   `;
   document.head.appendChild(style);
 
@@ -936,7 +815,8 @@ export function mountApp(root: HTMLElement | null) {
   function setScreen(next: Screen) {
     screen = next;
     [vStart, vSelect, vSetup, vGame].forEach((v) => v.classList.remove("active"));
-    const name = next === "start" ? "Start" : next === "select" ? "Select Game" : next === "setup" ? "Setup" : "In Game";
+    const name =
+      next === "start" ? "Start" : next === "select" ? "Select Game" : next === "setup" ? "Setup" : "In Game";
     crumb.textContent = name;
 
     if (next === "start") vStart.classList.add("active");
@@ -1025,9 +905,9 @@ export function mountApp(root: HTMLElement | null) {
       <div class="startHeroLabel">
         <div>
           <b>Build:</b> <span class="muted">${escapeHtml(BUILD_TAG)}</span>
-          <div class="muted" style="margin-top:6px">Cloud tiles · pastel rainbow</div>
+          <div class="muted" style="margin-top:6px">Ready</div>
         </div>
-        <div class="pill">Ready</div>
+        <div class="pill">Play</div>
       </div>
     `;
 
@@ -1344,10 +1224,6 @@ export function mountApp(root: HTMLElement | null) {
     return !!hex.revealed;
   }
 
-  function timeSafeReason(s: any) {
-    return String(s ?? "INVALID").toUpperCase();
-  }
-
   function setLayerOptions(layerSelect: HTMLSelectElement) {
     const layers = Number((scenario() as any).layers ?? 1);
     layerSelect.innerHTML = "";
@@ -1402,7 +1278,13 @@ export function mountApp(root: HTMLElement | null) {
 
   function logClick(id: string, ok: boolean, reason?: string) {
     moveCount += 1;
-    logs.unshift({ n: moveCount, id, ok, reason, t: timeHHMM() });
+    logs.unshift({
+      n: moveCount,
+      id,
+      ok,
+      reason,
+      t: timeHHMM(),
+    });
     if (logs.length > 200) logs = logs.slice(0, 200);
   }
 
@@ -1442,9 +1324,6 @@ export function mountApp(root: HTMLElement | null) {
   function startScenario(idx: number) {
     scenarioIndex = idx;
 
-    const s: any = scenario();
-    activeTileSet = scenarioTileSet(s);
-
     state = newGame(scenario());
     selectedId = state.playerHexId ?? null;
     currentLayer = idToCoord(state.playerHexId)?.layer ?? 1;
@@ -1452,6 +1331,7 @@ export function mountApp(root: HTMLElement | null) {
     startHexId = state.playerHexId ?? null;
 
     enterLayer(state, currentLayer);
+    // We keep reveal for logic, but visuals no longer depend on it.
     revealWholeLayer(currentLayer);
     recomputeReachability();
 
@@ -1459,16 +1339,11 @@ export function mountApp(root: HTMLElement | null) {
     resetRunLog();
   }
 
-  function rowPastelVar(row: number) {
-    const r = Math.max(1, Math.min(7, row));
-    return `var(--row${r})`;
-  }
-
   // --------------------------
-  // Screen 4: Game (NEW 6-square dashboard)
+  // Screen 4: Game (6-cell grid)
   // --------------------------
   let gameBuilt = false;
-  let dashResizeObserver: ResizeObserver | null = null;
+  let boardBodyResizeObserver: ResizeObserver | null = null;
 
   function renderGameScreen() {
     if (gameBuilt) return;
@@ -1476,51 +1351,105 @@ export function mountApp(root: HTMLElement | null) {
 
     vGame.innerHTML = "";
 
-    const stage = el("div", "dashStage");
+    const stage = el("div", "gameStage");
 
-    // grid
-    const grid = el("div", "dashGrid");
+    const grid = el("div", "gameGrid");
 
-    // cells
-    const c1 = el("section", "dashCell"); // Top-left: message + story log
-    const c2 = el("section", "dashCell"); // Top-center: Current mini
-    const c3 = el("section", "dashCell"); // Top-right: HUD info + controls
-    const c4 = el("section", "dashCell"); // Bottom-left: Below mini
-    const c5 = el("section", "dashCell"); // Bottom-center: Board
-    const c6 = el("section", "dashCell"); // Bottom-right: Above mini
+    // 1) Top-left: Message + Moves
+    const pMsg = el("section", "panel");
+    const pMsgHead = el("div", "panelHead");
+    pMsgHead.innerHTML = `<div class="tag"><span class="dot"></span> Message + Moves</div><div class="pill" id="movesPillTL">Moves: 0</div>`;
+    const pMsgBody = el("div", "panelBody");
+    pMsgBody.innerHTML = `
+      <div class="msgBox">
+        <div class="msgLeft" id="msgLeft">Ready.</div>
+        <div class="msgRight" id="msgRight">Moves: 0</div>
+      </div>
+      <div class="logList" id="logList"></div>
+      <div class="logSmall">(Logs every cloud click. If a move is rejected, it’s marked.)</div>
+    `;
+    pMsg.append(pMsgHead, pMsgBody);
 
-    grid.append(c1, c2, c3, c4, c5, c6);
+    // 2) Top-center: Layers Current
+    const pCur = el("section", "panel");
+    const pCurHead = el("div", "panelHead");
+    pCurHead.innerHTML = `<div class="tag"><span class="dot"></span> Layers: Current</div><div class="pill" id="miniCurrentPill">—</div>`;
+    const pCurBody = el("div", "panelBody");
+    pCurBody.innerHTML = `
+      <div class="miniBoardGrid" id="miniCurrentGrid"></div>
+      <div class="miniNote" id="miniCurrentNote"></div>
+    `;
+    pCur.append(pCurHead, pCurBody);
+
+    // 3) Top-right: HUD
+    const pHud = el("section", "panel");
+    const pHudHead = el("div", "panelHead");
+    pHudHead.innerHTML = `<div class="tag"><span class="dot"></span> HUD</div><div class="pill">Build: ${escapeHtml(
+      BUILD_TAG
+    )}</div>`;
+    const pHudBody = el("div", "panelBody");
+    pHud.append(pHudHead, pHudBody);
+
+    // 4) Bottom-left: Layers Below
+    const pBelow = el("section", "panel");
+    const pBelowHead = el("div", "panelHead");
+    pBelowHead.innerHTML = `<div class="tag"><span class="dot"></span> Layers: Below</div><div class="pill" id="miniBelowPill">—</div>`;
+    const pBelowBody = el("div", "panelBody");
+    pBelowBody.innerHTML = `
+      <div class="miniBoardGrid" id="miniBelowGrid"></div>
+      <div class="miniNote" id="miniBelowNote"></div>
+    `;
+    pBelow.append(pBelowHead, pBelowBody);
+
+    // 5) Bottom-center: Board
+    const pBoard = el("section", "panel");
+    const pBoardHead = el("div", "panelHead");
+    pBoardHead.innerHTML = `<div class="tag"><span class="dot"></span> Board</div><div class="pill" id="boardPill">Layer</div>`;
+    const pBoardBody = el("div", "panelBody");
+    pBoardBody.style.overflow = "hidden";
+    pBoardBody.style.padding = "12px";
+    pBoardBody.style.display = "flex";
+    pBoardBody.style.flexDirection = "column";
+    pBoardBody.style.minHeight = "0";
+
+    const boardCell = el("div", "boardCell");
+    const boardSquare = el("div", "boardSquare");
+    const boardBg = el("div", "boardBg");
+    boardBg.id = "boardBg";
+    const boardCenter = el("div", "boardCenter");
+    const boardWrap = el("div", "boardWrap");
+    boardWrap.id = "boardWrap";
+
+    boardCenter.appendChild(boardWrap);
+    boardSquare.append(boardBg, boardCenter);
+    boardCell.appendChild(boardSquare);
+    pBoardBody.appendChild(boardCell);
+    pBoard.append(pBoardHead, pBoardBody);
+
+    // 6) Bottom-right: Layers Above
+    const pAbove = el("section", "panel");
+    const pAboveHead = el("div", "panelHead");
+    pAboveHead.innerHTML = `<div class="tag"><span class="dot"></span> Layers: Above</div><div class="pill" id="miniAbovePill">—</div>`;
+    const pAboveBody = el("div", "panelBody");
+    pAboveBody.innerHTML = `
+      <div class="miniBoardGrid" id="miniAboveGrid"></div>
+      <div class="miniNote" id="miniAboveNote"></div>
+    `;
+    pAbove.append(pAboveHead, pAboveBody);
+
+    // Add panels to grid in the requested order
+    grid.append(pMsg, pCur, pHud, pBelow, pBoard, pAbove);
     stage.appendChild(grid);
     vGame.appendChild(stage);
 
-    // ---------- Cell 1 (Top-left): Message + Story log ----------
-    const c1Head = el("div", "cellHead");
-    c1Head.innerHTML = `<div class="tag"><span class="dot"></span> Message + Moves</div><div class="pill" id="movesPill">Moves: 0</div>`;
-    const c1Body = el("div", "cellBody");
-    c1.append(c1Head, c1Body);
-
-    const msgBar = el("div", "msgBar");
-    msgBar.innerHTML = `<div class="msgLeft" id="msgLeft">Ready.</div><div class="msgRight" id="msgRight">Moves: 0</div>`;
-
-    const logList = el("div", "logList");
-    logList.id = "logList";
-    const logSmall = el("div", "logSmall");
-    logSmall.textContent = "(Logs every cloud click. If a move is rejected, it’s marked.)";
-
-    c1Body.append(msgBar, logList, logSmall);
-
-    // ---------- Cell 3 (Top-right): HUD + controls ----------
-    const c3Head = el("div", "cellHead");
-    c3Head.innerHTML = `<div class="tag"><span class="dot"></span> HUD</div><div class="pill">Build: ${escapeHtml(BUILD_TAG)}</div>`;
-    const c3Body = el("div", "cellBody");
-    c3.append(c3Head, c3Body);
-
+    // ----- HUD contents -----
     const controlsRow = el("div", "row");
-    controlsRow.style.justifyContent = "flex-start";
+    (controlsRow as HTMLElement).style.gap = "10px";
+    (controlsRow as HTMLElement).style.marginBottom = "12px";
 
-    const scenarioSelect = document.createElement("select");
+    const scenarioSelect = document.createElement("select") as HTMLSelectElement;
     scenarioSelect.style.fontSize = "12px";
-    scenarioSelect.style.fontWeight = "800";
+    scenarioSelect.style.fontWeight = "900";
     scenarioSelect.style.borderRadius = "999px";
     scenarioSelect.style.padding = "8px 12px";
     scenarioSelect.style.border = "1px solid rgba(191,232,255,.18)";
@@ -1534,9 +1463,9 @@ export function mountApp(root: HTMLElement | null) {
     });
     scenarioSelect.value = String(scenarioIndex);
 
-    const layerSelect = document.createElement("select");
+    const layerSelect = document.createElement("select") as HTMLSelectElement;
     layerSelect.style.fontSize = "12px";
-    layerSelect.style.fontWeight = "800";
+    layerSelect.style.fontWeight = "900";
     layerSelect.style.borderRadius = "999px";
     layerSelect.style.padding = "8px 12px";
     layerSelect.style.border = "1px solid rgba(191,232,255,.18)";
@@ -1561,73 +1490,53 @@ export function mountApp(root: HTMLElement | null) {
 
     controlsRow.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
 
-    const hudInfo = el("div", "hint");
-    hudInfo.id = "hudInfo";
-    hudInfo.style.marginTop = "10px";
-    hudInfo.style.whiteSpace = "pre-line";
+    const hudInfo = el("div", "infoText");
+    pHudBody.append(controlsRow, hudInfo);
 
-    c3Body.append(controlsRow, hudInfo);
+    // ===== Square board sizing + stable fit (relative to Board panel cell) =====
+    function setBoardSquare() {
+      const bodyW = pBoardBody.clientWidth;
+      const bodyH = pBoardBody.clientHeight;
 
-    // ---------- Cell 2/4/6: Mini boards ----------
-    function buildMiniCell(cell: HTMLElement, title: string, pillId: string, gridId: string, noteId: string) {
-      const head = el("div", "cellHead");
-      head.innerHTML = `<div class="tag"><span class="dot"></span> ${escapeHtml(title)}</div><div class="pill" id="${pillId}">—</div>`;
-      const body = el("div", "cellBody");
-      body.innerHTML = `<div class="miniBoardGrid" id="${gridId}"></div><div class="miniNote" id="${noteId}"></div>`;
-      cell.append(head, body);
+      const pad = 8;
+      const availW = Math.max(0, bodyW - pad * 2);
+      const availH = Math.max(0, bodyH - pad * 2);
+
+      const size = Math.floor(Math.max(0, Math.min(availW, availH)));
+      if (!size || size < 50) return;
+
+      boardSquare.style.width = `${size}px`;
+      boardSquare.style.height = `${size}px`;
     }
 
-    buildMiniCell(c2, "Layers: Current", "miniCurrentPill", "miniCurrentGrid", "miniCurrentNote");
-    buildMiniCell(c4, "Layers: Below", "miniBelowPill", "miniBelowGrid", "miniBelowNote");
-    buildMiniCell(c6, "Layers: Above", "miniAbovePill", "miniAboveGrid", "miniAboveNote");
-
-    // ---------- Cell 5 (Bottom-center): Board ----------
-    const c5Head = el("div", "cellHead");
-    c5Head.innerHTML = `<div class="tag"><span class="dot"></span> Board</div><div class="pill" id="boardPill">Layer —</div>`;
-    const c5Body = el("div", "boardCellBody");
-    c5.append(c5Head, c5Body);
-
-    const boardSquare = el("div", "boardSquare");
-    const boardBg = el("div", "boardBg");
-    boardBg.id = "boardBg";
-    const boardCenter = el("div", "boardCenter");
-    const boardWrap = el("div", "boardWrap");
-    boardWrap.id = "boardWrap";
-    boardCenter.appendChild(boardWrap);
-    boardSquare.append(boardBg, boardCenter);
-    c5Body.appendChild(boardSquare);
-
-    // ===== Square board sizing + stable fit inside its cell =====
     function clamp(n: number, lo: number, hi: number) {
       return Math.max(lo, Math.min(hi, n));
     }
 
     function setTileLayoutVars() {
-      const size = boardSquare.clientWidth; // square
-      if (!size || size < 120) return;
+      const w = boardSquare.clientWidth;
+      if (!w || w < 50) return;
 
       const innerPad = 18;
-      const usable = Math.max(50, size - innerPad * 2);
+      const usable = Math.max(50, w - innerPad * 2);
 
-      const gap = 8;
+      const gap = 6;
       const cols = 7;
-      const minW = 44;
-      const maxW = 90;
+      const minS = 46;
+      const maxS = 94;
 
       const raw = (usable - gap * (cols - 1)) / cols;
-      const w = clamp(raw, minW, maxW);
-      const h = Math.round(w * 0.82);
-      const offset = Math.round((w + gap) / 2);
+      const tileSize = clamp(raw, minS, maxS);
+      const offset = Math.round((tileSize + gap) / 2);
 
-      (boardSquare as HTMLElement).style.setProperty("--tileGap", `${gap}px`);
-      (boardSquare as HTMLElement).style.setProperty("--tileW", `${Math.round(w)}px`);
-      (boardSquare as HTMLElement).style.setProperty("--tileH", `${h}px`);
-      (boardSquare as HTMLElement).style.setProperty("--tileOffset", `${offset}px`);
+      (pBoard as HTMLElement).style.setProperty("--tileGap", `${gap}px`);
+      (pBoard as HTMLElement).style.setProperty("--tileSize", `${Math.round(tileSize)}px`);
+      (pBoard as HTMLElement).style.setProperty("--tileOffset", `${offset}px`);
     }
 
     function fitBoardWrapToSquare() {
       const size = boardSquare.clientWidth;
-      if (!size || size < 120) return;
+      if (!size || size < 50) return;
 
       const margin = 18;
       const targetW = Math.max(1, size - margin * 2);
@@ -1641,13 +1550,14 @@ export function mountApp(root: HTMLElement | null) {
     }
 
     function relayoutBoard() {
+      setBoardSquare();
       setTileLayoutVars();
       requestAnimationFrame(() => fitBoardWrapToSquare());
     }
 
-    if (dashResizeObserver) dashResizeObserver.disconnect();
-    dashResizeObserver = new ResizeObserver(() => relayoutBoard());
-    dashResizeObserver.observe(boardSquare);
+    if (boardBodyResizeObserver) boardBodyResizeObserver.disconnect();
+    boardBodyResizeObserver = new ResizeObserver(() => relayoutBoard());
+    boardBodyResizeObserver.observe(pBoardBody);
 
     window.addEventListener("resize", relayoutBoard, { passive: true });
 
@@ -1671,10 +1581,10 @@ export function mountApp(root: HTMLElement | null) {
       showPlayer: boolean;
       invalidLabel: "NO LAYER ABOVE" | "NO LAYER BELOW" | "NO SUCH LAYER";
     }) {
-      const grid = document.getElementById(opts.gridId);
-      const pill = document.getElementById(opts.pillId);
-      const note = document.getElementById(opts.noteId);
-      if (!grid || !pill || !note) return;
+      const gridEl = document.getElementById(opts.gridId);
+      const pillEl = document.getElementById(opts.pillId);
+      const noteEl = document.getElementById(opts.noteId);
+      if (!gridEl || !pillEl || !noteEl) return;
 
       const maxLayer = getScenarioLayerCount();
       const layer = opts.layer;
@@ -1683,13 +1593,13 @@ export function mountApp(root: HTMLElement | null) {
       const playerRow = pc?.row ?? -1;
       const playerCol = pc?.col ?? -1;
 
-      grid.innerHTML = "";
+      gridEl.innerHTML = "";
 
       const valid = layer >= 1 && layer <= maxLayer;
 
       if (!valid) {
-        pill.innerHTML = `<span class="miniWarn">${escapeHtml(opts.invalidLabel)}</span>`;
-        note.textContent = "No tiles on this side. Showing empty outline only.";
+        pillEl.innerHTML = `<span class="miniWarn">${escapeHtml(opts.invalidLabel)}</span>`;
+        noteEl.textContent = "No tiles on this side. Showing empty outline only.";
 
         for (let r = 1; r <= ROW_LENS.length; r++) {
           const len = ROW_LENS[r - 1] ?? 7;
@@ -1706,18 +1616,17 @@ export function mountApp(root: HTMLElement | null) {
             rowEl.appendChild(cell);
           }
 
-          grid.appendChild(rowEl);
+          gridEl.appendChild(rowEl);
         }
         return;
       }
 
-      pill.textContent = `Layer ${layer}`;
-      note.textContent = opts.showPlayer ? "Green = your current column (this layer only)." : "Structure only (no player).";
+      pillEl.textContent = `Layer ${layer}`;
+      noteEl.textContent = opts.showPlayer ? "Green = your current column (this layer only)." : "Structure only (no player).";
 
       for (let r = 1; r <= ROW_LENS.length; r++) {
         const len = ROW_LENS[r - 1] ?? 7;
         const shiftLeft = miniShiftLeft?.[layer]?.[r] ?? 0;
-
         const orderedCols = rotateCols(len, shiftLeft);
 
         const rowEl = el("div", "miniRow");
@@ -1734,21 +1643,21 @@ export function mountApp(root: HTMLElement | null) {
           rowEl.appendChild(cell);
         }
 
-        grid.appendChild(rowEl);
+        gridEl.appendChild(rowEl);
       }
     }
 
     // ===== Rendering =====
     function renderStoryLog() {
-      const pill = document.getElementById("movesPill");
+      const pillTL = document.getElementById("movesPillTL");
       const list = document.getElementById("logList");
-      const msgRight = document.getElementById("msgRight");
-      if (pill) pill.textContent = `Moves: ${moveCount}`;
-      if (msgRight) msgRight.textContent = `Moves: ${moveCount}`;
+      const msgRightEl = document.getElementById("msgRight");
+      if (pillTL) pillTL.textContent = `Moves: ${moveCount}`;
+      if (msgRightEl) msgRightEl.textContent = `Moves: ${moveCount}`;
       if (!list) return;
 
       list.innerHTML = "";
-      for (const e of logs.slice(0, 24)) {
+      for (const e of logs.slice(0, 40)) {
         const item = el("div", "logItem");
         if (!e.ok) item.classList.add("bad");
         const left = el("div");
@@ -1758,31 +1667,6 @@ export function mountApp(root: HTMLElement | null) {
         item.append(left, right);
         list.appendChild(item);
       }
-    }
-
-    function renderHudInfo() {
-      const info = document.getElementById("hudInfo");
-      const boardPill = document.getElementById("boardPill");
-      if (!info) return;
-
-      const s: any = scenario();
-      const goal = posId((s as any).goal);
-      const sel = selectedId ?? "—";
-      const h: any = selectedId ? getHex(selectedId) : null;
-      const { blocked, missing } = isBlockedOrMissing(h);
-      const reach = selectedId ? reachMap[selectedId]?.reachable : false;
-      const dist = selectedId ? reachMap[selectedId]?.distance : null;
-
-      if (boardPill) boardPill.textContent = `Layer ${currentLayer}`;
-
-      info.textContent =
-        `Scenario: ${String(s?.name ?? s?.title ?? s?.id ?? "")}\n` +
-        `Mode: ${String(mode ?? "—")} · Tileset: ${String(activeTileSet)}\n` +
-        `Player: ${String(state?.playerHexId ?? "—")} · Goal: ${String(goal)}\n` +
-        `Selected: ${sel}\n` +
-        `Status: ${missing ? "missing" : blocked ? "blocked" : "usable"} · Reachable: ${reach ? "yes" : "no"} · Distance: ${
-          dist == null ? "—" : String(dist)
-        }`;
     }
 
     function renderMessage() {
@@ -1800,6 +1684,35 @@ export function mountApp(root: HTMLElement | null) {
       const bg = document.getElementById("boardBg") as HTMLElement | null;
       if (!bg) return;
       bg.style.backgroundImage = `url("${toPublicUrl(BOARD_BG_URL)}")`;
+    }
+
+    function renderHud() {
+      const s: any = scenario();
+      const goal = posId((s as any).goal);
+      const sel = selectedId ?? "—";
+      const h: any = selectedId ? getHex(selectedId) : null;
+      const { blocked, missing } = isBlockedOrMissing(h);
+      const info = selectedId ? reachMap[selectedId] : undefined;
+
+      const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
+
+      hudInfo.innerHTML = `
+        <div>
+          <b>Scenario:</b> ${escapeHtml(String(s.name ?? s.title ?? s.id ?? ""))}<br/>
+          <b>Mode:</b> ${escapeHtml(String(mode ?? "—"))}<br/>
+          <b>Player:</b> ${escapeHtml(String(state?.playerHexId ?? "?"))}<br/>
+          <b>Goal:</b> ${escapeHtml(String(goal))}<br/>
+          <b>Layer:</b> ${escapeHtml(String(currentLayer))}<br/>
+          <b>Selected:</b> ${escapeHtml(sel)}<br/>
+          <b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"} · <b>Reachable:</b> ${escapeHtml(
+        info?.reachable ? "yes" : "no"
+      )} · <b>Distance:</b> ${escapeHtml(String(info?.distance ?? "—"))}<br/>
+          <b>Reachable:</b> ${reachable.size} (layer ${currentLayer}: ${layerReachable})
+        </div>
+      `;
+
+      const boardPill = document.getElementById("boardPill");
+      if (boardPill) boardPill.textContent = `Layer ${currentLayer}`;
     }
 
     function renderMiniBoards() {
@@ -1837,7 +1750,7 @@ export function mountApp(root: HTMLElement | null) {
 
       for (let r = 1; r <= ROW_LENS.length; r++) {
         const len = ROW_LENS[r - 1] ?? 7;
-        const row = el("div", "hexRow");
+        const row = el("div", "tileRow");
         if (r % 2 === 0) row.classList.add("offset");
 
         for (let c = 1; c <= len; c++) {
@@ -1845,46 +1758,26 @@ export function mountApp(root: HTMLElement | null) {
           const h: any = getHex(id);
           const info = reachMap[id];
 
-          const btn = el("div", "hex");
+          const btn = el("div", "cloud");
+          btn.setAttribute("data-row", String(r));
 
-          // pastel per row (violet -> red)
-          (btn as HTMLElement).style.setProperty("--fill", rowPastelVar(r));
-
-          // label: always 2 lines, centered, no background
-          const label = el("div", "hexLabel");
-          label.textContent = `R${r}\nC${c}`;
+          // Label: centered, 2 lines, no background (always)
+          const label = el("div", "cloudLabel");
+          label.innerHTML = `<div>R${r}</div><div>C${c}</div>`;
           btn.appendChild(label);
 
           const { blocked, missing } = isBlockedOrMissing(h);
-          const isGoal = String(h?.kind ?? "").toUpperCase() === "GOAL";
           const isPlayer = state.playerHexId === id;
 
+          // IMPORTANT: visuals should look the same before/after force reveal
+          // -> do NOT swap images or add extra rings based on revealed state.
+          if (!isRevealed(h)) btn.classList.add("fog");
           if (missing) btn.classList.add("missing");
           if (blocked) btn.classList.add("blocked");
-          if (!isRevealed(h)) btn.classList.add("fog");
+
           if (info?.reachable) btn.classList.add("reach");
-          if (isGoal) btn.classList.add("goal");
           if (isPlayer) btn.classList.add("player");
           if (selectedId === id) btn.classList.add("sel");
-
-          if (sourcesOnLayer.has(id)) {
-            // subtle badge only (keep optional)
-            const badge = el("div", "trBadge");
-            badge.textContent = "▲/▼";
-            btn.appendChild(badge);
-          }
-
-          if (targetsSameLayer.has(id)) {
-            const badge = el("div", "trBadge");
-            badge.textContent = targetsSameLayer.get(id)!;
-            btn.appendChild(badge);
-          }
-
-          if (info?.reachable && info.distance != null) {
-            const d = el("div", "dist");
-            d.textContent = String(info.distance);
-            btn.appendChild(d);
-          }
 
           const canMove = !!info?.reachable;
           if (!canMove && !isPlayer) btn.classList.add("notReach");
@@ -1905,7 +1798,7 @@ export function mountApp(root: HTMLElement | null) {
               if (!res.won) {
                 endTurn(state!);
                 applyMiniShiftsForEndTurn();
-                enterLayer(state!, currentLayer); // keep fog (no revealWholeLayer)
+                enterLayer(state!, currentLayer);
               }
 
               message = res.won
@@ -1920,7 +1813,7 @@ export function mountApp(root: HTMLElement | null) {
               renderAll();
               return;
             } else {
-              const reason = timeSafeReason(res.reason);
+              const reason = res.reason ?? "INVALID";
               message = `Move rejected: ${reason}`;
               logClick(id, false, reason);
             }
@@ -1939,7 +1832,7 @@ export function mountApp(root: HTMLElement | null) {
 
     function renderAll() {
       rebuildTransitionIndexAndHighlights();
-      renderHudInfo();
+      renderHud();
       renderMessage();
       renderBoardBackgroundFixed();
       renderBoard();
@@ -1993,6 +1886,7 @@ export function mountApp(root: HTMLElement | null) {
     });
 
     forceRevealBtn.addEventListener("click", () => {
+      // Logic reveal remains, but visuals remain consistent (no extra shapes/rings)
       revealWholeLayer(currentLayer);
       recomputeReachability();
       message = "Forced reveal layer + recomputed reachability.";
