@@ -57,9 +57,9 @@ async function loadScenario(path: string): Promise<Scenario> {
 
 function getHexFromState(state: GameState | null, id: string): Hex | undefined {
   if (!state) return undefined;
-  const m: any = (state as any).hexesById;
+  const m: any = (state as any)esById;
   if (m?.get) return m.get(id);
-  return (state as any).hexesById?.[id];
+  return (state as any)esById?.[id];
 }
 
 function isBlockedOrMissing(hex: any): { blocked: boolean; missing: boolean } {
@@ -700,7 +700,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 /* HEX BOARD GEOMETRY (Honeycomb connected but NOT overlapping too much) */
-.hexBoard{
+Board{
   --hexW: 74px;
   --hexH: calc(var(--hexW) * 0.8660254); /* √3/2 */
   --hexGap: 10px;        /* <-- increase to spread out more */
@@ -711,10 +711,10 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   user-select: none;
 }
 
-.hexBoardMain{ --hexW: 82px; }
-.hexBoardMini{ --hexW: 24px; --hexGap: 5px; --hexOverlap: 0.06; }
+BoardMain{ --hexW: 82px; }
+BoardMini{ --hexW: 24px; --hexGap: 5px; --hexOverlap: 0.06; }
 
-.hexRow{
+Row{
   display: flex;
   height: var(--hexH);
   align-items: center;
@@ -722,7 +722,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 /* row offset = half a hex + half the gap */
-.hexRow.odd{
+Row.odd{
   margin-left: calc((var(--hexW) + var(--hexGap)) * 0.5);
 }
 
@@ -731,7 +731,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   width: var(--hexW);
   height: var(--hexH);
 
-  /* smaller overlap + explicit gap */
   margin-right: calc((var(--hexW) * -1 * var(--hexOverlap)) + var(--hexGap));
 
   clip-path: polygon(
@@ -743,10 +742,16 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 
   position: relative;
   background: rgba(255,255,255,.10);
-  border: 1px solid rgba(255,255,255,.16);
-  box-shadow: 0 6px 16px rgba(0,0,0,.10);
+
+  /* 👇 black outline for EVERY hex (all boards) */
+  border: 1px solid rgba(0,0,0,.75);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.35) inset,
+    0 6px 16px rgba(0,0,0,.10);
+
   cursor: default;
 }
+
 
 .hexBoardMain .hex{ cursor: pointer; }
 
