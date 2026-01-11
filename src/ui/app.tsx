@@ -683,7 +683,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 /* =========================================================
-   HEX BOARD GEOMETRY (correct even-row offset)
+   HEX BOARD GEOMETRY (fixed board width + correct even-row offset)
 ========================================================= */
 .hexBoard{
   --hexW: 74px;
@@ -691,32 +691,38 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   --hexGap: 10px;
   --hexOverlap: 0.08;
 
-  /* horizontal pitch (center-to-center-ish) */
+  /* distance between hex starts (our spacing "pitch") */
   --hexPitch: calc(var(--hexW) * (1 - var(--hexOverlap)) + var(--hexGap));
 
+  /* IMPORTANT: board is sized to the MAX row length (7) */
+  --maxCols: 7;
+  width: calc(var(--hexW) + (var(--maxCols) - 1) * var(--hexPitch));
+
   display: grid;
-  justify-content: center;   /* centers the whole board block */
-  justify-items: center;     /* centers each row container */
-  gap: 0;
+  justify-content: center; /* center the whole board as a block */
   user-select: none;
 }
 
 .hexBoardMain{ --hexW: 82px; }
-.hexBoardMini{ --hexW: 24px; --hexGap: 5px; --hexOverlap: 0.06; }
 
-.hexRow{
-  display: flex;
-  height: var(--hexH);
-  align-items: center;
-
-  /* ✅ key changes */
-  justify-content: flex-start; /* stop re-centering the content */
-  width: max-content;          /* row hugs its content so offset is visible */
+.hexBoardMini{
+  --hexW: 24px;
+  --hexGap: 5px;
+  --hexOverlap: 0.06;
 }
 
-/* ✅ Offset EVEN rows (2/4/6) */
+/* each row fills the board width and starts from the left edge */
+.hexRow{
+  display: flex;
+  width: 100%;
+  height: var(--hexH);
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* ✅ even rows step right by half a pitch */
 .hexRow.even{
-  margin-left: calc(var(--hexPitch) / 2);
+  padding-left: calc(var(--hexPitch) / 2);
 }
 
 .hex{
