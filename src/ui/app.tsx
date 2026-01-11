@@ -815,16 +815,44 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   outline-offset: 2px;
 }
 
-/* Not reachable: dim */
-.hex.notReach{
-  opacity: .58;
-  filter: saturate(.86) brightness(.92);
-  cursor: not-allowed;
+/* ---- IMPORTANT: do NOT dim the whole tile (it dims the label). ---- */
+/* Reset any dimming on the tile itself */
+.hex.notReach,
+.hex.blocked,
+.hex.missing{
+  opacity: 1;
+  filter: none;
 }
 
-/* blocked/missing */
-.hex.blocked{ opacity: .70; filter: grayscale(.35) brightness(.90); }
-.hex.missing{ opacity: .45; filter: grayscale(.70) brightness(.82); }
+/* We'll dim with an overlay instead */
+.hex::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 0; /* clip-path handles shape */
+  pointer-events: none;
+  z-index: 1;       /* below label */
+  opacity: 0;       /* default off */
+}
+
+/* Not reachable: dim only the tile surface */
+.hex.notReach{
+  cursor: not-allowed;
+}
+.hex.notReach::before{
+  background: rgba(0,0,0,.28);
+  opacity: 1;
+}
+
+/* blocked/missing: stronger dim */
+.hex.blocked::before{
+  background: rgba(0,0,0,.34);
+  opacity: 1;
+}
+.hex.missing::before{
+  background: rgba(0,0,0,.48);
+  opacity: 1;
+}
 
 /* ===========================
    MINI BOARDS (3D tilt away)
