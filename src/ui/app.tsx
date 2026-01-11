@@ -683,13 +683,17 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 /* =========================================================
-   HEX BOARD GEOMETRY
+   HEX BOARD GEOMETRY (correct pitch + even-row offset)
 ========================================================= */
 .hexBoard{
   --hexW: 74px;
-  --hexH: calc(var(--hexW) * 0.8660254);
+  --hexH: calc(var(--hexW) * 0.8660254); /* √3/2 */
   --hexGap: 10px;
   --hexOverlap: 0.08;
+
+  /* ✅ true horizontal “pitch” between hexes (center-to-center) */
+  --hexPitch: calc(var(--hexW) * (1 - var(--hexOverlap)) + var(--hexGap));
+
   display: grid;
   justify-content: center;
   gap: 0;
@@ -697,7 +701,11 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 .hexBoardMain{ --hexW: 82px; }
-.hexBoardMini{ --hexW: 24px; --hexGap: 5px; --hexOverlap: 0.06; }
+.hexBoardMini{
+  --hexW: 24px;
+  --hexGap: 5px;
+  --hexOverlap: 0.06;
+}
 
 .hexRow{
   display: flex;
@@ -706,15 +714,18 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   justify-content: center;
 }
 
-/* IMPORTANT: even rows offset (2/4/6) */
+/* ✅ IMPORTANT: even rows offset (2/4/6) */
 .hexRow.even{
-  margin-left: calc((var(--hexW) + var(--hexGap)) * 0.5);
+  margin-left: calc(var(--hexPitch) / 2);
 }
 
 .hex{
   width: var(--hexW);
   height: var(--hexH);
-  margin-right: calc((var(--hexW) * -1 * var(--hexOverlap)) + var(--hexGap));
+
+  /* ✅ spacing that matches our pitch math */
+  margin-right: calc(var(--hexPitch) - var(--hexW));
+
   clip-path: polygon(
     25% 0%, 75% 0%,
     100% 50%,
@@ -725,7 +736,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   position: relative;
   background: rgba(255,255,255,.14);
 
-  /* black outline on every hex */
+  /* black outline on every hex (all boards) */
   border: 1px solid rgba(0,0,0,.75);
   box-shadow:
     0 0 0 1px rgba(0,0,0,.35) inset,
@@ -763,7 +774,10 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 .hexBoardMain .hexLabel{ font-size: 13px; }
-.hexBoardMini .hexLabel{ font-size: 9px; -webkit-text-stroke: .8px rgba(0,0,0,.75); }
+.hexBoardMini .hexLabel{
+  font-size: 9px;
+  -webkit-text-stroke: .8px rgba(0,0,0,.75);
+}
 
 /* Reachable */
 .hex.reach{
@@ -871,4 +885,5 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   .miniRow3D{ grid-template-columns: 1fr; }
   .layerBar{ height: 280px; }
 }
+
 `;
