@@ -699,21 +699,20 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   border-radius: 999px;
 }
 
-/* ===========================
-   HEX BOARDS (connected honeycomb)
-=========================== */
+/* HEX BOARD GEOMETRY (Honeycomb connected but NOT overlapping too much) */
 .hexBoard{
-  --hexW: 84px;
-  --hexH: calc(var(--hexW) * 0.8660254);
+  --hexW: 74px;
+  --hexH: calc(var(--hexW) * 0.8660254); /* √3/2 */
+  --hexGap: 10px;        /* <-- increase to spread out more */
+  --hexOverlap: 0.08;    /* <-- smaller overlap (was 0.25) */
   display: grid;
   justify-content: center;
   gap: 0;
   user-select: none;
 }
 
-.hexBoardMini{
-  --hexW: 24px;
-}
+.hexBoardMain{ --hexW: 82px; }
+.hexBoardMini{ --hexW: 24px; --hexGap: 5px; --hexOverlap: 0.06; }
 
 .hexRow{
   display: flex;
@@ -721,12 +720,20 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   align-items: center;
   justify-content: center;
 }
-.hexRow.odd{ margin-left: calc(var(--hexW) * 0.5); }
 
+/* row offset = half a hex + half the gap */
+.hexRow.odd{
+  margin-left: calc((var(--hexW) + var(--hexGap)) * 0.5);
+}
+
+/* hex tile */
 .hex{
   width: var(--hexW);
   height: var(--hexH);
-  margin-right: calc(var(--hexW) * -0.25);
+
+  /* smaller overlap + explicit gap */
+  margin-right: calc((var(--hexW) * -1 * var(--hexOverlap)) + var(--hexGap));
+
   clip-path: polygon(
     25% 0%, 75% 0%,
     100% 50%,
@@ -735,21 +742,13 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   );
 
   position: relative;
-  border: 1px solid rgba(255,255,255,.18);
   background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.16);
   box-shadow: 0 6px 16px rgba(0,0,0,.10);
+  cursor: default;
 }
 
 .hexBoardMain .hex{ cursor: pointer; }
-
-/* MAIN board = pastel rows like your upload */
-.hexBoardMain .hex[data-row="1"]{ background: rgba(200, 140, 255, .28); }
-.hexBoardMain .hex[data-row="2"]{ background: rgba(165, 175, 255, .28); }
-.hexBoardMain .hex[data-row="3"]{ background: rgba(135, 205, 255, .28); }
-.hexBoardMain .hex[data-row="4"]{ background: rgba(120, 235, 170, .24); }
-.hexBoardMain .hex[data-row="5"]{ background: rgba(255, 220, 120, .22); }
-.hexBoardMain .hex[data-row="6"]{ background: rgba(255, 155, 105, .22); }
-.hexBoardMain .hex[data-row="7"]{ background: rgba(255, 92, 120, .24); }
 
 /* MINIs = NO colored rows */
 .hexBoardMini .hex{
