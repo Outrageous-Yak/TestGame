@@ -34,10 +34,7 @@ const BUILD_TAG = "BUILD_TAG_TILES_DEMO_V1";
 /** Optional start-screen background (put file in public/images/ui/start-screen.jpg) */
 const START_BG_URL = "images/ui/start-screen.jpg";
 
-/**
- * Board BACKGROUND image (put file in public/images/ui/board-bg.png)
- * This is the tower-grid illusion background (NO labels).
- */
+/** Optional board background (put file in public/images/ui/board-bg.png) */
 const BOARD_BG_URL = "images/ui/board-bg.png";
 
 function idToCoord(id: string): Coord | null {
@@ -121,7 +118,7 @@ function wireDropZone(
 /** GitHub Pages-safe public URL helper (respects Vite BASE_URL). */
 function toPublicUrl(p: string) {
   const base = (import.meta as any).env?.BASE_URL ?? "/";
-  const clean = String(p).replace(/^\/+/, ""); // IMPORTANT: remove leading slash
+  const clean = String(p).replace(/^\/+/, "");
   return base + clean;
 }
 
@@ -132,7 +129,6 @@ function scenarioTileSet(s: any): string {
 
 /** Preset player image (place files at public/images/players/p1.png, p2.png, ...) */
 function presetPlayerImage(id: string): string {
-  // IMPORTANT: no leading "/" so BASE_URL works on GitHub Pages
   return `images/players/${id}.png`;
 }
 
@@ -229,26 +225,29 @@ export function mountApp(root: HTMLElement | null) {
       --violet:#7a6cff;
 
       --radius: 18px;
-
-      --sideW: 320px;
       --gap: 12px;
-
-      --hexGap: 6px;
-      --hexW: 64px;
-      --hexH: 56px;
-      --hexOffset: 34px;
 
       --baseText: 12px;
       --line: 1.35;
 
-      /* Pastel rainbow (reversed top->bottom: violet -> red) */
-      --p-violet: #d9c7ff;
-      --p-indigo: #c9d3ff;
-      --p-blue:   #c7e3ff;
-      --p-green:  #c9f5df;
-      --p-yellow: #fff4c2;
-      --p-orange: #ffe0bf;
-      --p-red:    #ffd0d6;
+      /* Dashboard squares */
+      --dashPad: 12px;
+      --dashGap: 12px;
+
+      /* Board sizing inside its square */
+      --tileGap: 8px;
+      --tileW: 64px;  /* set via JS to fit 7-wide */
+      --tileH: 52px;  /* set via JS */
+      --tileOffset: 36px;
+
+      /* Pastel rainbow (reversed): row1 violet -> row7 red */
+      --row1: #cbb8ff; /* pastel violet */
+      --row2: #b9c9ff; /* pastel indigo */
+      --row3: #b9e3ff; /* pastel blue */
+      --row4: #bdf7e2; /* pastel green */
+      --row5: #f7f4b8; /* pastel yellow */
+      --row6: #ffd7b8; /* pastel orange */
+      --row7: #ffb8c8; /* pastel red/pink */
     }
 
     *{ box-sizing:border-box; }
@@ -262,7 +261,7 @@ export function mountApp(root: HTMLElement | null) {
         radial-gradient(900px 700px at 85% 30%, rgba(122,108,255,.12), transparent 55%),
         radial-gradient(1000px 900px at 50% 110%, rgba(0,170,255,.08), transparent 55%),
         linear-gradient(180deg, var(--bg0), var(--bg1));
-      overflow-x:hidden;
+      overflow:hidden;
       font-size: var(--baseText);
       line-height: var(--line);
     }
@@ -274,7 +273,7 @@ export function mountApp(root: HTMLElement | null) {
       inset: 0;
       pointer-events: none;
       z-index: 0;
-      opacity: .22;
+      opacity: .18;
       mix-blend-mode: screen;
       background:
         linear-gradient(135deg,
@@ -284,42 +283,26 @@ export function mountApp(root: HTMLElement | null) {
           rgba(95,225,255,0) 65%,
           rgba(0,0,0,0) 100%);
       background-size: 220% 220%;
-      animation: hexWave 10s linear infinite;
+      animation: dashWave 10s linear infinite;
       filter: blur(.2px) saturate(1.15);
     }
-
-    body::after{
-      content:"";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-      opacity: .14;
-      --s: 44px;
-      --h: calc(var(--s) * 0.57735);
-      background:
-        linear-gradient(60deg, rgba(191,232,255,.24) 12%, transparent 12.5%, transparent 87%, rgba(191,232,255,.24) 87.5%, rgba(191,232,255,.24)),
-        linear-gradient(-60deg, rgba(191,232,255,.24) 12%, transparent 12.5%, transparent 87%, rgba(191,232,255,.24) 87.5%, rgba(191,232,255,.24)),
-        linear-gradient(0deg, rgba(191,232,255,.18) 2%, transparent 2.5%, transparent 97.5%, rgba(191,232,255,.18) 98%);
-      background-size: var(--s) calc(var(--h) * 2);
-      background-position: 0 0, 0 0, calc(var(--s)/2) var(--h);
-      mix-blend-mode: screen;
-      filter: blur(.2px);
-    }
-
-    @keyframes hexWave{
-      0%   { background-position: 120% 120%; opacity:.16; }
-      50%  { opacity:.28; }
-      100% { background-position: -20% -20%; opacity:.16; }
+    @keyframes dashWave{
+      0%   { background-position: 120% 120%; opacity:.14; }
+      50%  { opacity:.22; }
+      100% { background-position: -20% -20%; opacity:.14; }
     }
 
     .shell{
       width: min(1480px, calc(100vw - 36px));
+      height: calc(100vh - 24px);
       margin: 0 auto;
-      padding: 18px 0 26px;
+      padding: 18px 0 18px;
       position:relative;
       z-index:1;
-      color: var(--ink);
+      display:flex;
+      flex-direction:column;
+      gap: 12px;
+      min-height: 0;
     }
     .shell.kids{
       --card: rgba(10, 22, 50, .52);
@@ -335,14 +318,12 @@ export function mountApp(root: HTMLElement | null) {
       gap:12px;
       flex-wrap:wrap;
       padding: 0 6px;
-      margin-bottom: 14px;
     }
     .brand{display:flex; align-items:center; gap:10px;}
     .dotBrand{
       width:8px;height:8px;border-radius:999px;
       background: radial-gradient(circle at 30% 30%, var(--ice), var(--aqua));
       box-shadow: 0 0 12px rgba(95,225,255,.35);
-      margin-top: 0;
     }
     .brandTitle{
       font-weight:900;
@@ -356,8 +337,8 @@ export function mountApp(root: HTMLElement | null) {
       text-align:right;
     }
 
-    .view{ display:none; }
-    .view.active{ display:block; }
+    .view{ display:none; min-height: 0; }
+    .view.active{ display:block; min-height: 0; }
 
     .card{
       border: 1px solid var(--stroke2);
@@ -501,7 +482,8 @@ export function mountApp(root: HTMLElement | null) {
     }
     .startHeroLabel b{font-size: 13px}
 
-    .gameStage{
+    /* ===== New Dashboard (6 equal squares) ===== */
+    .dashStage{
       border-radius: calc(var(--radius) + 6px);
       border: 1px solid rgba(191,232,255,.18);
       background: linear-gradient(180deg, rgba(10,16,34,.58), rgba(10,16,34,.30));
@@ -509,30 +491,60 @@ export function mountApp(root: HTMLElement | null) {
         0 0 0 1px rgba(95,225,255,.08) inset,
         0 18px 60px rgba(0,0,0,.55);
       overflow:hidden;
-      padding: 12px;
-      min-height: calc(100vh - 140px);
-      position:relative;
-    }
-
-    .gameWrap{
-      position:relative;
-      z-index:1;
+      padding: var(--dashPad);
+      flex: 1;
+      min-height: 0;
       display:flex;
       flex-direction:column;
-      gap: var(--gap);
-      min-height: calc(100vh - 170px);
+      gap: var(--dashGap);
     }
 
-    .hudHeader{
+    .dashGrid{
+      flex: 1;
+      min-height: 0;
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: var(--dashGap);
+    }
+
+    /* Each cell is a square: force by aspect-ratio and let grid rows follow */
+    .dashCell{
       border-radius: var(--radius);
       border: 1px solid rgba(160, 210, 255, .22);
       background: rgba(10,16,34,.45);
       box-shadow:
         0 0 0 1px rgba(95,225,255,.08) inset,
-        0 18px 40px rgba(0,0,0,.20);
+        0 18px 40px rgba(0,0,0,.35);
       overflow:hidden;
+      min-width: 0;
+      min-height: 0;
+      aspect-ratio: 1 / 1;
+      display:flex;
+      flex-direction:column;
     }
-    .hudHeaderHead{
+
+    /* If the viewport is short, allow cells to stretch a little (still close to square) */
+    @media (max-height: 760px){
+      .dashCell{ aspect-ratio: auto; }
+    }
+
+    /* Responsive fallback: stack to 2 columns on narrower screens */
+    @media (max-width: 1100px){
+      body{ overflow:auto; }
+      .shell{ height:auto; min-height: 100vh; }
+      .dashGrid{
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: auto;
+      }
+      .dashCell{ aspect-ratio: 1 / 1; }
+    }
+    @media (max-width: 760px){
+      .dashGrid{ grid-template-columns: 1fr; }
+      .dashCell{ aspect-ratio: auto; min-height: 280px; }
+    }
+
+    .cellHead{
       padding:10px 12px;
       border-bottom: 1px solid rgba(191,232,255,.14);
       background: linear-gradient(180deg, rgba(10,16,34,.62), rgba(10,16,34,.28));
@@ -543,12 +555,11 @@ export function mountApp(root: HTMLElement | null) {
       gap:12px;
       flex-wrap:wrap;
     }
-    .hudTitleRow{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      flex-wrap:wrap;
-      min-width: 0;
+    .cellBody{
+      padding: 12px;
+      min-height: 0;
+      flex: 1;
+      overflow:auto;
     }
     .tag{
       font-size:11px;
@@ -576,94 +587,14 @@ export function mountApp(root: HTMLElement | null) {
       white-space: nowrap;
     }
 
-    .hudControls{
-      display:flex;
-      align-items:center;
-      justify-content:flex-end;
-      gap: 10px;
-      flex-wrap:wrap;
-    }
-
-    .hudBody{
-      padding: 12px;
-      display:block;
-      min-width: 0;
-    }
-
-    .hudWide{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      align-items:start;
-    }
-    @media (max-width: 980px){
-      .hudWide{ grid-template-columns: 1fr; }
-    }
-
-    .softCard{
-      border-radius: 16px;
-      border: 1px solid rgba(191,232,255,.14);
-      background: rgba(10,16,34,.28);
-      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 12px 28px rgba(0,0,0,.28);
-      padding: 12px;
-      min-width: 0;
-    }
-
-    .infoText{ font-size: 12px; line-height: 1.35; }
-    .infoText b{ font-weight: 800; color: rgba(234,242,255,.98); }
-
-    .gameLayout{
-      display:grid;
-      grid-template-columns: 1fr var(--sideW);
-      gap: var(--gap);
-      min-height: 0;
-      flex: 1;
-    }
-
-    .mainLeft{
-      display:grid;
-      grid-template-columns: var(--sideW) 1fr;
-      gap: var(--gap);
-      min-height: 0;
-    }
-
-    .panel{
-      border-radius: var(--radius);
-      border: 1px solid rgba(160, 210, 255, .22);
-      background: rgba(10,16,34,.45);
-      overflow:hidden;
-      box-shadow:
-        0 0 0 1px rgba(95,225,255,.08) inset,
-        0 18px 40px rgba(0,0,0,.35);
-      display:flex;
-      flex-direction:column;
-      min-width: 0;
-      min-height: 0;
-    }
-    .panelHead{
-      padding:10px 12px;
-      border-bottom: 1px solid rgba(191,232,255,.14);
-      background: linear-gradient(180deg, rgba(10,16,34,.62), rgba(10,16,34,.28));
-      backdrop-filter: blur(10px);
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      flex-wrap:wrap;
-    }
-    .panelBody{
-      padding: 12px;
-      overflow:auto;
-      min-height: 0;
-    }
-
+    /* Message bar (top-left cell) */
     .msgBar{
       padding: 10px 12px;
       border-radius: 14px;
       border: 1px solid rgba(191,232,255,.14);
       background: rgba(10,16,34,.24);
       box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
-      font-weight: 800;
+      font-weight: 900;
       font-size: 12px;
       display:flex;
       align-items:center;
@@ -674,25 +605,40 @@ export function mountApp(root: HTMLElement | null) {
     .msgLeft{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
     .msgRight{flex:0 0 auto; opacity:.92}
 
-    /* ===== Board container (NO scroll, square, centered) ===== */
-    .boardArea{
+    /* Story log list */
+    .logList{ display:flex; flex-direction:column; gap:10px; }
+    .logItem{
+      display:flex; justify-content:space-between; align-items:center; gap:12px;
+      border-radius: 14px;
+      border: 1px solid rgba(191,232,255,.14);
+      background: rgba(10,16,34,.26);
+      box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
+      padding: 10px 12px;
+      font-weight: 900;
+    }
+    .logItem .t{ opacity:.78; font-weight:800; }
+    .logItem.bad{ border-color: rgba(255,120,120,.22); }
+    .logSmall{ margin-top: 10px; opacity:.82; font-weight:800; }
+
+    /* ===== Board cell (bottom-center) ===== */
+    .boardCellBody{
+      padding: 10px;
       display:flex;
       flex-direction:column;
+      gap: 10px;
       min-height: 0;
-      height: 100%;
-      width: 100%;
+      overflow:hidden;
     }
 
-    .boardScroll{
+    .boardSquare{
       position:relative;
       flex: 1;
       min-height: 0;
-      overflow: hidden;              /* ✅ no scrollbars */
+      overflow:hidden;
       border-radius: 16px;
-      margin: 0 auto;                /* ✅ centered */
-      /* width/height set via JS so it’s perfectly square */
+      border: 1px solid rgba(191,232,255,.14);
+      background: rgba(0,0,0,.18);
     }
-
     .boardBg{
       position:absolute;
       inset: 0;
@@ -702,8 +648,6 @@ export function mountApp(root: HTMLElement | null) {
       background-position: center;
       background-repeat: no-repeat;
       opacity: 1;
-      filter: none;
-      transform: none;
     }
     .boardBg::after{
       content:"";
@@ -731,238 +675,165 @@ export function mountApp(root: HTMLElement | null) {
       width: max-content;
       transform: scale(var(--boardScale, 1));
       transform-origin: center center;
+      will-change: transform;
     }
 
     .hexRow{
       display:flex;
-      gap: var(--hexGap);
+      gap: var(--tileGap);
       align-items:center;
       justify-content:flex-start;
       width: 100%;
     }
-    .hexRow.offset{ padding-left: var(--hexOffset); }
+    .hexRow.offset{ padding-left: var(--tileOffset); }
 
-    /* ===========================
-       CLOUD TILE (replaces hex)
-       =========================== */
-
+    /* ===== Cloud tiles (instead of hex) ===== */
     .hex{
-      width: var(--hexW);
-      height: var(--hexH);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      cursor:pointer;
+      width: var(--tileW);
+      height: var(--tileH);
       position:relative;
+      cursor:pointer;
       user-select:none;
-      overflow: visible;
+      display:grid;
+      place-items:center;
 
-      /* cloud mask */
-      --cloudMask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 160'><path d='M63 120c-18 0-33-12-33-28 0-15 12-26 26-28C58 44 74 30 94 30c20 0 37 14 41 33 3-1 7-2 11-2 18 0 33 13 33 30s-15 29-33 29H63z'/></svg>");
+      /* per-tile fill */
+      background: var(--fill, rgba(255,255,255,.08));
 
-      -webkit-mask-image: var(--cloudMask);
-      -webkit-mask-repeat: no-repeat;
-      -webkit-mask-size: 100% 100%;
-      -webkit-mask-position: center;
+      /* cloud body */
+      border-radius: 999px;
+      border: 2px solid rgba(255,255,255,.92);
 
-      mask-image: var(--cloudMask);
-      mask-repeat: no-repeat;
-      mask-size: 100% 100%;
-      mask-position: center;
+      /* bright glowing white outline */
+      box-shadow:
+        0 0 10px rgba(255,255,255,.55),
+        0 0 24px rgba(255,255,255,.35),
+        inset 0 0 18px rgba(255,255,255,.18);
 
-      /* row fill defaults */
-      --fill: var(--p-blue);
-
-      /* state glow (defaults off) */
-      --stateGlow: rgba(0,0,0,0);
-      --stateGlow2: rgba(0,0,0,0);
-
-      /* depth shadow follows alpha (mask) */
-      --shadow: drop-shadow(0 10px 18px rgba(0,0,0,.22));
-
-      background:
-        radial-gradient(120% 120% at 30% 25%, rgba(255,255,255,.55), rgba(255,255,255,.12) 55%, rgba(255,255,255,.06) 100%),
-        linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.06)),
-        var(--fill);
-
-      filter: var(--shadow);
-
-      transition:
-        transform .12s ease,
-        filter .12s ease,
-        opacity .18s ease;
+      transition: transform .12s ease, filter .12s ease, box-shadow .18s ease, opacity .18s ease;
     }
 
-    /* Bright glowing white outline + optional colored state glow */
-    .hex::before{
+    /* cloud bumps */
+    .hex::before,
+    .hex::after{
       content:"";
       position:absolute;
-      inset:-2px;
+      background: inherit;
+      border: inherit;
+      border-radius: 999px;
+      box-shadow: inherit;
       pointer-events:none;
-      z-index: 1;
+    }
 
-      background: rgba(255,255,255,.95);
-
-      -webkit-mask-image: var(--cloudMask);
-      -webkit-mask-repeat: no-repeat;
-      -webkit-mask-size: 100% 100%;
-      -webkit-mask-position: center;
-
-      mask-image: var(--cloudMask);
-      mask-repeat: no-repeat;
-      mask-size: 100% 100%;
-      mask-position: center;
-
-      filter:
-        drop-shadow(0 0 8px rgba(255,255,255,.90))
-        drop-shadow(0 0 18px rgba(255,255,255,.55))
-        drop-shadow(0 0 16px var(--stateGlow))
-        drop-shadow(0 0 34px var(--stateGlow2));
-
-      opacity: .98;
+    .hex::before{
+      width: 62%;
+      height: 62%;
+      left: 8%;
+      top: -16%;
+    }
+    .hex::after{
+      width: 68%;
+      height: 68%;
+      right: 6%;
+      top: -10%;
     }
 
     .hex:hover{
       transform: translateY(-1px) scale(1.02);
-      filter: brightness(1.06) saturate(1.02) var(--shadow);
+      filter: brightness(1.03) saturate(1.02);
     }
     .hex:active{ transform: translateY(0) scale(.99); }
 
-    /* row->pastel mapping (top row violet, bottom row red) */
-    .hex[data-row="0"]{ --fill: var(--p-violet); }
-    .hex[data-row="1"]{ --fill: var(--p-indigo); }
-    .hex[data-row="2"]{ --fill: var(--p-blue); }
-    .hex[data-row="3"]{ --fill: var(--p-green); }
-    .hex[data-row="4"]{ --fill: var(--p-yellow); }
-    .hex[data-row="5"]{ --fill: var(--p-orange); }
-    .hex[data-row="6"]{ --fill: var(--p-red); }
-
-    /* Labels: no background, always 2 rows, centered, readable */
+    /* Labels: centered, always 2 rows, NO background */
     .hexLabel{
       position:relative;
       z-index: 2;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      gap: 2px;
-
-      font-size: 10px;
+      font-size: 11px;
       line-height: 1.05;
-      font-weight: 950;
+      font-weight: 1000;
       letter-spacing: .2px;
-
+      text-align:center;
+      white-space: pre-line;
+      padding: 0;
       background: none;
       border: none;
-      border-radius: 0;
-      padding: 0;
-      opacity: .96;
-
       color: rgba(255,255,255,.96);
       text-shadow:
-        -1px -1px 0 rgba(0,0,0,.55),
-         1px -1px 0 rgba(0,0,0,.55),
-        -1px  1px 0 rgba(0,0,0,.55),
-         1px  1px 0 rgba(0,0,0,.55),
-         0    2px 6px rgba(0,0,0,.30);
+        0 2px 8px rgba(0,0,0,.55),
+        -1px 0 rgba(0,0,0,.50),
+        1px 0 rgba(0,0,0,.50),
+        0 -1px rgba(0,0,0,.50),
+        0 1px rgba(0,0,0,.50);
+      -webkit-text-stroke: 0.6px rgba(0,0,0,.55);
     }
 
-    /* Reachable (blue glow, keep white outline) */
+    /* Reachable: blue glow */
     .hex.reach{
-      --stateGlow: rgba(0, 200, 255, 0.95);
-      --stateGlow2: rgba(0, 200, 255, 0.55);
+      box-shadow:
+        0 0 12px rgba(0, 200, 255, .85),
+        0 0 28px rgba(0, 200, 255, .55),
+        inset 0 0 16px rgba(0, 200, 255, .22);
+      border-color: rgba(255,255,255,.96);
     }
 
+    /* Not reachable: dim */
     .hex.notReach{
-      opacity: .58;
-      filter: saturate(.82) brightness(.92) var(--shadow);
+      opacity: .55;
+      filter: saturate(.86) brightness(.95);
       cursor: not-allowed;
     }
-    .hex.notReach:hover{
-      transform: none;
-      filter: saturate(.82) brightness(.92) var(--shadow);
-    }
+    .hex.notReach:hover{ transform:none; }
 
-    /* Player (green glow, strongest) */
-    .hex.player,
-    .hex.player.reach,
-    .hex.player.trSrc,
-    .hex.player.trTgt,
-    .hex.player.goal,
-    .hex.player.fog,
-    .hex.player.blocked,
-    .hex.player.missing{
-      --stateGlow: rgba(76, 255, 80, 1) !important;
-      --stateGlow2: rgba(76, 255, 80, .70) !important;
+    /* Player: green glow */
+    .hex.player{
+      box-shadow:
+        0 0 14px rgba(76,255,80, .90),
+        0 0 34px rgba(76,255,80, .62),
+        inset 0 0 18px rgba(76,255,80, .18);
+      filter: brightness(1.06);
       opacity: 1 !important;
       z-index: 4;
-      filter: brightness(1.12) var(--shadow) !important;
     }
-    .hex.player.trTgt{ animation: none !important; }
 
-    /* Goal: gold-ish (doesn't override row fill too aggressively) */
+    /* Goal: gold glow */
     .hex.goal{
-      --stateGlow: rgba(255,193,7,1);
-      --stateGlow2: rgba(255,193,7,.55);
-      filter: brightness(1.03) var(--shadow);
+      box-shadow:
+        0 0 14px rgba(255,193,7, .90),
+        0 0 34px rgba(255,193,7, .58),
+        inset 0 0 18px rgba(255,193,7, .18);
     }
 
+    /* Fog/blocked/missing still show via tone + glow, but we keep “cloud” look */
     .hex.blocked{
-      --stateGlow: rgba(244,67,54,.95);
-      --stateGlow2: rgba(244,67,54,.45);
-      filter: saturate(1.02) brightness(.98) var(--shadow);
       opacity: .92;
+      filter: saturate(.92) brightness(.92);
+      box-shadow:
+        0 0 12px rgba(244,67,54,.70),
+        0 0 28px rgba(244,67,54,.42),
+        inset 0 0 14px rgba(244,67,54,.18);
     }
-
     .hex.missing{
-      --stateGlow: rgba(255,255,255,.18);
-      --stateGlow2: rgba(255,255,255,.10);
-      filter: saturate(.85) brightness(.92) var(--shadow);
-      opacity:.55;
+      opacity: .45;
+      filter: grayscale(.2) brightness(.85);
+      box-shadow:
+        0 0 8px rgba(255,255,255,.20),
+        0 0 18px rgba(255,255,255,.10),
+        inset 0 0 10px rgba(255,255,255,.08);
     }
-
     .hex.fog{
-      /* make fog feel like a dark cloud on top of the pastel */
-      background:
-        radial-gradient(120% 120% at 30% 25%, rgba(255,255,255,.18), rgba(0,0,0,.18) 55%, rgba(0,0,0,.25) 100%),
-        linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.22)),
-        var(--fill);
-      --stateGlow: rgba(255,255,255,.18);
-      --stateGlow2: rgba(0,0,0,.45);
-      opacity: .90;
-    }
-
-    .hex.trSrc{
-      --stateGlow: rgba(255,152,0,1);
-      --stateGlow2: rgba(255,152,0,.55);
-    }
-    .hex.trTgt{
-      --stateGlow: rgba(3,169,244,1);
-      --stateGlow2: rgba(3,169,244,.55);
-      animation: pulse 1.2s ease-in-out infinite;
-    }
-    @keyframes pulse{
-      0%{filter:brightness(1) var(--shadow)}
-      50%{filter:brightness(1.25) var(--shadow)}
-      100%{filter:brightness(1) var(--shadow)}
+      opacity: .80;
+      filter: grayscale(.15) contrast(.96) brightness(.92);
+      box-shadow:
+        0 0 10px rgba(255,255,255,.28),
+        0 0 22px rgba(0,0,0,.35),
+        inset 0 0 14px rgba(0,0,0,.18);
     }
 
     .hex.sel{
-      outline: 2px solid rgba(234,242,255,.55);
+      outline: 2px solid rgba(234,242,255,.70);
       outline-offset: 2px;
     }
 
-    .miniDot{
-      position:absolute;
-      right:8px;
-      top:8px;
-      width:9px;height:9px;border-radius:999px;
-      border:1px solid rgba(255,255,255,.35);
-      background:rgba(255,255,255,.12);
-      z-index: 3;
-    }
-    .miniDot.player{background:rgba(76,255,80,1);border-color:rgba(76,255,80,1)}
-    .miniDot.goal{background:rgba(255,193,7,1);border-color:rgba(255,193,7,1)}
     .dist{
       position:absolute;
       left:8px;
@@ -990,105 +861,26 @@ export function mountApp(root: HTMLElement | null) {
       z-index: 3;
     }
 
-    /* story log */
-    .logHeadRow{
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-      margin-bottom: 10px;
-    }
-    .logList{ display:flex; flex-direction:column; gap:10px; }
-    .logItem{
-      display:flex; justify-content:space-between; align-items:center; gap:12px;
-      border-radius: 14px;
-      border: 1px solid rgba(191,232,255,.14);
-      background: rgba(10,16,34,.26);
-      box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
-      padding: 10px 12px;
-      font-weight: 900;
-    }
-    .logItem .t{ opacity:.78; font-weight:800; }
-    .logItem.bad{ border-color: rgba(255,120,120,.22); }
-    .logSmall{ margin-top: 10px; opacity:.82; font-weight:800; }
-
-    /* mini boards */
-    .miniBoard{
-      border-radius: 16px;
-      border: 1px solid rgba(191,232,255,.14);
-      background: rgba(10,16,34,.20);
-      box-shadow: 0 0 0 1px rgba(95,225,255,.05) inset;
-      padding: 10px 12px;
-      margin-bottom: 10px;
-      overflow:hidden;
-      position:relative;
-    }
-
-    .miniBoard.bgPlayer::before{
-      content:"";
-      position:absolute; inset:0;
-      background-size: cover;
-      background-position:center;
-      filter: blur(6px) saturate(1.02) contrast(1.03);
-      opacity:.30;
-      transform: scale(1.05);
-      pointer-events:none;
-    }
-    .miniBoard.bgPlayer::after{
-      content:"";
-      position:absolute; inset:0;
-      background:
-        radial-gradient(700px 340px at 30% 25%, rgba(95,225,255,.20), transparent 55%),
-        linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.55));
-      pointer-events:none;
-    }
-    .miniBoard > *{ position:relative; z-index:1; }
-
-    .miniBoardHead{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      margin-bottom: 8px;
-    }
-    .miniBoardTitle{
-      font-weight: 900;
-      font-size: 12px;
-      opacity:.92;
-      display:flex;
-      align-items:center;
-      gap:8px;
-    }
-    .miniWarn{
-      color: rgba(255,120,120,.95);
-      font-weight: 900;
-    }
+    /* Mini boards */
     .miniBoardGrid{
       display:flex;
       flex-direction:column;
-      gap:4px;
+      gap:6px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       font-size: 11px;
       line-height: 1.25;
     }
-    .miniRow{
-      display:flex;
-      gap:4px;
-      align-items:center;
-      flex-wrap:wrap;
-    }
-    .miniRow b{
-      opacity:.9;
-      font-weight: 900;
-      min-width: 36px;
-    }
-    .miniRow.offset{
-      padding-left: calc((28px + 4px) / 2);
-    }
+    .miniRow{ display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+    .miniRow b{ opacity:.9; font-weight: 900; min-width: 36px; }
+    .miniRow.offset{ padding-left: calc((28px + 4px) / 2); }
+
     .miniCell{
       width: 28px;
       height: 24px;
       display:inline-flex;
       align-items:center;
       justify-content:center;
-      clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
+      border-radius: 999px;
       border: 1px solid rgba(191,232,255,.14);
       background: rgba(0,0,0,.22);
       opacity:.95;
@@ -1113,14 +905,7 @@ export function mountApp(root: HTMLElement | null) {
       font-weight: 800;
       font-size: 11px;
     }
-
-    /* responsive */
-    @media (max-width: 1100px){
-      .gameLayout{ grid-template-columns: 1fr; }
-      .mainLeft{ grid-template-columns: 1fr; }
-      .gameStage{ min-height: auto; }
-      .gameWrap{ min-height: auto; }
-    }
+    .miniWarn{ color: rgba(255,120,120,.95); font-weight: 900; }
   `;
   document.head.appendChild(style);
 
@@ -1151,8 +936,7 @@ export function mountApp(root: HTMLElement | null) {
   function setScreen(next: Screen) {
     screen = next;
     [vStart, vSelect, vSetup, vGame].forEach((v) => v.classList.remove("active"));
-    const name =
-      next === "start" ? "Start" : next === "select" ? "Select Game" : next === "setup" ? "Setup" : "In Game";
+    const name = next === "start" ? "Start" : next === "select" ? "Select Game" : next === "setup" ? "Setup" : "In Game";
     crumb.textContent = name;
 
     if (next === "start") vStart.classList.add("active");
@@ -1240,8 +1024,8 @@ export function mountApp(root: HTMLElement | null) {
         onerror="this.style.display='none'"/>
       <div class="startHeroLabel">
         <div>
-          <b>Demo tiles:</b> <span class="muted">${escapeHtml("/tiles/demo/")}</span>
-          <div class="muted" style="margin-top:6px">Build: ${escapeHtml(BUILD_TAG)}</div>
+          <b>Build:</b> <span class="muted">${escapeHtml(BUILD_TAG)}</span>
+          <div class="muted" style="margin-top:6px">Cloud tiles · pastel rainbow</div>
         </div>
         <div class="pill">Ready</div>
       </div>
@@ -1560,6 +1344,10 @@ export function mountApp(root: HTMLElement | null) {
     return !!hex.revealed;
   }
 
+  function timeSafeReason(s: any) {
+    return String(s ?? "INVALID").toUpperCase();
+  }
+
   function setLayerOptions(layerSelect: HTMLSelectElement) {
     const layers = Number((scenario() as any).layers ?? 1);
     layerSelect.innerHTML = "";
@@ -1614,13 +1402,7 @@ export function mountApp(root: HTMLElement | null) {
 
   function logClick(id: string, ok: boolean, reason?: string) {
     moveCount += 1;
-    logs.unshift({
-      n: moveCount,
-      id,
-      ok,
-      reason,
-      t: timeHHMM(),
-    });
+    logs.unshift({ n: moveCount, id, ok, reason, t: timeHHMM() });
     if (logs.length > 200) logs = logs.slice(0, 200);
   }
 
@@ -1677,11 +1459,16 @@ export function mountApp(root: HTMLElement | null) {
     resetRunLog();
   }
 
+  function rowPastelVar(row: number) {
+    const r = Math.max(1, Math.min(7, row));
+    return `var(--row${r})`;
+  }
+
   // --------------------------
-  // Screen 4: Game
+  // Screen 4: Game (NEW 6-square dashboard)
   // --------------------------
   let gameBuilt = false;
-  let boardBodyResizeObserver: ResizeObserver | null = null;
+  let dashResizeObserver: ResizeObserver | null = null;
 
   function renderGameScreen() {
     if (gameBuilt) return;
@@ -1689,21 +1476,49 @@ export function mountApp(root: HTMLElement | null) {
 
     vGame.innerHTML = "";
 
-    const stage = el("div", "gameStage");
-    const wrap = el("div", "gameWrap");
+    const stage = el("div", "dashStage");
 
-    // ===== HUD header =====
-    const hud = el("section", "hudHeader");
-    const hudHead = el("div", "hudHeaderHead");
+    // grid
+    const grid = el("div", "dashGrid");
 
-    const hudLeft = el("div", "hudTitleRow");
-    hudLeft.innerHTML = `<div class="tag"><span class="dot"></span> HUD</div><div class="pill">Build: ${escapeHtml(
-      BUILD_TAG
-    )}</div>`;
+    // cells
+    const c1 = el("section", "dashCell"); // Top-left: message + story log
+    const c2 = el("section", "dashCell"); // Top-center: Current mini
+    const c3 = el("section", "dashCell"); // Top-right: HUD info + controls
+    const c4 = el("section", "dashCell"); // Bottom-left: Below mini
+    const c5 = el("section", "dashCell"); // Bottom-center: Board
+    const c6 = el("section", "dashCell"); // Bottom-right: Above mini
 
-    const hudControls = el("div", "hudControls");
+    grid.append(c1, c2, c3, c4, c5, c6);
+    stage.appendChild(grid);
+    vGame.appendChild(stage);
 
-    const scenarioSelect = el("select") as HTMLSelectElement;
+    // ---------- Cell 1 (Top-left): Message + Story log ----------
+    const c1Head = el("div", "cellHead");
+    c1Head.innerHTML = `<div class="tag"><span class="dot"></span> Message + Moves</div><div class="pill" id="movesPill">Moves: 0</div>`;
+    const c1Body = el("div", "cellBody");
+    c1.append(c1Head, c1Body);
+
+    const msgBar = el("div", "msgBar");
+    msgBar.innerHTML = `<div class="msgLeft" id="msgLeft">Ready.</div><div class="msgRight" id="msgRight">Moves: 0</div>`;
+
+    const logList = el("div", "logList");
+    logList.id = "logList";
+    const logSmall = el("div", "logSmall");
+    logSmall.textContent = "(Logs every cloud click. If a move is rejected, it’s marked.)";
+
+    c1Body.append(msgBar, logList, logSmall);
+
+    // ---------- Cell 3 (Top-right): HUD + controls ----------
+    const c3Head = el("div", "cellHead");
+    c3Head.innerHTML = `<div class="tag"><span class="dot"></span> HUD</div><div class="pill">Build: ${escapeHtml(BUILD_TAG)}</div>`;
+    const c3Body = el("div", "cellBody");
+    c3.append(c3Head, c3Body);
+
+    const controlsRow = el("div", "row");
+    controlsRow.style.justifyContent = "flex-start";
+
+    const scenarioSelect = document.createElement("select");
     scenarioSelect.style.fontSize = "12px";
     scenarioSelect.style.fontWeight = "800";
     scenarioSelect.style.borderRadius = "999px";
@@ -1719,7 +1534,7 @@ export function mountApp(root: HTMLElement | null) {
     });
     scenarioSelect.value = String(scenarioIndex);
 
-    const layerSelect = el("select") as HTMLSelectElement;
+    const layerSelect = document.createElement("select");
     layerSelect.style.fontSize = "12px";
     layerSelect.style.fontWeight = "800";
     layerSelect.style.borderRadius = "999px";
@@ -1744,170 +1559,80 @@ export function mountApp(root: HTMLElement | null) {
       setScreen("setup");
     });
 
-    hudControls.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
-    hudHead.append(hudLeft, hudControls);
+    controlsRow.append(scenarioSelect, layerSelect, endTurnBtn, resetBtn, forceRevealBtn, exitBtn);
 
-    const hudBody = el("div", "hudBody");
-    const hudWide = el("div", "softCard hudWide");
-    const hudScenario = el("div", "infoText");
-    const hudSelected = el("div", "infoText");
-    hudWide.append(hudScenario, hudSelected);
-    hudBody.append(hudWide);
-    hud.append(hudHead, hudBody);
+    const hudInfo = el("div", "hint");
+    hudInfo.id = "hudInfo";
+    hudInfo.style.marginTop = "10px";
+    hudInfo.style.whiteSpace = "pre-line";
 
-    // ===== Layout =====
-    const layout = el("div", "gameLayout");
-    const mainLeft = el("div", "mainLeft");
+    c3Body.append(controlsRow, hudInfo);
 
-    // Story panel
-    const storyPanel = el("section", "panel");
-    const storyHead = el("div", "panelHead");
-    storyHead.innerHTML = `<div class="tag"><span class="dot"></span> Story Log</div><div class="pill">Moves</div>`;
-    const storyBody = el("div", "panelBody");
+    // ---------- Cell 2/4/6: Mini boards ----------
+    function buildMiniCell(cell: HTMLElement, title: string, pillId: string, gridId: string, noteId: string) {
+      const head = el("div", "cellHead");
+      head.innerHTML = `<div class="tag"><span class="dot"></span> ${escapeHtml(title)}</div><div class="pill" id="${pillId}">—</div>`;
+      const body = el("div", "cellBody");
+      body.innerHTML = `<div class="miniBoardGrid" id="${gridId}"></div><div class="miniNote" id="${noteId}"></div>`;
+      cell.append(head, body);
+    }
 
-    const storyCard = el("div", "softCard");
-    storyCard.innerHTML = `
-      <div class="logHeadRow">
-        <div class="infoText"><b>Clicks / Moves</b></div>
-        <div class="pill" id="movesPill">Moves: 0</div>
-      </div>
-      <div class="logList" id="logList"></div>
-      <div class="logSmall">(Logs every hex click. If a move is rejected, it’s marked.)</div>
-    `;
-    storyBody.appendChild(storyCard);
-    storyPanel.append(storyHead, storyBody);
+    buildMiniCell(c2, "Layers: Current", "miniCurrentPill", "miniCurrentGrid", "miniCurrentNote");
+    buildMiniCell(c4, "Layers: Below", "miniBelowPill", "miniBelowGrid", "miniBelowNote");
+    buildMiniCell(c6, "Layers: Above", "miniAbovePill", "miniAboveGrid", "miniAboveNote");
 
-    // Board panel
-    const boardPanel = el("section", "panel");
-    const boardHead = el("div", "panelHead");
-    boardHead.innerHTML = `<div class="tag"><span class="dot"></span> Board</div><div class="pill">Now</div>`;
-    const boardBody = el("div", "panelBody");
-    boardBody.style.overflow = "hidden";
-    boardBody.style.display = "flex";
-    boardBody.style.flexDirection = "column";
+    // ---------- Cell 5 (Bottom-center): Board ----------
+    const c5Head = el("div", "cellHead");
+    c5Head.innerHTML = `<div class="tag"><span class="dot"></span> Board</div><div class="pill" id="boardPill">Layer —</div>`;
+    const c5Body = el("div", "boardCellBody");
+    c5.append(c5Head, c5Body);
 
-    const boardArea = el("div", "boardArea");
-    boardArea.style.flex = "1";
-
-    const msgBar = el("div", "msgBar");
-    msgBar.innerHTML = `<div class="msgLeft" id="msgLeft">Ready.</div><div class="msgRight" id="msgRight">Moves: 0</div>`;
-
-    const boardScroll = el("div", "boardScroll");
+    const boardSquare = el("div", "boardSquare");
     const boardBg = el("div", "boardBg");
     boardBg.id = "boardBg";
     const boardCenter = el("div", "boardCenter");
     const boardWrap = el("div", "boardWrap");
     boardWrap.id = "boardWrap";
-
     boardCenter.appendChild(boardWrap);
-    boardScroll.append(boardBg, boardCenter);
+    boardSquare.append(boardBg, boardCenter);
+    c5Body.appendChild(boardSquare);
 
-    boardArea.append(msgBar, boardScroll);
-    boardBody.appendChild(boardArea);
-    boardPanel.append(boardHead, boardBody);
-
-    mainLeft.append(storyPanel, boardPanel);
-
-    // Layers panel (right)
-    const imgPanel = el("section", "panel");
-    const imgHead = el("div", "panelHead");
-    imgHead.innerHTML = `<div class="tag"><span class="dot"></span> Layers</div><div class="pill">Mini</div>`;
-    const imgBody = el("div", "panelBody");
-
-    const miniAbove = el("div", "miniBoard");
-    miniAbove.innerHTML = `
-      <div class="miniBoardHead">
-        <div class="miniBoardTitle">Above</div>
-        <div class="pill" id="miniAbovePill" style="padding:6px 10px">—</div>
-      </div>
-      <div class="miniBoardGrid" id="miniAboveGrid"></div>
-      <div class="miniNote" id="miniAboveNote"></div>
-    `;
-
-    const miniCurrent = el("div", "miniBoard bgPlayer");
-    miniCurrent.id = "miniCurrentBoard";
-    miniCurrent.innerHTML = `
-      <div class="miniBoardHead">
-        <div class="miniBoardTitle">Current</div>
-        <div class="pill" id="miniCurrentPill" style="padding:6px 10px">—</div>
-      </div>
-      <div class="miniBoardGrid" id="miniCurrentGrid"></div>
-      <div class="miniNote" id="miniCurrentNote"></div>
-    `;
-
-    const miniBelow = el("div", "miniBoard");
-    miniBelow.innerHTML = `
-      <div class="miniBoardHead">
-        <div class="miniBoardTitle">Below</div>
-        <div class="pill" id="miniBelowPill" style="padding:6px 10px">—</div>
-      </div>
-      <div class="miniBoardGrid" id="miniBelowGrid"></div>
-      <div class="miniNote" id="miniBelowNote"></div>
-    `;
-
-    imgBody.append(miniAbove, miniCurrent, miniBelow);
-    imgPanel.append(imgHead, imgBody);
-
-    layout.append(mainLeft, imgPanel);
-    wrap.append(hud, layout);
-    stage.appendChild(wrap);
-    vGame.appendChild(stage);
-
-    // ===== Square board sizing + stable fit (no scroll, no pulsing) =====
-    function setBoardSquare() {
-      const bodyW = boardBody.clientWidth;
-      const bodyH = boardBody.clientHeight;
-      const msgH = msgBar.offsetHeight || 0;
-
-      const pad = 6;
-      const availW = Math.max(0, bodyW - pad * 2);
-      const availH = Math.max(0, bodyH - msgH - pad * 2);
-
-      // try to use full width, but never exceed height
-      const size = Math.floor(Math.max(0, Math.min(availW, availH)));
-      if (!size || size < 50) return;
-
-      boardScroll.style.width = `${size}px`;
-      boardScroll.style.height = `${size}px`;
-    }
-
+    // ===== Square board sizing + stable fit inside its cell =====
     function clamp(n: number, lo: number, hi: number) {
       return Math.max(lo, Math.min(hi, n));
     }
 
-    function setHexLayoutVars() {
-      const w = boardScroll.clientWidth;
-      if (!w || w < 50) return;
+    function setTileLayoutVars() {
+      const size = boardSquare.clientWidth; // square
+      if (!size || size < 120) return;
 
-      // Let background "towers" show between tiles
       const innerPad = 18;
-      const usable = Math.max(50, w - innerPad * 2);
+      const usable = Math.max(50, size - innerPad * 2);
 
-      const gap = 6;
+      const gap = 8;
       const cols = 7;
-      const minW = 46;
-      const maxW = 92;
+      const minW = 44;
+      const maxW = 90;
 
       const raw = (usable - gap * (cols - 1)) / cols;
-      const hexW = clamp(raw, minW, maxW);
-      const hexH = Math.round(hexW * 0.88);
-      const offset = Math.round((hexW + gap) / 2);
+      const w = clamp(raw, minW, maxW);
+      const h = Math.round(w * 0.82);
+      const offset = Math.round((w + gap) / 2);
 
-      (boardPanel as HTMLElement).style.setProperty("--hexGap", `${gap}px`);
-      (boardPanel as HTMLElement).style.setProperty("--hexW", `${Math.round(hexW)}px`);
-      (boardPanel as HTMLElement).style.setProperty("--hexH", `${hexH}px`);
-      (boardPanel as HTMLElement).style.setProperty("--hexOffset", `${offset}px`);
+      (boardSquare as HTMLElement).style.setProperty("--tileGap", `${gap}px`);
+      (boardSquare as HTMLElement).style.setProperty("--tileW", `${Math.round(w)}px`);
+      (boardSquare as HTMLElement).style.setProperty("--tileH", `${h}px`);
+      (boardSquare as HTMLElement).style.setProperty("--tileOffset", `${offset}px`);
     }
 
     function fitBoardWrapToSquare() {
-      const size = boardScroll.clientWidth;
-      if (!size || size < 50) return;
+      const size = boardSquare.clientWidth;
+      if (!size || size < 120) return;
 
       const margin = 18;
       const targetW = Math.max(1, size - margin * 2);
       const targetH = Math.max(1, size - margin * 2);
 
-      // ✅ unscaled content size (transform doesn't affect scrollWidth/scrollHeight)
       const w = boardWrap.scrollWidth || 1;
       const h = boardWrap.scrollHeight || 1;
 
@@ -1916,14 +1641,13 @@ export function mountApp(root: HTMLElement | null) {
     }
 
     function relayoutBoard() {
-      setBoardSquare();
-      setHexLayoutVars();
+      setTileLayoutVars();
       requestAnimationFrame(() => fitBoardWrapToSquare());
     }
 
-    if (boardBodyResizeObserver) boardBodyResizeObserver.disconnect();
-    boardBodyResizeObserver = new ResizeObserver(() => relayoutBoard());
-    boardBodyResizeObserver.observe(boardBody);
+    if (dashResizeObserver) dashResizeObserver.disconnect();
+    dashResizeObserver = new ResizeObserver(() => relayoutBoard());
+    dashResizeObserver.observe(boardSquare);
 
     window.addEventListener("resize", relayoutBoard, { passive: true });
 
@@ -1937,25 +1661,6 @@ export function mountApp(root: HTMLElement | null) {
     function getScenarioLayerCount(): number {
       const s: any = scenario();
       return Number(s?.layers ?? 1);
-    }
-
-    function getPlayerImageUrl(): string | null {
-      if (chosenPlayer?.kind === "custom") return chosenPlayer.imageDataUrl ?? null;
-      if (chosenPlayer?.kind === "preset") return toPublicUrl(presetPlayerImage(chosenPlayer.id));
-      return null;
-    }
-
-    // Ensure .miniBoard.bgPlayer::before reads --miniBg
-    const extraMiniBgStyle = document.createElement("style");
-    extraMiniBgStyle.textContent = `.miniBoard.bgPlayer::before{ background-image: var(--miniBg); }`;
-    document.head.appendChild(extraMiniBgStyle);
-
-    function setMiniCurrentBackground() {
-      const board = document.getElementById("miniCurrentBoard") as HTMLElement | null;
-      if (!board) return;
-
-      const url = getPlayerImageUrl();
-      board.style.setProperty("--miniBg", url ? `url("${url}")` : "");
     }
 
     function renderMiniBoardGeneric(opts: {
@@ -2043,7 +1748,7 @@ export function mountApp(root: HTMLElement | null) {
       if (!list) return;
 
       list.innerHTML = "";
-      for (const e of logs.slice(0, 40)) {
+      for (const e of logs.slice(0, 24)) {
         const item = el("div", "logItem");
         if (!e.ok) item.classList.add("bad");
         const left = el("div");
@@ -2055,44 +1760,29 @@ export function mountApp(root: HTMLElement | null) {
       }
     }
 
-    function renderHudHeader() {
+    function renderHudInfo() {
+      const info = document.getElementById("hudInfo");
+      const boardPill = document.getElementById("boardPill");
+      if (!info) return;
+
       const s: any = scenario();
-
-      hudScenario.innerHTML = `
-        <div>
-          <b>Scenario:</b> ${escapeHtml(String(s.name ?? s.title ?? s.id ?? ""))}&nbsp;&nbsp;
-          <b>Mode:</b> ${escapeHtml(String(mode ?? "—"))}&nbsp;&nbsp;
-          <b>Player:</b> ${escapeHtml(String(state?.playerHexId ?? "?"))}<br/>
-          <b>Goal:</b> ${escapeHtml(String(posId(s.goal)))}&nbsp;&nbsp;
-          <b>Layer:</b> ${escapeHtml(String(currentLayer))}&nbsp;&nbsp;
-          <b>Tileset:</b> ${escapeHtml(activeTileSet)}
-        </div>
-      `;
-
-      if (!selectedId) {
-        hudSelected.innerHTML = `<div class="hint">No selection.</div>`;
-        return;
-      }
-
-      const h: any = getHex(selectedId);
+      const goal = posId((s as any).goal);
+      const sel = selectedId ?? "—";
+      const h: any = selectedId ? getHex(selectedId) : null;
       const { blocked, missing } = isBlockedOrMissing(h);
-      const info = reachMap[selectedId];
+      const reach = selectedId ? reachMap[selectedId]?.reachable : false;
+      const dist = selectedId ? reachMap[selectedId]?.distance : null;
 
-      const layerReachable = Array.from(reachable).filter((id) => idToCoord(id)?.layer === currentLayer).length;
+      if (boardPill) boardPill.textContent = `Layer ${currentLayer}`;
 
-      hudSelected.innerHTML = `
-        <div>
-          <b>Selected:</b> ${escapeHtml(selectedId)}&nbsp;&nbsp;
-          <b>Kind:</b> ${escapeHtml(String(h?.kind ?? "?"))}&nbsp;&nbsp;
-          <b>Status:</b> ${missing ? "missing" : blocked ? "blocked" : "usable"}<br/>
-          <b>Reachable:</b> ${escapeHtml(info?.reachable ? "yes" : "no")}&nbsp;&nbsp;
-          <b>Distance:</b> ${escapeHtml(String(info?.distance ?? "—"))}&nbsp;&nbsp;
-          <b>Reachable:</b> ${reachable.size} (layer ${currentLayer}: ${layerReachable})&nbsp;&nbsp;
-          <b>Transitions:</b> ${transitionsAll.length} · <b>Sources (layer):</b> ${sourcesOnLayer.size} · <b>Outgoing:</b> ${
-        outgoingFromSelected.length
-      }
-        </div>
-      `;
+      info.textContent =
+        `Scenario: ${String(s?.name ?? s?.title ?? s?.id ?? "")}\n` +
+        `Mode: ${String(mode ?? "—")} · Tileset: ${String(activeTileSet)}\n` +
+        `Player: ${String(state?.playerHexId ?? "—")} · Goal: ${String(goal)}\n` +
+        `Selected: ${sel}\n` +
+        `Status: ${missing ? "missing" : blocked ? "blocked" : "usable"} · Reachable: ${reach ? "yes" : "no"} · Distance: ${
+          dist == null ? "—" : String(dist)
+        }`;
     }
 
     function renderMessage() {
@@ -2139,8 +1829,6 @@ export function mountApp(root: HTMLElement | null) {
         showPlayer: false,
         invalidLabel: "NO LAYER BELOW",
       });
-
-      setMiniCurrentBackground();
     }
 
     function renderBoard() {
@@ -2159,12 +1847,12 @@ export function mountApp(root: HTMLElement | null) {
 
           const btn = el("div", "hex");
 
-          // ✅ set row index for pastel mapping (0..6)
-          (btn as HTMLElement).dataset.row = String(r - 1);
+          // pastel per row (violet -> red)
+          (btn as HTMLElement).style.setProperty("--fill", rowPastelVar(r));
 
-          // ✅ label: 2 lines, centered, no background
+          // label: always 2 lines, centered, no background
           const label = el("div", "hexLabel");
-          label.innerHTML = `<div>R${r}</div><div>C${c}</div>`;
+          label.textContent = `R${r}\nC${c}`;
           btn.appendChild(label);
 
           const { blocked, missing } = isBlockedOrMissing(h);
@@ -2179,17 +1867,18 @@ export function mountApp(root: HTMLElement | null) {
           if (isPlayer) btn.classList.add("player");
           if (selectedId === id) btn.classList.add("sel");
 
-          if (sourcesOnLayer.has(id)) btn.classList.add("trSrc");
+          if (sourcesOnLayer.has(id)) {
+            // subtle badge only (keep optional)
+            const badge = el("div", "trBadge");
+            badge.textContent = "▲/▼";
+            btn.appendChild(badge);
+          }
 
           if (targetsSameLayer.has(id)) {
-            btn.classList.add("trTgt");
             const badge = el("div", "trBadge");
             badge.textContent = targetsSameLayer.get(id)!;
             btn.appendChild(badge);
           }
-
-          if (isPlayer) btn.appendChild(el("div", "miniDot player"));
-          else if (isGoal) btn.appendChild(el("div", "miniDot goal"));
 
           if (info?.reachable && info.distance != null) {
             const d = el("div", "dist");
@@ -2231,7 +1920,7 @@ export function mountApp(root: HTMLElement | null) {
               renderAll();
               return;
             } else {
-              const reason = res.reason ?? "INVALID";
+              const reason = timeSafeReason(res.reason);
               message = `Move rejected: ${reason}`;
               logClick(id, false, reason);
             }
@@ -2245,13 +1934,12 @@ export function mountApp(root: HTMLElement | null) {
         boardWrap.appendChild(row);
       }
 
-      // After render: stable relayout (no scroll, fit-to-square)
       relayoutBoard();
     }
 
     function renderAll() {
       rebuildTransitionIndexAndHighlights();
-      renderHudHeader();
+      renderHudInfo();
       renderMessage();
       renderBoardBackgroundFixed();
       renderBoard();
@@ -2287,7 +1975,6 @@ export function mountApp(root: HTMLElement | null) {
       endTurn(state);
       applyMiniShiftsForEndTurn();
 
-      // Do NOT reveal whole layer — keep fog.
       enterLayer(state, currentLayer);
       recomputeReachability();
 
@@ -2319,7 +2006,6 @@ export function mountApp(root: HTMLElement | null) {
     recomputeReachability();
     rebuildTransitionIndexAndHighlights();
 
-    // background + square sizing immediately
     renderBoardBackgroundFixed();
     relayoutBoard();
     renderAll();
