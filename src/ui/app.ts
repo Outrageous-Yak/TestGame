@@ -352,7 +352,7 @@ export function mountApp(root: HTMLElement | null) {
       padding: 12px;
       border-radius: 16px;
       border:1px solid rgba(191,232,255,.14);
-      background: rgba(10,16,34,.90);
+      background: rgba(10,16,34,.05);
       cursor:pointer;
       display:flex;
       align-items:center;
