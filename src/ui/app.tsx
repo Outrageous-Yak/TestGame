@@ -1,8 +1,10 @@
 import React, { useMemo, useState, useCallback } from "react";
 
+/* =========================
+   Types & constants
+========================= */
 type Coord = { row: number; col: number };
 
-// 7-6-7-6-7-6-7 layout
 const ROW_LENS = [7, 6, 7, 6, 7, 6, 7] as const;
 const ROWS = ROW_LENS.length;
 
@@ -14,7 +16,7 @@ function coordKey(r: number, c: number) {
   return `r${r}c${c}`;
 }
 
-function defaultPos(): Coord {
+function defaultPosForLayer(): Coord {
   return { row: 4, col: 3 };
 }
 
@@ -23,10 +25,9 @@ function isValidCell(row: number, col: number) {
   return col >= 1 && col <= ROW_LENS[row - 1];
 }
 
-/* Flat-top neighbor rules */
 function neighborsOf(row: number, col: number): Coord[] {
   const odd = row % 2 === 1;
-  const list: Coord[] = [
+  const cands: Coord[] = [
     { row, col: col - 1 },
     { row, col: col + 1 },
     { row: row - 1, col: odd ? col : col - 1 },
@@ -34,7 +35,7 @@ function neighborsOf(row: number, col: number): Coord[] {
     { row: row + 1, col: odd ? col : col - 1 },
     { row: row + 1, col: odd ? col + 1 : col },
   ];
-  return list.filter(p => isValidCell(p.row, p.col));
+  return cands.filter(p => isValidCell(p.row, p.col));
 }
 
 function isNeighbor(a: Coord, b: Coord) {
@@ -43,36 +44,41 @@ function isNeighbor(a: Coord, b: Coord) {
   );
 }
 
+/* =========================
+   App
+========================= */
 export default function App() {
   const [currentLayer, setCurrentLayer] = useState(4);
 
   const [posByLayer, setPosByLayer] = useState<Record<number, Coord>>(() => {
-    const o: Record<number, Coord> = {};
-    for (let l = 1; l <= 7; l++) o[l] = defaultPos();
-    return o;
+    const init: Record<number, Coord> = {};
+    for (let l = 1; l <= 7; l++) init[l] = defaultPosForLayer();
+    return init;
   });
 
   const currentPos = posByLayer[currentLayer];
 
-  const tryMoveTo = useCallback(
-    (target: Coord) => {
+  const tryMove = useCallback(
+    (to: Coord) => {
       if (currentLayer === 1) return;
-      if (!isNeighbor(currentPos, target)) return;
+      const from = posByLayer[currentLayer];
+      if (!isNeighbor(from, to)) return;
 
-      setPosByLayer(p => ({ ...p, [currentLayer]: target }));
+      setPosByLayer(prev => ({
+        ...prev,
+        [currentLayer]: to,
+      }));
     },
-    [currentLayer, currentPos]
+    [currentLayer, posByLayer]
   );
 
-  const cycleLayer = useCallback(
-    () => setCurrentLayer(l => (l >= 7 ? 1 : l + 1)),
-    []
-  );
+  const cycleLayer = () =>
+    setCurrentLayer(l => (l >= 7 ? 1 : l + 1));
 
   const below = clamp(currentLayer - 1, 1, 7);
   const above = clamp(currentLayer + 1, 1, 7);
 
-  const bar = useMemo(() => [7, 6, 5, 4, 3, 2, 1], []);
+  const barSegments = useMemo(() => [7, 6, 5, 4, 3, 2, 1], []);
 
   return (
     <div className="screen">
@@ -81,39 +87,53 @@ export default function App() {
 
       <div className="layout">
         <div className="centerColumn">
-          <div className="layerTitle" onClick={cycleLayer}>
-            Layer {currentLayer}
-          </div>
-
-          <div className="boardAndBar">
-            <HexBoard
-              kind="main"
-              selected={currentPos}
-              onCellClick={tryMoveTo}
-              showCoords={false}
-            />
-
-            <div className="layerBar">
-              {bar.map(l => (
-                <div
-                  key={l}
-                  className={"barSeg" + (l === currentLayer ? " active" : "")}
-                  data-layer={l}
-                />
-              ))}
+          {/* Layer title */}
+          <div className="layerTitleRow">
+            <div className="layerTitle" onClick={cycleLayer}>
+              Layer {currentLayer}
+              <span className="layerHint">click to change</span>
             </div>
           </div>
 
+          {/* Board + bar */}
+          <div className="boardAndBar">
+            <div className="boardFrame">
+              <HexBoard
+                kind="main"
+                selected={currentPos}
+                onCellClick={tryMove}
+                showCoords={false}
+              />
+            </div>
+
+            <div className="barWrap">
+              <div className="layerBar">
+                {barSegments.map(l => (
+                  <div
+                    key={l}
+                    className={
+                      "barSeg" + (l === currentLayer ? " isActive" : "")
+                    }
+                    data-layer={l}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Mini boards */}
           <div className="miniRow">
-            <Mini title="Below">
+            <MiniPanel tone="below" title="Below" onPick={() => setCurrentLayer(below)}>
               <HexBoard kind="mini" selected={posByLayer[below]} showCoords />
-            </Mini>
-            <Mini title="Current">
+            </MiniPanel>
+
+            <MiniPanel tone="current" title="Current" onPick={() => setCurrentLayer(currentLayer)}>
               <HexBoard kind="mini" selected={currentPos} showCoords />
-            </Mini>
-            <Mini title="Above">
+            </MiniPanel>
+
+            <MiniPanel tone="above" title="Above" onPick={() => setCurrentLayer(above)}>
               <HexBoard kind="mini" selected={posByLayer[above]} showCoords />
-            </Mini>
+            </MiniPanel>
           </div>
         </div>
       </div>
@@ -121,9 +141,17 @@ export default function App() {
   );
 }
 
-function Mini(props: { title: string; children: React.ReactNode }) {
+/* =========================
+   Components
+========================= */
+function MiniPanel(props: {
+  title: string;
+  tone: "below" | "current" | "above";
+  onPick: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="miniPanel">
+    <div className={`miniPanel tone-${props.tone}`} onClick={props.onPick}>
       <div className="miniHeader">{props.title}</div>
       <div className="miniBody">{props.children}</div>
     </div>
@@ -136,25 +164,31 @@ function HexBoard(props: {
   onCellClick?: (c: Coord) => void;
   showCoords: boolean;
 }) {
-  const { kind, selected, onCellClick, showCoords } = props;
-
   return (
-    <div className={`hexBoard ${kind}`}>
-      {ROW_LENS.map((len, rIdx) => {
-        const row = rIdx + 1;
+    <div className={`hexBoard ${props.kind === "main" ? "hexBoardMain" : "hexBoardMini"}`}>
+      {ROW_LENS.map((len, ri) => {
+        const row = ri + 1;
         return (
-          <div key={row} className={`hexRow ${row % 2 ? "odd" : ""}`}>
-            {Array.from({ length: len }, (_, i) => {
-              const col = i + 1;
-              const sel = selected.row === row && selected.col === col;
+          <div key={row} className={`hexRow ${row % 2 ? "odd" : "even"}`}>
+            {Array.from({ length: len }, (_, ci) => {
+              const col = ci + 1;
+              const sel =
+                props.selected.row === row &&
+                props.selected.col === col;
               return (
                 <div
                   key={coordKey(row, col)}
-                  className={`hex ${sel ? "sel" : ""}`}
+                  className={`hex ${sel ? "isSelected" : ""}`}
                   data-row={row}
-                  onClick={onCellClick ? () => onCellClick({ row, col }) : undefined}
+                  onClick={
+                    props.onCellClick
+                      ? () => props.onCellClick!({ row, col })
+                      : undefined
+                  }
                 >
-                  {showCoords && <span>{coordKey(row, col)}</span>}
+                  {props.showCoords && (
+                    <span className="hexLabel">{coordKey(row, col)}</span>
+                  )}
                 </div>
               );
             })}
@@ -165,22 +199,139 @@ function HexBoard(props: {
   );
 }
 
+/* =========================
+   CSS (Phase 3 tuned)
+========================= */
 const css = `
-/* --- minimal but complete CSS --- */
-.screen{min-height:100vh;background:#bfa8ff}
-.cloudBg{position:absolute;inset:0;background:radial-gradient(circle at 50% 95%,#fff 0%,transparent 65%)}
-.layout{display:grid;grid-template-columns:1fr minmax(760px,960px) 1fr}
-.centerColumn{grid-column:2;display:flex;flex-direction:column;align-items:center;gap:16px}
-.layerTitle{cursor:pointer;padding:10px 16px;border-radius:999px;background:#0003;color:#fff;font-weight:900}
-.boardAndBar{display:grid;grid-template-columns:auto 24px;gap:16px}
-.layerBar{display:grid;grid-template-rows:repeat(7,1fr);height:360px;border-radius:999px;overflow:hidden}
-.barSeg{opacity:.6}
-.barSeg.active{opacity:1;box-shadow:0 0 18px #fff}
-.hexBoard{user-select:none}
-.hexRow{display:flex}
-.hexRow.odd{margin-left:40px}
-.hex{width:76px;height:66px;margin-right:-19px;clip-path:polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%);background:#fff3;border:1px solid #fff5}
-.hex.sel{outline:2px solid #fff}
-.miniRow{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-.miniPanel{background:#0002;border-radius:16px;padding:10px}
+html,body{margin:0;height:100%}
+.screen{
+  min-height:100vh;
+  background: linear-gradient(180deg,#cbb6ff,#f0b0cf);
+  position:relative;
+  overflow:hidden;
+}
+
+.cloudBg{
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(900px 450px at 50% 85%, rgba(255,255,255,.35), transparent 60%);
+  opacity:.45;
+}
+
+.layout{
+  position:relative;
+  z-index:1;
+  display:grid;
+  grid-template-columns:1fr minmax(760px,980px) 1fr;
+  height:100%;
+}
+
+.centerColumn{
+  grid-column:2;
+  display:grid;
+  grid-template-rows:auto auto 1fr;
+  gap:16px;
+}
+
+.layerTitle{
+  margin:auto;
+  padding:10px 18px;
+  border-radius:999px;
+  background:rgba(0,0,0,.25);
+  color:white;
+  font-weight:900;
+  cursor:pointer;
+}
+.layerHint{font-size:12px;opacity:.7}
+
+.boardAndBar{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:18px;
+}
+
+.boardFrame{
+  padding:14px;
+  background:rgba(255,255,255,.15);
+  border-radius:18px;
+}
+
+.layerBar{
+  width:18px;
+  height:360px;
+  border-radius:999px;
+  overflow:hidden;
+  display:grid;
+  grid-template-rows:repeat(7,1fr);
+}
+
+.barSeg[data-layer="1"]{background:#ff5c78}
+.barSeg[data-layer="2"]{background:#ff9a5a}
+.barSeg[data-layer="3"]{background:#ffdc78}
+.barSeg[data-layer="4"]{background:#78eba8}
+.barSeg[data-layer="5"]{background:#78dcff}
+.barSeg[data-layer="6"]{background:#87aaff}
+.barSeg[data-layer="7"]{background:#c88cff}
+.barSeg.isActive{
+  box-shadow:0 0 16px rgba(255,255,255,.6);
+}
+
+.hexBoard{--w:78px}
+.hexBoardMini{--w:22px}
+.hexRow{display:flex;height:calc(var(--w)*0.866)}
+.hexRow.odd{margin-left:calc(var(--w)*.5)}
+
+.hex{
+  width:var(--w);
+  height:calc(var(--w)*0.866);
+  margin-right:calc(var(--w)*-.25);
+  clip-path:polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%);
+  background:rgba(255,255,255,.55);
+  border:1px solid rgba(255,255,255,.4);
+}
+
+.hex[data-row="1"]{background:rgba(200,140,255,.55)}
+.hex[data-row="2"]{background:rgba(165,175,255,.55)}
+.hex[data-row="3"]{background:rgba(135,205,255,.55)}
+.hex[data-row="4"]{background:rgba(120,235,170,.5)}
+.hex[data-row="5"]{background:rgba(255,220,120,.5)}
+.hex[data-row="6"]{background:rgba(255,155,105,.5)}
+.hex[data-row="7"]{background:rgba(255,92,120,.55)}
+
+.hex.isSelected{
+  outline:3px solid white;
+  box-shadow:0 0 28px rgba(255,255,255,.7);
+}
+
+.hexLabel{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  font-size:10px;
+  font-weight:800;
+}
+
+.miniRow{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:18px;
+}
+
+.miniPanel{
+  padding:10px;
+  border-radius:18px;
+  cursor:pointer;
+}
+
+.tone-below{background:rgba(255,110,140,.5)}
+.tone-current{background:rgba(120,235,170,.5)}
+.tone-above{background:rgba(135,170,255,.5)}
+
+.miniHeader{
+  text-align:center;
+  font-weight:900;
+  margin-bottom:8px;
+}
 `;
