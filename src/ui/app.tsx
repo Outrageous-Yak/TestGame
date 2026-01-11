@@ -335,8 +335,7 @@ export default function App() {
             <div className="barWrap" aria-label="Layer bar">
               <div className="barStack">
                 <div className="barTitle">
-                  <div className="layerChip">Layer {currentLayer}</div>
-                </div>
+               
 
                 <div className="layerBar">
                   {barSegments.map((layerVal) => {
