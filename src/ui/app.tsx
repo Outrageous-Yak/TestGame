@@ -756,24 +756,39 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   border-color: rgba(255,255,255,.16);
 }
 
-/* labels only on main */
+/* Labels: crisp + high contrast everywhere */
 .hexLabel{
-  font-size: 12px;
-  font-weight: 1000;
-  color: rgba(255,255,255,.96);
-  text-align:center;
-  line-height: 1.05;
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
+
+  font-weight: 1000;
+  letter-spacing: .2px;
+  line-height: 1.05;
+  text-align: center;
+
+  color: rgba(255,255,255,.98);
+  opacity: 1;
+  z-index: 3;
+  pointer-events: none;
+
+  /* stronger outline */
+  -webkit-text-stroke: 1px rgba(0,0,0,.75);
+
+  /* fallback outline + glow */
   text-shadow:
-    -1px -1px 0 rgba(0,0,0,.70),
-     1px -1px 0 rgba(0,0,0,.70),
-    -1px  1px 0 rgba(0,0,0,.70),
-     1px  1px 0 rgba(0,0,0,.70),
-     0 0 10px rgba(0,0,0,.30);
+    -1px -1px 0 rgba(0,0,0,.75),
+     1px -1px 0 rgba(0,0,0,.75),
+    -1px  1px 0 rgba(0,0,0,.75),
+     1px  1px 0 rgba(0,0,0,.75),
+     0 0 12px rgba(0,0,0,.45);
 }
+
+/* size tuning: main board vs minis */
+.hexBoardMain .hexLabel{ font-size: 13px; }
+.hexBoardMini .hexLabel{ font-size: 9px; -webkit-text-stroke: .8px rgba(0,0,0,.75); }
+
 
 /* Reachable: BLUE glow */
 .hex.reach{
@@ -781,7 +796,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
     0 0 0 2px rgba(255,255,255,.12) inset,
     0 0 18px rgba(0,200,255,.42),
     0 0 44px rgba(0,200,255,.22);
-  filter: brightness(1.03);
+  filter: brightness(1.6);
 }
 
 /* Player: GREEN glow (strong) */
@@ -790,7 +805,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
     0 0 0 2px rgba(255,255,255,.18) inset,
     0 0 26px rgba(76,255,80,.70),
     0 0 80px rgba(76,255,80,.45);
-  filter: brightness(1.12);
+  filter: brightness(1.6);
   z-index: 4;
 }
 
