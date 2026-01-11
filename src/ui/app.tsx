@@ -334,7 +334,7 @@ export default function App() {
             {/* BAR (Layer title beside the graph) */}
             <div className="barWrap" aria-label="Layer bar">
               <div className="barStack">
-                <div className="barTitle">
+                
                
 
                 <div className="layerBar">
