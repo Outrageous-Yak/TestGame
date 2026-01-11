@@ -8,21 +8,19 @@ type Coord = { row: number; col: number };
 const ROW_LENS = [7, 6, 7, 6, 7, 6, 7] as const;
 const ROWS = ROW_LENS.length;
 
+/* =========================
+   Geometry helpers
+========================= */
 function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
 }
 
-function coordKey(r: number, c: number) {
-  return `r${r}c${c}`;
-}
-
-function defaultPosForLayer(): Coord {
+function defaultPos(): Coord {
   return { row: 4, col: 3 };
 }
 
-function isValidCell(row: number, col: number) {
-  if (row < 1 || row > ROWS) return false;
-  return col >= 1 && col <= ROW_LENS[row - 1];
+function isValid(row: number, col: number) {
+  return row >= 1 && row <= ROWS && col >= 1 && col <= ROW_LENS[row - 1];
 }
 
 function neighborsOf(row: number, col: number): Coord[] {
@@ -35,7 +33,7 @@ function neighborsOf(row: number, col: number): Coord[] {
     { row: row + 1, col: odd ? col : col - 1 },
     { row: row + 1, col: odd ? col + 1 : col },
   ];
-  return cands.filter(p => isValidCell(p.row, p.col));
+  return cands.filter(p => isValid(p.row, p.col));
 }
 
 function isNeighbor(a: Coord, b: Coord) {
@@ -52,24 +50,24 @@ export default function App() {
 
   const [posByLayer, setPosByLayer] = useState<Record<number, Coord>>(() => {
     const init: Record<number, Coord> = {};
-    for (let l = 1; l <= 7; l++) init[l] = defaultPosForLayer();
+    for (let l = 1; l <= 7; l++) init[l] = defaultPos();
     return init;
   });
 
   const currentPos = posByLayer[currentLayer];
 
+  const reachable = useMemo(
+    () => neighborsOf(currentPos.row, currentPos.col),
+    [currentPos]
+  );
+
   const tryMove = useCallback(
     (to: Coord) => {
       if (currentLayer === 1) return;
-      const from = posByLayer[currentLayer];
-      if (!isNeighbor(from, to)) return;
-
-      setPosByLayer(prev => ({
-        ...prev,
-        [currentLayer]: to,
-      }));
+      if (!isNeighbor(currentPos, to)) return;
+      setPosByLayer(prev => ({ ...prev, [currentLayer]: to }));
     },
-    [currentLayer, posByLayer]
+    [currentLayer, currentPos]
   );
 
   const cycleLayer = () =>
@@ -78,7 +76,7 @@ export default function App() {
   const below = clamp(currentLayer - 1, 1, 7);
   const above = clamp(currentLayer + 1, 1, 7);
 
-  const barSegments = useMemo(() => [7, 6, 5, 4, 3, 2, 1], []);
+  const barOrder = useMemo(() => [7, 6, 5, 4, 3, 2, 1], []);
 
   return (
     <div className="screen">
@@ -87,9 +85,13 @@ export default function App() {
 
       <div className="layout">
         <div className="centerColumn">
-          {/* Layer title */}
+          {/* Layer pill */}
           <div className="layerTitleRow">
-            <div className="layerTitle" onClick={cycleLayer}>
+            <div
+              className="layerTitle"
+              data-layer={currentLayer}
+              onClick={cycleLayer}
+            >
               Layer {currentLayer}
               <span className="layerHint">click to change</span>
             </div>
@@ -101,6 +103,7 @@ export default function App() {
               <HexBoard
                 kind="main"
                 selected={currentPos}
+                reachable={reachable}
                 onCellClick={tryMove}
                 showCoords={false}
               />
@@ -108,7 +111,7 @@ export default function App() {
 
             <div className="barWrap">
               <div className="layerBar">
-                {barSegments.map(l => (
+                {barOrder.map(l => (
                   <div
                     key={l}
                     className={
@@ -161,6 +164,7 @@ function MiniPanel(props: {
 function HexBoard(props: {
   kind: "main" | "mini";
   selected: Coord;
+  reachable?: Coord[];
   onCellClick?: (c: Coord) => void;
   showCoords: boolean;
 }) {
@@ -172,13 +176,12 @@ function HexBoard(props: {
           <div key={row} className={`hexRow ${row % 2 ? "odd" : "even"}`}>
             {Array.from({ length: len }, (_, ci) => {
               const col = ci + 1;
-              const sel =
-                props.selected.row === row &&
-                props.selected.col === col;
+              const isSel = props.selected.row === row && props.selected.col === col;
+              const isReach = props.reachable?.some(p => p.row === row && p.col === col);
               return (
                 <div
-                  key={coordKey(row, col)}
-                  className={`hex ${sel ? "isSelected" : ""}`}
+                  key={`${row}-${col}`}
+                  className={`hex ${isSel ? "isSelected" : ""} ${isReach ? "isReachable" : ""}`}
                   data-row={row}
                   onClick={
                     props.onCellClick
@@ -187,7 +190,7 @@ function HexBoard(props: {
                   }
                 >
                   {props.showCoords && (
-                    <span className="hexLabel">{coordKey(row, col)}</span>
+                    <span className="hexLabel">r{row}c{col}</span>
                   )}
                 </div>
               );
@@ -200,7 +203,7 @@ function HexBoard(props: {
 }
 
 /* =========================
-   CSS (Phase 3 tuned)
+   CSS — Phase 4 polish
 ========================= */
 const css = `
 html,body{margin:0;height:100%}
@@ -215,8 +218,7 @@ html,body{margin:0;height:100%}
   position:absolute;
   inset:0;
   background:
-    radial-gradient(900px 450px at 50% 85%, rgba(255,255,255,.35), transparent 60%);
-  opacity:.45;
+    radial-gradient(900px 450px at 50% 85%, rgba(255,255,255,.25), transparent 60%);
 }
 
 .layout{
@@ -231,19 +233,20 @@ html,body{margin:0;height:100%}
   grid-column:2;
   display:grid;
   grid-template-rows:auto auto 1fr;
-  gap:16px;
+  gap:14px;
 }
 
 .layerTitle{
   margin:auto;
-  padding:10px 18px;
+  padding:8px 20px;
   border-radius:999px;
-  background:rgba(0,0,0,.25);
+  background:rgba(0,0,0,.28);
   color:white;
   font-weight:900;
   cursor:pointer;
+  box-shadow:0 0 18px rgba(255,255,255,.25);
 }
-.layerHint{font-size:12px;opacity:.7}
+.layerHint{font-size:12px;opacity:.7;margin-left:8px}
 
 .boardAndBar{
   display:grid;
@@ -252,9 +255,9 @@ html,body{margin:0;height:100%}
 }
 
 .boardFrame{
-  padding:14px;
-  background:rgba(255,255,255,.15);
-  border-radius:18px;
+  padding:18px;
+  background:rgba(255,255,255,.22);
+  border-radius:22px;
 }
 
 .layerBar{
@@ -273,8 +276,9 @@ html,body{margin:0;height:100%}
 .barSeg[data-layer="5"]{background:#78dcff}
 .barSeg[data-layer="6"]{background:#87aaff}
 .barSeg[data-layer="7"]{background:#c88cff}
+
 .barSeg.isActive{
-  box-shadow:0 0 16px rgba(255,255,255,.6);
+  box-shadow:0 0 20px rgba(255,255,255,.7);
 }
 
 .hexBoard{--w:78px}
@@ -287,21 +291,29 @@ html,body{margin:0;height:100%}
   height:calc(var(--w)*0.866);
   margin-right:calc(var(--w)*-.25);
   clip-path:polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%);
-  background:rgba(255,255,255,.55);
-  border:1px solid rgba(255,255,255,.4);
+  border:1px solid rgba(255,255,255,.45);
+  transition:transform .12s, box-shadow .12s;
 }
 
-.hex[data-row="1"]{background:rgba(200,140,255,.55)}
-.hex[data-row="2"]{background:rgba(165,175,255,.55)}
-.hex[data-row="3"]{background:rgba(135,205,255,.55)}
-.hex[data-row="4"]{background:rgba(120,235,170,.5)}
-.hex[data-row="5"]{background:rgba(255,220,120,.5)}
-.hex[data-row="6"]{background:rgba(255,155,105,.5)}
-.hex[data-row="7"]{background:rgba(255,92,120,.55)}
+.hex[data-row="1"]{background:rgba(200,140,255,.75)}
+.hex[data-row="2"]{background:rgba(165,175,255,.75)}
+.hex[data-row="3"]{background:rgba(135,205,255,.75)}
+.hex[data-row="4"]{background:rgba(120,235,170,.7)}
+.hex[data-row="5"]{background:rgba(255,220,120,.7)}
+.hex[data-row="6"]{background:rgba(255,155,105,.7)}
+.hex[data-row="7"]{background:rgba(255,92,120,.75)}
+
+.hex.isReachable{
+  box-shadow:0 0 16px rgba(255,255,255,.55);
+  cursor:pointer;
+}
+.hex.isReachable:hover{
+  transform:scale(1.05);
+}
 
 .hex.isSelected{
   outline:3px solid white;
-  box-shadow:0 0 28px rgba(255,255,255,.7);
+  box-shadow:0 0 30px rgba(255,255,255,.85);
 }
 
 .hexLabel{
@@ -323,11 +335,12 @@ html,body{margin:0;height:100%}
   padding:10px;
   border-radius:18px;
   cursor:pointer;
+  opacity:.92;
 }
 
-.tone-below{background:rgba(255,110,140,.5)}
-.tone-current{background:rgba(120,235,170,.5)}
-.tone-above{background:rgba(135,170,255,.5)}
+.tone-below{background:rgba(255,110,140,.55)}
+.tone-current{background:rgba(120,235,170,.55)}
+.tone-above{background:rgba(135,170,255,.55)}
 
 .miniHeader{
   text-align:center;
