@@ -125,7 +125,9 @@ export default function App() {
     const initialBase = manifest.initial.split("/").pop()?.replace(".json", "") ?? "";
     const idx = Math.max(
       0,
-      list.findIndex((s: any) => String((s as any).id ?? "") === initialBase || String((s as any).name ?? "") === initialBase)
+      list.findIndex(
+        (s: any) => String((s as any).id ?? "") === initialBase || String((s as any).name ?? "") === initialBase
+      )
     );
     setScenarioIndex(idx);
 
@@ -218,10 +220,7 @@ export default function App() {
             <div className="cardMeta">Build: {BUILD_TAG}</div>
 
             <div className="row">
-              <button
-                className="btn primary"
-                onClick={() => loadModeContent("regular").catch((e) => alert(String(e?.message ?? e)))}
-              >
+              <button className="btn primary" onClick={() => loadModeContent("regular").catch((e) => alert(String(e?.message ?? e)))}>
                 Regular
               </button>
               <button className="btn" onClick={() => loadModeContent("kids").catch((e) => alert(String(e?.message ?? e)))}>
@@ -242,7 +241,13 @@ export default function App() {
               {scenarios.map((s: any, i: number) => {
                 const selected = i === scenarioIndex;
                 return (
-                  <div key={i} className={"selectTile" + (selected ? " selected" : "")} onClick={() => setScenarioIndex(i)} role="button" tabIndex={0}>
+                  <div
+                    key={i}
+                    className={"selectTile" + (selected ? " selected" : "")}
+                    onClick={() => setScenarioIndex(i)}
+                    role="button"
+                    tabIndex={0}
+                  >
                     <div className="selectTileTitle">{scenarioLabel(s, i)}</div>
                     <div className="selectTileDesc">{String(s?.desc ?? s?.description ?? "")}</div>
                   </div>
@@ -333,12 +338,7 @@ export default function App() {
                 {barSegments.map((layerVal) => {
                   const active = layerVal === currentLayer;
                   return (
-                    <div
-                      key={layerVal}
-                      className={"barSeg" + (active ? " isActive" : "")}
-                      data-layer={layerVal}
-                      title={`Layer ${layerVal}`}
-                    />
+                    <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} title={`Layer ${layerVal}`} />
                   );
                 })}
               </div>
@@ -436,12 +436,12 @@ function HexBoard(props: {
       {ROW_LENS.map((len, rIdx) => {
         const row = rIdx + 1;
 
-        // IMPORTANT: to make rows 2/4/6 line up like your reference,
-        // the *even* rows get the horizontal offset (not the odd ones).
-        const even = row % 2 === 0;
+        // IMPORTANT:
+        // Offset the EVEN rows (2,4,6) to match your reference.
+        const isEvenRow = row % 2 === 0;
 
         return (
-          <div key={row} className={"hexRow" + (even ? " even" : " odd")} data-row={row}>
+          <div key={row} className={"hexRow" + (isEvenRow ? " even" : "")} data-row={row}>
             {Array.from({ length: len }, (_, cIdx) => {
               const col = cIdx + 1;
               const id = `L${activeLayer}-R${row}-C${col}`;
@@ -622,7 +622,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 
 .gameLayout{
   display: grid;
-  grid-template-columns: auto 42px; /* board + bar */
+  grid-template-columns: auto 42px;
   gap: 18px;
   align-items: start;
   justify-content: center;
@@ -684,14 +684,12 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 
 /* =========================================================
    HEX BOARD GEOMETRY
-   IMPORTANT CHANGE:
-   - Rows 2/4/6 (even rows) are offset, not odd rows.
 ========================================================= */
 .hexBoard{
   --hexW: 74px;
-  --hexH: calc(var(--hexW) * 0.8660254); /* √3/2 */
-  --hexGap: 10px;        /* spacing between cells */
-  --hexOverlap: 0.08;    /* slight “honeycomb touch” without ugly overlap */
+  --hexH: calc(var(--hexW) * 0.8660254);
+  --hexGap: 10px;
+  --hexOverlap: 0.08;
   display: grid;
   justify-content: center;
   gap: 0;
@@ -708,7 +706,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   justify-content: center;
 }
 
-/* Offset EVEN rows to match your reference (rows 2,4,6) */
+/* IMPORTANT: even rows offset (2/4/6) */
 .hexRow.even{
   margin-left: calc((var(--hexW) + var(--hexGap)) * 0.5);
 }
@@ -723,11 +721,11 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
     75% 100%, 25% 100%,
     0% 50%
   );
-  position: relative;
 
+  position: relative;
   background: rgba(255,255,255,.14);
 
-  /* Black outline on EVERY hex (all 4 boards) */
+  /* black outline on every hex */
   border: 1px solid rgba(0,0,0,.75);
   box-shadow:
     0 0 0 1px rgba(0,0,0,.35) inset,
@@ -738,12 +736,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 
 .hexBoardMain .hex{ cursor: pointer; }
 
-/* MINIs: no colored rows (same base look) */
-.hexBoardMini .hex{
-  background: rgba(255,255,255,.14);
-}
-
-/* Labels: crisp + ALWAYS full strength */
+/* Labels: crisp always */
 .hexLabel{
   position: absolute;
   inset: 0;
@@ -772,7 +765,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hexBoardMain .hexLabel{ font-size: 13px; }
 .hexBoardMini .hexLabel{ font-size: 9px; -webkit-text-stroke: .8px rgba(0,0,0,.75); }
 
-/* Reachable: BLUE glow */
+/* Reachable */
 .hex.reach{
   box-shadow:
     0 0 0 2px rgba(255,255,255,.12) inset,
@@ -781,7 +774,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   filter: brightness(1.6);
 }
 
-/* Player: GREEN glow */
+/* Player */
 .hex.player{
   box-shadow:
     0 0 0 2px rgba(255,255,255,.18) inset,
@@ -791,14 +784,13 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   z-index: 4;
 }
 
-/* Selected: thin outline */
+/* Selected */
 .hex.sel{
   outline: 2px solid rgba(255,255,255,.55);
   outline-offset: 2px;
 }
 
-/* IMPORTANT: Never dim the label.
-   We dim using overlays only. */
+/* Never dim label: use overlays only */
 .hex.notReach,
 .hex.blocked,
 .hex.missing{
@@ -811,7 +803,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 1; /* below label */
+  z-index: 1;
   opacity: 0;
 }
 
@@ -821,7 +813,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hex.missing::before{ background: rgba(0,0,0,.48); opacity: 1; }
 
 /* ===========================
-   MINI BOARDS (3D tilt away)
+   MINIS (3D tilt away)
 =========================== */
 .miniRow3D{
   margin-top: 18px;
