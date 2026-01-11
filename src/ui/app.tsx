@@ -317,6 +317,22 @@ export default function App() {
       {screen === "game" ? (
         <div className="shell shellGame">
           <div className="gameLayout">
+              {/* BAR (Layer title beside the graph) */}
+            <div className="barWrap" aria-label="Layer bar">
+              <div className="barStack">
+                
+               
+
+                <div className="layerBar">
+                  {barSegments.map((layerVal) => {
+                    const active = layerVal === currentLayer;
+                    return (
+                      <div
+                        key={layerVal}
+                        className={"barSeg" + (active ? " isActive" : "")}
+                        data-layer={layerVal}
+                        title={`Layer ${layerVal}`}
+                      />
             {/* MAIN BOARD */}
             <div className="mainBoardWrap">
               <HexBoard
