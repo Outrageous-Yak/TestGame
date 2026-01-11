@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { GameState, Scenario, Hex } from "../engine/types";
 import { assertScenario } from "../engine/scenario";
 import { newGame, getReachability, tryMove, endTurn, type ReachMap } from "../engine/api";
-import { ROW_LENS, posId, enterLayer, revealHex } from "../engine/board";
+import { ROW_LENS, enterLayer, revealHex } from "../engine/board";
 
 /* =========================================================
    Types
@@ -26,7 +26,6 @@ type MonsterChoice = {
 };
 
 type LogEntry = { n: number; id: string; ok: boolean; reason?: string; t: string }; // HH:MM
-
 type Coord = { layer: number; row: number; col: number };
 
 /* =========================================================
@@ -93,10 +92,8 @@ function scenarioLabel(s: any, i: number) {
 
 function getHexFromState(state: GameState | null, id: string): Hex | undefined {
   if (!state) return undefined;
-  // engine uses Map in your earlier code
   const m: any = (state as any).hexesById;
   if (m?.get) return m.get(id);
-  // fallback if it ever becomes plain object
   return (state as any).hexesById?.[id];
 }
 
@@ -118,7 +115,6 @@ const PLAYER_PRESETS_KIDS = [
   { id: "p2", name: "Pip", blurb: "Small steps, big wins." },
 ];
 
-// kept (harmless) even if you’re not using enemies
 const MONSTER_PRESETS_REGULAR = [
   { id: "m1", name: "Boneguard", blurb: "Holds ground. Punishes carelessness." },
   { id: "m2", name: "Veilwing", blurb: "Skirmisher. Appears where you’re not looking." },
@@ -173,9 +169,6 @@ export default function App() {
     return set;
   }, [reachMap]);
 
-  // UI-only mini shifting (kept, but optional)
-  const [miniShiftLeft, setMiniShiftLeft] = useState<Record<number, Record<number, number>>>({});
-
   // board sizing: keep it “finished” (no giant empty right side)
   const boardFrameRef = useRef<HTMLDivElement | null>(null);
 
@@ -202,7 +195,6 @@ export default function App() {
     const list = await Promise.all(manifest.files.map((f) => loadScenario(`${base}${f}`)));
     setScenarios(list);
 
-    // pick initial scenario if possible
     const initialPath = manifest.initial;
     const initialBase = initialPath.split("/").pop()?.replace(".json", "") ?? "";
     const idx = Math.max(
@@ -234,7 +226,6 @@ export default function App() {
   const resetRunLog = useCallback(() => {
     setMoveCount(0);
     setLogs([]);
-    setMiniShiftLeft({});
   }, []);
 
   const logClick = useCallback((id: string, ok: boolean, reason?: string) => {
@@ -255,7 +246,6 @@ export default function App() {
       const pid = st.playerHexId ?? null;
       const layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
 
-      // keep old gameplay logic
       enterLayer(st, layer);
       revealWholeLayer(st, layer);
 
@@ -288,7 +278,7 @@ export default function App() {
     endTurn(st);
     enterLayer(st, currentLayer);
     recomputeReachability(st);
-    setState({ ...(st as any) }); // force rerender
+    setState({ ...(st as any) });
     setMessage("Turn ended.");
   }, [state, currentLayer, recomputeReachability]);
 
@@ -309,14 +299,14 @@ export default function App() {
     });
   }, [scenarioLayerCount, state]);
 
-  // when currentLayer changes (dropdown/cycle), recompute reachability
   useEffect(() => {
     if (!state) return;
     enterLayer(state, currentLayer);
     revealWholeLayer(state, currentLayer);
     recomputeReachability(state);
     setState({ ...(state as any) });
-  }, [currentLayer]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLayer]);
 
   /* --------------------------
      Board click (keep gameplay)
@@ -325,7 +315,6 @@ export default function App() {
     (id: string) => {
       if (!state) return;
 
-      // always allow selection highlight
       setSelectedId(id);
 
       const res = tryMove(state, id);
@@ -335,7 +324,6 @@ export default function App() {
         const newPlayerId = state.playerHexId;
         const newLayer = newPlayerId ? idToCoord(newPlayerId)?.layer ?? currentLayer : currentLayer;
 
-        // Auto end-turn after successful move (unless won)
         if (!res.won) {
           endTurn(state);
           enterLayer(state, newLayer);
@@ -365,15 +353,9 @@ export default function App() {
     [state, currentLayer, recomputeReachability, logClick]
   );
 
-  /* --------------------------
-     Derived UI info
-  -------------------------- */
-  const belowLayer = Math.max(1, Math.min(7, currentLayer - 1));
-  const aboveLayer = Math.max(1, Math.min(7, currentLayer + 1));
-
   const playerName = useMemo(() => {
     if (!chosenPlayer) return "—";
-    return chosenPlayer.kind === "preset" ? chosenPlayer.name : chosenPlayer.name;
+    return chosenPlayer.name;
   }, [chosenPlayer]);
 
   /* =========================================================
@@ -383,7 +365,6 @@ export default function App() {
     <div className="screenRoot">
       <style>{CSS}</style>
 
-      {/* background layers */}
       <div className="screenBg" aria-hidden="true" />
       <div className="cloudBg" aria-hidden="true" />
 
@@ -399,24 +380,17 @@ export default function App() {
             <div className="startButtons">
               <button
                 className="btn primary"
-                onClick={() => {
-                  loadModeContent("regular").catch((e) => alert(String(e?.message ?? e)));
-                }}
+                onClick={() => loadModeContent("regular").catch((e) => alert(String(e?.message ?? e)))}
               >
                 Regular
               </button>
-              <button
-                className="btn"
-                onClick={() => {
-                  loadModeContent("kids").catch((e) => alert(String(e?.message ?? e)));
-                }}
-              >
+              <button className="btn" onClick={() => loadModeContent("kids").catch((e) => alert(String(e?.message ?? e)))}>
                 Kids / Friendly
               </button>
             </div>
 
             <div className="startHero">
-              <img src={toPublicUrl(START_BG_URL)} alt="start" onError={(e) => ((e.currentTarget.style.display = "none"))} />
+              <img src={toPublicUrl(START_BG_URL)} alt="start" onError={(e) => (e.currentTarget.style.display = "none")} />
               <div className="startHeroOverlay">
                 <div className="startHeroLine">Choose a mode → select scenario → choose player → play.</div>
               </div>
@@ -461,7 +435,9 @@ export default function App() {
                 <div className="selectSideTitle">Selected</div>
                 <div className="selectSideBody">
                   <div className="selectSideName">{scenarioLabel(scenarios[scenarioIndex] as any, scenarioIndex)}</div>
-                  <div className="selectSideDesc">{String((scenarios[scenarioIndex] as any)?.desc ?? (scenarios[scenarioIndex] as any)?.description ?? "")}</div>
+                  <div className="selectSideDesc">
+                    {String((scenarios[scenarioIndex] as any)?.desc ?? (scenarios[scenarioIndex] as any)?.description ?? "")}
+                  </div>
                   <div className="selectSideMeta">
                     Mode: <b>{mode ?? "—"}</b>
                   </div>
@@ -493,7 +469,6 @@ export default function App() {
             </div>
 
             <div className="setupGrid">
-              {/* Player */}
               <div className="setupCol">
                 <div className="setupH">Choose your player</div>
 
@@ -520,14 +495,10 @@ export default function App() {
 
                 <div className="customCard">
                   <div className="setupH2">Custom player</div>
-                  <CustomPlayer
-                    value={chosenPlayer?.kind === "custom" ? chosenPlayer : null}
-                    onUse={(v) => setChosenPlayer(v)}
-                  />
+                  <CustomPlayer value={chosenPlayer?.kind === "custom" ? chosenPlayer : null} onUse={(v) => setChosenPlayer(v)} />
                 </div>
               </div>
 
-              {/* Monsters (kept) */}
               <div className="setupCol">
                 <div className="setupH">{monstersLabel(mode ?? "regular")}</div>
 
@@ -541,10 +512,7 @@ export default function App() {
                         onClick={() => {
                           setChosenMonsters((prev) => {
                             if (isSel) return prev.filter((x) => !(x.kind === "preset" && x.id === m.id));
-                            return [
-                              ...prev,
-                              { id: m.id, name: m.name, notes: m.blurb, imageDataUrl: null, kind: "preset" },
-                            ];
+                            return [...prev, { id: m.id, name: m.name, notes: m.blurb, imageDataUrl: null, kind: "preset" }];
                           });
                         }}
                         role="button"
@@ -590,7 +558,6 @@ export default function App() {
         <div className="shell shellGame">
           <div className="layout">
             <div className="centerColumn">
-              {/* Title */}
               <div className="layerTitleRow">
                 <div className="layerTitle" data-layer={currentLayer} onClick={cycleLayer} role="button" tabIndex={0}>
                   Layer {currentLayer}
@@ -598,13 +565,10 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Board + bar */}
               <div className="boardAndBar">
                 <div className="boardFrame" ref={boardFrameRef}>
-                  {/* Background */}
                   <div className="boardBg" style={{ backgroundImage: `url("${toPublicUrl(BOARD_BG_URL)}")` }} />
 
-                  {/* Hex board */}
                   <div className="boardTop">
                     <HexBoard
                       kind="main"
@@ -618,7 +582,6 @@ export default function App() {
                     />
                   </div>
 
-                  {/* bottom strip like your screenshot */}
                   <div className="boardBottom">
                     <div className="pill small">Mode: {mode ?? "—"}</div>
                     <div className="pill small">Player: {playerName}</div>
@@ -639,13 +602,11 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* message (subtle, like before) */}
                   <div className="boardMessage" aria-live="polite">
                     {message}
                   </div>
                 </div>
 
-                {/* Rainbow bar OUTSIDE on the clouds */}
                 <div className="barWrap" aria-label="Layer bar">
                   <div className="layerBar" data-active={currentLayer}>
                     {barSegments.map((layerVal) => {
@@ -663,7 +624,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Mini boards (Below should be yellow, Current green, Above blue) */}
               <div className="miniRow">
                 <MiniPanel title="Below" tone="below" layer={currentLayer - 1} maxLayer={scenarioLayerCount}>
                   <HexBoard
@@ -688,7 +648,6 @@ export default function App() {
                     reachMap={{}}
                     onCellClick={undefined}
                     showCoords={false}
-                    // show player highlight on minis
                     showPlayerOnMini
                   />
                 </MiniPanel>
@@ -707,7 +666,6 @@ export default function App() {
                 </MiniPanel>
               </div>
 
-              {/* Optional: tiny debug line (kept minimal) */}
               <div className="tinyMeta">
                 Moves: <b>{moveCount}</b> · Selected: <b>{selectedId ?? "—"}</b>
               </div>
@@ -759,10 +717,7 @@ function CustomPlayer(props: {
               />
             </label>
 
-            <button
-              className="btn small"
-              onClick={() => props.onUse({ kind: "custom", name: name.trim() || "Custom Player", imageDataUrl: img })}
-            >
+            <button className="btn small" onClick={() => props.onUse({ kind: "custom", name: name.trim() || "Custom Player", imageDataUrl: img })}>
               Use custom
             </button>
           </div>
@@ -781,8 +736,7 @@ function MiniPanel(props: {
 }) {
   const { title, tone, layer, maxLayer, children } = props;
 
-  const invalid =
-    layer < 1 ? "NO LAYER BELOW" : layer > maxLayer ? "NO LAYER ABOVE" : null;
+  const invalid = layer < 1 ? "NO LAYER BELOW" : layer > maxLayer ? "NO LAYER ABOVE" : null;
 
   return (
     <div className={"miniPanel " + `tone-${tone}`} title={invalid ?? `Layer ${layer}`}>
@@ -790,9 +744,7 @@ function MiniPanel(props: {
         <div className="miniHeaderTitle">{title}</div>
       </div>
 
-      <div className="miniBody">
-        {invalid ? <div className="miniInvalid">{invalid}</div> : children}
-      </div>
+      <div className="miniBody">{invalid ? <div className="miniInvalid">{invalid}</div> : children}</div>
     </div>
   );
 }
@@ -1262,7 +1214,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 
 .boardAndBar{
   display: grid;
-  grid-template-columns: auto auto; /* IMPORTANT: auto so board doesn't leave huge right empty space */
+  grid-template-columns: auto auto;
   justify-content: center;
   align-items: start;
   gap: 18px;
@@ -1277,9 +1229,10 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
     0 25px 60px rgba(0,0,0,.18);
   overflow:hidden;
 
-  /* IMPORTANT: hug the board like your first image */
   width: max-content;
-  padding: 14px 14px 52px; /* bottom reserved for strip */
+  padding: 14px 14px 52px;
+  display: grid;
+  place-items: center;
 }
 
 .boardBg{
@@ -1367,7 +1320,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 .barSeg{ opacity: .95; }
 
-/* Layer -> color */
 .barSeg[data-layer="1"]{ background: var(--L1); }
 .barSeg[data-layer="2"]{ background: var(--L2); }
 .barSeg[data-layer="3"]{ background: var(--L3); }
@@ -1376,7 +1328,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .barSeg[data-layer="6"]{ background: var(--L6); }
 .barSeg[data-layer="7"]{ background: var(--L7); }
 
-/* Active: SAME COLOR glow around it */
 .barSeg.isActive{
   position: relative;
   z-index: 2;
@@ -1386,22 +1337,24 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   content: "";
   position: absolute;
   inset: -8px;
-  background: inherit;      /* <-- same color */
+  background: inherit;
   filter: blur(12px);
   opacity: .95;
   pointer-events: none;
   border-radius: 999px;
 }
 
-/* HEX BOARD GEOMETRY (Honeycomb connected) */
+/* ===== HEX BOARD GEOMETRY (CONNECTED HONEYCOMB) ===== */
 .hexBoard{
   --hexW: 74px;
-  --hexH: calc(var(--hexW) * 0.8660254); /* √3/2 */
+  --hexH: calc(var(--hexW) * 0.8660254);
   display: grid;
   justify-content: center;
   gap: 0;
   user-select: none;
+  width: max-content;
 }
+
 .hexBoardMain{
   --hexW: 82px;
 }
@@ -1418,20 +1371,14 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hexRow.odd{
   margin-left: calc(var(--hexW) * 0.5);
 }
-/* Touching honeycomb: overlap right edge by 1/4 width */
+
 .hex{
   width: var(--hexW);
   height: var(--hexH);
   margin-right: calc(var(--hexW) * -0.25);
-  clip-path: polygon(
-    25% 0%, 75% 0%,
-    100% 50%,
-    75% 100%, 25% 100%,
-    0% 50%
-  );
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
   position: relative;
 
-  /* pastel fill by row (top violet -> bottom red), like your images */
   background: rgba(255,255,255,.10);
   border: 1px solid rgba(255,255,255,.16);
   box-shadow: 0 6px 16px rgba(0,0,0,.10);
@@ -1439,7 +1386,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 .hexBoardMain .hex{ cursor: pointer; }
 
-/* Row-based colors */
 .hex[data-row="1"]{ background: rgba(200, 140, 255, .28); }
 .hex[data-row="2"]{ background: rgba(165, 175, 255, .28); }
 .hex[data-row="3"]{ background: rgba(135, 205, 255, .28); }
@@ -1448,7 +1394,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hex[data-row="6"]{ background: rgba(255, 155, 105, .22); }
 .hex[data-row="7"]{ background: rgba(255, 92, 120, .24); }
 
-/* Labels: 2 rows, WHITE text, BLACK outline */
 .hexLabel{
   font-size: 12px;
   font-weight: 1000;
@@ -1467,7 +1412,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
      0 0 10px rgba(0,0,0,.30);
 }
 
-/* Moveable tiles: BLUE glow */
+/* reachable = blue glow */
 .hex.reach{
   box-shadow:
     0 0 0 2px rgba(255,255,255,.12) inset,
@@ -1476,7 +1421,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   filter: brightness(1.03);
 }
 
-/* Player: GREEN glow (strong, like before) */
+/* player = green glow */
 .hex.player{
   box-shadow:
     0 0 0 2px rgba(255,255,255,.18) inset,
@@ -1486,13 +1431,11 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   z-index: 4;
 }
 
-/* Selected: thin outline */
 .hex.sel{
   outline: 2px solid rgba(255,255,255,.55);
   outline-offset: 2px;
 }
 
-/* Not reachable: dim only */
 .hex.notReach{
   opacity: .58;
   filter: saturate(.86) brightness(.92);
@@ -1500,11 +1443,10 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 .hex.notReach:hover{ filter: saturate(.86) brightness(.92); }
 
-/* blocked/missing */
 .hex.blocked{ opacity: .70; filter: grayscale(.35) brightness(.90); }
 .hex.missing{ opacity: .45; filter: grayscale(.70) brightness(.82); }
 
-/* MINIS */
+/* ===== MINI BOARDS (TILTED LIKE YOUR REF IMAGE) ===== */
 .miniRow{
   margin-top: 6px;
   display: grid;
@@ -1513,13 +1455,34 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   align-items: start;
   padding-bottom: 4px;
 }
+
 .miniPanel{
   border-radius: 18px;
   padding: 10px 10px 12px;
   box-shadow:
     0 0 0 1px rgba(255,255,255,.14) inset,
     0 18px 40px rgba(0,0,0,.14);
+
+  /* Tilt scaffold */
+  perspective: 900px;
+  transform-style: preserve-3d;
+  position: relative;
+  overflow: hidden;
 }
+
+/* shadow/base under panel (platform feel) */
+.miniPanel::after{
+  content:"";
+  position:absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 10px;
+  height: 18px;
+  background: radial-gradient(closest-side, rgba(0,0,0,.28), transparent 70%);
+  opacity: .55;
+  pointer-events:none;
+}
+
 .miniHeader{
   text-align: center;
   font-weight: 1000;
@@ -1529,8 +1492,9 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   border-radius: 14px;
   margin-bottom: 10px;
   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset;
+  transform: translateZ(1px);
 }
-.miniHeaderTitle{ font-weight: 1000; }
+
 .miniBody{
   padding: 8px 8px 10px;
   border-radius: 14px;
@@ -1538,7 +1502,13 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset;
   display:flex;
   justify-content:center;
+
+  /* actual tilt */
+  transform: rotateX(16deg) rotateZ(-2deg);
+  transform-origin: 50% 40%;
+  filter: drop-shadow(0 18px 28px rgba(0,0,0,.22));
 }
+
 .miniInvalid{
   padding: 12px;
   border-radius: 14px;
@@ -1547,7 +1517,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   font-weight: 1000;
 }
 
-/* IMPORTANT: below=yellow, current=green, above=blue */
+/* below=yellow, current=green, above=blue */
 .tone-below{
   background: linear-gradient(180deg, rgba(255, 220, 120, .55), rgba(255, 220, 120, .32));
 }
@@ -1590,4 +1560,5 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   .selectGrid{ grid-template-columns: 1fr; }
   .setupGrid{ grid-template-columns: 1fr; }
 }
+`;
 `;
