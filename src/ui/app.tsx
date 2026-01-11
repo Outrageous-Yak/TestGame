@@ -220,7 +220,10 @@ export default function App() {
             <div className="cardMeta">Build: {BUILD_TAG}</div>
 
             <div className="row">
-              <button className="btn primary" onClick={() => loadModeContent("regular").catch((e) => alert(String(e?.message ?? e)))}>
+              <button
+                className="btn primary"
+                onClick={() => loadModeContent("regular").catch((e) => alert(String(e?.message ?? e)))}
+              >
                 Regular
               </button>
               <button className="btn" onClick={() => loadModeContent("kids").catch((e) => alert(String(e?.message ?? e)))}>
@@ -310,16 +313,12 @@ export default function App() {
         </div>
       ) : null}
 
-      {/* GAME (ONLY board + bar + 3 minis) */}
+      {/* GAME (board + bar + 3 minis) */}
       {screen === "game" ? (
         <div className="shell shellGame">
           <div className="gameLayout">
             {/* MAIN BOARD */}
             <div className="mainBoardWrap">
-              <div className="mainBoardTop">
-                <div className="layerChip">Layer {currentLayer}</div>
-              </div>
-
               <HexBoard
                 kind="main"
                 activeLayer={currentLayer}
@@ -332,20 +331,31 @@ export default function App() {
               />
             </div>
 
-            {/* BAR */}
+            {/* BAR (Layer title beside the graph) */}
             <div className="barWrap" aria-label="Layer bar">
-              <div className="layerBar">
-                {barSegments.map((layerVal) => {
-                  const active = layerVal === currentLayer;
-                  return (
-                    <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} title={`Layer ${layerVal}`} />
-                  );
-                })}
+              <div className="barStack">
+                <div className="barTitle">
+                  <div className="layerChip">Layer {currentLayer}</div>
+                </div>
+
+                <div className="layerBar">
+                  {barSegments.map((layerVal) => {
+                    const active = layerVal === currentLayer;
+                    return (
+                      <div
+                        key={layerVal}
+                        className={"barSeg" + (active ? " isActive" : "")}
+                        data-layer={layerVal}
+                        title={`Layer ${layerVal}`}
+                      />
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* MINIS (tilt away, no colored rows) */}
+          {/* MINIS */}
           <div className="miniRow3D">
             <MiniPanel title="Below" tone="below" layer={belowLayer} maxLayer={scenarioLayerCount}>
               <HexBoard
@@ -436,7 +446,6 @@ function HexBoard(props: {
       {ROW_LENS.map((len, rIdx) => {
         const row = rIdx + 1;
 
-        // IMPORTANT:
         // Offset the EVEN rows (2,4,6) to match your reference.
         const isEvenRow = row % 2 === 0;
 
@@ -611,7 +620,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .selectTileDesc{ margin-top: 4px; opacity: .80; line-height: 1.25; }
 
 /* ===========================
-   GAME SCREEN (ONLY board+bar+minis)
+   GAME SCREEN
 =========================== */
 .shellGame{
   min-height: 100vh;
@@ -620,9 +629,14 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   padding-top: 18px;
 }
 
+/* Share main-board sizing with bar so the bar matches row top/bottom */
 .gameLayout{
+  --rows: 7;
+  --hexWMain: 82px;
+  --hexHMain: calc(var(--hexWMain) * 0.8660254);
+
   display: grid;
-  grid-template-columns: auto 42px;
+  grid-template-columns: auto 62px; /* board + bar stack */
   gap: 18px;
   align-items: start;
   justify-content: center;
@@ -635,10 +649,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   gap: 10px;
 }
 
-.mainBoardTop{
-  display:flex;
-  justify-content: center;
-}
+/* Layer title chip */
 .layerChip{
   padding: 10px 16px;
   border-radius: 999px;
@@ -647,18 +658,42 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   font-weight: 1000;
 }
 
-/* BAR */
-.barWrap{ display:flex; align-items:center; justify-content:center; }
+/* ===========================
+   BAR (title beside graph, bar aligns to board height)
+=========================== */
+.barWrap{
+  display:flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.barStack{
+  display:flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.barTitle{
+  display:flex;
+  justify-content: center;
+}
+
 .layerBar{
   width: 18px;
-  height: 360px;
+
+  /* ✅ match top of row 1 to bottom of row 7 */
+  height: calc(var(--hexHMain) * var(--rows));
+
   border-radius: 999px;
   overflow: hidden;
   background: rgba(0,0,0,.22);
   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.18);
+
   display: grid;
   grid-template-rows: repeat(7, 1fr);
 }
+
 .barSeg{ opacity: .95; position: relative; }
 .barSeg[data-layer="1"]{ background: var(--L1); }
 .barSeg[data-layer="2"]{ background: var(--L2); }
@@ -691,19 +726,23 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   --hexGap: 10px;
   --hexOverlap: 0.08;
 
-  /* distance between hex starts (our spacing "pitch") */
+  /* distance between hex "starts" (pitch) */
   --hexPitch: calc(var(--hexW) * (1 - var(--hexOverlap)) + var(--hexGap));
 
-  /* IMPORTANT: board is sized to the MAX row length (7) */
+  /* board sized to max row length (7) so every row aligns from same left edge */
   --maxCols: 7;
   width: calc(var(--hexW) + (var(--maxCols) - 1) * var(--hexPitch));
 
   display: grid;
-  justify-content: center; /* center the whole board as a block */
+  justify-content: center;
   user-select: none;
 }
 
-.hexBoardMain{ --hexW: 82px; }
+/* Main board uses shared size vars so bar can match it */
+.hexBoardMain{
+  --hexW: var(--hexWMain);
+  --hexH: var(--hexHMain);
+}
 
 .hexBoardMini{
   --hexW: 24px;
@@ -711,7 +750,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   --hexOverlap: 0.06;
 }
 
-/* each row fills the board width and starts from the left edge */
+/* each row fills board width and starts from the same left edge */
 .hexRow{
   display: flex;
   width: 100%;
@@ -720,7 +759,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   justify-content: flex-start;
 }
 
-/* ✅ even rows step right by half a pitch */
+/* even rows step right by half a pitch */
 .hexRow.even{
   padding-left: calc(var(--hexPitch) / 2);
 }
@@ -729,7 +768,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   width: var(--hexW);
   height: var(--hexH);
 
-  /* spacing between hexes */
+  /* spacing between hexes (based on pitch) */
   margin-right: calc(var(--hexPitch) - var(--hexW));
 
   clip-path: polygon(
@@ -752,7 +791,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 .hexBoardMain .hex{ cursor: pointer; }
-
 
 /* Labels: crisp always */
 .hexLabel{
@@ -890,7 +928,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   .gameLayout{ grid-template-columns: 1fr; }
   .barWrap{ justify-content: center; }
   .miniRow3D{ grid-template-columns: 1fr; }
-  .layerBar{ height: 280px; }
+  .layerBar{ height: calc(var(--hexHMain) * var(--rows)); }
 }
-
 `;
