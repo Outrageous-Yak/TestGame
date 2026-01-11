@@ -683,7 +683,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 /* =========================================================
-   HEX BOARD GEOMETRY (correct pitch + even-row offset)
+   HEX BOARD GEOMETRY (correct even-row offset)
 ========================================================= */
 .hexBoard{
   --hexW: 74px;
@@ -691,30 +691,30 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   --hexGap: 10px;
   --hexOverlap: 0.08;
 
-  /* ✅ true horizontal “pitch” between hexes (center-to-center) */
+  /* horizontal pitch (center-to-center-ish) */
   --hexPitch: calc(var(--hexW) * (1 - var(--hexOverlap)) + var(--hexGap));
 
   display: grid;
-  justify-content: center;
+  justify-content: center;   /* centers the whole board block */
+  justify-items: center;     /* centers each row container */
   gap: 0;
   user-select: none;
 }
 
 .hexBoardMain{ --hexW: 82px; }
-.hexBoardMini{
-  --hexW: 24px;
-  --hexGap: 5px;
-  --hexOverlap: 0.06;
-}
+.hexBoardMini{ --hexW: 24px; --hexGap: 5px; --hexOverlap: 0.06; }
 
 .hexRow{
   display: flex;
   height: var(--hexH);
   align-items: center;
-  justify-content: center;
+
+  /* ✅ key changes */
+  justify-content: flex-start; /* stop re-centering the content */
+  width: max-content;          /* row hugs its content so offset is visible */
 }
 
-/* ✅ IMPORTANT: even rows offset (2/4/6) */
+/* ✅ Offset EVEN rows (2/4/6) */
 .hexRow.even{
   margin-left: calc(var(--hexPitch) / 2);
 }
@@ -723,7 +723,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   width: var(--hexW);
   height: var(--hexH);
 
-  /* ✅ spacing that matches our pitch math */
+  /* spacing between hexes */
   margin-right: calc(var(--hexPitch) - var(--hexW));
 
   clip-path: polygon(
@@ -736,7 +736,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   position: relative;
   background: rgba(255,255,255,.14);
 
-  /* black outline on every hex (all boards) */
+  /* black outline on every hex */
   border: 1px solid rgba(0,0,0,.75);
   box-shadow:
     0 0 0 1px rgba(0,0,0,.35) inset,
@@ -746,6 +746,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 .hexBoardMain .hex{ cursor: pointer; }
+
 
 /* Labels: crisp always */
 .hexLabel{
