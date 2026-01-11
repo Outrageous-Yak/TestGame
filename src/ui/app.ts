@@ -1,598 +1,292 @@
 // apps.ts
-import React, { useMemo, useState, useCallback } from "react";
+import type { GameState, Scenario, Hex } from "../engine/types";
+import { assertScenario } from "../engine/scenario";
+import { newGame, getReachability, tryMove, endTurn, type ReachMap } from "../engine/api";
+import { ROW_LENS, posId, enterLayer, revealHex } from "../engine/board";
 
-type Coord = { row: number; col: number };
+/* ============================
+   Types & helpers (UNCHANGED)
+============================ */
+type Coord = { layer: number; row: number; col: number };
+type Screen = "start" | "select" | "setup" | "game";
+type Mode = "regular" | "kids";
+type Manifest = { initial: string; files: string[] };
 
-// 7-6-7-6-7-6-7
-const ROW_LENS = [7, 6, 7, 6, 7, 6, 7] as const;
-const ROWS = ROW_LENS.length;
+type PlayerChoice =
+  | { kind: "preset"; id: string; name: string }
+  | { kind: "custom"; name: string; imageDataUrl: string | null };
 
-function clamp(n: number, a: number, b: number) {
-  return Math.max(a, Math.min(b, n));
+type MonsterChoice = {
+  id: string;
+  name: string;
+  notes?: string;
+  imageDataUrl: string | null;
+  kind: "preset" | "custom";
+};
+
+type LogEntry = {
+  n: number;
+  id: string;
+  ok: boolean;
+  reason?: string;
+  t: string;
+};
+
+const BUILD_TAG = "BUILD_TAG_TILES_DEMO_V1";
+const START_BG_URL = "images/ui/start-screen.jpg";
+const BOARD_BG_URL = "images/ui/board-bg.png";
+
+function idToCoord(id: string): Coord | null {
+  const m = /^L(\d+)-R(\d+)-C(\d+)$/.exec(id);
+  if (!m) return null;
+  return { layer: +m[1], row: +m[2], col: +m[3] };
 }
 
-function coordKey(r: number, c: number) {
-  return `r${r}c${c}`;
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  return n;
 }
 
-function defaultPosForLayer(_layer: number): Coord {
-  // A reasonable “center-ish” start for this 7-6-7 layout:
-  // row 4 exists and has 6 cells, row 3 has 7 cells.
-  return { row: 4, col: 3 };
-}
-
-function isValidCell(row: number, col: number) {
-  if (row < 1 || row > ROWS) return false;
-  const len = ROW_LENS[row - 1];
-  return col >= 1 && col <= len;
-}
-
-/**
- * Flat-top hex neighbor model for this row-offset layout:
- * - Odd rows are offset by +0.5 hex width visually.
- * - Neighbor rules depend on row parity.
- */
-function neighborsOf(row: number, col: number): Coord[] {
-  const isOdd = row % 2 === 1; // 1-indexed
-  const candidates: Coord[] = [
-    { row, col: col - 1 },
-    { row, col: col + 1 },
-    { row: row - 1, col: isOdd ? col : col - 1 },
-    { row: row - 1, col: isOdd ? col + 1 : col },
-    { row: row + 1, col: isOdd ? col : col - 1 },
-    { row: row + 1, col: isOdd ? col + 1 : col },
-  ];
-  return candidates.filter((p) => isValidCell(p.row, p.col));
-}
-
-function isNeighbor(a: Coord, b: Coord) {
-  return neighborsOf(a.row, a.col).some((p) => p.row === b.row && p.col === b.col);
-}
-
-function layerName(layer: number) {
-  return `Layer ${layer}`;
-}
-
-export default function App() {
-  // Current layer you are “on”
-  const [currentLayer, setCurrentLayer] = useState<number>(4);
-
-  // Independent per-layer “current position”
-  // Layer 1 is static by rule (we’ll enforce in move logic).
-  const [posByLayer, setPosByLayer] = useState<Record<number, Coord>>(() => {
-    const init: Record<number, Coord> = {};
-    for (let l = 1; l <= 7; l++) init[l] = defaultPosForLayer(l);
-    return init;
-  });
-
-  const currentPos = posByLayer[currentLayer];
-
-  // Simple “move”: click a hex adjacent to the current position to move there.
-  // (No buttons; refresh resets game.)
-  const tryMoveTo = useCallback(
-    (target: Coord) => {
-      // Layer 1 is always static.
-      if (currentLayer === 1) return;
-
-      const from = posByLayer[currentLayer];
-      if (!from) return;
-
-      // Allow move only if neighbor (keeps it “game-like” without extra UI)
-      if (!isNeighbor(from, target)) return;
-
-      setPosByLayer((prev) => ({
-        ...prev,
-        [currentLayer]: { row: target.row, col: target.col },
-      }));
-    },
-    [currentLayer, posByLayer]
-  );
-
-  // Cycle layer by clicking the layer label (no buttons)
-  const cycleLayer = useCallback(() => {
-    setCurrentLayer((l) => (l >= 7 ? 1 : l + 1));
-  }, []);
-
-  const belowLayer = clamp(currentLayer - 1, 1, 7);
-  const aboveLayer = clamp(currentLayer + 1, 1, 7);
-
-  // Mini boards should reflect ONLY their own layer’s movement.
-  const belowPos = posByLayer[belowLayer];
-  const abovePos = posByLayer[aboveLayer];
-
-  // For mini boards, clicking the panel switches current layer (still no buttons)
-  const goToLayer = useCallback((layer: number) => {
-    setCurrentLayer(layer);
-  }, []);
-
-  const barSegments = useMemo(() => {
-    // 7 segments, bottom = layer 1 (red), top = layer 7 (violet)
-    return [7, 6, 5, 4, 3, 2, 1]; // top -> bottom visual mapping via CSS order
-  }, []);
-
-  return (
-    <div className="screen">
-      <style>{css}</style>
-
-      <div className="cloudBg" aria-hidden="true" />
-
-      <div className="layout">
-        {/* Main board area */}
-        <div className="centerColumn">
-          <div className="layerTitleRow">
-            <div className="layerTitle" data-layer={currentLayer} onClick={cycleLayer} role="button" tabIndex={0}>
-              {layerName(currentLayer)}
-              <span className="layerHint">click to change layer</span>
-            </div>
-          </div>
-
-          <div className="boardAndBar">
-            {/* Main board */}
-            <div className="boardFrame">
-              <HexBoard
-                kind="main"
-                activeLayer={currentLayer}
-                selected={currentPos}
-                onCellClick={tryMoveTo}
-                showCoords={false}
-              />
-            </div>
-
-            {/* Rainbow bar OUTSIDE on the clouds */}
-            <div className="barWrap" aria-label="Layer bar">
-              <div className="layerBar" data-active={currentLayer}>
-                {barSegments.map((layerVal) => {
-                  const active = layerVal === currentLayer;
-                  return (
-                    <div
-                      key={layerVal}
-                      className={"barSeg" + (active ? " isActive" : "")}
-                      data-layer={layerVal}
-                      title={`Layer ${layerVal}`}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Mini boards */}
-          <div className="miniRow">
-            <MiniPanel
-              title="Below"
-              tone="below"
-              isActive={false}
-              layer={belowLayer}
-              onPickLayer={goToLayer}
-            >
-              <HexBoard
-                kind="mini"
-                activeLayer={belowLayer}
-                selected={belowPos}
-                onCellClick={undefined}
-                showCoords={true}
-              />
-            </MiniPanel>
-
-            <MiniPanel
-              title="Current"
-              tone="current"
-              isActive={true}
-              layer={currentLayer}
-              onPickLayer={goToLayer}
-            >
-              <HexBoard
-                kind="mini"
-                activeLayer={currentLayer}
-                selected={currentPos}
-                onCellClick={undefined}
-                showCoords={true}
-              />
-            </MiniPanel>
-
-            <MiniPanel
-              title="Above"
-              tone="above"
-              isActive={false}
-              layer={aboveLayer}
-              onPickLayer={goToLayer}
-            >
-              <HexBoard
-                kind="mini"
-                activeLayer={aboveLayer}
-                selected={abovePos}
-                onCellClick={undefined}
-                showCoords={true}
-              />
-            </MiniPanel>
-          </div>
-        </div>
-      </div>
-    </div>
+function escapeHtml(str: string) {
+  return str.replace(/[&<>"']/g, (m) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" } as any)[m]
   );
 }
 
-function MiniPanel(props: {
-  title: string;
-  tone: "below" | "current" | "above";
-  isActive: boolean;
-  layer: number;
-  onPickLayer: (layer: number) => void;
-  children: React.ReactNode;
-}) {
-  const { title, tone, isActive, layer, onPickLayer, children } = props;
-  return (
-    <div
-      className={"miniPanel " + `tone-${tone}` + (isActive ? " isActive" : "")}
-      data-layer={layer}
-      onClick={() => onPickLayer(layer)}
-      role="button"
-      tabIndex={0}
-      title={`Switch to Layer ${layer}`}
-    >
-      <div className="miniHeader">{title}</div>
-      <div className="miniBody">{children}</div>
-    </div>
-  );
+async function fetchJson<T>(path: string): Promise<T> {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error(`Failed to load: ${path}`);
+  return res.json();
 }
 
-function HexBoard(props: {
-  kind: "main" | "mini";
-  activeLayer: number;
-  selected: Coord;
-  onCellClick?: (c: Coord) => void;
-  showCoords: boolean;
-}) {
-  const { kind, activeLayer, selected, onCellClick, showCoords } = props;
-
-  return (
-    <div className={"hexBoard " + (kind === "main" ? "hexBoardMain" : "hexBoardMini")} data-layer={activeLayer}>
-      {ROW_LENS.map((len, rIdx) => {
-        const row = rIdx + 1;
-        const odd = row % 2 === 1;
-        return (
-          <div key={row} className={"hexRow" + (odd ? " odd" : " even")} data-row={row}>
-            {Array.from({ length: len }, (_, cIdx) => {
-              const col = cIdx + 1;
-              const isSel = selected?.row === row && selected?.col === col;
-              const cell: Coord = { row, col };
-
-              return (
-                <div
-                  key={coordKey(row, col)}
-                  className={"hex" + (isSel ? " isSelected" : "")}
-                  data-row={row}
-                  data-layer={activeLayer}
-                  onClick={onCellClick ? () => onCellClick(cell) : undefined}
-                  role={onCellClick ? "button" : undefined}
-                  title={showCoords ? coordKey(row, col) : undefined}
-                >
-                  {showCoords ? <span className="hexLabel">{coordKey(row, col)}</span> : null}
-                </div>
-              );
-            })}
-          </div>
-        );
-      })}
-    </div>
-  );
+async function loadScenario(path: string): Promise<Scenario> {
+  const s = await fetchJson<Scenario>(path);
+  assertScenario(s);
+  return s;
 }
 
-const css = `
-:root{
-  --ink: rgba(255,255,255,.92);
-  --muted: rgba(255,255,255,.70);
+function toPublicUrl(p: string) {
+  const base = (import.meta as any).env?.BASE_URL ?? "/";
+  return base + p.replace(/^\/+/, "");
 }
 
-*{ box-sizing: border-box; }
-html, body { height: 100%; margin: 0; }
-body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+/* ============================
+   App mount
+============================ */
+export function mountApp(root: HTMLElement | null) {
+  if (!root) throw new Error("Missing #app");
 
-.screen{
-  min-height: 100vh;
-  position: relative;
-  overflow: hidden;
-  background: radial-gradient(1200px 900px at 30% 10%, rgba(255,190,240,.55), transparent 55%),
-              radial-gradient(1000px 800px at 80% 25%, rgba(160,210,255,.45), transparent 55%),
-              radial-gradient(1200px 900px at 55% 65%, rgba(200,170,255,.35), transparent 60%),
-              linear-gradient(180deg, #b8a7ff 0%, #cbb6ff 35%, #f0b0cf 100%);
-}
+  /* ---------- STATE ---------- */
+  let screen: Screen = "start";
+  let mode: Mode | null = null;
 
-.cloudBg{
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(900px 450px at 50% 85%, rgba(255,255,255,.85), transparent 60%),
-    radial-gradient(1100px 520px at 20% 92%, rgba(255,255,255,.80), transparent 62%),
-    radial-gradient(1100px 520px at 80% 92%, rgba(255,255,255,.80), transparent 62%),
-    radial-gradient(1200px 650px at 50% 105%, rgba(255,255,255,.90), transparent 65%);
-  filter: blur(0px);
-  opacity: .95;
-  pointer-events: none;
-}
+  let scenarios: Scenario[] = [];
+  let scenarioIndex = 0;
+  let initialPath = "";
 
-.layout{
-  position: relative;
-  z-index: 1;
-  height: 100vh;
-  display: grid;
-  grid-template-columns: 1fr minmax(760px, 980px) 1fr;
-  padding: 24px 24px 18px;
-}
+  let chosenPlayer: PlayerChoice | null = null;
+  let chosenMonsters: MonsterChoice[] = [];
 
-.centerColumn{
-  grid-column: 2;
-  display: grid;
-  grid-template-rows: auto auto 1fr;
-  align-items: start;
-  gap: 14px;
-}
+  let state: GameState | null = null;
+  let currentLayer = 1;
+  let selectedId: string | null = null;
 
-.layerTitleRow{
-  display: flex;
-  justify-content: center;
-}
+  let reachMap: ReachMap = {};
+  let reachable = new Set<string>();
 
-.layerTitle{
-  user-select: none;
-  cursor: pointer;
-  padding: 10px 16px;
-  border-radius: 999px;
-  color: var(--ink);
-  letter-spacing: .2px;
-  font-weight: 800;
-  background: rgba(0,0,0,.22);
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,.14) inset,
-    0 18px 40px rgba(0,0,0,.22);
-  display: inline-flex;
-  gap: 10px;
-  align-items: baseline;
-}
-.layerHint{
-  font-size: 12px;
-  font-weight: 700;
-  color: rgba(255,255,255,.70);
-}
+  let miniShiftLeft: Record<number, Record<number, number>> = {};
 
-.boardAndBar{
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: start;
-  gap: 18px;
-}
+  /* ---------- STYLE ---------- */
+  const style = document.createElement("style");
+  style.textContent = `
+  body{
+    margin:0;
+    background: linear-gradient(180deg,#05070d,#070a14);
+    color:#eaf2ff;
+    font-family: system-ui, sans-serif;
+  }
+  .shell{
+    width:min(1200px,100vw);
+    margin:0 auto;
+    padding:16px;
+  }
+  .view{display:none}
+  .view.active{display:block}
 
-.boardFrame{
-  padding: 12px;
-  border-radius: 18px;
-  background: rgba(255,255,255,.08);
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,.16) inset,
-    0 25px 60px rgba(0,0,0,.18);
-}
+  /* ===== GAME SCREEN NEW LAYOUT ===== */
+  .gameStage{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:18px;
+  }
 
-.barWrap{
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding-right: 6px;
-}
+  .layerTitle{
+    font-size:22px;
+    font-weight:900;
+    padding:8px 16px;
+    border-radius:999px;
+    background:rgba(255,255,255,.08);
+  }
 
-.layerBar{
-  width: 18px;
-  height: 360px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: rgba(0,0,0,.18);
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,.14) inset,
-    0 18px 40px rgba(0,0,0,.22);
-  display: grid;
-  grid-template-rows: repeat(7, 1fr);
-}
+  .boardSquare{
+    width:min(80vmin,600px);
+    aspect-ratio:1/1;
+    position:relative;
+    border-radius:18px;
+    overflow:hidden;
+    background:#000;
+  }
+  .boardBg{
+    position:absolute;
+    inset:0;
+    background:url("${toPublicUrl(BOARD_BG_URL)}") center/cover no-repeat;
+  }
+  .boardCenter{
+    position:relative;
+    z-index:1;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    width:100%;
+    height:100%;
+  }
+  .boardWrap{
+    display:grid;
+    gap:6px;
+  }
 
-.barSeg{
-  opacity: .95;
-}
+  .tileRow{display:flex;gap:6px}
+  .tileRow.offset{padding-left:36px}
 
-/* Layer -> color (1 bottom red ... 7 top violet) */
-.barSeg[data-layer="1"]{ background: rgba(255, 92, 120, .95); }
-.barSeg[data-layer="2"]{ background: rgba(255, 150, 90, .95); }
-.barSeg[data-layer="3"]{ background: rgba(255, 220, 120, .95); }
-.barSeg[data-layer="4"]{ background: rgba(120, 235, 170, .95); }
-.barSeg[data-layer="5"]{ background: rgba(120, 220, 255, .95); }
-.barSeg[data-layer="6"]{ background: rgba(135, 170, 255, .95); }
-.barSeg[data-layer="7"]{ background: rgba(200, 140, 255, .95); }
+  .cloud{
+    width:64px;
+    height:64px;
+    border-radius:999px;
+    border:2px solid rgba(255,255,255,.8);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+  }
 
-.barSeg.isActive{
-  position: relative;
-  z-index: 2;
-  outline: 1px solid rgba(255,255,255,.25);
-  box-shadow:
-    0 0 16px rgba(255,255,255,.35),
-    0 0 30px rgba(255,255,255,.18);
-}
-.barSeg.isActive::after{
-  content: "";
-  position: absolute;
-  inset: -6px;
-  background: inherit;
-  filter: blur(10px);
-  opacity: .9;
-  pointer-events: none;
-  border-radius: 999px;
-}
+  .miniRowWrap{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:16px;
+    width:100%;
+  }
+  .miniPanel{
+    padding:12px;
+    border-radius:16px;
+    background:rgba(255,255,255,.12);
+  }
+  .miniTitle{
+    font-weight:900;
+    text-align:center;
+    margin-bottom:8px;
+  }
+  `;
+  document.head.appendChild(style);
 
-/* HEX BOARD GEOMETRY */
-.hexBoard{
-  --hexW: 74px;
-  --hexH: calc(var(--hexW) * 0.8660254); /* √3/2 */
-  display: grid;
-  justify-content: center;
-  gap: 0;
-  user-select: none;
-}
+  /* ---------- ROOT ---------- */
+  root.innerHTML = "";
+  const shell = el("div", "shell");
+  const vStart = el("section", "view active");
+  const vGame = el("section", "view");
+  shell.append(vStart, vGame);
+  root.appendChild(shell);
 
-.hexBoardMain{
-  --hexW: 78px;
-}
+  /* ---------- START ---------- */
+  function renderStart() {
+    vStart.innerHTML = `
+      <h1>Hex Layers Puzzle</h1>
+      <button id="startBtn">Start</button>
+    `;
+    vStart.querySelector("#startBtn")!.addEventListener("click", async () => {
+      const manifest = await fetchJson<Manifest>("scenarios/manifest.json");
+      scenarios = await Promise.all(manifest.files.map(loadScenario));
+      scenarioIndex = 0;
+      startScenario(0);
+      renderGame();
+      setScreen("game");
+    });
+  }
 
-.hexBoardMini{
-  --hexW: 22px;
-}
+  function setScreen(s: Screen) {
+    screen = s;
+    [vStart, vGame].forEach(v => v.classList.remove("active"));
+    if (s === "start") vStart.classList.add("active");
+    if (s === "game") vGame.classList.add("active");
+  }
 
-.hexRow{
-  display: flex;
-  height: var(--hexH);
-  align-items: center;
-  justify-content: center;
-}
+  /* ---------- GAME ---------- */
+  function startScenario(idx: number) {
+    scenarioIndex = idx;
+    state = newGame(scenarios[idx]);
+    selectedId = state.playerHexId;
+    currentLayer = idToCoord(selectedId!)?.layer ?? 1;
+    enterLayer(state, currentLayer);
+    recomputeReach();
+  }
 
-.hexRow.odd{
-  margin-left: calc(var(--hexW) * 0.5);
-}
+  function recomputeReach() {
+    if (!state) return;
+    reachMap = getReachability(state);
+    reachable = new Set(Object.keys(reachMap).filter(k => reachMap[k].reachable));
+  }
 
-/* Touching: overlap the right edge by 1/4 width */
-.hex{
-  width: var(--hexW);
-  height: var(--hexH);
-  margin-right: calc(var(--hexW) * -0.25);
-  clip-path: polygon(
-    25% 0%, 75% 0%,
-    100% 50%,
-    75% 100%, 25% 100%,
-    0% 50%
-  );
-  position: relative;
+  function renderGame() {
+    vGame.innerHTML = "";
+    const stage = el("div", "gameStage");
 
-  /* pastel banding by row position: violet top -> red bottom */
-  background: rgba(255,255,255,.08);
-  border: 1px solid rgba(255,255,255,.16);
-  box-shadow: 0 6px 16px rgba(0,0,0,.10);
-  cursor: default;
-}
+    const title = el("div", "layerTitle");
+    title.textContent = `Layer ${currentLayer}`;
 
-.hexBoardMain .hex{
-  cursor: pointer;
-}
+    const square = el("div", "boardSquare");
+    const bg = el("div", "boardBg");
+    const center = el("div", "boardCenter");
+    const wrap = el("div", "boardWrap");
 
-/* Row-based gradient (top violet -> bottom red), consistent across boards */
-.hex[data-row="1"]{ background: rgba(200, 140, 255, .28); }
-.hex[data-row="2"]{ background: rgba(165, 175, 255, .28); }
-.hex[data-row="3"]{ background: rgba(135, 205, 255, .28); }
-.hex[data-row="4"]{ background: rgba(120, 235, 170, .24); }
-.hex[data-row="5"]{ background: rgba(255, 220, 120, .22); }
-.hex[data-row="6"]{ background: rgba(255, 155, 105, .22); }
-.hex[data-row="7"]{ background: rgba(255, 92, 120, .24); }
+    for (let r = 1; r <= ROW_LENS.length; r++) {
+      const row = el("div", "tileRow");
+      if (r % 2 === 0) row.classList.add("offset");
+      for (let c = 1; c <= ROW_LENS[r - 1]; c++) {
+        const id = `L${currentLayer}-R${r}-C${c}`;
+        const cell = el("div", "cloud");
+        cell.textContent = `r${r}c${c}`;
+        cell.onclick = () => {
+          if (!state) return;
+          const res = tryMove(state, id);
+          if (res.ok) {
+            selectedId = state.playerHexId;
+            currentLayer = idToCoord(selectedId!)!.layer;
+            endTurn(state);
+            enterLayer(state, currentLayer);
+            recomputeReach();
+            renderGame();
+          }
+        };
+        row.appendChild(cell);
+      }
+      wrap.appendChild(row);
+    }
 
-/* Selected position (per-layer) */
-.hex.isSelected{
-  outline: 2px solid rgba(255,255,255,.35);
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,.18) inset,
-    0 0 18px rgba(255,255,255,.18);
-}
-.hex.isSelected::after{
-  content: "";
-  position: absolute;
-  inset: -6px;
-  background: rgba(255,255,255,.30);
-  filter: blur(12px);
-  opacity: .55;
-  border-radius: 999px;
-  pointer-events: none;
-  clip-path: polygon(
-    25% 0%, 75% 0%,
-    100% 50%,
-    75% 100%, 25% 100%,
-    0% 50%
-  );
-}
+    center.appendChild(wrap);
+    square.append(bg, center);
 
-/* Mini labels only */
-.hexLabel{
-  font-size: 10px;
-  font-weight: 800;
-  color: rgba(0,0,0,.55);
-  text-shadow: 0 1px 0 rgba(255,255,255,.35);
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-}
+    const minis = el("div", "miniRowWrap");
+    ["Below", "Current", "Above"].forEach(t => {
+      const p = el("div", "miniPanel");
+      p.innerHTML = `<div class="miniTitle">${t}</div>`;
+      minis.appendChild(p);
+    });
 
-/* MINIS */
-.miniRow{
-  margin-top: 6px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(220px, 1fr));
-  gap: 18px;
-  align-items: start;
-  padding-bottom: 4px;
-}
+    stage.append(title, square, minis);
+    vGame.appendChild(stage);
+  }
 
-.miniPanel{
-  cursor: pointer;
-  border-radius: 18px;
-  padding: 10px 10px 12px;
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,.14) inset,
-    0 18px 40px rgba(0,0,0,.14);
+  /* ---------- BOOT ---------- */
+  renderStart();
 }
-
-.miniHeader{
-  text-align: center;
-  font-weight: 900;
-  letter-spacing: .4px;
-  color: rgba(255,255,255,.92);
-  padding: 8px 10px;
-  border-radius: 14px;
-  margin-bottom: 10px;
-  box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset;
-}
-
-.miniBody{
-  padding: 8px 8px 10px;
-  border-radius: 14px;
-  background: rgba(255,255,255,.10);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset;
-}
-
-/* Solid/tinted mini board themes (NOT transparent) */
-.tone-below{
-  background: linear-gradient(180deg, rgba(255,110,140,.55), rgba(255,110,140,.32));
-}
-.tone-below .miniHeader{
-  background: rgba(120, 30, 50, .45);
-}
-
-.tone-current{
-  background: linear-gradient(180deg, rgba(120,235,170,.55), rgba(120,235,170,.30));
-}
-.tone-current .miniHeader{
-  background: rgba(20, 80, 55, .45);
-}
-
-.tone-above{
-  background: linear-gradient(180deg, rgba(135,170,255,.55), rgba(135,170,255,.32));
-}
-.tone-above .miniHeader{
-  background: rgba(20, 40, 90, .45);
-}
-
-/* Keep the main board proportioned: more cloud mass below */
-@media (max-height: 820px){
-  .layerBar{ height: 300px; }
-  .hexBoardMain{ --hexW: 70px; }
-}
-@media (max-width: 980px){
-  .layout{ grid-template-columns: 16px 1fr 16px; }
-  .miniRow{ grid-template-columns: 1fr; }
-  .layerBar{ height: 280px; }
-}
-
-/* Optional: subtle hover on main board */
-.hexBoardMain .hex:hover{
-  outline: 1px solid rgba(255,255,255,.28);
-}
-`;
