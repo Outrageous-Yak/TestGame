@@ -72,8 +72,8 @@ function layerCssVar(n: number) {
 }
 
 /**
- * Filter reachability to a specific layer.
- * NOTE: typed as `any` internally to avoid strict TS build errors on ReachMap indexing.
+ * Filter reachability to a specific layer (for dice mini boards).
+ * Uses `any` indexing to avoid strict TS build issues.
  */
 function filterReachForLayer(layer: number, reachMap: ReachMap) {
   const prefix = `L${layer}-`;
@@ -142,12 +142,9 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const [reachMap, setReachMap] = useState<ReachMap>({} as ReachMap);
-
   const reachable = useMemo(() => {
     const set = new Set<string>();
-    for (const [k, v] of Object.entries(reachMap as any)) {
-      if ((v as any)?.reachable) set.add(k);
-    }
+    for (const [k, v] of Object.entries(reachMap as any)) if ((v as any)?.reachable) set.add(k);
     return set;
   }, [reachMap]);
 
@@ -169,6 +166,17 @@ export default function App() {
   const [diceRot, setDiceRot] = useState<{ x: number; y: number }>({ x: -26, y: -38 }); // base tilt so TOP is visible
   const [diceSpinning, setDiceSpinning] = useState(false);
 
+  // drag rotation state
+  const dragRef = useRef({
+    active: false,
+    startX: 0,
+    startY: 0,
+    startRotX: 0,
+    startRotY: 0,
+    pointerId: -1,
+  });
+  const [diceDragging, setDiceDragging] = useState(false);
+
   const belowLayer = currentLayer - 1;
   const aboveLayer = currentLayer + 1;
 
@@ -178,13 +186,11 @@ export default function App() {
 
     const targetFace = rotForRoll(n);
 
-    // keep the "camera" tilt so you see TOP, FRONT, RIGHT at once
     const base = { x: -26, y: -38 };
     const final = { x: base.x + targetFace.x, y: base.y + targetFace.y };
 
     setDiceSpinning(true);
 
-    // big spin then settle
     const extraX = 360 * (1 + Math.floor(Math.random() * 2)); // 360 or 720
     const extraY = 360 * (2 + Math.floor(Math.random() * 2)); // 720 or 1080
 
@@ -193,6 +199,46 @@ export default function App() {
       setDiceRot(final);
       window.setTimeout(() => setDiceSpinning(false), 650);
     }, 40);
+  }, []);
+
+  // Pointer-drag rotation (spin by dragging)
+  const onDicePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (diceSpinning) return;
+      (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+
+      dragRef.current.active = true;
+      dragRef.current.pointerId = e.pointerId;
+      dragRef.current.startX = e.clientX;
+      dragRef.current.startY = e.clientY;
+      dragRef.current.startRotX = diceRot.x;
+      dragRef.current.startRotY = diceRot.y;
+
+      setDiceDragging(true);
+    },
+    [diceRot.x, diceRot.y, diceSpinning]
+  );
+
+  const onDicePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current.active) return;
+    if (e.pointerId !== dragRef.current.pointerId) return;
+
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+
+    const sens = 0.35; // degrees per pixel
+    const nextY = dragRef.current.startRotY + dx * sens;
+    const nextX = dragRef.current.startRotX - dy * sens;
+
+    setDiceRot({ x: nextX, y: nextY });
+  }, []);
+
+  const endDrag = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current.active) return;
+    if (e.pointerId !== dragRef.current.pointerId) return;
+    dragRef.current.active = false;
+    dragRef.current.pointerId = -1;
+    setDiceDragging(false);
   }, []);
 
   /* --------------------------
@@ -428,7 +474,6 @@ export default function App() {
       {/* GAME */}
       {screen === "game" ? (
         <div className="shell shellGame">
-          {/* ✅ This container provides the LEFT→RIGHT scrollbar at the very bottom */}
           <div className="scrollStage" ref={scrollRef}>
             <div className="scrollInner">
               <div className="gameLayout">
@@ -451,31 +496,42 @@ export default function App() {
 
                 <SideBar side="right" currentLayer={currentLayer} segments={barSegments} />
 
-                {/* ✅ Dice OUTER RIGHT of the 2nd bar */}
                 <div className="diceArea">
                   <div className="diceCubeWrap" aria-label="Layer dice">
                     <div
-                      className={"diceCube" + (diceSpinning ? " isSpinning" : "")}
+                      className={
+                        "diceCube" +
+                        (diceSpinning ? " isSpinning" : "") +
+                        (diceDragging ? " isDragging" : "")
+                      }
+                      onPointerDown={onDicePointerDown}
+                      onPointerMove={onDicePointerMove}
+                      onPointerUp={endDrag}
+                      onPointerCancel={endDrag}
                       style={{
                         transform: `translateY(${diceAlignY}px) rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
+                        touchAction: "none",
+                        cursor: diceSpinning ? "default" : diceDragging ? "grabbing" : "grab",
                       }}
                     >
                       {/* TOP (mini: ABOVE) */}
                       <div className="diceFace faceTop">
                         <div className="faceStripe" style={{ background: stripeAbove }} />
                         <div className="diceFaceInnerFixed">
-                          <HexBoard
-                            kind="mini"
-                            activeLayer={miniAboveLayer}
-                            maxLayer={scenarioLayerCount}
-                            state={state}
-                            selectedId={null}
-                            reachable={miniAboveReach.reachable}
-                            reachMap={miniAboveReach.reachMap}
-                            showCoords={false}
-                            onCellClick={undefined}
-                            showPlayerOnMini={true}
-                          />
+                          <div className="miniFit">
+                            <HexBoard
+                              kind="mini"
+                              activeLayer={miniAboveLayer}
+                              maxLayer={scenarioLayerCount}
+                              state={state}
+                              selectedId={null}
+                              reachable={miniAboveReach.reachable}
+                              reachMap={miniAboveReach.reachMap}
+                              showCoords={false}
+                              onCellClick={undefined}
+                              showPlayerOnMini={true}
+                            />
+                          </div>
                         </div>
                       </div>
 
@@ -483,18 +539,20 @@ export default function App() {
                       <div className="diceFace faceFront">
                         <div className="faceStripe" style={{ background: stripeCurr }} />
                         <div className="diceFaceInnerFixed">
-                          <HexBoard
-                            kind="mini"
-                            activeLayer={miniCurrLayer}
-                            maxLayer={scenarioLayerCount}
-                            state={state}
-                            selectedId={null}
-                            reachable={miniCurrReach.reachable}
-                            reachMap={miniCurrReach.reachMap}
-                            showCoords={false}
-                            onCellClick={undefined}
-                            showPlayerOnMini={true}
-                          />
+                          <div className="miniFit">
+                            <HexBoard
+                              kind="mini"
+                              activeLayer={miniCurrLayer}
+                              maxLayer={scenarioLayerCount}
+                              state={state}
+                              selectedId={null}
+                              reachable={miniCurrReach.reachable}
+                              reachMap={miniCurrReach.reachMap}
+                              showCoords={false}
+                              onCellClick={undefined}
+                              showPlayerOnMini={true}
+                            />
+                          </div>
                         </div>
                       </div>
 
@@ -505,18 +563,20 @@ export default function App() {
                           {belowLayer < 1 ? (
                             <div className="miniInvalid">NO LAYER BELOW</div>
                           ) : (
-                            <HexBoard
-                              kind="mini"
-                              activeLayer={miniBelowLayer}
-                              maxLayer={scenarioLayerCount}
-                              state={state}
-                              selectedId={null}
-                              reachable={miniBelowReach.reachable}
-                              reachMap={miniBelowReach.reachMap}
-                              showCoords={false}
-                              onCellClick={undefined}
-                              showPlayerOnMini={true}
-                            />
+                            <div className="miniFit">
+                              <HexBoard
+                                kind="mini"
+                                activeLayer={miniBelowLayer}
+                                maxLayer={scenarioLayerCount}
+                                state={state}
+                                selectedId={null}
+                                reachable={miniBelowReach.reachable}
+                                reachMap={miniBelowReach.reachMap}
+                                showCoords={false}
+                                onCellClick={undefined}
+                                showPlayerOnMini={true}
+                              />
+                            </div>
                           )}
                         </div>
                       </div>
@@ -651,7 +711,6 @@ function HexBoard(props: {
                     </span>
                   ) : null}
 
-                  {/* Mini board black numbers (NO ROWS) */}
                   {kind === "mini" ? <span className="miniNum">{col}</span> : null}
                 </div>
               );
@@ -769,33 +828,13 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   background: linear-gradient(135deg, rgba(200,140,255,.45), rgba(120,220,255,.30));
 }
 
-.selectList{ display:grid; gap: 10px; margin-top: 12px; }
-.selectTile{
-  border-radius: 16px;
-  padding: 12px;
-  background: rgba(0,0,0,.16);
-  border: 1px solid rgba(255,255,255,.14);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.08) inset;
-  cursor: pointer;
-}
-.selectTile.selected{
-  border-color: rgba(255,255,255,.30);
-  box-shadow: 0 0 0 3px rgba(255,255,255,.10) inset, 0 18px 40px rgba(0,0,0,.14);
-}
-.selectTileTitle{ font-weight: 1000; }
-.selectTileDesc{ margin-top: 4px; opacity: .80; line-height: 1.25; }
-
-/* ===========================
-   GAME SCREEN
-=========================== */
+/* GAME */
 .shellGame{
   min-height: 100vh;
   display: grid;
   place-items: start center;
   padding-top: 18px;
 }
-
-/* ✅ Horizontal scrollbar at the bottom */
 .scrollStage{
   width: calc(100vw - 44px);
   max-width: 100vw;
@@ -807,8 +846,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .scrollInner{
   min-width: 1380px;
 }
-
-/* Shared vars so BOTH bars align to the hex rows */
 .gameLayout{
   --rows: 7;
   --hexWMain: 82px;
@@ -821,15 +858,8 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   justify-content: center;
 }
 
-/* ===========================
-   BARS (both sides, aligned)
-=========================== */
-.barWrap{
-  display:flex;
-  align-items: flex-start;
-  justify-content: center;
-}
-
+/* BARS */
+.barWrap{ display:flex; align-items: flex-start; justify-content: center; }
 .layerBar{
   width: 18px;
   height: calc(var(--hexHMain) * var(--rows));
@@ -840,7 +870,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   display: grid;
   grid-template-rows: repeat(7, 1fr);
 }
-
 .barSeg{ opacity: .95; position: relative; }
 .barSeg[data-layer="1"]{ background: var(--L1); }
 .barSeg[data-layer="2"]{ background: var(--L2); }
@@ -849,11 +878,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .barSeg[data-layer="5"]{ background: var(--L5); }
 .barSeg[data-layer="6"]{ background: var(--L6); }
 .barSeg[data-layer="7"]{ background: var(--L7); }
-
-.barSeg.isActive{
-  outline: 1px solid rgba(255,255,255,.25);
-  z-index: 3;
-}
+.barSeg.isActive{ outline: 1px solid rgba(255,255,255,.25); z-index: 3; }
 .barSeg.isActive::after{
   content: "";
   position: absolute;
@@ -864,9 +889,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   border-radius: 999px;
 }
 
-/* =========================================================
-   HEX BOARD GEOMETRY
-========================================================= */
+/* HEX BOARD */
 .hexBoard{
   --hexW: 74px;
   --hexH: calc(var(--hexW) * 0.8660254);
@@ -880,55 +903,28 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   justify-content: center;
   user-select: none;
 }
-
-.hexBoardMain{
-  --hexW: var(--hexWMain);
-  --hexH: var(--hexHMain);
-}
-
+.hexBoardMain{ --hexW: var(--hexWMain); --hexH: var(--hexHMain); }
 .hexBoardMini{
   --hexW: 24px;
-  --hexGap: 5px;
+  --hexGap: 2px;
   --hexOverlap: 0.0;
 }
-
-.hexRow{
-  display: flex;
-  width: 100%;
-  height: var(--hexH);
-  align-items: center;
-  justify-content: flex-start;
-}
-
-.hexRow.even{
-  padding-left: calc(var(--hexPitch) / 2);
-}
+.hexRow{ display:flex; width: 100%; height: var(--hexH); align-items: center; justify-content: flex-start; }
+.hexRow.even{ padding-left: calc(var(--hexPitch) / 2); }
 
 .hex{
   width: var(--hexW);
   height: var(--hexH);
   margin-right: calc(var(--hexPitch) - var(--hexW));
-
-  clip-path: polygon(
-    25% 0%, 75% 0%,
-    100% 50%,
-    75% 100%, 25% 100%,
-    0% 50%
-  );
-
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
   position: relative;
   background: rgba(255,255,255,.14);
   border: 1px solid rgba(0,0,0,.75);
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,.35) inset,
-    0 6px 16px rgba(0,0,0,.10);
-
+  box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 6px 16px rgba(0,0,0,.10);
   cursor: default;
 }
-
 .hexBoardMain .hex{ cursor: pointer; }
 
-/* Rim lines correspond to layer color; black if no above/below (set via inline vars). */
 .hexRim{
   position:absolute;
   left: 14%;
@@ -955,7 +951,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   color: rgba(255,255,255,.98);
   z-index: 3;
   pointer-events: none;
-
   -webkit-text-stroke: 1px rgba(0,0,0,.75);
   text-shadow:
     -1px -1px 0 rgba(0,0,0,.75),
@@ -966,7 +961,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 .hexBoardMain .hexLabel{ font-size: 13px; }
 
-/* Mini black numbers (no rows). */
 .miniNum{
   position:absolute;
   inset: 0;
@@ -980,7 +974,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   text-shadow: 0 0 6px rgba(255,255,255,.35);
 }
 
-/* Highlights */
 .hex.reach{
   box-shadow:
     0 0 0 2px rgba(255,255,255,.12) inset,
@@ -996,19 +989,15 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   filter: brightness(1.6);
   z-index: 4;
 }
-.hex.sel{
-  outline: 2px solid rgba(255,255,255,.55);
-  outline-offset: 2px;
-}
+.hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
 
-/* ✅ Only MAIN board gets dark overlays; mini boards remain uniform. */
 .hex::before{
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  opacity: 0;
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:1;
+  opacity:0;
 }
 .hexBoardMain .hex.notReach{ cursor: not-allowed; }
 .hexBoardMain .hex.notReach::before{ background: rgba(0,0,0,.28); opacity: 1; }
@@ -1016,48 +1005,36 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hexBoardMain .hex.missing::before{ background: rgba(0,0,0,.48); opacity: 1; }
 .hexBoardMini .hex::before{ opacity: 0 !important; }
 
-/* ===========================
-   DICE: bigger cube, fixed mini size, stripes on 3 faces
-=========================== */
-.diceArea{
-  display: grid;
-  justify-items: center;
-  gap: 14px;
-  padding-top: 0;
-}
-
+/* DICE */
+.diceArea{ display:grid; justify-items:center; gap: 14px; padding-top: 0; }
 .diceCubeWrap{
   width: 460px;
   height: 360px;
-  display: grid;
-  place-items: center;
+  display:grid;
+  place-items:center;
   perspective: 1000px;
   position: relative;
 }
-
 .diceCube{
-  --s: 294px; /* 210 * 1.4 */
+  --s: 294px;
   width: var(--s);
   height: var(--s);
   position: relative;
   transform-style: preserve-3d;
   transition: transform 650ms cubic-bezier(.2,.9,.2,1);
 }
-.diceCube.isSpinning{
-  transition: transform 900ms cubic-bezier(.12,.85,.18,1);
-}
+.diceCube.isSpinning{ transition: transform 900ms cubic-bezier(.12,.85,.18,1); }
+.diceCube.isDragging{ transition: none !important; }
 
 .diceFace{
-  position: absolute;
-  inset: 0;
+  position:absolute;
+  inset:0;
   border-radius: 18px;
   background: rgba(255,255,255,.08);
   box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 22px 50px rgba(0,0,0,.16);
   backdrop-filter: blur(8px);
-  overflow: hidden;
+  overflow:hidden;
 }
-
-/* Stripes on faces (not on column) */
 .faceStripe{
   position:absolute;
   left: 18px;
@@ -1070,8 +1047,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   pointer-events:none;
   filter: drop-shadow(0 2px 8px rgba(0,0,0,.25));
 }
-
-/* Keep mini boards same size while cube grows */
 .diceFaceInnerFixed{
   position:absolute;
   width: 260px;
@@ -1082,12 +1057,19 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   border-radius: 14px;
   background: rgba(0,0,0,.10);
   box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
 }
 
-/* Faces */
+/* Scale mini boards to fill the square more */
+.miniFit{
+  transform: scale(var(--miniScale, 1.55));
+  transform-origin: center;
+  display: grid;
+  place-items: center;
+}
+
 .faceFront { transform: translateZ(calc(var(--s) / 2)); }
 .faceBack  { transform: rotateY(180deg) translateZ(calc(var(--s) / 2)); }
 .faceRight { transform: rotateY(90deg) translateZ(calc(var(--s) / 2)); }
@@ -1096,8 +1078,8 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .faceBottom{ transform: rotateX(-90deg) translateZ(calc(var(--s) / 2)); }
 
 .diceControls{
-  display: flex;
-  align-items: center;
+  display:flex;
+  align-items:center;
   gap: 12px;
   padding: 10px 14px;
   border-radius: 16px;
@@ -1105,11 +1087,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.14);
   backdrop-filter: blur(10px);
 }
-.diceReadout{
-  font-weight: 1000;
-  font-size: 18px;
-  color: rgba(255,255,255,.92);
-}
+.diceReadout{ font-weight: 1000; font-size: 18px; color: rgba(255,255,255,.92); }
 .miniInvalid{
   padding: 12px;
   border-radius: 14px;
