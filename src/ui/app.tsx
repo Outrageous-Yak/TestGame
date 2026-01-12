@@ -311,7 +311,7 @@ export default function App() {
       {/* GAME */}
       {screen === "game" ? (
         <div className="shell shellGame">
-          {/* ✅ Left bar + board + right bar */}
+          {/* Left bar + board + right bar */}
           <div className="gameLayout">
             <SideBar side="left" currentLayer={currentLayer} segments={barSegments} />
 
@@ -392,12 +392,7 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number; segments
         {segments.map((layerVal) => {
           const active = layerVal === currentLayer;
           return (
-            <div
-              key={layerVal}
-              className={"barSeg" + (active ? " isActive" : "")}
-              data-layer={layerVal}
-              title={`Layer ${layerVal}`}
-            />
+            <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} title={`Layer ${layerVal}`} />
           );
         })}
       </div>
@@ -414,22 +409,16 @@ function MiniPanel(props: {
   tone: "below" | "current" | "above";
   layer: number;
   maxLayer: number;
-  invalidSide: "left" | "right"; // where to put label if invalid (your request)
+  invalidSide: "left" | "right";
   children: React.ReactNode;
 }) {
   const { title, tone, layer, maxLayer, invalidSide, children } = props;
   const invalid = layer < 1 ? "NO LAYER BELOW" : layer > maxLayer ? "NO LAYER ABOVE" : null;
-
-  // ✅ Labels default left. If invalid: use requested side (right for below/above).
   const labelSide = invalid ? invalidSide : "left";
 
   return (
     <div className={"miniCard3D " + `tone-${tone}`} title={invalid ?? `Layer ${layer}`}>
-      {/* rotated side label */}
-      <div className={"miniSideLabel " + (labelSide === "right" ? "isRight" : "isLeft")}>
-        {title}
-      </div>
-
+      <div className={"miniSideLabel " + (labelSide === "right" ? "isRight" : "isLeft")}>{title}</div>
       <div className="miniBody">{invalid ? <div className="miniInvalid">{invalid}</div> : children}</div>
     </div>
   );
@@ -510,7 +499,6 @@ const CSS = `
 :root{
   --ink: rgba(255,255,255,.92);
 
-  /* bar colors bottom=1 red ... top=7 violet */
   --L1: rgba(255, 92, 120, .95);
   --L2: rgba(255, 150, 90, .95);
   --L3: rgba(255, 220, 120, .95);
@@ -531,7 +519,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   color: var(--ink);
 }
 
-/* ONE global background image */
 .globalBg{
   position: absolute;
   inset: 0;
@@ -571,22 +558,9 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   backdrop-filter: blur(10px);
 }
 
-.cardTitleBig{
-  font-weight: 1000;
-  font-size: 34px;
-  letter-spacing: .2px;
-}
-.cardTitle{
-  font-weight: 1000;
-  font-size: 18px;
-  letter-spacing: .2px;
-  margin-bottom: 10px;
-}
-.cardMeta{
-  margin-top: 6px;
-  opacity: .82;
-  font-weight: 900;
-}
+.cardTitleBig{ font-weight: 1000; font-size: 34px; letter-spacing: .2px; }
+.cardTitle{ font-weight: 1000; font-size: 18px; letter-spacing: .2px; margin-bottom: 10px; }
+.cardMeta{ margin-top: 6px; opacity: .82; font-weight: 900; }
 
 .row{ display:flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 .rowEnd{ justify-content: flex-end; }
@@ -625,9 +599,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .selectTileTitle{ font-weight: 1000; }
 .selectTileDesc{ margin-top: 4px; opacity: .80; line-height: 1.25; }
 
-/* ===========================
-   GAME SCREEN
-=========================== */
+/* GAME */
 .shellGame{
   min-height: 100vh;
   display: grid;
@@ -642,7 +614,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   --hexHMain: calc(var(--hexWMain) * 0.8660254);
 
   display: grid;
-  grid-template-columns: 62px auto 62px; /* ✅ left bar + board + right bar */
+  grid-template-columns: 62px auto 62px;
   gap: 18px;
   align-items: start;
   justify-content: center;
@@ -654,27 +626,20 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   justify-items: center;
 }
 
-/* ===========================
-   BARS (both sides, aligned to row top/bottom)
-=========================== */
+/* BARS */
 .barWrap{
   display:flex;
-  align-items: flex-start;  /* top aligns with top of board */
+  align-items: flex-start;
   justify-content: center;
-  padding-top: 0;
 }
 
 .layerBar{
   width: 18px;
-
-  /* ✅ EXACT MATCH: top of row 1 to bottom of row 7 */
   height: calc(var(--hexHMain) * var(--rows));
-
   border-radius: 999px;
   overflow: hidden;
   background: rgba(0,0,0,.22);
   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.18);
-
   display: grid;
   grid-template-rows: repeat(7, 1fr);
 }
@@ -702,26 +667,21 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   border-radius: 999px;
 }
 
-/* =========================================================
-   HEX BOARD GEOMETRY
-========================================================= */
+/* HEX BOARD */
 .hexBoard{
   --hexW: 74px;
   --hexH: calc(var(--hexW) * 0.8660254);
   --hexGap: 10px;
   --hexOverlap: 0.08;
-
   --hexPitch: calc(var(--hexW) * (1 - var(--hexOverlap)) + var(--hexGap));
-
   --maxCols: 7;
-  width: calc(var(--hexW) + (var(--maxCols) - 1) * var(--hexPitch));
 
+  width: calc(var(--hexW) + (var(--maxCols) - 1) * var(--hexPitch));
   display: grid;
   justify-content: center;
   user-select: none;
 }
 
-/* Main board uses shared size vars so bars match perfectly */
 .hexBoardMain{
   --hexW: var(--hexWMain);
   --hexH: var(--hexHMain);
@@ -740,8 +700,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   align-items: center;
   justify-content: flex-start;
 }
-
-/* even rows step right by half a pitch */
 .hexRow.even{
   padding-left: calc(var(--hexPitch) / 2);
 }
@@ -768,7 +726,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 
   cursor: default;
 }
-
 .hexBoardMain .hex{ cursor: pointer; }
 
 .hexLabel{
@@ -776,14 +733,11 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   inset: 0;
   display: grid;
   place-items: center;
-
   font-weight: 1000;
   letter-spacing: .2px;
   line-height: 1.05;
   text-align: center;
-
   color: rgba(255,255,255,.98);
-  opacity: 1;
   z-index: 3;
   pointer-events: none;
 
@@ -797,40 +751,15 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 .hexBoardMain .hexLabel{ font-size: 13px; }
-.hexBoardMini .hexLabel{
-  font-size: 9px;
-  -webkit-text-stroke: .8px rgba(0,0,0,.75);
-}
+.hexBoardMini .hexLabel{ font-size: 9px; -webkit-text-stroke: .8px rgba(0,0,0,.75); }
 
-.hex.reach{
-  box-shadow:
-    0 0 0 2px rgba(255,255,255,.12) inset,
-    0 0 18px rgba(0,200,255,.42),
-    0 0 44px rgba(0,200,255,.22);
-  filter: brightness(1.6);
-}
+.hex.reach{ filter: brightness(1.6); }
+.hex.player{ filter: brightness(1.6); z-index: 4; }
+.hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
 
-.hex.player{
-  box-shadow:
-    0 0 0 2px rgba(255,255,255,.18) inset,
-    0 0 26px rgba(76,255,80,.70),
-    0 0 80px rgba(76,255,80,.45);
-  filter: brightness(1.6);
-  z-index: 4;
-}
-
-.hex.sel{
-  outline: 2px solid rgba(255,255,255,.55);
-  outline-offset: 2px;
-}
-
-/* Never dim label: use overlays only */
 .hex.notReach,
 .hex.blocked,
-.hex.missing{
-  opacity: 1;
-  filter: none;
-}
+.hex.missing{ opacity: 1; filter: none; }
 
 .hex::before{
   content: "";
@@ -840,15 +769,12 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   z-index: 1;
   opacity: 0;
 }
-
 .hex.notReach{ cursor: not-allowed; }
 .hex.notReach::before{ background: rgba(0,0,0,.28); opacity: 1; }
 .hex.blocked::before{ background: rgba(0,0,0,.34); opacity: 1; }
 .hex.missing::before{ background: rgba(0,0,0,.48); opacity: 1; }
 
-/* ===========================
-   MINIS (3D tilt away) + side labels
-=========================== */
+/* MINIS */
 .miniRow3D{
   margin-top: 18px;
   display: grid;
@@ -864,12 +790,9 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   background: rgba(255,255,255,.10);
   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.16);
   transform-style: preserve-3d;
-
-  /* same tilt as your frame */
   transform: perspective(900px) rotateX(18deg);
 }
 
-/* ✅ Rotated label that matches mini tilt */
 .miniSideLabel{
   position: absolute;
   top: 14px;
@@ -881,30 +804,17 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   font-weight: 1000;
   letter-spacing: .6px;
   color: rgba(255,255,255,.92);
-
   background: rgba(0,0,0,.16);
   box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset;
   border-radius: 14px;
 
-  /* rotate text vertical */
   transform: rotate(-90deg);
   transform-origin: center;
-
-  /* keep it above contents */
   z-index: 3;
 }
+.miniSideLabel.isLeft{ left: -6px; }
+.miniSideLabel.isRight{ right: -6px; }
 
-/* left side default */
-.miniSideLabel.isLeft{
-  left: -6px;
-}
-
-/* right side when invalid (NO ABOVE/BELOW) */
-.miniSideLabel.isRight{
-  right: -6px;
-}
-
-/* mini content area */
 .miniBody{
   padding: 10px;
   border-radius: 14px;
@@ -913,8 +823,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   display:flex;
   justify-content:center;
   min-height: 120px;
-
-  /* leave space so side label doesn't overlap */
   margin-left: 32px;
   margin-right: 32px;
 }
@@ -931,9 +839,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .tone-current{ background: linear-gradient(180deg, rgba(120,235,170,.28), rgba(255,255,255,.10)); }
 .tone-above{ background: linear-gradient(180deg, rgba(120, 220, 255, .28), rgba(255,255,255,.10)); }
 
-/* responsive */
 @media (max-width: 980px){
-  .gameLayout{ grid-template-columns: 62px auto 62px; }
   .miniRow3D{ grid-template-columns: 1fr; }
 }
 `;
