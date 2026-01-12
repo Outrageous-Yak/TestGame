@@ -337,6 +337,7 @@ export default function App() {
                   })}
                 </div>
               </div>
+              </div>
             {/* MAIN BOARD */}
             <div className="mainBoardWrap">
               <HexBoard
