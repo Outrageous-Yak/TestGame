@@ -71,6 +71,19 @@ function layerCssVar(n: number) {
   return `var(--L${clamped})`;
 }
 
+/** Filter reachability to a specific layer (so mini boards only show their layer changes). */
+function filterReachForLayer(layer: number, reachMap: ReachMap) {
+  const prefix = `L${layer}-`;
+  const rm: ReachMap = {};
+  const set = new Set<string>();
+  for (const [k, v] of Object.entries(reachMap)) {
+    if (!k.startsWith(prefix)) continue;
+    rm[k] = v;
+    if (v?.reachable) set.add(k);
+  }
+  return { reachMap: rm, reachable: set };
+}
+
 /* =========================================================
    Minimal presets
 ========================================================= */
@@ -280,14 +293,24 @@ export default function App() {
     [state, currentLayer, recomputeReachability, revealWholeLayer]
   );
 
-  // Dice stripes (below/current/above) like your image
-  const stripeBelow = belowLayer < 1 ? "rgba(0,0,0,.85)" : layerCssVar(belowLayer);
+  // Dice stripes colors (below/current/above)
+  const stripeBelow = belowLayer < 1 ? "rgba(0,0,0,.90)" : layerCssVar(belowLayer);
   const stripeCurr = layerCssVar(currentLayer);
-  const stripeAbove = aboveLayer > scenarioLayerCount ? "rgba(0,0,0,.85)" : layerCssVar(aboveLayer);
+  const stripeAbove = aboveLayer > scenarioLayerCount ? "rgba(0,0,0,.90)" : layerCssVar(aboveLayer);
 
-  // Align dice top with bar top when rollValue === 1 (practical visual nudge)
-  // (If you want it tighter, change -18px to -22px / -26px.)
+  // Align dice top with bar top when rollValue === 1 (simple visual nudge)
   const diceAlignY = rollValue === 1 ? -18 : 0;
+
+  // Mini boards should show movement changes ONLY for their specific layer:
+  // - pass the same state (so changes are visible)
+  // - pass reachability filtered to that layer
+  const miniAboveLayer = Math.min(scenarioLayerCount, Math.max(1, aboveLayer));
+  const miniCurrLayer = currentLayer;
+  const miniBelowLayer = Math.max(1, belowLayer);
+
+  const miniAboveReach = useMemo(() => filterReachForLayer(miniAboveLayer, reachMap), [miniAboveLayer, reachMap]);
+  const miniCurrReach = useMemo(() => filterReachForLayer(miniCurrLayer, reachMap), [miniCurrLayer, reachMap]);
+  const miniBelowReach = useMemo(() => filterReachForLayer(miniBelowLayer, reachMap), [miniBelowLayer, reachMap]);
 
   return (
     <div className="appRoot">
@@ -417,6 +440,7 @@ export default function App() {
                     reachMap={reachMap}
                     onCellClick={tryMoveToId}
                     showCoords
+                    showPlayerOnMini={false}
                   />
                 </div>
 
@@ -425,48 +449,43 @@ export default function App() {
                 {/* ✅ Dice OUTER RIGHT of the 2nd bar */}
                 <div className="diceArea">
                   <div className="diceCubeWrap" aria-label="Layer dice">
-                    {/* Layer stripes (do NOT affect mini-board size) */}
-                    <div className="diceStripes" aria-hidden="true">
-                      <div className="diceStripe" style={{ background: stripeAbove }} />
-                      <div className="diceStripe" style={{ background: stripeCurr }} />
-                      <div className="diceStripe" style={{ background: stripeBelow }} />
-                    </div>
-
                     <div
                       className={"diceCube" + (diceSpinning ? " isSpinning" : "")}
                       style={{
-                        transform: `translateY(${diceAlignY}px) rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg) scale(1.4)`,
+                        transform: `translateY(${diceAlignY}px) rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
                       }}
                     >
                       {/* TOP (mini: ABOVE) */}
                       <div className="diceFace faceTop">
-                        <div className="diceFaceInner">
+                        <div className="faceStripe" style={{ background: stripeAbove }} />
+                        <div className="diceFaceInnerFixed">
                           <HexBoard
                             kind="mini"
-                            activeLayer={Math.min(scenarioLayerCount, aboveLayer)}
+                            activeLayer={miniAboveLayer}
                             maxLayer={scenarioLayerCount}
                             state={state}
                             selectedId={null}
-                            reachable={new Set()}
-                            reachMap={{}}
+                            reachable={miniAboveReach.reachable}
+                            reachMap={miniAboveReach.reachMap}
                             showCoords={false}
                             onCellClick={undefined}
-                            showPlayerOnMini={false}
+                            showPlayerOnMini={true}
                           />
                         </div>
                       </div>
 
                       {/* FRONT (mini: CURRENT) */}
                       <div className="diceFace faceFront">
-                        <div className="diceFaceInner">
+                        <div className="faceStripe" style={{ background: stripeCurr }} />
+                        <div className="diceFaceInnerFixed">
                           <HexBoard
                             kind="mini"
-                            activeLayer={currentLayer}
+                            activeLayer={miniCurrLayer}
                             maxLayer={scenarioLayerCount}
                             state={state}
                             selectedId={null}
-                            reachable={new Set()}
-                            reachMap={{}}
+                            reachable={miniCurrReach.reachable}
+                            reachMap={miniCurrReach.reachMap}
                             showCoords={false}
                             onCellClick={undefined}
                             showPlayerOnMini={true}
@@ -476,21 +495,22 @@ export default function App() {
 
                       {/* RIGHT (mini: BELOW or invalid) */}
                       <div className="diceFace faceRight">
-                        <div className="diceFaceInner">
+                        <div className="faceStripe" style={{ background: stripeBelow }} />
+                        <div className="diceFaceInnerFixed">
                           {belowLayer < 1 ? (
                             <div className="miniInvalid">NO LAYER BELOW</div>
                           ) : (
                             <HexBoard
                               kind="mini"
-                              activeLayer={Math.max(1, belowLayer)}
+                              activeLayer={miniBelowLayer}
                               maxLayer={scenarioLayerCount}
                               state={state}
                               selectedId={null}
-                              reachable={new Set()}
-                              reachMap={{}}
+                              reachable={miniBelowReach.reachable}
+                              reachMap={miniBelowReach.reachMap}
                               showCoords={false}
                               onCellClick={undefined}
-                              showPlayerOnMini={false}
+                              showPlayerOnMini={true}
                             />
                           )}
                         </div>
@@ -531,14 +551,7 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number; segments
       <div className="layerBar">
         {segments.map((layerVal) => {
           const active = layerVal === currentLayer;
-          return (
-            <div
-              key={layerVal}
-              className={"barSeg" + (active ? " isActive" : "")}
-              data-layer={layerVal}
-              title={`Layer ${layerVal}`}
-            />
-          );
+          return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} title={`Layer ${layerVal}`} />;
         })}
       </div>
     </div>
@@ -600,7 +613,7 @@ function HexBoard(props: {
               const { blocked, missing } = isBlockedOrMissing(hex);
 
               const isSel = selectedId === id;
-              const isPlayer = playerId === id && (kind === "main" || showPlayerOnMini);
+              const isPlayer = playerId === id && (kind === "main" || !!showPlayerOnMini);
               const canMove = !!reachMap[id]?.reachable;
               const isReach = reachable.has(id);
 
@@ -670,10 +683,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .appRoot{
   min-height: 100vh;
   position: relative;
-
-  /* allow our inner scrollStage to own the horizontal scrollbar */
   overflow: hidden;
-
   color: var(--ink);
 }
 
@@ -787,14 +797,10 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   max-width: 100vw;
   overflow-x: auto;
   overflow-y: hidden;
-
-  /* this keeps the scrollbar visible and "at the bottom of the page" for this view */
   padding-bottom: 16px;
-
   scrollbar-gutter: stable both-edges;
 }
 .scrollInner{
-  /* make room for the whole layout (board + bars + dice column) */
   min-width: 1380px;
 }
 
@@ -805,7 +811,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   --hexHMain: calc(var(--hexWMain) * 0.8660254);
 
   display: grid;
-  grid-template-columns: 62px auto 62px 420px; /* left bar + board + right bar + dice */
+  grid-template-columns: 62px auto 62px 420px;
   gap: 18px;
   align-items: start;
   justify-content: center;
@@ -1016,7 +1022,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 /* ✅ IMPORTANT: only MAIN board gets the dark overlays.
-   Mini boards remain uniform (no dimming for missing/blocked). */
+   Mini boards remain uniform (no dimming for missing/blocked/notReach). */
 .hexBoardMain .hex.notReach,
 .hexBoardMain .hex.blocked,
 .hexBoardMain .hex.missing{
@@ -1042,7 +1048,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hexBoardMini .hex::before{ opacity: 0 !important; }
 
 /* ===========================
-   DICE (3 faces visible + spin)
+   DICE (bigger cube, mini boards same size, stripes on faces)
 =========================== */
 .diceArea{
   display: grid;
@@ -1051,37 +1057,19 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   padding-top: 0;
 }
 
+/* big enough to hold the bigger cube */
 .diceCubeWrap{
-  width: 360px;
-  height: 260px;
+  width: 460px;
+  height: 360px;
   display: grid;
   place-items: center;
   perspective: 1000px;
   position: relative;
 }
 
-/* Colored stripes like your upload (above/current/below) */
-.diceStripes{
-  position:absolute;
-  left: 26px;
-  right: 26px;
-  top: 14px;
-  display:flex;
-  flex-direction:column;
-  gap: 5px;
-  z-index: 5;
-  pointer-events:none;
-}
-.diceStripe{
-  height: 5px;
-  border-radius: 999px;
-  opacity: .95;
-  filter: drop-shadow(0 2px 8px rgba(0,0,0,.25));
-}
-
-/* Cube itself */
 .diceCube{
-  --s: 210px;
+  /* 40% bigger cube: 210px * 1.4 = 294px */
+  --s: 294px;
   width: var(--s);
   height: var(--s);
   position: relative;
@@ -1103,14 +1091,34 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   overflow: hidden;
 }
 
-.diceFaceInner{
-  position: absolute;
-  inset: 10px;
+/* stripes live ON the faces (not the column) */
+.faceStripe{
+  position:absolute;
+  left: 18px;
+  right: 18px;
+  top: 14px;
+  height: 6px;
+  border-radius: 999px;
+  opacity: .95;
+  z-index: 6;
+  pointer-events:none;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,.25));
+}
+
+/* keep mini boards SAME size while cube grows */
+.diceFaceInnerFixed{
+  position:absolute;
+  width: 260px;
+  height: 260px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   border-radius: 14px;
   background: rgba(0,0,0,.10);
   box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
   display: grid;
   place-items: center;
+  overflow: hidden;
 }
 
 /* ✅ faces arranged so TOP exists */
