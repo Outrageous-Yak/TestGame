@@ -65,6 +65,12 @@ function isBlockedOrMissing(hex: any): { blocked: boolean; missing: boolean } {
   return { missing: !!hex.missing, blocked: !!hex.blocked };
 }
 
+/** For CSS vars like var(--L2) */
+function layerCssVar(n: number) {
+  const clamped = Math.max(1, Math.min(7, Math.floor(n || 1)));
+  return `var(--L${clamped})`;
+}
+
 /* =========================================================
    Minimal presets
 ========================================================= */
@@ -274,6 +280,15 @@ export default function App() {
     [state, currentLayer, recomputeReachability, revealWholeLayer]
   );
 
+  // Dice stripes (below/current/above) like your image
+  const stripeBelow = belowLayer < 1 ? "rgba(0,0,0,.85)" : layerCssVar(belowLayer);
+  const stripeCurr = layerCssVar(currentLayer);
+  const stripeAbove = aboveLayer > scenarioLayerCount ? "rgba(0,0,0,.85)" : layerCssVar(aboveLayer);
+
+  // Align dice top with bar top when rollValue === 1 (practical visual nudge)
+  // (If you want it tighter, change -18px to -22px / -26px.)
+  const diceAlignY = rollValue === 1 ? -18 : 0;
+
   return (
     <div className="appRoot">
       <style>{CSS}</style>
@@ -289,7 +304,10 @@ export default function App() {
             <div className="cardMeta">Build: {BUILD_TAG}</div>
 
             <div className="row">
-              <button className="btn primary" onClick={() => loadModeContent("regular").catch((e) => alert(String(e?.message ?? e)))}>
+              <button
+                className="btn primary"
+                onClick={() => loadModeContent("regular").catch((e) => alert(String(e?.message ?? e)))}
+              >
                 Regular
               </button>
               <button className="btn" onClick={() => loadModeContent("kids").catch((e) => alert(String(e?.message ?? e)))}>
@@ -392,6 +410,7 @@ export default function App() {
                   <HexBoard
                     kind="main"
                     activeLayer={currentLayer}
+                    maxLayer={scenarioLayerCount}
                     state={state}
                     selectedId={selectedId}
                     reachable={reachable}
@@ -406,9 +425,18 @@ export default function App() {
                 {/* ✅ Dice OUTER RIGHT of the 2nd bar */}
                 <div className="diceArea">
                   <div className="diceCubeWrap" aria-label="Layer dice">
+                    {/* Layer stripes (do NOT affect mini-board size) */}
+                    <div className="diceStripes" aria-hidden="true">
+                      <div className="diceStripe" style={{ background: stripeAbove }} />
+                      <div className="diceStripe" style={{ background: stripeCurr }} />
+                      <div className="diceStripe" style={{ background: stripeBelow }} />
+                    </div>
+
                     <div
                       className={"diceCube" + (diceSpinning ? " isSpinning" : "")}
-                      style={{ transform: `rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)` }}
+                      style={{
+                        transform: `translateY(${diceAlignY}px) rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg) scale(1.4)`,
+                      }}
                     >
                       {/* TOP (mini: ABOVE) */}
                       <div className="diceFace faceTop">
@@ -416,6 +444,7 @@ export default function App() {
                           <HexBoard
                             kind="mini"
                             activeLayer={Math.min(scenarioLayerCount, aboveLayer)}
+                            maxLayer={scenarioLayerCount}
                             state={state}
                             selectedId={null}
                             reachable={new Set()}
@@ -433,6 +462,7 @@ export default function App() {
                           <HexBoard
                             kind="mini"
                             activeLayer={currentLayer}
+                            maxLayer={scenarioLayerCount}
                             state={state}
                             selectedId={null}
                             reachable={new Set()}
@@ -453,6 +483,7 @@ export default function App() {
                             <HexBoard
                               kind="mini"
                               activeLayer={Math.max(1, belowLayer)}
+                              maxLayer={scenarioLayerCount}
                               state={state}
                               selectedId={null}
                               reachable={new Set()}
@@ -501,7 +532,12 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number; segments
         {segments.map((layerVal) => {
           const active = layerVal === currentLayer;
           return (
-            <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} title={`Layer ${layerVal}`} />
+            <div
+              key={layerVal}
+              className={"barSeg" + (active ? " isActive" : "")}
+              data-layer={layerVal}
+              title={`Layer ${layerVal}`}
+            />
           );
         })}
       </div>
@@ -515,6 +551,7 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number; segments
 function HexBoard(props: {
   kind: "main" | "mini";
   activeLayer: number;
+  maxLayer: number;
   state: GameState | null;
   selectedId: string | null;
   reachable: Set<string>;
@@ -523,11 +560,32 @@ function HexBoard(props: {
   showCoords: boolean;
   showPlayerOnMini?: boolean;
 }) {
-  const { kind, activeLayer, state, selectedId, reachable, reachMap, onCellClick, showCoords, showPlayerOnMini } = props;
+  const { kind, activeLayer, maxLayer, state, selectedId, reachable, reachMap, onCellClick, showCoords, showPlayerOnMini } =
+    props;
   const playerId = state?.playerHexId ?? null;
 
+  // Rim colors:
+  // - correspond to this layer’s color
+  // - BUT if no above => top rim black, if no below => bottom rim black
+  const hasAbove = activeLayer < maxLayer;
+  const hasBelow = activeLayer > 1;
+
+  const layerColor = layerCssVar(activeLayer);
+  const rimTop = hasAbove ? layerColor : "rgba(0,0,0,.92)";
+  const rimBottom = hasBelow ? layerColor : "rgba(0,0,0,.92)";
+
   return (
-    <div className={"hexBoard " + (kind === "main" ? "hexBoardMain" : "hexBoardMini")} data-layer={activeLayer}>
+    <div
+      className={"hexBoard " + (kind === "main" ? "hexBoardMain" : "hexBoardMini")}
+      data-layer={activeLayer}
+      style={
+        {
+          ["--layerColor" as any]: layerColor,
+          ["--rimTop" as any]: rimTop,
+          ["--rimBottom" as any]: rimBottom,
+        } as any
+      }
+    >
       {ROW_LENS.map((len, rIdx) => {
         const row = rIdx + 1;
         const isEvenRow = row % 2 === 0;
@@ -564,12 +622,20 @@ function HexBoard(props: {
                   tabIndex={onCellClick ? 0 : undefined}
                   title={showCoords ? `L${activeLayer} R${row} C${col}` : undefined}
                 >
+                  {/* Layer-tinted rim lines (top + bottom) */}
+                  <span className="hexRim hexRimTop" aria-hidden="true" />
+                  <span className="hexRim hexRimBottom" aria-hidden="true" />
+
+                  {/* Main board coords (unchanged) */}
                   {showCoords ? (
                     <span className="hexLabel">
                       <div>R{row}</div>
                       <div>C{col}</div>
                     </span>
                   ) : null}
+
+                  {/* Mini board black numbers (NO ROWS) */}
+                  {kind === "mini" ? <span className="miniNum">{col}</span> : null}
                 </div>
               );
             })}
@@ -863,6 +929,27 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 
 .hexBoardMain .hex{ cursor: pointer; }
 
+/* Layer-colored rims (top & bottom). Uses --rimTop/--rimBottom from inline style. */
+.hexRim{
+  position:absolute;
+  left: 14%;
+  right: 14%;
+  height: 2px;
+  border-radius: 999px;
+  opacity: .95;
+  pointer-events:none;
+  filter: drop-shadow(0 1px 4px rgba(0,0,0,.30));
+  z-index: 2;
+}
+.hexRimTop{
+  top: 8%;
+  background: var(--rimTop, rgba(0,0,0,.85));
+}
+.hexRimBottom{
+  bottom: 8%;
+  background: var(--rimBottom, rgba(0,0,0,.85));
+}
+
 .hexLabel{
   position: absolute;
   inset: 0;
@@ -889,11 +976,23 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 .hexBoardMain .hexLabel{ font-size: 13px; }
-.hexBoardMini .hexLabel{
+
+/* Mini numbers: BLACK, no rows */
+.miniNum{
+  position:absolute;
+  inset: 0;
+  display:grid;
+  place-items:center;
+  z-index: 4;
+  pointer-events:none;
+
+  font-weight: 1000;
   font-size: 9px;
-  -webkit-text-stroke: .8px rgba(0,0,0,.75);
+  color: rgba(0,0,0,.92);
+  text-shadow: 0 0 6px rgba(255,255,255,.35);
 }
 
+/* Reach/player/sel styling remains */
 .hex.reach{
   box-shadow:
     0 0 0 2px rgba(255,255,255,.12) inset,
@@ -916,10 +1015,11 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   outline-offset: 2px;
 }
 
-/* Never dim label: use overlays only */
-.hex.notReach,
-.hex.blocked,
-.hex.missing{
+/* ✅ IMPORTANT: only MAIN board gets the dark overlays.
+   Mini boards remain uniform (no dimming for missing/blocked). */
+.hexBoardMain .hex.notReach,
+.hexBoardMain .hex.blocked,
+.hexBoardMain .hex.missing{
   opacity: 1;
   filter: none;
 }
@@ -933,10 +1033,13 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   opacity: 0;
 }
 
-.hex.notReach{ cursor: not-allowed; }
-.hex.notReach::before{ background: rgba(0,0,0,.28); opacity: 1; }
-.hex.blocked::before{ background: rgba(0,0,0,.34); opacity: 1; }
-.hex.missing::before{ background: rgba(0,0,0,.48); opacity: 1; }
+.hexBoardMain .hex.notReach{ cursor: not-allowed; }
+.hexBoardMain .hex.notReach::before{ background: rgba(0,0,0,.28); opacity: 1; }
+.hexBoardMain .hex.blocked::before{ background: rgba(0,0,0,.34); opacity: 1; }
+.hexBoardMain .hex.missing::before{ background: rgba(0,0,0,.48); opacity: 1; }
+
+/* Mini boards: never apply overlays */
+.hexBoardMini .hex::before{ opacity: 0 !important; }
 
 /* ===========================
    DICE (3 faces visible + spin)
@@ -945,7 +1048,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   display: grid;
   justify-items: center;
   gap: 14px;
-  padding-top: 4px;
+  padding-top: 0;
 }
 
 .diceCubeWrap{
@@ -954,8 +1057,29 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   display: grid;
   place-items: center;
   perspective: 1000px;
+  position: relative;
 }
 
+/* Colored stripes like your upload (above/current/below) */
+.diceStripes{
+  position:absolute;
+  left: 26px;
+  right: 26px;
+  top: 14px;
+  display:flex;
+  flex-direction:column;
+  gap: 5px;
+  z-index: 5;
+  pointer-events:none;
+}
+.diceStripe{
+  height: 5px;
+  border-radius: 999px;
+  opacity: .95;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,.25));
+}
+
+/* Cube itself */
 .diceCube{
   --s: 210px;
   width: var(--s);
