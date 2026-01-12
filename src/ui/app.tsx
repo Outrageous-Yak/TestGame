@@ -316,7 +316,7 @@ export default function App() {
       {/* GAME (board + bar + 3 minis) */}
       {screen === "game" ? (
         <div className="shell shellGame">
-          <div className="gameLayout">
+          
               {/* BAR (Layer title beside the graph) */}
             <div className="barWrap" aria-label="Layer bar">
               <div className="barStack">
@@ -338,6 +338,7 @@ export default function App() {
                 </div>
               </div>
               </div>
+           <div className="gameLayout">
             {/* MAIN BOARD */}
             <div className="mainBoardWrap">
               <HexBoard
