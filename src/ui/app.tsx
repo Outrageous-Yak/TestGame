@@ -25,7 +25,7 @@ type LogEntry = { n: number; t: string; msg: string; kind?: "ok" | "bad" | "info
    Config
 ========================================================= */
 const BUILD_TAG = "BUILD_TAG_TILES_DEMO_V1";
-const GAME_BG_URL = "images/ui/board-bg.png";
+const GAME_BG_URL = "images/ui/IMG_4074.webp";
 
 /* =========================================================
    Helpers
