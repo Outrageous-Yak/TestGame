@@ -71,15 +71,19 @@ function layerCssVar(n: number) {
   return `var(--L${clamped})`;
 }
 
-/** Filter reachability to a specific layer (so mini boards only show their layer changes). */
+/**
+ * Filter reachability to a specific layer.
+ * NOTE: typed as `any` internally to avoid strict TS build errors on ReachMap indexing.
+ */
 function filterReachForLayer(layer: number, reachMap: ReachMap) {
   const prefix = `L${layer}-`;
-  const rm: ReachMap = {};
+  const rm = {} as ReachMap;
   const set = new Set<string>();
-  for (const [k, v] of Object.entries(reachMap)) {
+
+  for (const [k, v] of Object.entries(reachMap as any)) {
     if (!k.startsWith(prefix)) continue;
-    rm[k] = v;
-    if (v?.reachable) set.add(k);
+    (rm as any)[k] = v;
+    if ((v as any)?.reachable) set.add(k);
   }
   return { reachMap: rm, reachable: set };
 }
@@ -99,13 +103,10 @@ function scenarioLabel(s: any, i: number) {
 /* =========================================================
    Dice mapping
 ========================================================= */
-// We keep all 6 outcomes so it "is" a real dice.
-// Only 3 faces contain mini boards right now (top/front/right).
 function rotForRoll(n: number) {
   // Convention:
   // 1=top, 6=bottom, 2=front, 5=back, 3=right, 4=left
-  // We set rotations so the "rolled" face becomes FRONT-facing.
-  // (Top face is still visible due to the base camera tilt.)
+  // Rotations so "rolled" face becomes FRONT-facing.
   switch (n) {
     case 1:
       return { x: -90, y: 0 };
@@ -140,10 +141,13 @@ export default function App() {
   const [currentLayer, setCurrentLayer] = useState<number>(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const [reachMap, setReachMap] = useState<ReachMap>({});
+  const [reachMap, setReachMap] = useState<ReachMap>({} as ReachMap);
+
   const reachable = useMemo(() => {
     const set = new Set<string>();
-    for (const [k, v] of Object.entries(reachMap)) if (v.reachable) set.add(k);
+    for (const [k, v] of Object.entries(reachMap as any)) {
+      if ((v as any)?.reachable) set.add(k);
+    }
     return set;
   }, [reachMap]);
 
@@ -220,7 +224,7 @@ export default function App() {
      Game helpers
   -------------------------- */
   const recomputeReachability = useCallback((st: GameState) => {
-    setReachMap(getReachability(st));
+    setReachMap(getReachability(st) as any);
   }, []);
 
   const revealWholeLayer = useCallback((st: GameState, layer: number) => {
@@ -236,7 +240,7 @@ export default function App() {
       if (!s) return;
 
       const st = newGame(s);
-      const pid = st.playerHexId ?? null;
+      const pid = (st as any).playerHexId ?? null;
       const layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
 
       enterLayer(st, layer);
@@ -271,7 +275,7 @@ export default function App() {
 
       const res = tryMove(state, id);
       if (res.ok) {
-        const newPlayerId = state.playerHexId;
+        const newPlayerId = (state as any).playerHexId;
         const newLayer = newPlayerId ? idToCoord(newPlayerId)?.layer ?? currentLayer : currentLayer;
 
         if (!res.won) {
@@ -293,17 +297,15 @@ export default function App() {
     [state, currentLayer, recomputeReachability, revealWholeLayer]
   );
 
-  // Dice stripes colors (below/current/above)
+  // Face stripe colors (below/current/above)
   const stripeBelow = belowLayer < 1 ? "rgba(0,0,0,.90)" : layerCssVar(belowLayer);
   const stripeCurr = layerCssVar(currentLayer);
   const stripeAbove = aboveLayer > scenarioLayerCount ? "rgba(0,0,0,.90)" : layerCssVar(aboveLayer);
 
-  // Align dice top with bar top when rollValue === 1 (simple visual nudge)
+  // Align dice top with bar top when rollValue === 1 (small nudge)
   const diceAlignY = rollValue === 1 ? -18 : 0;
 
-  // Mini boards should show movement changes ONLY for their specific layer:
-  // - pass the same state (so changes are visible)
-  // - pass reachability filtered to that layer
+  // Mini boards: show movement changes for their layer only
   const miniAboveLayer = Math.min(scenarioLayerCount, Math.max(1, aboveLayer));
   const miniCurrLayer = currentLayer;
   const miniBelowLayer = Math.max(1, belowLayer);
@@ -313,7 +315,7 @@ export default function App() {
   const miniBelowReach = useMemo(() => filterReachForLayer(miniBelowLayer, reachMap), [miniBelowLayer, reachMap]);
 
   return (
-    <div className="appRoot">
+    <div className="appRoot" data-mode={mode ?? ""}>
       <style>{CSS}</style>
 
       <div className="globalBg" aria-hidden="true" style={{ backgroundImage: `url("${toPublicUrl(GAME_BG_URL)}")` }} />
@@ -329,11 +331,14 @@ export default function App() {
             <div className="row">
               <button
                 className="btn primary"
-                onClick={() => loadModeContent("regular").catch((e) => alert(String(e?.message ?? e)))}
+                onClick={() => loadModeContent("regular").catch((e) => alert(String((e as any)?.message ?? e)))}
               >
                 Regular
               </button>
-              <button className="btn" onClick={() => loadModeContent("kids").catch((e) => alert(String(e?.message ?? e)))}>
+              <button
+                className="btn"
+                onClick={() => loadModeContent("kids").catch((e) => alert(String((e as any)?.message ?? e)))}
+              >
                 Kids / Friendly
               </button>
             </div>
@@ -533,8 +538,6 @@ export default function App() {
               </div>
             </div>
           </div>
-
-          {/* (optional) you can put other UI above the scrollbar here later */}
         </div>
       ) : null}
     </div>
@@ -551,7 +554,14 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number; segments
       <div className="layerBar">
         {segments.map((layerVal) => {
           const active = layerVal === currentLayer;
-          return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} title={`Layer ${layerVal}`} />;
+          return (
+            <div
+              key={layerVal}
+              className={"barSeg" + (active ? " isActive" : "")}
+              data-layer={layerVal}
+              title={`Layer ${layerVal}`}
+            />
+          );
         })}
       </div>
     </div>
@@ -575,11 +585,8 @@ function HexBoard(props: {
 }) {
   const { kind, activeLayer, maxLayer, state, selectedId, reachable, reachMap, onCellClick, showCoords, showPlayerOnMini } =
     props;
-  const playerId = state?.playerHexId ?? null;
+  const playerId = (state as any)?.playerHexId ?? null;
 
-  // Rim colors:
-  // - correspond to this layer’s color
-  // - BUT if no above => top rim black, if no below => bottom rim black
   const hasAbove = activeLayer < maxLayer;
   const hasBelow = activeLayer > 1;
 
@@ -593,7 +600,6 @@ function HexBoard(props: {
       data-layer={activeLayer}
       style={
         {
-          ["--layerColor" as any]: layerColor,
           ["--rimTop" as any]: rimTop,
           ["--rimBottom" as any]: rimBottom,
         } as any
@@ -614,7 +620,7 @@ function HexBoard(props: {
 
               const isSel = selectedId === id;
               const isPlayer = playerId === id && (kind === "main" || !!showPlayerOnMini);
-              const canMove = !!reachMap[id]?.reachable;
+              const canMove = !!(reachMap as any)?.[id]?.reachable;
               const isReach = reachable.has(id);
 
               return (
@@ -635,11 +641,9 @@ function HexBoard(props: {
                   tabIndex={onCellClick ? 0 : undefined}
                   title={showCoords ? `L${activeLayer} R${row} C${col}` : undefined}
                 >
-                  {/* Layer-tinted rim lines (top + bottom) */}
                   <span className="hexRim hexRimTop" aria-hidden="true" />
                   <span className="hexRim hexRimBottom" aria-hidden="true" />
 
-                  {/* Main board coords (unchanged) */}
                   {showCoords ? (
                     <span className="hexLabel">
                       <div>R{row}</div>
@@ -817,12 +821,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   justify-content: center;
 }
 
-.mainBoardWrap{
-  position: relative;
-  display: grid;
-  justify-items: center;
-}
-
 /* ===========================
    BARS (both sides, aligned)
 =========================== */
@@ -874,18 +872,15 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   --hexH: calc(var(--hexW) * 0.8660254);
   --hexGap: 10px;
   --hexOverlap: 0.0;
-
   --hexPitch: calc(var(--hexW) * (1 - var(--hexOverlap)) + var(--hexGap));
-
   --maxCols: 7;
-  width: calc(var(--hexW) + (var(--maxCols) - 1) * var(--hexPitch));
 
+  width: calc(var(--hexW) + (var(--maxCols) - 1) * var(--hexPitch));
   display: grid;
   justify-content: center;
   user-select: none;
 }
 
-/* Main board uses shared size vars so bars match perfectly */
 .hexBoardMain{
   --hexW: var(--hexWMain);
   --hexH: var(--hexHMain);
@@ -905,7 +900,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   justify-content: flex-start;
 }
 
-/* even rows step right by half a pitch */
 .hexRow.even{
   padding-left: calc(var(--hexPitch) / 2);
 }
@@ -924,7 +918,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 
   position: relative;
   background: rgba(255,255,255,.14);
-
   border: 1px solid rgba(0,0,0,.75);
   box-shadow:
     0 0 0 1px rgba(0,0,0,.35) inset,
@@ -935,7 +928,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 
 .hexBoardMain .hex{ cursor: pointer; }
 
-/* Layer-colored rims (top & bottom). Uses --rimTop/--rimBottom from inline style. */
+/* Rim lines correspond to layer color; black if no above/below (set via inline vars). */
 .hexRim{
   position:absolute;
   left: 14%;
@@ -947,28 +940,19 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   filter: drop-shadow(0 1px 4px rgba(0,0,0,.30));
   z-index: 2;
 }
-.hexRimTop{
-  top: 8%;
-  background: var(--rimTop, rgba(0,0,0,.85));
-}
-.hexRimBottom{
-  bottom: 8%;
-  background: var(--rimBottom, rgba(0,0,0,.85));
-}
+.hexRimTop{ top: 8%; background: var(--rimTop, rgba(0,0,0,.85)); }
+.hexRimBottom{ bottom: 8%; background: var(--rimBottom, rgba(0,0,0,.85)); }
 
 .hexLabel{
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
-
   font-weight: 1000;
   letter-spacing: .2px;
   line-height: 1.05;
   text-align: center;
-
   color: rgba(255,255,255,.98);
-  opacity: 1;
   z-index: 3;
   pointer-events: none;
 
@@ -980,10 +964,9 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
      1px  1px 0 rgba(0,0,0,.75),
      0 0 12px rgba(0,0,0,.45);
 }
-
 .hexBoardMain .hexLabel{ font-size: 13px; }
 
-/* Mini numbers: BLACK, no rows */
+/* Mini black numbers (no rows). */
 .miniNum{
   position:absolute;
   inset: 0;
@@ -991,14 +974,13 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   place-items:center;
   z-index: 4;
   pointer-events:none;
-
   font-weight: 1000;
   font-size: 9px;
   color: rgba(0,0,0,.92);
   text-shadow: 0 0 6px rgba(255,255,255,.35);
 }
 
-/* Reach/player/sel styling remains */
+/* Highlights */
 .hex.reach{
   box-shadow:
     0 0 0 2px rgba(255,255,255,.12) inset,
@@ -1006,7 +988,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
     0 0 44px rgba(0,200,255,.22);
   filter: brightness(1.6);
 }
-
 .hex.player{
   box-shadow:
     0 0 0 2px rgba(255,255,255,.18) inset,
@@ -1015,21 +996,12 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   filter: brightness(1.6);
   z-index: 4;
 }
-
 .hex.sel{
   outline: 2px solid rgba(255,255,255,.55);
   outline-offset: 2px;
 }
 
-/* ✅ IMPORTANT: only MAIN board gets the dark overlays.
-   Mini boards remain uniform (no dimming for missing/blocked/notReach). */
-.hexBoardMain .hex.notReach,
-.hexBoardMain .hex.blocked,
-.hexBoardMain .hex.missing{
-  opacity: 1;
-  filter: none;
-}
-
+/* ✅ Only MAIN board gets dark overlays; mini boards remain uniform. */
 .hex::before{
   content: "";
   position: absolute;
@@ -1038,17 +1010,14 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   z-index: 1;
   opacity: 0;
 }
-
 .hexBoardMain .hex.notReach{ cursor: not-allowed; }
 .hexBoardMain .hex.notReach::before{ background: rgba(0,0,0,.28); opacity: 1; }
 .hexBoardMain .hex.blocked::before{ background: rgba(0,0,0,.34); opacity: 1; }
 .hexBoardMain .hex.missing::before{ background: rgba(0,0,0,.48); opacity: 1; }
-
-/* Mini boards: never apply overlays */
 .hexBoardMini .hex::before{ opacity: 0 !important; }
 
 /* ===========================
-   DICE (bigger cube, mini boards same size, stripes on faces)
+   DICE: bigger cube, fixed mini size, stripes on 3 faces
 =========================== */
 .diceArea{
   display: grid;
@@ -1057,7 +1026,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   padding-top: 0;
 }
 
-/* big enough to hold the bigger cube */
 .diceCubeWrap{
   width: 460px;
   height: 360px;
@@ -1068,15 +1036,13 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 .diceCube{
-  /* 40% bigger cube: 210px * 1.4 = 294px */
-  --s: 294px;
+  --s: 294px; /* 210 * 1.4 */
   width: var(--s);
   height: var(--s);
   position: relative;
   transform-style: preserve-3d;
   transition: transform 650ms cubic-bezier(.2,.9,.2,1);
 }
-
 .diceCube.isSpinning{
   transition: transform 900ms cubic-bezier(.12,.85,.18,1);
 }
@@ -1091,7 +1057,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   overflow: hidden;
 }
 
-/* stripes live ON the faces (not the column) */
+/* Stripes on faces (not on column) */
 .faceStripe{
   position:absolute;
   left: 18px;
@@ -1105,7 +1071,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   filter: drop-shadow(0 2px 8px rgba(0,0,0,.25));
 }
 
-/* keep mini boards SAME size while cube grows */
+/* Keep mini boards same size while cube grows */
 .diceFaceInnerFixed{
   position:absolute;
   width: 260px;
@@ -1121,7 +1087,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   overflow: hidden;
 }
 
-/* ✅ faces arranged so TOP exists */
+/* Faces */
 .faceFront { transform: translateZ(calc(var(--s) / 2)); }
 .faceBack  { transform: rotateY(180deg) translateZ(calc(var(--s) / 2)); }
 .faceRight { transform: rotateY(90deg) translateZ(calc(var(--s) / 2)); }
@@ -1139,13 +1105,11 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.14);
   backdrop-filter: blur(10px);
 }
-
 .diceReadout{
   font-weight: 1000;
   font-size: 18px;
   color: rgba(255,255,255,.92);
 }
-
 .miniInvalid{
   padding: 12px;
   border-radius: 14px;
@@ -1154,7 +1118,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   font-weight: 1000;
 }
 
-/* responsive */
 @media (max-width: 980px){
   .scrollInner{ min-width: 1200px; }
 }
