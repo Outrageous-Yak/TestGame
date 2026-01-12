@@ -801,7 +801,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   --hexW: 74px;
   --hexH: calc(var(--hexW) * 0.8660254);
   --hexGap: 10px;
-  --hexOverlap: 0.08;
+  --hexOverlap: 0.0;
 
   --hexPitch: calc(var(--hexW) * (1 - var(--hexOverlap)) + var(--hexGap));
 
@@ -822,7 +822,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hexBoardMini{
   --hexW: 24px;
   --hexGap: 5px;
-  --hexOverlap: 0.06;
+  --hexOverlap: 0.0;
 }
 
 .hexRow{
