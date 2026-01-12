@@ -23,8 +23,6 @@ type Coord = { layer: number; row: number; col: number };
    Config
 ========================================================= */
 const BUILD_TAG = "BUILD_TAG_TILES_DEMO_V1";
-
-/** Full-screen background image for the entire game screen */
 const GAME_BG_URL = "images/ui/board-bg.png";
 
 /* =========================================================
@@ -107,6 +105,7 @@ export default function App() {
     return Number(s?.layers ?? 1);
   }, [scenarios, scenarioIndex]);
 
+  // 7..1 top-to-bottom
   const barSegments = useMemo(() => [7, 6, 5, 4, 3, 2, 1], []);
 
   /* --------------------------
@@ -208,7 +207,6 @@ export default function App() {
     <div className="appRoot">
       <style>{CSS}</style>
 
-      {/* ONE global full-screen background image */}
       <div className="globalBg" aria-hidden="true" style={{ backgroundImage: `url("${toPublicUrl(GAME_BG_URL)}")` }} />
       <div className="globalBgOverlay" aria-hidden="true" />
 
@@ -220,10 +218,7 @@ export default function App() {
             <div className="cardMeta">Build: {BUILD_TAG}</div>
 
             <div className="row">
-              <button
-                className="btn primary"
-                onClick={() => loadModeContent("regular").catch((e) => alert(String(e?.message ?? e)))}
-              >
+              <button className="btn primary" onClick={() => loadModeContent("regular").catch((e) => alert(String(e?.message ?? e)))}>
                 Regular
               </button>
               <button className="btn" onClick={() => loadModeContent("kids").catch((e) => alert(String(e?.message ?? e)))}>
@@ -313,33 +308,13 @@ export default function App() {
         </div>
       ) : null}
 
-      {/* GAME (board + bar + 3 minis) */}
+      {/* GAME */}
       {screen === "game" ? (
         <div className="shell shellGame">
-          
-              {/* BAR (Layer title beside the graph) */}
-            <div className="barWrap" aria-label="Layer bar">
-              <div className="barStack">
-                
-               
+          {/* ✅ Left bar + board + right bar */}
+          <div className="gameLayout">
+            <SideBar side="left" currentLayer={currentLayer} segments={barSegments} />
 
-                <div className="layerBar">
-                  {barSegments.map((layerVal) => {
-                    const active = layerVal === currentLayer;
-                    return (
-                      <div
-                        key={layerVal}
-                        className={"barSeg" + (active ? " isActive" : "")}
-                        data-layer={layerVal}
-                        title={`Layer ${layerVal}`}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-              </div>
-           <div className="gameLayout">
-            {/* MAIN BOARD */}
             <div className="mainBoardWrap">
               <HexBoard
                 kind="main"
@@ -353,32 +328,12 @@ export default function App() {
               />
             </div>
 
-            {/* BAR (Layer title beside the graph) */}
-            <div className="barWrap" aria-label="Layer bar">
-              <div className="barStack">
-                
-               
-
-                <div className="layerBar">
-                  {barSegments.map((layerVal) => {
-                    const active = layerVal === currentLayer;
-                    return (
-                      <div
-                        key={layerVal}
-                        className={"barSeg" + (active ? " isActive" : "")}
-                        data-layer={layerVal}
-                        title={`Layer ${layerVal}`}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+            <SideBar side="right" currentLayer={currentLayer} segments={barSegments} />
           </div>
 
           {/* MINIS */}
           <div className="miniRow3D">
-            <MiniPanel title="Below" tone="below" layer={belowLayer} maxLayer={scenarioLayerCount}>
+            <MiniPanel title="Below" tone="below" layer={belowLayer} maxLayer={scenarioLayerCount} invalidSide="right">
               <HexBoard
                 kind="mini"
                 activeLayer={Math.max(1, belowLayer)}
@@ -392,7 +347,7 @@ export default function App() {
               />
             </MiniPanel>
 
-            <MiniPanel title="Current" tone="current" layer={currentLayer} maxLayer={scenarioLayerCount}>
+            <MiniPanel title="Current" tone="current" layer={currentLayer} maxLayer={scenarioLayerCount} invalidSide="left">
               <HexBoard
                 kind="mini"
                 activeLayer={currentLayer}
@@ -406,7 +361,7 @@ export default function App() {
               />
             </MiniPanel>
 
-            <MiniPanel title="Above" tone="above" layer={aboveLayer} maxLayer={scenarioLayerCount}>
+            <MiniPanel title="Above" tone="above" layer={aboveLayer} maxLayer={scenarioLayerCount} invalidSide="right">
               <HexBoard
                 kind="mini"
                 activeLayer={Math.min(scenarioLayerCount, aboveLayer)}
@@ -427,6 +382,30 @@ export default function App() {
 }
 
 /* =========================================================
+   Side bar
+========================================================= */
+function SideBar(props: { side: "left" | "right"; currentLayer: number; segments: number[] }) {
+  const { side, currentLayer, segments } = props;
+  return (
+    <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")} aria-label={`Layer bar ${side}`}>
+      <div className="layerBar">
+        {segments.map((layerVal) => {
+          const active = layerVal === currentLayer;
+          return (
+            <div
+              key={layerVal}
+              className={"barSeg" + (active ? " isActive" : "")}
+              data-layer={layerVal}
+              title={`Layer ${layerVal}`}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
    Components
 ========================================================= */
 
@@ -435,14 +414,22 @@ function MiniPanel(props: {
   tone: "below" | "current" | "above";
   layer: number;
   maxLayer: number;
+  invalidSide: "left" | "right"; // where to put label if invalid (your request)
   children: React.ReactNode;
 }) {
-  const { title, tone, layer, maxLayer, children } = props;
+  const { title, tone, layer, maxLayer, invalidSide, children } = props;
   const invalid = layer < 1 ? "NO LAYER BELOW" : layer > maxLayer ? "NO LAYER ABOVE" : null;
+
+  // ✅ Labels default left. If invalid: use requested side (right for below/above).
+  const labelSide = invalid ? invalidSide : "left";
 
   return (
     <div className={"miniCard3D " + `tone-${tone}`} title={invalid ?? `Layer ${layer}`}>
-      <div className="miniHeader">{title}</div>
+      {/* rotated side label */}
+      <div className={"miniSideLabel " + (labelSide === "right" ? "isRight" : "isLeft")}>
+        {title}
+      </div>
+
       <div className="miniBody">{invalid ? <div className="miniInvalid">{invalid}</div> : children}</div>
     </div>
   );
@@ -466,8 +453,6 @@ function HexBoard(props: {
     <div className={"hexBoard " + (kind === "main" ? "hexBoardMain" : "hexBoardMini")} data-layer={activeLayer}>
       {ROW_LENS.map((len, rIdx) => {
         const row = rIdx + 1;
-
-        // Offset the EVEN rows (2,4,6) to match your reference.
         const isEvenRow = row % 2 === 0;
 
         return (
@@ -650,14 +635,14 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   padding-top: 18px;
 }
 
-/* Share main-board sizing with bar so the bar matches row top/bottom */
+/* Shared vars so BOTH bars align to the hex rows */
 .gameLayout{
   --rows: 7;
   --hexWMain: 82px;
   --hexHMain: calc(var(--hexWMain) * 0.8660254);
 
   display: grid;
-  grid-template-columns: auto 62px; /* board + bar stack */
+  grid-template-columns: 62px auto 62px; /* ✅ left bar + board + right bar */
   gap: 18px;
   align-items: start;
   justify-content: center;
@@ -667,43 +652,22 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   position: relative;
   display: grid;
   justify-items: center;
-  gap: 10px;
-}
-
-/* Layer title chip */
-.layerChip{
-  padding: 10px 16px;
-  border-radius: 999px;
-  background: rgba(0,0,0,.22);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.18);
-  font-weight: 1000;
 }
 
 /* ===========================
-   BAR (title beside graph, bar aligns to board height)
+   BARS (both sides, aligned to row top/bottom)
 =========================== */
 .barWrap{
   display:flex;
-  align-items: flex-start;
+  align-items: flex-start;  /* top aligns with top of board */
   justify-content: center;
-}
-
-.barStack{
-  display:flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.barTitle{
-  display:flex;
-  justify-content: center;
+  padding-top: 0;
 }
 
 .layerBar{
   width: 18px;
 
-  /* ✅ match top of row 1 to bottom of row 7 */
+  /* ✅ EXACT MATCH: top of row 1 to bottom of row 7 */
   height: calc(var(--hexHMain) * var(--rows));
 
   border-radius: 999px;
@@ -739,18 +703,16 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 /* =========================================================
-   HEX BOARD GEOMETRY (fixed board width + correct even-row offset)
+   HEX BOARD GEOMETRY
 ========================================================= */
 .hexBoard{
   --hexW: 74px;
-  --hexH: calc(var(--hexW) * 0.8660254); /* √3/2 */
+  --hexH: calc(var(--hexW) * 0.8660254);
   --hexGap: 10px;
   --hexOverlap: 0.08;
 
-  /* distance between hex "starts" (pitch) */
   --hexPitch: calc(var(--hexW) * (1 - var(--hexOverlap)) + var(--hexGap));
 
-  /* board sized to max row length (7) so every row aligns from same left edge */
   --maxCols: 7;
   width: calc(var(--hexW) + (var(--maxCols) - 1) * var(--hexPitch));
 
@@ -759,7 +721,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   user-select: none;
 }
 
-/* Main board uses shared size vars so bar can match it */
+/* Main board uses shared size vars so bars match perfectly */
 .hexBoardMain{
   --hexW: var(--hexWMain);
   --hexH: var(--hexHMain);
@@ -771,7 +733,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   --hexOverlap: 0.06;
 }
 
-/* each row fills board width and starts from the same left edge */
 .hexRow{
   display: flex;
   width: 100%;
@@ -788,8 +749,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hex{
   width: var(--hexW);
   height: var(--hexH);
-
-  /* spacing between hexes (based on pitch) */
   margin-right: calc(var(--hexPitch) - var(--hexW));
 
   clip-path: polygon(
@@ -802,7 +761,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   position: relative;
   background: rgba(255,255,255,.14);
 
-  /* black outline on every hex */
   border: 1px solid rgba(0,0,0,.75);
   box-shadow:
     0 0 0 1px rgba(0,0,0,.35) inset,
@@ -813,7 +771,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 
 .hexBoardMain .hex{ cursor: pointer; }
 
-/* Labels: crisp always */
 .hexLabel{
   position: absolute;
   inset: 0;
@@ -845,7 +802,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   -webkit-text-stroke: .8px rgba(0,0,0,.75);
 }
 
-/* Reachable */
 .hex.reach{
   box-shadow:
     0 0 0 2px rgba(255,255,255,.12) inset,
@@ -854,7 +810,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   filter: brightness(1.6);
 }
 
-/* Player */
 .hex.player{
   box-shadow:
     0 0 0 2px rgba(255,255,255,.18) inset,
@@ -864,7 +819,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   z-index: 4;
 }
 
-/* Selected */
 .hex.sel{
   outline: 2px solid rgba(255,255,255,.55);
   outline-offset: 2px;
@@ -893,7 +847,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hex.missing::before{ background: rgba(0,0,0,.48); opacity: 1; }
 
 /* ===========================
-   MINIS (3D tilt away)
+   MINIS (3D tilt away) + side labels
 =========================== */
 .miniRow3D{
   margin-top: 18px;
@@ -904,26 +858,53 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 .miniCard3D{
+  position: relative;
   border-radius: 18px;
   padding: 12px;
   background: rgba(255,255,255,.10);
   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.16);
   transform-style: preserve-3d;
+
+  /* same tilt as your frame */
   transform: perspective(900px) rotateX(18deg);
 }
 
-.miniHeader{
-  text-align: center;
+/* ✅ Rotated label that matches mini tilt */
+.miniSideLabel{
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  width: 36px;
+  display: grid;
+  place-items: center;
+
   font-weight: 1000;
-  letter-spacing: .4px;
+  letter-spacing: .6px;
   color: rgba(255,255,255,.92);
-  padding: 8px 10px;
+
+  background: rgba(0,0,0,.16);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset;
   border-radius: 14px;
-  margin-bottom: 10px;
-  background: rgba(0,0,0,.18);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset;
+
+  /* rotate text vertical */
+  transform: rotate(-90deg);
+  transform-origin: center;
+
+  /* keep it above contents */
+  z-index: 3;
 }
 
+/* left side default */
+.miniSideLabel.isLeft{
+  left: -6px;
+}
+
+/* right side when invalid (NO ABOVE/BELOW) */
+.miniSideLabel.isRight{
+  right: -6px;
+}
+
+/* mini content area */
 .miniBody{
   padding: 10px;
   border-radius: 14px;
@@ -931,6 +912,11 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset;
   display:flex;
   justify-content:center;
+  min-height: 120px;
+
+  /* leave space so side label doesn't overlap */
+  margin-left: 32px;
+  margin-right: 32px;
 }
 
 .miniInvalid{
@@ -945,10 +931,9 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .tone-current{ background: linear-gradient(180deg, rgba(120,235,170,.28), rgba(255,255,255,.10)); }
 .tone-above{ background: linear-gradient(180deg, rgba(120, 220, 255, .28), rgba(255,255,255,.10)); }
 
+/* responsive */
 @media (max-width: 980px){
-  .gameLayout{ grid-template-columns: 1fr; }
-  .barWrap{ justify-content: center; }
+  .gameLayout{ grid-template-columns: 62px auto 62px; }
   .miniRow3D{ grid-template-columns: 1fr; }
-  .layerBar{ height: calc(var(--hexHMain) * var(--rows)); }
 }
 `;
