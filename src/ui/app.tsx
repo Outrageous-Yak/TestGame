@@ -25,6 +25,9 @@ type Coord = { layer: number; row: number; col: number };
 const BUILD_TAG = "BUILD_TAG_TILES_DEMO_V1";
 const GAME_BG_URL = "images/ui/board-bg.png";
 
+/** ✅ Toggle minis on/off (you said you want them to not remain) */
+const SHOW_MINIS = false;
+
 /* =========================================================
    Helpers
 ========================================================= */
@@ -94,6 +97,11 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const [reachMap, setReachMap] = useState<ReachMap>({});
+
+  /** ✅ Die UI state */
+  const [dieValue, setDieValue] = useState<number | null>(null);
+  const [isRolling, setIsRolling] = useState(false);
+
   const reachable = useMemo(() => {
     const set = new Set<string>();
     for (const [k, v] of Object.entries(reachMap)) if (v.reachable) set.add(k);
@@ -163,9 +171,34 @@ export default function App() {
       setState(st);
       setSelectedId(pid);
       setCurrentLayer(layer);
+
+      // reset die on new game
+      setDieValue(null);
+      setIsRolling(false);
     },
     [scenarios, revealWholeLayer, recomputeReachability]
   );
+
+  /* --------------------------
+     Die roll
+  -------------------------- */
+  const rollDie = useCallback(() => {
+    if (isRolling) return;
+    setIsRolling(true);
+
+    // quick “roll” feel
+    const start = Date.now();
+    const tick = () => {
+      const v = 1 + Math.floor(Math.random() * 6);
+      setDieValue(v);
+      if (Date.now() - start > 450) {
+        setIsRolling(false);
+        return;
+      }
+      requestAnimationFrame(tick);
+    };
+    tick();
+  }, [isRolling]);
 
   /* --------------------------
      Board click
@@ -218,10 +251,7 @@ export default function App() {
             <div className="cardMeta">Build: {BUILD_TAG}</div>
 
             <div className="row">
-              <button
-                className="btn primary"
-                onClick={() => loadModeContent("regular").catch((e) => alert(String(e?.message ?? e)))}
-              >
+              <button className="btn primary" onClick={() => loadModeContent("regular").catch((e) => alert(String(e?.message ?? e)))}>
                 Regular
               </button>
               <button className="btn" onClick={() => loadModeContent("kids").catch((e) => alert(String(e?.message ?? e)))}>
@@ -314,6 +344,17 @@ export default function App() {
       {/* GAME */}
       {screen === "game" ? (
         <div className="shell shellGame">
+          {/* ✅ Die row */}
+          <div className="hudRow">
+            <div className="dieWrap">
+              <button className={"dieBtn" + (isRolling ? " rolling" : "")} onClick={rollDie} type="button">
+                🎲 Roll
+              </button>
+              <div className="dieResult">{dieValue ? `= ${dieValue}` : "= ?"}</div>
+            </div>
+          </div>
+
+          {/* ✅ Left bar + board + right bar */}
           <div className="gameLayout">
             <SideBar side="left" currentLayer={currentLayer} segments={barSegments} />
 
@@ -333,49 +374,52 @@ export default function App() {
             <SideBar side="right" currentLayer={currentLayer} segments={barSegments} />
           </div>
 
-          <div className="miniRow3D">
-            <MiniPanel title="Below" tone="below" layer={belowLayer} maxLayer={scenarioLayerCount} invalidSide="right">
-              <HexBoard
-                kind="mini"
-                activeLayer={Math.max(1, belowLayer)}
-                state={state}
-                selectedId={null}
-                reachable={new Set()}
-                reachMap={{}}
-                showCoords={false}
-                onCellClick={undefined}
-                showPlayerOnMini={false}
-              />
-            </MiniPanel>
+          {/* ✅ Minis hidden unless you flip SHOW_MINIS = true */}
+          {SHOW_MINIS ? (
+            <div className="miniRow3D">
+              <MiniPanel title="Below" tone="below" layer={belowLayer} maxLayer={scenarioLayerCount} invalidSide="right">
+                <HexBoard
+                  kind="mini"
+                  activeLayer={Math.max(1, belowLayer)}
+                  state={state}
+                  selectedId={null}
+                  reachable={new Set()}
+                  reachMap={{}}
+                  showCoords={false}
+                  onCellClick={undefined}
+                  showPlayerOnMini={false}
+                />
+              </MiniPanel>
 
-            <MiniPanel title="Current" tone="current" layer={currentLayer} maxLayer={scenarioLayerCount} invalidSide="left">
-              <HexBoard
-                kind="mini"
-                activeLayer={currentLayer}
-                state={state}
-                selectedId={null}
-                reachable={new Set()}
-                reachMap={{}}
-                showCoords={false}
-                onCellClick={undefined}
-                showPlayerOnMini={true}
-              />
-            </MiniPanel>
+              <MiniPanel title="Current" tone="current" layer={currentLayer} maxLayer={scenarioLayerCount} invalidSide="left">
+                <HexBoard
+                  kind="mini"
+                  activeLayer={currentLayer}
+                  state={state}
+                  selectedId={null}
+                  reachable={new Set()}
+                  reachMap={{}}
+                  showCoords={false}
+                  onCellClick={undefined}
+                  showPlayerOnMini={true}
+                />
+              </MiniPanel>
 
-            <MiniPanel title="Above" tone="above" layer={aboveLayer} maxLayer={scenarioLayerCount} invalidSide="right">
-              <HexBoard
-                kind="mini"
-                activeLayer={Math.min(scenarioLayerCount, aboveLayer)}
-                state={state}
-                selectedId={null}
-                reachable={new Set()}
-                reachMap={{}}
-                showCoords={false}
-                onCellClick={undefined}
-                showPlayerOnMini={false}
-              />
-            </MiniPanel>
-          </div>
+              <MiniPanel title="Above" tone="above" layer={aboveLayer} maxLayer={scenarioLayerCount} invalidSide="right">
+                <HexBoard
+                  kind="mini"
+                  activeLayer={Math.min(scenarioLayerCount, aboveLayer)}
+                  state={state}
+                  selectedId={null}
+                  reachable={new Set()}
+                  reachMap={{}}
+                  showCoords={false}
+                  onCellClick={undefined}
+                  showPlayerOnMini={false}
+                />
+              </MiniPanel>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -617,11 +661,47 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .selectTileTitle{ font-weight: 1000; }
 .selectTileDesc{ margin-top: 4px; opacity: .80; line-height: 1.25; }
 
+/* GAME */
 .shellGame{
   min-height: 100vh;
   display: grid;
   place-items: start center;
   padding-top: 18px;
+}
+
+/* ✅ Die row */
+.hudRow{
+  width: min(1080px, calc(100vw - 44px));
+  display:flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.dieWrap{
+  display:flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(0,0,0,.18);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.14);
+}
+
+.dieBtn{
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.22);
+  background: rgba(255,255,255,.10);
+  color: rgba(255,255,255,.92);
+  font-weight: 1000;
+  cursor: pointer;
+}
+.dieBtn.rolling{ filter: brightness(1.15); }
+
+.dieResult{
+  min-width: 48px;
+  font-weight: 1000;
+  letter-spacing: .3px;
 }
 
 /* Bars both sides */
@@ -653,12 +733,10 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .layerBar{
   width: 18px;
   height: calc(var(--hexHMain) * var(--rows));
-
   border-radius: 999px;
   overflow: hidden;
   background: rgba(0,0,0,.22);
   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.18);
-
   display: grid;
   grid-template-rows: repeat(7, 1fr);
 }
@@ -686,6 +764,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   border-radius: 999px;
 }
 
+/* HEX BOARD */
 .hexBoard{
   --hexW: 74px;
   --hexH: calc(var(--hexW) * 0.8660254);
@@ -728,7 +807,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   width: var(--hexW);
   height: var(--hexH);
   margin-right: calc(var(--hexPitch) - var(--hexW));
-
   clip-path: polygon(
     25% 0%, 75% 0%,
     100% 50%,
@@ -738,12 +816,10 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 
   position: relative;
   background: rgba(255,255,255,.14);
-
   border: 1px solid rgba(0,0,0,.75);
   box-shadow:
     0 0 0 1px rgba(0,0,0,.35) inset,
     0 6px 16px rgba(0,0,0,.10);
-
   cursor: default;
 }
 
@@ -823,7 +899,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hex.blocked::before{ background: rgba(0,0,0,.34); opacity: 1; }
 .hex.missing::before{ background: rgba(0,0,0,.48); opacity: 1; }
 
-/* MINIS + side labels */
+/* Minis styling kept (only used if SHOW_MINIS=true) */
 .miniRow3D{
   margin-top: 18px;
   display: grid;
