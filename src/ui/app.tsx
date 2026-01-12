@@ -19,6 +19,8 @@ type PlayerChoice =
 
 type Coord = { layer: number; row: number; col: number };
 
+type LogEntry = { n: number; t: string; msg: string; kind?: "ok" | "bad" | "info" };
+
 /* =========================================================
    Config
 ========================================================= */
@@ -88,6 +90,89 @@ function filterReachForLayer(layer: number, reachMap: ReachMap) {
   return { reachMap: rm, reachable: set };
 }
 
+function nowHHMM() {
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+function inBounds(row: number, col: number) {
+  if (row < 1 || row > ROW_LENS.length) return false;
+  const len = ROW_LENS[row - 1] ?? 7;
+  return col >= 1 && col <= len;
+}
+
+// flat-topped offset rows (your CSS shifts even rows right)
+function neighborsFlatTop(row: number, col: number) {
+  const even = row % 2 === 0;
+  const cand = [
+    { row, col: col - 1 }, // W
+    { row, col: col + 1 }, // E
+    { row: row - 1, col: col + (even ? 0 : -1) }, // NW
+    { row: row - 1, col: col + (even ? 1 : 0) }, // NE
+    { row: row + 1, col: col + (even ? 0 : -1) }, // SW
+    { row: row + 1, col: col + (even ? 1 : 0) }, // SE
+  ];
+  return cand.filter((p) => inBounds(p.row, p.col));
+}
+
+function shortestMovesSameLayer(state: GameState | null, layer: number, startId: string, goalId: string) {
+  if (!state) return Infinity;
+  if (!startId || !goalId) return Infinity;
+  if (startId === goalId) return 0;
+
+  const q: Array<{ id: string; d: number }> = [{ id: startId, d: 0 }];
+  const seen = new Set<string>([startId]);
+
+  while (q.length) {
+    const { id, d } = q.shift()!;
+    const c = idToCoord(id);
+    if (!c) continue;
+
+    for (const nb of neighborsFlatTop(c.row, c.col)) {
+      const nid = `L${layer}-R${nb.row}-C${nb.col}`;
+      if (seen.has(nid)) continue;
+
+      const hex = getHexFromState(state, nid) as any;
+      const { blocked, missing } = isBlockedOrMissing(hex);
+      if (blocked || missing) continue;
+
+      if (nid === goalId) return d + 1;
+      seen.add(nid);
+      q.push({ id: nid, d: d + 1 });
+    }
+  }
+  return Infinity;
+}
+
+/** Best-effort goal id discovery (won’t crash builds if scenario doesn’t define it). */
+function findGoalId(s: any, fallbackLayer: number): string | null {
+  const direct =
+    s?.goalHexId ??
+    s?.goalId ??
+    s?.exitHexId ??
+    s?.exitId ??
+    s?.targetHexId ??
+    s?.targetId ??
+    s?.winHexId ??
+    s?.winId ??
+    null;
+
+  if (typeof direct === "string" && /^L\d+-R\d+-C\d+$/.test(direct)) return direct;
+
+  // Try goal coords: {layer,row,col} or {row,col}
+  const gc = s?.goal ?? s?.exit ?? s?.target ?? null;
+  if (gc && typeof gc === "object") {
+    const layer = Number(gc.layer ?? fallbackLayer);
+    const row = Number(gc.row ?? gc.r);
+    const col = Number(gc.col ?? gc.c);
+    if (Number.isFinite(layer) && Number.isFinite(row) && Number.isFinite(col)) return `L${layer}-R${row}-C${col}`;
+  }
+
+  return null;
+}
+
 /* =========================================================
    Minimal presets
 ========================================================= */
@@ -106,7 +191,6 @@ function scenarioLabel(s: any, i: number) {
 function rotForRoll(n: number) {
   // Convention:
   // 1=top, 6=bottom, 2=front, 5=back, 3=right, 4=left
-  // Rotations so "rolled" face becomes FRONT-facing.
   switch (n) {
     case 1:
       return { x: -90, y: 0 };
@@ -148,6 +232,8 @@ export default function App() {
     return set;
   }, [reachMap]);
 
+  const activeScenario = scenarios[scenarioIndex] as any;
+
   const scenarioLayerCount = useMemo(() => {
     const s: any = scenarios[scenarioIndex];
     return Number(s?.layers ?? 1);
@@ -158,6 +244,36 @@ export default function App() {
 
   // Horizontal scroll container (shows a bottom scrollbar)
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  /* --------------------------
+     Move counter + optimal
+  -------------------------- */
+  const [movesTaken, setMovesTaken] = useState(0);
+  const [goalId, setGoalId] = useState<string | null>(null);
+  const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
+  const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
+
+  /* --------------------------
+     Story log
+  -------------------------- */
+  const [log, setLog] = useState<LogEntry[]>([]);
+  const logNRef = useRef(0);
+  const pushLog = useCallback((msg: string, kind: LogEntry["kind"] = "info") => {
+    logNRef.current += 1;
+    const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
+    setLog((prev) => [e, ...prev].slice(0, 24));
+  }, []);
+
+  /* --------------------------
+     Inventory / power ups
+  -------------------------- */
+  type ItemId = "reroll" | "revealRing" | "peek";
+  type Item = { id: ItemId; name: string; icon: string; charges: number };
+  const [items, setItems] = useState<Item[]>([
+    { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
+    { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
+    { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
+  ]);
 
   /* --------------------------
      Dice state
@@ -191,15 +307,17 @@ export default function App() {
 
     setDiceSpinning(true);
 
-    const extraX = 360 * (1 + Math.floor(Math.random() * 2)); // 360 or 720
-    const extraY = 360 * (2 + Math.floor(Math.random() * 2)); // 720 or 1080
+    const extraX = 360 * (1 + Math.floor(Math.random() * 2));
+    const extraY = 360 * (2 + Math.floor(Math.random() * 2));
 
     setDiceRot({ x: final.x - extraX, y: final.y - extraY });
     window.setTimeout(() => {
       setDiceRot(final);
       window.setTimeout(() => setDiceSpinning(false), 650);
     }, 40);
-  }, []);
+
+    pushLog(`Rolled ${n}`, "ok");
+  }, [pushLog]);
 
   // Pointer-drag rotation (spin by dragging)
   const onDicePointerDown = useCallback(
@@ -280,14 +398,39 @@ export default function App() {
     }
   }, []);
 
+  const revealRing = useCallback(
+    (st: GameState, layer: number, centerId: string) => {
+      const c = idToCoord(centerId);
+      if (!c) return;
+      revealHex(st, centerId);
+      for (const nb of neighborsFlatTop(c.row, c.col)) {
+        revealHex(st, `L${layer}-R${nb.row}-C${nb.col}`);
+      }
+    },
+    []
+  );
+
+  const computeOptimal = useCallback(
+    (st: GameState, layer: number, startId: string, gid: string | null) => {
+      if (!gid) return null;
+      const d = shortestMovesSameLayer(st, layer, startId, gid);
+      return Number.isFinite(d) ? d : null;
+    },
+    []
+  );
+
   const startScenario = useCallback(
     (idx: number) => {
-      const s = scenarios[idx];
+      const s = scenarios[idx] as any;
       if (!s) return;
 
       const st = newGame(s);
       const pid = (st as any).playerHexId ?? null;
       const layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
+
+      // goal id (best effort)
+      const gid = findGoalId(s, layer);
+      setGoalId(gid);
 
       enterLayer(st, layer);
       revealWholeLayer(st, layer);
@@ -302,12 +445,37 @@ export default function App() {
       setDiceRot({ x: -26, y: -38 });
       setDiceSpinning(false);
 
+      // moves + optimal
+      setMovesTaken(0);
+      if (pid && gid) {
+        const startOpt = computeOptimal(st, layer, pid, gid);
+        setOptimalAtStart(startOpt);
+        setOptimalFromNow(startOpt);
+      } else {
+        setOptimalAtStart(null);
+        setOptimalFromNow(null);
+      }
+
+      // reset log
+      logNRef.current = 0;
+      setLog([]);
+      pushLog(`Started: ${scenarioLabel(s, idx)}`, "ok");
+      if (gid) pushLog(`Goal: ${gid}`, "info");
+      else pushLog(`Goal: (not set in scenario JSON)`, "bad");
+
+      // reset inventory (fun defaults each run)
+      setItems([
+        { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
+        { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
+        { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
+      ]);
+
       // reset horizontal scroll to left
       window.setTimeout(() => {
         if (scrollRef.current) scrollRef.current.scrollLeft = 0;
       }, 0);
     },
-    [scenarios, revealWholeLayer, recomputeReachability]
+    [scenarios, revealWholeLayer, recomputeReachability, computeOptimal, pushLog]
   );
 
   /* --------------------------
@@ -333,14 +501,72 @@ export default function App() {
         setCurrentLayer(newLayer);
         setSelectedId(newPlayerId ?? id);
 
+        // moves
+        setMovesTaken((m) => m + 1);
+
+        // optimal-from-now
+        if (newPlayerId && goalId) {
+          const o = computeOptimal(state, newLayer, newPlayerId, goalId);
+          setOptimalFromNow(o);
+        }
+
         recomputeReachability(state);
         setState({ ...(state as any) });
+
+        const c = newPlayerId ? idToCoord(newPlayerId) : null;
+        pushLog(c ? `Move OK → R${c.row}C${c.col} (L${c.layer})` : `Move OK`, "ok");
       } else {
         recomputeReachability(state);
         setState({ ...(state as any) });
+        pushLog(`Move blocked`, "bad");
       }
     },
-    [state, currentLayer, recomputeReachability, revealWholeLayer]
+    [state, currentLayer, recomputeReachability, revealWholeLayer, pushLog, goalId, computeOptimal]
+  );
+
+  /* --------------------------
+     Inventory use
+  -------------------------- */
+  const useItem = useCallback(
+    (id: "reroll" | "revealRing" | "peek") => {
+      const it = items.find((x) => x.id === id);
+      if (!it || it.charges <= 0) return;
+
+      // spend one charge
+      setItems((prev) => prev.map((x) => (x.id === id ? { ...x, charges: Math.max(0, x.charges - 1) } : x)));
+
+      if (id === "reroll") {
+        pushLog("Used: Reroll", "info");
+        rollDice();
+        return;
+      }
+
+      if (!state) return;
+
+      const pid = (state as any).playerHexId ?? null;
+      if (!pid) return;
+
+      if (id === "revealRing") {
+        revealRing(state, currentLayer, pid);
+        recomputeReachability(state);
+        setState({ ...(state as any) });
+        pushLog("Used: Reveal (ring)", "ok");
+        return;
+      }
+
+      if (id === "peek") {
+        // simple fun effect: briefly reveal above & below ring (visual-only)
+        const up = Math.min(scenarioLayerCount, currentLayer + 1);
+        const dn = Math.max(1, currentLayer - 1);
+        revealRing(state, up, pid.replace(/^L\d+-/, `L${up}-`));
+        revealRing(state, dn, pid.replace(/^L\d+-/, `L${dn}-`));
+        recomputeReachability(state);
+        setState({ ...(state as any) });
+        pushLog("Used: Peek (above/below ring)", "info");
+        return;
+      }
+    },
+    [items, state, currentLayer, scenarioLayerCount, rollDice, pushLog, revealRing, recomputeReachability]
   );
 
   // Face stripe colors (below/current/above)
@@ -359,6 +585,14 @@ export default function App() {
   const miniAboveReach = useMemo(() => filterReachForLayer(miniAboveLayer, reachMap), [miniAboveLayer, reachMap]);
   const miniCurrReach = useMemo(() => filterReachForLayer(miniCurrLayer, reachMap), [miniCurrLayer, reachMap]);
   const miniBelowReach = useMemo(() => filterReachForLayer(miniBelowLayer, reachMap), [miniBelowLayer, reachMap]);
+
+  // Delta indicator
+  const delta = useMemo(() => {
+    if (optimalAtStart == null || optimalFromNow == null) return null;
+    // "ideal if perfect" = optimalAtStart, "remaining now" = optimalFromNow
+    // If you are perfect: movesTaken + optimalFromNow == optimalAtStart
+    return movesTaken + optimalFromNow - optimalAtStart;
+  }, [movesTaken, optimalAtStart, optimalFromNow]);
 
   return (
     <div className="appRoot" data-mode={mode ?? ""}>
@@ -496,6 +730,7 @@ export default function App() {
 
                 <SideBar side="right" currentLayer={currentLayer} segments={barSegments} />
 
+                {/* Dice OUTER RIGHT */}
                 <div className="diceArea">
                   <div className="diceCubeWrap" aria-label="Layer dice">
                     <div
@@ -581,10 +816,76 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* other 3 faces are just glass */}
-                      <div className="diceFace faceLeft" />
-                      <div className="diceFace faceBack" />
-                      <div className="diceFace faceBottom" />
+                      {/* BACK: MOVE COUNTER + OPTIMAL */}
+                      <div className="diceFace faceBack">
+                        <div className="diceHud">
+                          <div className="hudTitle">Moves</div>
+                          <div className="hudRow">
+                            <span className="hudKey">Taken</span>
+                            <span className="hudVal">{movesTaken}</span>
+                          </div>
+                          <div className="hudRow">
+                            <span className="hudKey">Optimal start</span>
+                            <span className="hudVal">{optimalAtStart == null ? "—" : optimalAtStart}</span>
+                          </div>
+                          <div className="hudRow">
+                            <span className="hudKey">Optimal now</span>
+                            <span className="hudVal">{optimalFromNow == null ? "—" : optimalFromNow}</span>
+                          </div>
+                          <div className="hudRow">
+                            <span className="hudKey">Δ</span>
+                            <span className={"hudVal " + (delta == null ? "" : delta <= 0 ? "ok" : "bad")}>
+                              {delta == null ? "—" : delta}
+                            </span>
+                          </div>
+                          <div className="hudNote">
+                            Goal: <span className="mono">{goalId ?? "not set"}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* LEFT: STORY LOG */}
+                      <div className="diceFace faceLeft">
+                        <div className="diceHud">
+                          <div className="hudTitle">Story</div>
+                          <div className="hudLog">
+                            {log.slice(0, 7).map((e) => (
+                              <div key={e.n} className={"hudLogLine " + (e.kind ?? "info")}>
+                                <span className="hudTime">{e.t}</span>
+                                <span className="hudMsg">{e.msg}</span>
+                              </div>
+                            ))}
+                            {!log.length ? <div className="hudLogEmpty">No events yet…</div> : null}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* BOTTOM: INVENTORY / POWER UPS */}
+                      <div className="diceFace faceBottom">
+                        <div className="diceHud">
+                          <div className="hudTitle">Power</div>
+                          <div className="invGrid">
+                            {items.map((it) => (
+                              <button
+                                key={it.id}
+                                className="invSlot"
+                                onClick={() => useItem(it.id)}
+                                disabled={it.charges <= 0}
+                                title={`${it.name} (${it.charges})`}
+                              >
+                                <div className="invIcon">{it.icon}</div>
+                                <div className="invMeta">
+                                  <div className="invName">{it.name}</div>
+                                  <div className="invCharges">{it.charges}</div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                          <div className="hudNote">
+                            Tap to use • Effects are visual/gameplay-helper (reveal/peek/reroll)
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -596,6 +897,9 @@ export default function App() {
                   </div>
                 </div>
               </div>
+
+              {/* (tiny hint) */}
+              <div className="dragHint">Drag the dice to rotate • Tap power-ups on the bottom face</div>
             </div>
           </div>
         </div>
@@ -647,6 +951,9 @@ function HexBoard(props: {
     props;
   const playerId = (state as any)?.playerHexId ?? null;
 
+  // Rim colors:
+  // - correspond to this layer’s color
+  // - BUT if no above => top rim black, if no below => bottom rim black
   const hasAbove = activeLayer < maxLayer;
   const hasBelow = activeLayer > 1;
 
@@ -711,6 +1018,7 @@ function HexBoard(props: {
                     </span>
                   ) : null}
 
+                  {/* Mini board black numbers (NO ROWS) */}
                   {kind === "mini" ? <span className="miniNum">{col}</span> : null}
                 </div>
               );
@@ -828,6 +1136,22 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   background: linear-gradient(135deg, rgba(200,140,255,.45), rgba(120,220,255,.30));
 }
 
+.selectList{ display:grid; gap: 10px; margin-top: 12px; }
+.selectTile{
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(0,0,0,.16);
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.08) inset;
+  cursor: pointer;
+}
+.selectTile.selected{
+  border-color: rgba(255,255,255,.30);
+  box-shadow: 0 0 0 3px rgba(255,255,255,.10) inset, 0 18px 40px rgba(0,0,0,.14);
+}
+.selectTileTitle{ font-weight: 1000; }
+.selectTileDesc{ margin-top: 4px; opacity: .80; line-height: 1.25; }
+
 /* GAME */
 .shellGame{
   min-height: 100vh;
@@ -843,9 +1167,17 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   padding-bottom: 16px;
   scrollbar-gutter: stable both-edges;
 }
-.scrollInner{
-  min-width: 1380px;
+.scrollInner{ min-width: 1380px; }
+
+.dragHint{
+  margin-top: 10px;
+  opacity: .78;
+  font-weight: 900;
+  text-align: center;
+  text-shadow: 0 8px 20px rgba(0,0,0,.18);
 }
+
+/* Shared vars so BOTH bars align to the hex rows */
 .gameLayout{
   --rows: 7;
   --hexWMain: 82px;
@@ -904,11 +1236,8 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   user-select: none;
 }
 .hexBoardMain{ --hexW: var(--hexWMain); --hexH: var(--hexHMain); }
-.hexBoardMini{
-  --hexW: 24px;
-  --hexGap: 2px;
-  --hexOverlap: 0.0;
-}
+.hexBoardMini{ --hexW: 24px; --hexGap: 2px; --hexOverlap: 0.0; }
+
 .hexRow{ display:flex; width: 100%; height: var(--hexH); align-items: center; justify-content: flex-start; }
 .hexRow.even{ padding-left: calc(var(--hexPitch) / 2); }
 
@@ -925,6 +1254,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 .hexBoardMain .hex{ cursor: pointer; }
 
+/* Rim lines correspond to layer color; black if no above/below (set via inline vars). */
 .hexRim{
   position:absolute;
   left: 14%;
@@ -961,6 +1291,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 .hexBoardMain .hexLabel{ font-size: 13px; }
 
+/* Mini black numbers (no rows). */
 .miniNum{
   position:absolute;
   inset: 0;
@@ -974,6 +1305,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   text-shadow: 0 0 6px rgba(255,255,255,.35);
 }
 
+/* Highlights */
 .hex.reach{
   box-shadow:
     0 0 0 2px rgba(255,255,255,.12) inset,
@@ -991,6 +1323,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 .hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
 
+/* Only MAIN board gets dark overlays; mini boards remain uniform. */
 .hex::before{
   content:"";
   position:absolute;
@@ -1016,7 +1349,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   position: relative;
 }
 .diceCube{
-  --s: 294px;
+  --s: 294px; /* 210 * 1.4 */
   width: var(--s);
   height: var(--s);
   position: relative;
@@ -1035,6 +1368,8 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   backdrop-filter: blur(8px);
   overflow:hidden;
 }
+
+/* Stripes on faces (not on column) */
 .faceStripe{
   position:absolute;
   left: 18px;
@@ -1047,6 +1382,8 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   pointer-events:none;
   filter: drop-shadow(0 2px 8px rgba(0,0,0,.25));
 }
+
+/* Keep mini boards same size while cube grows */
 .diceFaceInnerFixed{
   position:absolute;
   width: 260px;
@@ -1095,6 +1432,90 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   color: rgba(255,255,255,.88);
   font-weight: 1000;
 }
+
+/* HUD faces (back/left/bottom) */
+.diceHud{
+  position:absolute;
+  inset: 14px;
+  border-radius: 14px;
+  background: rgba(0,0,0,.16);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
+  padding: 12px;
+  color: rgba(255,255,255,.92);
+  display:flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow:hidden;
+}
+
+.hudTitle{
+  font-weight: 1000;
+  letter-spacing: .2px;
+  opacity: .95;
+}
+
+.hudRow{
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  gap: 10px;
+  font-weight: 900;
+}
+.hudKey{ opacity: .85; }
+.hudVal{ font-weight: 1000; }
+.hudVal.ok{ color: rgba(140,255,170,.95); }
+.hudVal.bad{ color: rgba(255,160,160,.95); }
+
+.hudNote{
+  margin-top: auto;
+  opacity: .78;
+  font-weight: 900;
+  font-size: 12px;
+}
+.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+.hudLog{
+  display:flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow:hidden;
+}
+.hudLogLine{
+  display:grid;
+  grid-template-columns: 46px 1fr;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.15;
+  font-weight: 900;
+  opacity: .95;
+}
+.hudTime{ opacity: .75; }
+.hudLogLine.ok .hudMsg{ color: rgba(140,255,170,.95); }
+.hudLogLine.bad .hudMsg{ color: rgba(255,160,160,.95); }
+.hudLogEmpty{ opacity: .75; font-weight: 900; font-size: 12px; }
+
+.invGrid{
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.invSlot{
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.08);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.22) inset;
+  padding: 10px;
+  cursor: pointer;
+  color: rgba(255,255,255,.92);
+  display:flex;
+  gap: 10px;
+  align-items:center;
+}
+.invSlot:disabled{ opacity: .55; cursor: not-allowed; }
+.invIcon{ font-size: 22px; }
+.invMeta{ display:flex; flex-direction: column; gap: 2px; }
+.invName{ font-weight: 1000; font-size: 12px; }
+.invCharges{ font-weight: 1000; opacity: .80; font-size: 12px; }
 
 @media (max-width: 980px){
   .scrollInner{ min-width: 1200px; }
