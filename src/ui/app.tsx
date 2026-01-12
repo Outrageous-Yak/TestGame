@@ -18,14 +18,14 @@ type PlayerChoice =
   | { kind: "custom"; name: string; imageDataUrl: string | null };
 
 type Coord = { layer: number; row: number; col: number };
-
 type LogEntry = { n: number; t: string; msg: string; kind?: "ok" | "bad" | "info" };
 
 /* =========================================================
    Config
 ========================================================= */
 const BUILD_TAG = "BUILD_TAG_TILES_DEMO_V1";
-const GAME_BG_URL = "images/ui/IMG_4074.webp";
+const GAME_BG_URL = "images/ui/board-bg.png";
+const DICE_IMG_BASE = "images/d20"; // ✅ your folder: public/images/d20
 
 /* =========================================================
    Helpers
@@ -73,10 +73,7 @@ function layerCssVar(n: number) {
   return `var(--L${clamped})`;
 }
 
-/**
- * Filter reachability to a specific layer (for dice mini boards).
- * Uses `any` indexing to avoid strict TS build issues.
- */
+/** Filter reachability to a specific layer (for dice mini boards). */
 function filterReachForLayer(layer: number, reachMap: ReachMap) {
   const prefix = `L${layer}-`;
   const rm = {} as ReachMap;
@@ -146,7 +143,7 @@ function shortestMovesSameLayer(state: GameState | null, layer: number, startId:
   return Infinity;
 }
 
-/** Best-effort goal id discovery (won’t crash builds if scenario doesn’t define it). */
+/** Best-effort goal id discovery (safe if scenario doesn’t define it). */
 function findGoalId(s: any, fallbackLayer: number): string | null {
   const direct =
     s?.goalHexId ??
@@ -161,7 +158,6 @@ function findGoalId(s: any, fallbackLayer: number): string | null {
 
   if (typeof direct === "string" && /^L\d+-R\d+-C\d+$/.test(direct)) return direct;
 
-  // Try goal coords: {layer,row,col} or {row,col}
   const gc = s?.goal ?? s?.exit ?? s?.target ?? null;
   if (gc && typeof gc === "object") {
     const layer = Number(gc.layer ?? fallbackLayer);
@@ -169,7 +165,6 @@ function findGoalId(s: any, fallbackLayer: number): string | null {
     const col = Number(gc.col ?? gc.c);
     if (Number.isFinite(layer) && Number.isFinite(row) && Number.isFinite(col)) return `L${layer}-R${row}-C${col}`;
   }
-
   return null;
 }
 
@@ -209,6 +204,10 @@ function rotForRoll(n: number) {
   }
 }
 
+function diceImg(n: number) {
+  return toPublicUrl(`${DICE_IMG_BASE}/D20_${n}.png`);
+}
+
 /* =========================================================
    App
 ========================================================= */
@@ -232,18 +231,18 @@ export default function App() {
     return set;
   }, [reachMap]);
 
-  const activeScenario = scenarios[scenarioIndex] as any;
-
   const scenarioLayerCount = useMemo(() => {
     const s: any = scenarios[scenarioIndex];
     return Number(s?.layers ?? 1);
   }, [scenarios, scenarioIndex]);
 
-  // 7..1 top-to-bottom
   const barSegments = useMemo(() => [7, 6, 5, 4, 3, 2, 1], []);
-
-  // Horizontal scroll container (shows a bottom scrollbar)
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  /* --------------------------
+     Dice mode toggle
+  -------------------------- */
+  const [diceMode, setDiceMode] = useState(false); // ✅ false = mini boards + manual rotation, true = image dice + roll
 
   /* --------------------------
      Move counter + optimal
@@ -265,7 +264,7 @@ export default function App() {
   }, []);
 
   /* --------------------------
-     Inventory / power ups
+     Inventory / power ups (simple)
   -------------------------- */
   type ItemId = "reroll" | "revealRing" | "peek";
   type Item = { id: ItemId; name: string; icon: string; charges: number };
@@ -279,10 +278,10 @@ export default function App() {
      Dice state
   -------------------------- */
   const [rollValue, setRollValue] = useState<number>(1);
-  const [diceRot, setDiceRot] = useState<{ x: number; y: number }>({ x: -26, y: -38 }); // base tilt so TOP is visible
+  const [diceRot, setDiceRot] = useState<{ x: number; y: number }>({ x: -26, y: -38 });
   const [diceSpinning, setDiceSpinning] = useState(false);
 
-  // drag rotation state
+  // drag rotation state (only active when diceMode === false)
   const dragRef = useRef({
     active: false,
     startX: 0,
@@ -301,7 +300,6 @@ export default function App() {
     setRollValue(n);
 
     const targetFace = rotForRoll(n);
-
     const base = { x: -26, y: -38 };
     const final = { x: base.x + targetFace.x, y: base.y + targetFace.y };
 
@@ -319,9 +317,10 @@ export default function App() {
     pushLog(`Rolled ${n}`, "ok");
   }, [pushLog]);
 
-  // Pointer-drag rotation (spin by dragging)
+  // Manual drag rotation ONLY when NOT in diceMode
   const onDicePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
+      if (diceMode) return; // ✅ no manual rotation in dice mode
       if (diceSpinning) return;
       (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
 
@@ -334,30 +333,38 @@ export default function App() {
 
       setDiceDragging(true);
     },
-    [diceRot.x, diceRot.y, diceSpinning]
+    [diceRot.x, diceRot.y, diceSpinning, diceMode]
   );
 
-  const onDicePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current.active) return;
-    if (e.pointerId !== dragRef.current.pointerId) return;
+  const onDicePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (diceMode) return;
+      if (!dragRef.current.active) return;
+      if (e.pointerId !== dragRef.current.pointerId) return;
 
-    const dx = e.clientX - dragRef.current.startX;
-    const dy = e.clientY - dragRef.current.startY;
+      const dx = e.clientX - dragRef.current.startX;
+      const dy = e.clientY - dragRef.current.startY;
 
-    const sens = 0.35; // degrees per pixel
-    const nextY = dragRef.current.startRotY + dx * sens;
-    const nextX = dragRef.current.startRotX - dy * sens;
+      const sens = 0.35;
+      const nextY = dragRef.current.startRotY + dx * sens;
+      const nextX = dragRef.current.startRotX - dy * sens;
 
-    setDiceRot({ x: nextX, y: nextY });
-  }, []);
+      setDiceRot({ x: nextX, y: nextY });
+    },
+    [diceMode]
+  );
 
-  const endDrag = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current.active) return;
-    if (e.pointerId !== dragRef.current.pointerId) return;
-    dragRef.current.active = false;
-    dragRef.current.pointerId = -1;
-    setDiceDragging(false);
-  }, []);
+  const endDrag = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (diceMode) return;
+      if (!dragRef.current.active) return;
+      if (e.pointerId !== dragRef.current.pointerId) return;
+      dragRef.current.active = false;
+      dragRef.current.pointerId = -1;
+      setDiceDragging(false);
+    },
+    [diceMode]
+  );
 
   /* --------------------------
      Load mode content
@@ -380,7 +387,6 @@ export default function App() {
       )
     );
     setScenarioIndex(idx);
-
     setScreen("select");
   }, []);
 
@@ -398,26 +404,20 @@ export default function App() {
     }
   }, []);
 
-  const revealRing = useCallback(
-    (st: GameState, layer: number, centerId: string) => {
-      const c = idToCoord(centerId);
-      if (!c) return;
-      revealHex(st, centerId);
-      for (const nb of neighborsFlatTop(c.row, c.col)) {
-        revealHex(st, `L${layer}-R${nb.row}-C${nb.col}`);
-      }
-    },
-    []
-  );
+  const revealRing = useCallback((st: GameState, layer: number, centerId: string) => {
+    const c = idToCoord(centerId);
+    if (!c) return;
+    revealHex(st, centerId);
+    for (const nb of neighborsFlatTop(c.row, c.col)) {
+      revealHex(st, `L${layer}-R${nb.row}-C${nb.col}`);
+    }
+  }, []);
 
-  const computeOptimal = useCallback(
-    (st: GameState, layer: number, startId: string, gid: string | null) => {
-      if (!gid) return null;
-      const d = shortestMovesSameLayer(st, layer, startId, gid);
-      return Number.isFinite(d) ? d : null;
-    },
-    []
-  );
+  const computeOptimal = useCallback((st: GameState, layer: number, startId: string, gid: string | null) => {
+    if (!gid) return null;
+    const d = shortestMovesSameLayer(st, layer, startId, gid);
+    return Number.isFinite(d) ? d : null;
+  }, []);
 
   const startScenario = useCallback(
     (idx: number) => {
@@ -428,7 +428,6 @@ export default function App() {
       const pid = (st as any).playerHexId ?? null;
       const layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
 
-      // goal id (best effort)
       const gid = findGoalId(s, layer);
       setGoalId(gid);
 
@@ -444,6 +443,7 @@ export default function App() {
       setRollValue(1);
       setDiceRot({ x: -26, y: -38 });
       setDiceSpinning(false);
+      setDiceDragging(false);
 
       // moves + optimal
       setMovesTaken(0);
@@ -463,14 +463,13 @@ export default function App() {
       if (gid) pushLog(`Goal: ${gid}`, "info");
       else pushLog(`Goal: (not set in scenario JSON)`, "bad");
 
-      // reset inventory (fun defaults each run)
+      // inventory defaults
       setItems([
         { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
         { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
         { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
       ]);
 
-      // reset horizontal scroll to left
       window.setTimeout(() => {
         if (scrollRef.current) scrollRef.current.scrollLeft = 0;
       }, 0);
@@ -501,10 +500,8 @@ export default function App() {
         setCurrentLayer(newLayer);
         setSelectedId(newPlayerId ?? id);
 
-        // moves
         setMovesTaken((m) => m + 1);
 
-        // optimal-from-now
         if (newPlayerId && goalId) {
           const o = computeOptimal(state, newLayer, newPlayerId, goalId);
           setOptimalFromNow(o);
@@ -525,14 +522,13 @@ export default function App() {
   );
 
   /* --------------------------
-     Inventory use
+     Inventory use (simple)
   -------------------------- */
   const useItem = useCallback(
     (id: "reroll" | "revealRing" | "peek") => {
       const it = items.find((x) => x.id === id);
       if (!it || it.charges <= 0) return;
 
-      // spend one charge
       setItems((prev) => prev.map((x) => (x.id === id ? { ...x, charges: Math.max(0, x.charges - 1) } : x)));
 
       if (id === "reroll") {
@@ -555,7 +551,6 @@ export default function App() {
       }
 
       if (id === "peek") {
-        // simple fun effect: briefly reveal above & below ring (visual-only)
         const up = Math.min(scenarioLayerCount, currentLayer + 1);
         const dn = Math.max(1, currentLayer - 1);
         revealRing(state, up, pid.replace(/^L\d+-/, `L${up}-`));
@@ -569,28 +564,24 @@ export default function App() {
     [items, state, currentLayer, scenarioLayerCount, rollDice, pushLog, revealRing, recomputeReachability]
   );
 
-  // Face stripe colors (below/current/above)
+  // Stripes (mini-board mode only)
   const stripeBelow = belowLayer < 1 ? "rgba(0,0,0,.90)" : layerCssVar(belowLayer);
   const stripeCurr = layerCssVar(currentLayer);
   const stripeAbove = aboveLayer > scenarioLayerCount ? "rgba(0,0,0,.90)" : layerCssVar(aboveLayer);
 
-  // Align dice top with bar top when rollValue === 1 (small nudge)
+  // Align dice top with bar top when rollValue === 1
   const diceAlignY = rollValue === 1 ? -18 : 0;
 
-  // Mini boards: show movement changes for their layer only
+  // Mini boards reachability filtered per layer
   const miniAboveLayer = Math.min(scenarioLayerCount, Math.max(1, aboveLayer));
   const miniCurrLayer = currentLayer;
   const miniBelowLayer = Math.max(1, belowLayer);
-
   const miniAboveReach = useMemo(() => filterReachForLayer(miniAboveLayer, reachMap), [miniAboveLayer, reachMap]);
   const miniCurrReach = useMemo(() => filterReachForLayer(miniCurrLayer, reachMap), [miniCurrLayer, reachMap]);
   const miniBelowReach = useMemo(() => filterReachForLayer(miniBelowLayer, reachMap), [miniBelowLayer, reachMap]);
 
-  // Delta indicator
   const delta = useMemo(() => {
     if (optimalAtStart == null || optimalFromNow == null) return null;
-    // "ideal if perfect" = optimalAtStart, "remaining now" = optimalFromNow
-    // If you are perfect: movesTaken + optimalFromNow == optimalAtStart
     return movesTaken + optimalFromNow - optimalAtStart;
   }, [movesTaken, optimalAtStart, optimalFromNow]);
 
@@ -609,16 +600,10 @@ export default function App() {
             <div className="cardMeta">Build: {BUILD_TAG}</div>
 
             <div className="row">
-              <button
-                className="btn primary"
-                onClick={() => loadModeContent("regular").catch((e) => alert(String((e as any)?.message ?? e)))}
-              >
+              <button className="btn primary" onClick={() => loadModeContent("regular").catch((e) => alert(String((e as any)?.message ?? e)))}>
                 Regular
               </button>
-              <button
-                className="btn"
-                onClick={() => loadModeContent("kids").catch((e) => alert(String((e as any)?.message ?? e)))}
-              >
+              <button className="btn" onClick={() => loadModeContent("kids").catch((e) => alert(String((e as any)?.message ?? e)))}>
                 Kids / Friendly
               </button>
             </div>
@@ -737,7 +722,8 @@ export default function App() {
                       className={
                         "diceCube" +
                         (diceSpinning ? " isSpinning" : "") +
-                        (diceDragging ? " isDragging" : "")
+                        (diceDragging ? " isDragging" : "") +
+                        (diceMode ? " isDiceMode" : "")
                       }
                       onPointerDown={onDicePointerDown}
                       onPointerMove={onDicePointerMove}
@@ -745,165 +731,222 @@ export default function App() {
                       onPointerCancel={endDrag}
                       style={{
                         transform: `translateY(${diceAlignY}px) rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
-                        touchAction: "none",
-                        cursor: diceSpinning ? "default" : diceDragging ? "grabbing" : "grab",
+                        touchAction: diceMode ? "auto" : "none",
+                        cursor: diceMode ? "default" : diceDragging ? "grabbing" : "grab",
                       }}
                     >
-                      {/* TOP (mini: ABOVE) */}
-                      <div className="diceFace faceTop">
-                        <div className="faceStripe" style={{ background: stripeAbove }} />
-                        <div className="diceFaceInnerFixed">
-                          <div className="miniFit">
-                            <HexBoard
-                              kind="mini"
-                              activeLayer={miniAboveLayer}
-                              maxLayer={scenarioLayerCount}
-                              state={state}
-                              selectedId={null}
-                              reachable={miniAboveReach.reachable}
-                              reachMap={miniAboveReach.reachMap}
-                              showCoords={false}
-                              onCellClick={undefined}
-                              showPlayerOnMini={true}
-                            />
-                          </div>
-                        </div>
-                      </div>
+                      {/* =========================
+                          DICE MODE (images)
+                         ========================= */}
+                      {diceMode ? (
+                        <>
+                          {/* faces: top=1 front=2 right=3 left=4 back=5 bottom=6 */}
+                          <FaceImage cls="diceFace faceTop" src={diceImg(1)} alt="Dice 1" />
+                          <FaceImage cls="diceFace faceFront" src={diceImg(2)} alt="Dice 2" />
+                          <FaceImage cls="diceFace faceRight" src={diceImg(3)} alt="Dice 3" />
+                          <FaceImage cls="diceFace faceLeft" src={diceImg(4)} alt="Dice 4" />
+                          <FaceImage cls="diceFace faceBack" src={diceImg(5)} alt="Dice 5" />
+                          <FaceImage cls="diceFace faceBottom" src={diceImg(6)} alt="Dice 6" />
+                        </>
+                      ) : (
+                        <>
+                          {/* =========================
+                              MINI BOARD MODE (your UI faces)
+                             ========================= */}
 
-                      {/* FRONT (mini: CURRENT) */}
-                      <div className="diceFace faceFront">
-                        <div className="faceStripe" style={{ background: stripeCurr }} />
-                        <div className="diceFaceInnerFixed">
-                          <div className="miniFit">
-                            <HexBoard
-                              kind="mini"
-                              activeLayer={miniCurrLayer}
-                              maxLayer={scenarioLayerCount}
-                              state={state}
-                              selectedId={null}
-                              reachable={miniCurrReach.reachable}
-                              reachMap={miniCurrReach.reachMap}
-                              showCoords={false}
-                              onCellClick={undefined}
-                              showPlayerOnMini={true}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* RIGHT (mini: BELOW or invalid) */}
-                      <div className="diceFace faceRight">
-                        <div className="faceStripe" style={{ background: stripeBelow }} />
-                        <div className="diceFaceInnerFixed">
-                          {belowLayer < 1 ? (
-                            <div className="miniInvalid">NO LAYER BELOW</div>
-                          ) : (
-                            <div className="miniFit">
-                              <HexBoard
-                                kind="mini"
-                                activeLayer={miniBelowLayer}
-                                maxLayer={scenarioLayerCount}
-                                state={state}
-                                selectedId={null}
-                                reachable={miniBelowReach.reachable}
-                                reachMap={miniBelowReach.reachMap}
-                                showCoords={false}
-                                onCellClick={undefined}
-                                showPlayerOnMini={true}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* BACK: MOVE COUNTER + OPTIMAL */}
-                      <div className="diceFace faceBack">
-                        <div className="diceHud">
-                          <div className="hudTitle">Moves</div>
-                          <div className="hudRow">
-                            <span className="hudKey">Taken</span>
-                            <span className="hudVal">{movesTaken}</span>
-                          </div>
-                          <div className="hudRow">
-                            <span className="hudKey">Optimal start</span>
-                            <span className="hudVal">{optimalAtStart == null ? "—" : optimalAtStart}</span>
-                          </div>
-                          <div className="hudRow">
-                            <span className="hudKey">Optimal now</span>
-                            <span className="hudVal">{optimalFromNow == null ? "—" : optimalFromNow}</span>
-                          </div>
-                          <div className="hudRow">
-                            <span className="hudKey">Δ</span>
-                            <span className={"hudVal " + (delta == null ? "" : delta <= 0 ? "ok" : "bad")}>
-                              {delta == null ? "—" : delta}
-                            </span>
-                          </div>
-                          <div className="hudNote">
-                            Goal: <span className="mono">{goalId ?? "not set"}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* LEFT: STORY LOG */}
-                      <div className="diceFace faceLeft">
-                        <div className="diceHud">
-                          <div className="hudTitle">Story</div>
-                          <div className="hudLog">
-                            {log.slice(0, 7).map((e) => (
-                              <div key={e.n} className={"hudLogLine " + (e.kind ?? "info")}>
-                                <span className="hudTime">{e.t}</span>
-                                <span className="hudMsg">{e.msg}</span>
+                          {/* TOP (mini: ABOVE) */}
+                          <div className="diceFace faceTop">
+                            <div className="faceStripe" style={{ background: stripeAbove }} />
+                            <div className="diceFaceInnerFixed">
+                              <div className="miniFit">
+                                <HexBoard
+                                  kind="mini"
+                                  activeLayer={miniAboveLayer}
+                                  maxLayer={scenarioLayerCount}
+                                  state={state}
+                                  selectedId={null}
+                                  reachable={miniAboveReach.reachable}
+                                  reachMap={miniAboveReach.reachMap}
+                                  showCoords={false}
+                                  onCellClick={undefined}
+                                  showPlayerOnMini={true}
+                                />
                               </div>
-                            ))}
-                            {!log.length ? <div className="hudLogEmpty">No events yet…</div> : null}
+                            </div>
                           </div>
-                        </div>
-                      </div>
 
-                      {/* BOTTOM: INVENTORY / POWER UPS */}
-                      <div className="diceFace faceBottom">
-                        <div className="diceHud">
-                          <div className="hudTitle">Power</div>
-                          <div className="invGrid">
-                            {items.map((it) => (
-                              <button
-                                key={it.id}
-                                className="invSlot"
-                                onClick={() => useItem(it.id)}
-                                disabled={it.charges <= 0}
-                                title={`${it.name} (${it.charges})`}
-                              >
-                                <div className="invIcon">{it.icon}</div>
-                                <div className="invMeta">
-                                  <div className="invName">{it.name}</div>
-                                  <div className="invCharges">{it.charges}</div>
+                          {/* FRONT (mini: CURRENT) */}
+                          <div className="diceFace faceFront">
+                            <div className="faceStripe" style={{ background: stripeCurr }} />
+                            <div className="diceFaceInnerFixed">
+                              <div className="miniFit">
+                                <HexBoard
+                                  kind="mini"
+                                  activeLayer={miniCurrLayer}
+                                  maxLayer={scenarioLayerCount}
+                                  state={state}
+                                  selectedId={null}
+                                  reachable={miniCurrReach.reachable}
+                                  reachMap={miniCurrReach.reachMap}
+                                  showCoords={false}
+                                  onCellClick={undefined}
+                                  showPlayerOnMini={true}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* RIGHT (mini: BELOW or invalid) */}
+                          <div className="diceFace faceRight">
+                            <div className="faceStripe" style={{ background: stripeBelow }} />
+                            <div className="diceFaceInnerFixed">
+                              {belowLayer < 1 ? (
+                                <div className="miniInvalid">NO LAYER BELOW</div>
+                              ) : (
+                                <div className="miniFit">
+                                  <HexBoard
+                                    kind="mini"
+                                    activeLayer={miniBelowLayer}
+                                    maxLayer={scenarioLayerCount}
+                                    state={state}
+                                    selectedId={null}
+                                    reachable={miniBelowReach.reachable}
+                                    reachMap={miniBelowReach.reachMap}
+                                    showCoords={false}
+                                    onCellClick={undefined}
+                                    showPlayerOnMini={true}
+                                  />
                                 </div>
-                              </button>
-                            ))}
+                              )}
+                            </div>
                           </div>
-                          <div className="hudNote">
-                            Tap to use • Effects are visual/gameplay-helper (reveal/peek/reroll)
+
+                          {/* BACK: MOVE COUNTER + OPTIMAL */}
+                          <div className="diceFace faceBack">
+                            <div className="diceHud">
+                              <div className="hudTitle">Moves</div>
+                              <div className="hudRow">
+                                <span className="hudKey">Taken</span>
+                                <span className="hudVal">{movesTaken}</span>
+                              </div>
+                              <div className="hudRow">
+                                <span className="hudKey">Optimal start</span>
+                                <span className="hudVal">{optimalAtStart == null ? "—" : optimalAtStart}</span>
+                              </div>
+                              <div className="hudRow">
+                                <span className="hudKey">Optimal now</span>
+                                <span className="hudVal">{optimalFromNow == null ? "—" : optimalFromNow}</span>
+                              </div>
+                              <div className="hudRow">
+                                <span className="hudKey">Δ</span>
+                                <span className={"hudVal " + (delta == null ? "" : delta <= 0 ? "ok" : "bad")}>
+                                  {delta == null ? "—" : delta}
+                                </span>
+                              </div>
+                              <div className="hudNote">
+                                Goal: <span className="mono">{goalId ?? "not set"}</span>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
+
+                          {/* LEFT: STORY LOG */}
+                          <div className="diceFace faceLeft">
+                            <div className="diceHud">
+                              <div className="hudTitle">Story</div>
+                              <div className="hudLog">
+                                {log.slice(0, 7).map((e) => (
+                                  <div key={e.n} className={"hudLogLine " + (e.kind ?? "info")}>
+                                    <span className="hudTime">{e.t}</span>
+                                    <span className="hudMsg">{e.msg}</span>
+                                  </div>
+                                ))}
+                                {!log.length ? <div className="hudLogEmpty">No events yet…</div> : null}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* BOTTOM: INVENTORY / POWER UPS */}
+                          <div className="diceFace faceBottom">
+                            <div className="diceHud">
+                              <div className="hudTitle">Power</div>
+                              <div className="invGrid">
+                                {items.map((it) => (
+                                  <button
+                                    key={it.id}
+                                    className="invSlot"
+                                    onClick={() => useItem(it.id)}
+                                    disabled={it.charges <= 0}
+                                    title={`${it.name} (${it.charges})`}
+                                  >
+                                    <div className="invIcon">{it.icon}</div>
+                                    <div className="invMeta">
+                                      <div className="invName">{it.name}</div>
+                                      <div className="invCharges">{it.charges}</div>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                              <div className="hudNote">Drag to rotate • Tap items to use</div>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
 
+                  {/* CONTROLS */}
                   <div className="diceControls">
-                    <button className="btn primary" onClick={rollDice}>
-                      🎲 Roll
+                    <button
+                      className={"btn " + (diceMode ? "primary" : "")}
+                      onClick={() => {
+                        setDiceMode((v) => !v);
+                        // when switching to mini-board mode, ensure a nice view
+                        window.setTimeout(() => {
+                          setDiceRot({ x: -26, y: -38 });
+                          setDiceSpinning(false);
+                          setDiceDragging(false);
+                        }, 0);
+                      }}
+                      title="Toggle Dice Mode"
+                    >
+                      {diceMode ? "🧊 Boards" : "🎲 Dice Mode"}
                     </button>
-                    <div className="diceReadout">= {rollValue}</div>
+
+                    {/* ✅ In Dice Mode: Roll allowed. In Board Mode: NO roll, rotation only */}
+                    {diceMode ? (
+                      <>
+                        <button className="btn primary" onClick={rollDice}>
+                          🎲 Roll
+                        </button>
+                        <div className="diceReadout">= {rollValue}</div>
+                      </>
+                    ) : (
+                      <div className="diceReadout subtle">Drag to rotate</div>
+                    )}
+                  </div>
+
+                  <div className="dragHint">
+                    {diceMode ? "Dice Mode: Roll only (no drag rotation)" : "Board Mode: Drag rotation only (no roll)"}
                   </div>
                 </div>
               </div>
-
-              {/* (tiny hint) */}
-              <div className="dragHint">Drag the dice to rotate • Tap power-ups on the bottom face</div>
             </div>
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/* =========================================================
+   Dice image face component
+========================================================= */
+function FaceImage(props: { cls: string; src: string; alt: string }) {
+  return (
+    <div className={props.cls}>
+      <div className="diceImgWrap">
+        <img className="diceImg" src={props.src} alt={props.alt} draggable={false} />
+      </div>
     </div>
   );
 }
@@ -918,14 +961,7 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number; segments
       <div className="layerBar">
         {segments.map((layerVal) => {
           const active = layerVal === currentLayer;
-          return (
-            <div
-              key={layerVal}
-              className={"barSeg" + (active ? " isActive" : "")}
-              data-layer={layerVal}
-              title={`Layer ${layerVal}`}
-            />
-          );
+          return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} title={`Layer ${layerVal}`} />;
         })}
       </div>
     </div>
@@ -947,13 +983,9 @@ function HexBoard(props: {
   showCoords: boolean;
   showPlayerOnMini?: boolean;
 }) {
-  const { kind, activeLayer, maxLayer, state, selectedId, reachable, reachMap, onCellClick, showCoords, showPlayerOnMini } =
-    props;
+  const { kind, activeLayer, maxLayer, state, selectedId, reachable, reachMap, onCellClick, showCoords, showPlayerOnMini } = props;
   const playerId = (state as any)?.playerHexId ?? null;
 
-  // Rim colors:
-  // - correspond to this layer’s color
-  // - BUT if no above => top rim black, if no below => bottom rim black
   const hasAbove = activeLayer < maxLayer;
   const hasBelow = activeLayer > 1;
 
@@ -1018,7 +1050,6 @@ function HexBoard(props: {
                     </span>
                   ) : null}
 
-                  {/* Mini board black numbers (NO ROWS) */}
                   {kind === "mini" ? <span className="miniNum">{col}</span> : null}
                 </div>
               );
@@ -1037,7 +1068,6 @@ const CSS = `
 :root{
   --ink: rgba(255,255,255,.92);
 
-  /* bar colors bottom=1 red ... top=7 violet */
   --L1: rgba(255, 92, 120, .95);
   --L2: rgba(255, 150, 90, .95);
   --L3: rgba(255, 220, 120, .95);
@@ -1058,7 +1088,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   color: var(--ink);
 }
 
-/* ONE global background image */
 .globalBg{
   position: absolute;
   inset: 0;
@@ -1077,17 +1106,8 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   z-index: 1;
 }
 
-.shell{
-  position: relative;
-  z-index: 2;
-  padding: 22px;
-}
-
-.shellCard{
-  display: grid;
-  place-items: center;
-  min-height: 100vh;
-}
+.shell{ position: relative; z-index: 2; padding: 22px; }
+.shellCard{ display: grid; place-items: center; min-height: 100vh; }
 
 .card{
   width: min(980px, calc(100vw - 44px));
@@ -1097,23 +1117,9 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   box-shadow: 0 0 0 1px rgba(255,255,255,.16) inset, 0 25px 70px rgba(0,0,0,.18);
   backdrop-filter: blur(10px);
 }
-
-.cardTitleBig{
-  font-weight: 1000;
-  font-size: 34px;
-  letter-spacing: .2px;
-}
-.cardTitle{
-  font-weight: 1000;
-  font-size: 18px;
-  letter-spacing: .2px;
-  margin-bottom: 10px;
-}
-.cardMeta{
-  margin-top: 6px;
-  opacity: .82;
-  font-weight: 900;
-}
+.cardTitleBig{ font-weight: 1000; font-size: 34px; letter-spacing: .2px; }
+.cardTitle{ font-weight: 1000; font-size: 18px; letter-spacing: .2px; margin-bottom: 10px; }
+.cardMeta{ margin-top: 6px; opacity: .82; font-weight: 900; }
 
 .row{ display:flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 .rowEnd{ justify-content: flex-end; }
@@ -1153,12 +1159,8 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .selectTileDesc{ margin-top: 4px; opacity: .80; line-height: 1.25; }
 
 /* GAME */
-.shellGame{
-  min-height: 100vh;
-  display: grid;
-  place-items: start center;
-  padding-top: 18px;
-}
+.shellGame{ min-height: 100vh; display: grid; place-items: start center; padding-top: 18px; }
+
 .scrollStage{
   width: calc(100vw - 44px);
   max-width: 100vw;
@@ -1177,7 +1179,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   text-shadow: 0 8px 20px rgba(0,0,0,.18);
 }
 
-/* Shared vars so BOTH bars align to the hex rows */
 .gameLayout{
   --rows: 7;
   --hexWMain: 82px;
@@ -1254,7 +1255,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 .hexBoardMain .hex{ cursor: pointer; }
 
-/* Rim lines correspond to layer color; black if no above/below (set via inline vars). */
 .hexRim{
   position:absolute;
   left: 14%;
@@ -1291,7 +1291,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 .hexBoardMain .hexLabel{ font-size: 13px; }
 
-/* Mini black numbers (no rows). */
 .miniNum{
   position:absolute;
   inset: 0;
@@ -1305,7 +1304,14 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   text-shadow: 0 0 6px rgba(255,255,255,.35);
 }
 
-/* Highlights */
+/* Only MAIN board overlays; mini stays uniform */
+.hex::before{ content:""; position:absolute; inset:0; pointer-events:none; z-index:1; opacity:0; }
+.hexBoardMain .hex.notReach{ cursor: not-allowed; }
+.hexBoardMain .hex.notReach::before{ background: rgba(0,0,0,.28); opacity: 1; }
+.hexBoardMain .hex.blocked::before{ background: rgba(0,0,0,.34); opacity: 1; }
+.hexBoardMain .hex.missing::before{ background: rgba(0,0,0,.48); opacity: 1; }
+.hexBoardMini .hex::before{ opacity: 0 !important; }
+
 .hex.reach{
   box-shadow:
     0 0 0 2px rgba(255,255,255,.12) inset,
@@ -1323,23 +1329,9 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 .hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
 
-/* Only MAIN board gets dark overlays; mini boards remain uniform. */
-.hex::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  z-index:1;
-  opacity:0;
-}
-.hexBoardMain .hex.notReach{ cursor: not-allowed; }
-.hexBoardMain .hex.notReach::before{ background: rgba(0,0,0,.28); opacity: 1; }
-.hexBoardMain .hex.blocked::before{ background: rgba(0,0,0,.34); opacity: 1; }
-.hexBoardMain .hex.missing::before{ background: rgba(0,0,0,.48); opacity: 1; }
-.hexBoardMini .hex::before{ opacity: 0 !important; }
-
 /* DICE */
 .diceArea{ display:grid; justify-items:center; gap: 14px; padding-top: 0; }
+
 .diceCubeWrap{
   width: 460px;
   height: 360px;
@@ -1349,7 +1341,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   position: relative;
 }
 .diceCube{
-  --s: 294px; /* 210 * 1.4 */
+  --s: 294px;
   width: var(--s);
   height: var(--s);
   position: relative;
@@ -1369,7 +1361,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   overflow:hidden;
 }
 
-/* Stripes on faces (not on column) */
 .faceStripe{
   position:absolute;
   left: 18px;
@@ -1417,14 +1408,16 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .diceControls{
   display:flex;
   align-items:center;
-  gap: 12px;
+  gap: 10px;
   padding: 10px 14px;
   border-radius: 16px;
   background: rgba(255,255,255,.10);
   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.14);
   backdrop-filter: blur(10px);
 }
-.diceReadout{ font-weight: 1000; font-size: 18px; color: rgba(255,255,255,.92); }
+.diceReadout{ font-weight: 1000; font-size: 16px; color: rgba(255,255,255,.92); }
+.diceReadout.subtle{ opacity: .85; }
+
 .miniInvalid{
   padding: 12px;
   border-radius: 14px;
@@ -1433,7 +1426,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   font-weight: 1000;
 }
 
-/* HUD faces (back/left/bottom) */
+/* HUD faces */
 .diceHud{
   position:absolute;
   inset: 14px;
@@ -1447,58 +1440,23 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   gap: 10px;
   overflow:hidden;
 }
-
-.hudTitle{
-  font-weight: 1000;
-  letter-spacing: .2px;
-  opacity: .95;
-}
-
-.hudRow{
-  display:flex;
-  justify-content: space-between;
-  align-items:center;
-  gap: 10px;
-  font-weight: 900;
-}
+.hudTitle{ font-weight: 1000; letter-spacing: .2px; opacity: .95; }
+.hudRow{ display:flex; justify-content: space-between; align-items:center; gap: 10px; font-weight: 900; }
 .hudKey{ opacity: .85; }
 .hudVal{ font-weight: 1000; }
 .hudVal.ok{ color: rgba(140,255,170,.95); }
 .hudVal.bad{ color: rgba(255,160,160,.95); }
-
-.hudNote{
-  margin-top: auto;
-  opacity: .78;
-  font-weight: 900;
-  font-size: 12px;
-}
+.hudNote{ margin-top: auto; opacity: .78; font-weight: 900; font-size: 12px; }
 .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 
-.hudLog{
-  display:flex;
-  flex-direction: column;
-  gap: 6px;
-  overflow:hidden;
-}
-.hudLogLine{
-  display:grid;
-  grid-template-columns: 46px 1fr;
-  gap: 8px;
-  font-size: 12px;
-  line-height: 1.15;
-  font-weight: 900;
-  opacity: .95;
-}
+.hudLog{ display:flex; flex-direction: column; gap: 6px; overflow:hidden; }
+.hudLogLine{ display:grid; grid-template-columns: 46px 1fr; gap: 8px; font-size: 12px; line-height: 1.15; font-weight: 900; opacity: .95; }
 .hudTime{ opacity: .75; }
 .hudLogLine.ok .hudMsg{ color: rgba(140,255,170,.95); }
 .hudLogLine.bad .hudMsg{ color: rgba(255,160,160,.95); }
 .hudLogEmpty{ opacity: .75; font-weight: 900; font-size: 12px; }
 
-.invGrid{
-  display:grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
+.invGrid{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .invSlot{
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,.14);
@@ -1516,6 +1474,25 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .invMeta{ display:flex; flex-direction: column; gap: 2px; }
 .invName{ font-weight: 1000; font-size: 12px; }
 .invCharges{ font-weight: 1000; opacity: .80; font-size: 12px; }
+
+/* Dice images */
+.diceImgWrap{
+  position:absolute;
+  inset: 16px;
+  border-radius: 14px;
+  background: rgba(0,0,0,.10);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
+  display:grid;
+  place-items:center;
+}
+.diceImg{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select:none;
+  pointer-events:none;
+  filter: drop-shadow(0 10px 20px rgba(0,0,0,.20));
+}
 
 @media (max-width: 980px){
   .scrollInner{ min-width: 1200px; }
