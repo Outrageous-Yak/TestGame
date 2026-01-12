@@ -93,9 +93,6 @@ export default function App() {
   const [currentLayer, setCurrentLayer] = useState<number>(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // ✅ Dice UI state (doesn't change engine rules yet — just UI like your screenshot)
-  const [roll, setRoll] = useState<number>(1);
-
   const [reachMap, setReachMap] = useState<ReachMap>({});
   const reachable = useMemo(() => {
     const set = new Set<string>();
@@ -110,6 +107,13 @@ export default function App() {
 
   // 7..1 top-to-bottom
   const barSegments = useMemo(() => [7, 6, 5, 4, 3, 2, 1], []);
+
+  // ✅ Dice / Roll state (visual + future rules)
+  const [roll, setRoll] = useState<number>(1);
+  const doRoll = useCallback(() => {
+    const v = 1 + Math.floor(Math.random() * 6);
+    setRoll(v);
+  }, []);
 
   /* --------------------------
      Load mode content
@@ -167,7 +171,7 @@ export default function App() {
       setSelectedId(pid);
       setCurrentLayer(layer);
 
-      // reset roll for a clean start
+      // reset dice
       setRoll(1);
     },
     [scenarios, revealWholeLayer, recomputeReachability]
@@ -208,11 +212,6 @@ export default function App() {
 
   const belowLayer = currentLayer - 1;
   const aboveLayer = currentLayer + 1;
-
-  const onRoll = useCallback(() => {
-    const n = 1 + Math.floor(Math.random() * 6);
-    setRoll(n);
-  }, []);
 
   return (
     <div className="appRoot">
@@ -322,7 +321,7 @@ export default function App() {
       {/* GAME */}
       {screen === "game" ? (
         <div className="shell shellGame">
-          {/* ✅ Layout: left bar | board | right bar | dice+faces (outside right bar) */}
+          {/* ✅ Left bar + board + right bar + OUTER dice panel */}
           <div className="gameLayout">
             <SideBar side="left" currentLayer={currentLayer} segments={barSegments} />
 
@@ -341,9 +340,10 @@ export default function App() {
 
             <SideBar side="right" currentLayer={currentLayer} segments={barSegments} />
 
-            <RightRail
+            {/* ✅ Dice OUTSIDE right bar (bigger) and shows the “faces” (3 mini boards) */}
+            <DicePanel
               roll={roll}
-              onRoll={onRoll}
+              onRoll={doRoll}
               belowLayer={belowLayer}
               currentLayer={currentLayer}
               aboveLayer={aboveLayer}
@@ -382,9 +382,9 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number; segments
 }
 
 /* =========================================================
-   Right rail (Dice + Layer Faces)
+   Dice panel (outer right)
 ========================================================= */
-function RightRail(props: {
+function DicePanel(props: {
   roll: number;
   onRoll: () => void;
   belowLayer: number;
@@ -396,82 +396,81 @@ function RightRail(props: {
   const { roll, onRoll, belowLayer, currentLayer, aboveLayer, maxLayer, state } = props;
 
   return (
-    <div className="rightRail">
+    <div className="diceWrap" aria-label="Dice and layer faces">
       <div className="diceCard">
-        <button className="diceBtn" onClick={onRoll} type="button" title="Roll">
-          <span className="diceIcon" aria-hidden="true">
-            🎲
-          </span>
-          <span className="diceText">Roll</span>
-        </button>
-        <div className="diceEq">=</div>
-        <div className="diceValue">{roll}</div>
-      </div>
+        <div className="diceTop">
+          <button className="diceBtn" onClick={onRoll} title="Roll dice">
+            🎲 Roll
+          </button>
+          <div className="diceEq">=</div>
+          <div className="diceValue">{roll}</div>
+        </div>
 
-      <div className="facesStack" aria-label="Layer faces">
-        <FaceCard title="Below" invalidSide="right" layer={belowLayer} maxLayer={maxLayer}>
-          <HexBoard
-            kind="mini"
-            activeLayer={Math.max(1, belowLayer)}
-            state={state}
-            selectedId={null}
-            reachable={new Set()}
-            reachMap={{}}
-            showCoords={false}
-            onCellClick={undefined}
-            showPlayerOnMini={false}
-          />
-        </FaceCard>
+        <div className="diceFaces">
+          <MiniFace title="Below" layer={belowLayer} maxLayer={maxLayer} invalidSide="right">
+            <HexBoard
+              kind="mini"
+              activeLayer={Math.max(1, belowLayer)}
+              state={state}
+              selectedId={null}
+              reachable={new Set()}
+              reachMap={{}}
+              showCoords={false}
+              onCellClick={undefined}
+              showPlayerOnMini={false}
+            />
+          </MiniFace>
 
-        <FaceCard title="Current" invalidSide="left" layer={currentLayer} maxLayer={maxLayer}>
-          <HexBoard
-            kind="mini"
-            activeLayer={currentLayer}
-            state={state}
-            selectedId={null}
-            reachable={new Set()}
-            reachMap={{}}
-            showCoords={false}
-            onCellClick={undefined}
-            showPlayerOnMini={true}
-          />
-        </FaceCard>
+          <MiniFace title="Current" layer={currentLayer} maxLayer={maxLayer} invalidSide="left" highlight>
+            <HexBoard
+              kind="mini"
+              activeLayer={currentLayer}
+              state={state}
+              selectedId={null}
+              reachable={new Set()}
+              reachMap={{}}
+              showCoords={false}
+              onCellClick={undefined}
+              showPlayerOnMini={true}
+            />
+          </MiniFace>
 
-        <FaceCard title="Above" invalidSide="right" layer={aboveLayer} maxLayer={maxLayer}>
-          <HexBoard
-            kind="mini"
-            activeLayer={Math.min(maxLayer, aboveLayer)}
-            state={state}
-            selectedId={null}
-            reachable={new Set()}
-            reachMap={{}}
-            showCoords={false}
-            onCellClick={undefined}
-            showPlayerOnMini={false}
-          />
-        </FaceCard>
+          <MiniFace title="Above" layer={aboveLayer} maxLayer={maxLayer} invalidSide="right">
+            <HexBoard
+              kind="mini"
+              activeLayer={Math.min(maxLayer, aboveLayer)}
+              state={state}
+              selectedId={null}
+              reachable={new Set()}
+              reachMap={{}}
+              showCoords={false}
+              onCellClick={undefined}
+              showPlayerOnMini={false}
+            />
+          </MiniFace>
+        </div>
       </div>
     </div>
   );
 }
 
-function FaceCard(props: {
+function MiniFace(props: {
   title: string;
   layer: number;
   maxLayer: number;
   invalidSide: "left" | "right";
+  highlight?: boolean;
   children: React.ReactNode;
 }) {
-  const { title, layer, maxLayer, invalidSide, children } = props;
+  const { title, layer, maxLayer, invalidSide, highlight, children } = props;
   const invalid = layer < 1 ? "NO LAYER BELOW" : layer > maxLayer ? "NO LAYER ABOVE" : null;
-
-  // default left; if invalid, push label to requested side
   const labelSide = invalid ? invalidSide : "left";
 
   return (
-    <div className="faceCard">
-      <div className={"faceSideLabel " + (labelSide === "right" ? "isRight" : "isLeft")}>{title}</div>
-      <div className="faceBody">{invalid ? <div className="faceInvalid">{invalid}</div> : children}</div>
+    <div className={"miniFace " + (highlight ? "isHighlight" : "")}>
+      <div className={"miniSideLabel " + (labelSide === "right" ? "isRight" : "isLeft")}>{title}</div>
+
+      <div className="miniBody">{invalid ? <div className="miniInvalid">{invalid}</div> : children}</div>
     </div>
   );
 }
@@ -575,7 +574,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   color: var(--ink);
 }
 
-/* ONE global background image */
+/* background */
 .globalBg{
   position: absolute;
   inset: 0;
@@ -669,9 +668,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .selectTileTitle{ font-weight: 1000; }
 .selectTileDesc{ margin-top: 4px; opacity: .80; line-height: 1.25; }
 
-/* ===========================
-   GAME SCREEN
-=========================== */
+/* GAME */
 .shellGame{
   min-height: 100vh;
   display: grid;
@@ -686,7 +683,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   --hexHMain: calc(var(--hexWMain) * 0.8660254);
 
   display: grid;
-  grid-template-columns: 62px auto 62px 280px; /* ✅ left bar | board | right bar | dice+faces */
+  grid-template-columns: 62px auto 62px 320px; /* ✅ left bar + board + right bar + dice panel */
   gap: 18px;
   align-items: start;
   justify-content: center;
@@ -698,23 +695,20 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   justify-items: center;
 }
 
-/* ===========================
-   BARS (both sides, aligned to row top/bottom)
-=========================== */
+/* BARS */
 .barWrap{
   display:flex;
-  align-items: flex-start;  /* top aligns with top of board */
+  align-items: flex-start;
   justify-content: center;
 }
 
 .layerBar{
   width: 18px;
-  height: calc(var(--hexHMain) * var(--rows)); /* ✅ exact match to board height */
+  height: calc(var(--hexHMain) * var(--rows)); /* ✅ matches board rows */
   border-radius: 999px;
   overflow: hidden;
   background: rgba(0,0,0,.22);
   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.18);
-
   display: grid;
   grid-template-rows: repeat(7, 1fr);
 }
@@ -742,103 +736,103 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   border-radius: 999px;
 }
 
-/* ===========================
-   RIGHT RAIL (dice + faces)
-=========================== */
-.rightRail{
-  display: grid;
-  gap: 14px;
-  align-content: start;
+/* DICE PANEL (outer right) */
+.diceWrap{
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .diceCard{
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  align-items: center;
-  gap: 10px;
-
-  padding: 12px;
-  border-radius: 18px;
-  background: rgba(255,255,255,.10);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.16);
+  width: 320px;
+  border-radius: 22px;
+  padding: 14px;
+  background: rgba(255,255,255,.12);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.16) inset, 0 25px 70px rgba(0,0,0,.18);
   backdrop-filter: blur(10px);
 }
 
-.diceBtn{
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.diceTop{
+  display: grid;
+  grid-template-columns: 1fr auto auto;
   gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+}
 
-  border: 1px solid rgba(255,255,255,.18);
-  background: rgba(0,0,0,.20);
-  color: rgba(255,255,255,.92);
-  cursor: pointer;
-
-  border-radius: 16px;
+.diceBtn{
   padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.22);
+  background: rgba(0,0,0,.18);
+  color: rgba(255,255,255,.92);
   font-weight: 1000;
+  cursor: pointer;
   box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset, 0 18px 40px rgba(0,0,0,.14);
 }
-.diceBtn:hover{ filter: brightness(1.06); border-color: rgba(255,255,255,.28); }
-
-.diceIcon{ font-size: 22px; line-height: 1; }
-.diceText{ font-size: 16px; }
+.diceBtn:hover{ filter: brightness(1.06); border-color: rgba(255,255,255,.32); }
 
 .diceEq{
   font-weight: 1000;
   opacity: .9;
-  font-size: 18px;
 }
+
 .diceValue{
-  min-width: 34px;
-  text-align: right;
+  min-width: 42px;
+  text-align: center;
   font-weight: 1000;
   font-size: 22px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(0,0,0,.18);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset;
 }
 
-.facesStack{
+.diceFaces{
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
-.faceCard{
+/* each “face” uses the mini style, but stacked in the dice panel */
+.miniFace{
   position: relative;
   border-radius: 18px;
   padding: 12px;
-  background: rgba(255,255,255,.10);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.16);
-  backdrop-filter: blur(10px);
-
+  background: rgba(255,255,255,.08);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset;
   transform-style: preserve-3d;
   transform: perspective(900px) rotateX(18deg);
 }
 
-.faceSideLabel{
+.miniFace.isHighlight{
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.18) inset,
+    0 24px 70px rgba(0,0,0,.14);
+}
+
+/* rotated side label */
+.miniSideLabel{
   position: absolute;
-  top: 14px;
-  bottom: 14px;
-  width: 36px;
+  top: 12px;
+  bottom: 12px;
+  width: 34px;
   display: grid;
   place-items: center;
-
   font-weight: 1000;
   letter-spacing: .6px;
   color: rgba(255,255,255,.92);
-
   background: rgba(0,0,0,.16);
   box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset;
   border-radius: 14px;
-
   transform: rotate(-90deg);
   transform-origin: center;
   z-index: 3;
 }
 
-.faceSideLabel.isLeft{ left: -6px; }
-.faceSideLabel.isRight{ right: -6px; }
+.miniSideLabel.isLeft{ left: -6px; }
+.miniSideLabel.isRight{ right: -6px; }
 
-.faceBody{
+.miniBody{
   padding: 10px;
   border-radius: 14px;
   background: rgba(255,255,255,.10);
@@ -846,12 +840,11 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   display:flex;
   justify-content:center;
   min-height: 120px;
-
-  margin-left: 32px;
-  margin-right: 32px;
+  margin-left: 30px;
+  margin-right: 30px;
 }
 
-.faceInvalid{
+.miniInvalid{
   padding: 12px;
   border-radius: 14px;
   background: rgba(0,0,0,.16);
@@ -859,9 +852,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   font-weight: 1000;
 }
 
-/* =========================================================
-   HEX BOARD GEOMETRY
-========================================================= */
+/* HEX BOARD */
 .hexBoard{
   --hexW: 74px;
   --hexH: calc(var(--hexW) * 0.8660254);
@@ -878,7 +869,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   user-select: none;
 }
 
-/* Main board uses shared size vars so bars match perfectly */
+/* Main board uses shared vars so bars match */
 .hexBoardMain{
   --hexW: var(--hexWMain);
   --hexH: var(--hexHMain);
@@ -886,7 +877,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 
 .hexBoardMini{
   --hexW: 22px;
-  --hexGap: 5px;
+  --hexGap: 4px;
   --hexOverlap: 0.06;
 }
 
@@ -898,7 +889,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   justify-content: flex-start;
 }
 
-/* even rows step right by half a pitch */
 .hexRow.even{
   padding-left: calc(var(--hexPitch) / 2);
 }
@@ -954,6 +944,10 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 .hexBoardMain .hexLabel{ font-size: 13px; }
+.hexBoardMini .hexLabel{
+  font-size: 9px;
+  -webkit-text-stroke: .8px rgba(0,0,0,.75);
+}
 
 .hex.reach{
   box-shadow:
@@ -998,13 +992,10 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hex.blocked::before{ background: rgba(0,0,0,.34); opacity: 1; }
 .hex.missing::before{ background: rgba(0,0,0,.48); opacity: 1; }
 
-/* responsive */
-@media (max-width: 1180px){
+@media (max-width: 1220px){
   .gameLayout{
     grid-template-columns: 62px auto 62px;
   }
-  .rightRail{
-    display:none; /* hide right rail on small screens for now */
-  }
+  .diceWrap{ display: none; } /* simple fallback; we can make it below later if you want */
 }
 `;
