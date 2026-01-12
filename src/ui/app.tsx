@@ -333,6 +333,10 @@ export default function App() {
                         data-layer={layerVal}
                         title={`Layer ${layerVal}`}
                       />
+                    );
+                  })}
+                </div>
+              </div>
             {/* MAIN BOARD */}
             <div className="mainBoardWrap">
               <HexBoard
