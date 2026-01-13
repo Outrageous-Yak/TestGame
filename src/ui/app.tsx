@@ -772,7 +772,7 @@ export default function App() {
 
                           {/* TOP (Above) */}
                           <div className="diceFace faceTop">
-                            <DiceCorners />
+                           
                             <div className="faceStripe" style={{ background: stripeAbove }} />
                             <div className="diceFaceInnerFixed">
                               <div className="miniFit">
@@ -794,7 +794,7 @@ export default function App() {
 
                           {/* FRONT (Current) */}
                           <div className="diceFace faceFront">
-                            <DiceCorners />
+                         
                             <div className="faceStripe" style={{ background: stripeCurr }} />
                             <div className="diceFaceInnerFixed">
                               <div className="miniFit">
@@ -816,7 +816,7 @@ export default function App() {
 
                           {/* RIGHT (Below) */}
                           <div className="diceFace faceRight">
-                            <DiceCorners />
+                           
                             <div className="faceStripe" style={{ background: stripeBelow }} />
                             <div className="diceFaceInnerFixed">
                               {belowLayer < 1 ? (
@@ -842,7 +842,7 @@ export default function App() {
 
                           {/* The other faces can remain as HUD */}
                           <div className="diceFace faceBack">
-                            <DiceCorners />
+                     
                             <div className="diceHud">
                               <div className="hudTitle">Moves</div>
                               <div className="hudRow">
@@ -870,7 +870,7 @@ export default function App() {
                           </div>
 
                           <div className="diceFace faceLeft">
-                            <DiceCorners />
+                           
                             <div className="diceHud">
                               <div className="hudTitle">Story</div>
                               <div className="hudLog">
@@ -886,7 +886,7 @@ export default function App() {
                           </div>
 
                           <div className="diceFace faceBottom">
-                            <DiceCorners />
+                          
                             <div className="diceHud">
                               <div className="hudTitle">Power</div>
                               <div className="invGrid">
