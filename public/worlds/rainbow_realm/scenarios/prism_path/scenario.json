@@ -9,7 +9,7 @@
     "Some layers shift after each turn."
   ],
   "start": { "layer": 1, "row": 3, "col": 1 },
-  "goal": { "layer": 2, "row": 3, "col": 4 },
+  "goal": { "layer": 2, "row": 7, "col": 7 },
   "missing": [],
   "blocked": [{ "layer": 1, "row": 3, "col": 0 }],
   "movement": {
@@ -24,7 +24,7 @@
   "transitions": [
     {
       "type": "UP",
-      "from": { "layer": 1, "row": 2, "col": 2 },
+      "from": { "layer": 1, "row": 7, "col": 7 },
       "to": { "layer": 2, "row": 2, "col": 2 }
     }
   ],
