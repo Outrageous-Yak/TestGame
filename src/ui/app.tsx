@@ -25,7 +25,8 @@ type LogEntry = { n: number; t: string; msg: string; kind?: "ok" | "bad" | "info
 ========================================================= */
 const BUILD_TAG = "BUILD_TAG_TILES_DEMO_V1";
 const GAME_BG_URL = "images/ui/board-bg.png";
-const DICE_IMG_BASE = "images/d20"; // ✅ your folder: public/images/d20
+const DICE_IMG_BASE = "images/d20"; // public/images/d20
+const DICE_BORDER_IMG = "images/d20/diceborder_flame_red.png"; // ✅ flame border
 
 /* =========================================================
    Helpers
@@ -242,7 +243,7 @@ export default function App() {
   /* --------------------------
      Dice mode toggle
   -------------------------- */
-  const [diceMode, setDiceMode] = useState(false); // ✅ false = mini boards + manual rotation, true = image dice + roll
+  const [diceMode, setDiceMode] = useState(false);
 
   /* --------------------------
      Move counter + optimal
@@ -278,7 +279,11 @@ export default function App() {
      Dice state
   -------------------------- */
   const [rollValue, setRollValue] = useState<number>(1);
-  const [diceRot, setDiceRot] = useState<{ x: number; y: number }>({ x: -26, y: -38 });
+
+  // ✅ Default view shows TOP+FRONT+RIGHT (3 faces)
+  const BASE_DICE_VIEW = { x: -28, y: -36 };
+
+  const [diceRot, setDiceRot] = useState<{ x: number; y: number }>(BASE_DICE_VIEW);
   const [diceSpinning, setDiceSpinning] = useState(false);
 
   // drag rotation state (only active when diceMode === false)
@@ -300,8 +305,7 @@ export default function App() {
     setRollValue(n);
 
     const targetFace = rotForRoll(n);
-    const base = { x: -26, y: -38 };
-    const final = { x: base.x + targetFace.x, y: base.y + targetFace.y };
+    const final = { x: BASE_DICE_VIEW.x + targetFace.x, y: BASE_DICE_VIEW.y + targetFace.y };
 
     setDiceSpinning(true);
 
@@ -320,7 +324,7 @@ export default function App() {
   // Manual drag rotation ONLY when NOT in diceMode
   const onDicePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (diceMode) return; // ✅ no manual rotation in dice mode
+      if (diceMode) return;
       if (diceSpinning) return;
       (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
 
@@ -441,7 +445,7 @@ export default function App() {
 
       // reset dice view
       setRollValue(1);
-      setDiceRot({ x: -26, y: -38 });
+      setDiceRot(BASE_DICE_VIEW);
       setDiceSpinning(false);
       setDiceDragging(false);
 
@@ -586,7 +590,16 @@ export default function App() {
   }, [movesTaken, optimalAtStart, optimalFromNow]);
 
   return (
-    <div className="appRoot" data-mode={mode ?? ""}>
+    <div
+      className="appRoot"
+      data-mode={mode ?? ""}
+      style={
+        {
+          // ✅ BASE_URL-safe injection for CSS background-image
+          ["--diceBorderImg" as any]: `url("${toPublicUrl(DICE_BORDER_IMG)}")`,
+        } as any
+      }
+    >
       <style>{CSS}</style>
 
       <div className="globalBg" aria-hidden="true" style={{ backgroundImage: `url("${toPublicUrl(GAME_BG_URL)}")` }} />
@@ -600,7 +613,10 @@ export default function App() {
             <div className="cardMeta">Build: {BUILD_TAG}</div>
 
             <div className="row">
-              <button className="btn primary" onClick={() => loadModeContent("regular").catch((e) => alert(String((e as any)?.message ?? e)))}>
+              <button
+                className="btn primary"
+                onClick={() => loadModeContent("regular").catch((e) => alert(String((e as any)?.message ?? e)))}
+              >
                 Regular
               </button>
               <button className="btn" onClick={() => loadModeContent("kids").catch((e) => alert(String((e as any)?.message ?? e)))}>
@@ -740,7 +756,6 @@ export default function App() {
                          ========================= */}
                       {diceMode ? (
                         <>
-                          {/* faces: top=1 front=2 right=3 left=4 back=5 bottom=6 */}
                           <FaceImage cls="diceFace faceTop" src={diceImg(1)} alt="Dice 1" />
                           <FaceImage cls="diceFace faceFront" src={diceImg(2)} alt="Dice 2" />
                           <FaceImage cls="diceFace faceRight" src={diceImg(3)} alt="Dice 3" />
@@ -751,11 +766,13 @@ export default function App() {
                       ) : (
                         <>
                           {/* =========================
-                              MINI BOARD MODE (your UI faces)
+                              MINI BOARD MODE (3 faces)
+                              Top=Above, Front=Current, Right=Below/Invalid
                              ========================= */}
 
-                          {/* TOP (mini: ABOVE) */}
+                          {/* TOP (Above) */}
                           <div className="diceFace faceTop">
+                            <DiceCorners />
                             <div className="faceStripe" style={{ background: stripeAbove }} />
                             <div className="diceFaceInnerFixed">
                               <div className="miniFit">
@@ -775,8 +792,9 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* FRONT (mini: CURRENT) */}
+                          {/* FRONT (Current) */}
                           <div className="diceFace faceFront">
+                            <DiceCorners />
                             <div className="faceStripe" style={{ background: stripeCurr }} />
                             <div className="diceFaceInnerFixed">
                               <div className="miniFit">
@@ -796,8 +814,9 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* RIGHT (mini: BELOW or invalid) */}
+                          {/* RIGHT (Below) */}
                           <div className="diceFace faceRight">
+                            <DiceCorners />
                             <div className="faceStripe" style={{ background: stripeBelow }} />
                             <div className="diceFaceInnerFixed">
                               {belowLayer < 1 ? (
@@ -821,8 +840,9 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* BACK: MOVE COUNTER + OPTIMAL */}
+                          {/* The other faces can remain as HUD */}
                           <div className="diceFace faceBack">
+                            <DiceCorners />
                             <div className="diceHud">
                               <div className="hudTitle">Moves</div>
                               <div className="hudRow">
@@ -849,8 +869,8 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* LEFT: STORY LOG */}
                           <div className="diceFace faceLeft">
+                            <DiceCorners />
                             <div className="diceHud">
                               <div className="hudTitle">Story</div>
                               <div className="hudLog">
@@ -865,8 +885,8 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* BOTTOM: INVENTORY / POWER UPS */}
                           <div className="diceFace faceBottom">
+                            <DiceCorners />
                             <div className="diceHud">
                               <div className="hudTitle">Power</div>
                               <div className="invGrid">
@@ -900,9 +920,8 @@ export default function App() {
                       className={"btn " + (diceMode ? "primary" : "")}
                       onClick={() => {
                         setDiceMode((v) => !v);
-                        // when switching to mini-board mode, ensure a nice view
                         window.setTimeout(() => {
-                          setDiceRot({ x: -26, y: -38 });
+                          setDiceRot(BASE_DICE_VIEW);
                           setDiceSpinning(false);
                           setDiceDragging(false);
                         }, 0);
@@ -912,7 +931,6 @@ export default function App() {
                       {diceMode ? "🧊 Boards" : "🎲 Dice Mode"}
                     </button>
 
-                    {/* ✅ In Dice Mode: Roll allowed. In Board Mode: NO roll, rotation only */}
                     {diceMode ? (
                       <>
                         <button className="btn primary" onClick={rollDice}>
@@ -939,11 +957,26 @@ export default function App() {
 }
 
 /* =========================================================
+   Dice corners (4x flames per face)
+========================================================= */
+function DiceCorners() {
+  return (
+    <>
+      <span className="diceCorner tl" />
+      <span className="diceCorner tr" />
+      <span className="diceCorner bl" />
+      <span className="diceCorner br" />
+    </>
+  );
+}
+
+/* =========================================================
    Dice image face component
 ========================================================= */
 function FaceImage(props: { cls: string; src: string; alt: string }) {
   return (
     <div className={props.cls}>
+      <DiceCorners />
       <div className="diceImgWrap">
         <img className="diceImg" src={props.src} alt={props.alt} draggable={false} />
       </div>
@@ -1361,6 +1394,28 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   overflow:hidden;
 }
 
+/* ✅ FLAME BORDER CORNERS (4x per face) */
+.diceCorner{
+  position:absolute;
+  width: 46%;
+  aspect-ratio: 1 / 1;
+  pointer-events:none;
+  z-index: 20;
+
+  background-image: var(--diceBorderImg);
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: top left;
+
+  opacity: 0.92;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 10px rgba(255,60,0,.30));
+}
+.diceCorner.tl{ top: 0; left: 0; transform: rotate(0deg); }
+.diceCorner.tr{ top: 0; right: 0; transform: rotate(90deg); }
+.diceCorner.br{ bottom: 0; right: 0; transform: rotate(180deg); }
+.diceCorner.bl{ bottom: 0; left: 0; transform: rotate(270deg); }
+
 .faceStripe{
   position:absolute;
   left: 18px;
@@ -1439,6 +1494,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   flex-direction: column;
   gap: 10px;
   overflow:hidden;
+  z-index: 5;
 }
 .hudTitle{ font-weight: 1000; letter-spacing: .2px; opacity: .95; }
 .hudRow{ display:flex; justify-content: space-between; align-items:center; gap: 10px; font-weight: 900; }
