@@ -1,9 +1,13 @@
 // src/engine/board.ts
 import type { GameState, Hex, Pos, Scenario, Transition } from "./types";
 
+/* =========================================================
+   Board shape
+========================================================= */
+
 /**
- * Board shape: rows are indexed 0..ROW_LENS.length-1
- * If you previously had a "row 7", that would require ROW_LENS.length === 8.
+ * Row indices: 0..ROW_LENS.length-1
+ * If you want an extra row, add an entry here.
  */
 export const ROW_LENS = [7, 6, 7, 6, 7, 6, 7];
 
@@ -27,24 +31,26 @@ export function assertInBounds(p: Pos, layers: number, label: string): void {
   if (!inBounds(p, layers)) {
     throw new Error(
       `${label} out of bounds: L${p.layer} R${p.row} C${p.col}. ` +
-        `Valid rows: 0..${ROW_LENS.length - 1}, cols: 0..ROW_LENS[row)-1, layers: 1..${layers}.`
+      `Valid rows: 0..${ROW_LENS.length - 1}, layers: 1..${layers}.`
     );
   }
 }
 
 /* =========================================================
-   Build
+   Build initial state
 ========================================================= */
 
 export function buildInitialState(scenario: Scenario): GameState {
-  // ---- Fail fast: if any scenario coordinate references a non-existent cell,
-  // it can later cause reachability / movement logic to explode or loop.
+  // ---- Fail fast: scenario must match board geometry
   assertInBounds(scenario.start, scenario.layers, "scenario.start");
   assertInBounds(scenario.goal, scenario.layers, "scenario.goal");
 
-  for (const p of scenario.missing) assertInBounds(p, scenario.layers, "scenario.missing");
-  for (const p of scenario.blocked) assertInBounds(p, scenario.layers, "scenario.blocked");
-
+  for (const p of scenario.missing) {
+    assertInBounds(p, scenario.layers, "scenario.missing");
+  }
+  for (const p of scenario.blocked) {
+    assertInBounds(p, scenario.layers, "scenario.blocked");
+  }
   for (const t of scenario.transitions) {
     assertInBounds(t.from, scenario.layers, "scenario.transitions.from");
     assertInBounds(t.to, scenario.layers, "scenario.transitions.to");
@@ -56,7 +62,7 @@ export function buildInitialState(scenario: Scenario): GameState {
   const hexesById = new Map<string, Hex>();
   const rows = new Map<number, string[][]>();
 
-  // Build hex grid for each layer
+  // Build grid
   for (let layer = 1; layer <= scenario.layers; layer++) {
     const layerRows: string[][] = [];
 
@@ -89,7 +95,7 @@ export function buildInitialState(scenario: Scenario): GameState {
     rows.set(layer, layerRows);
   }
 
-  // Transitions lookup by "from"
+  // Transitions indexed by "from"
   const transitionsByFromId = new Map<string, Transition>();
   for (const t of scenario.transitions) {
     transitionsByFromId.set(posId(t.from), t);
@@ -105,7 +111,7 @@ export function buildInitialState(scenario: Scenario): GameState {
     transitionsByFromId
   };
 
-  // Enter start layer + reveal start (safe because we validated scenario.start)
+  // Enter starting layer and reveal starting hex
   enterLayer(state, scenario.start.layer);
   revealHex(state, state.playerHexId);
 
@@ -127,7 +133,7 @@ export function enterLayer(state: GameState, layer: number): string | null {
   state.visibleLayers.add(layer);
   if (wasVisible) return null;
 
-  // guarantee: reveal at least one UP transition on first entry
+  // Guarantee: reveal at least one UP transition on first entry
   if (!state.scenario.revealOnEnterGuaranteedUp) return null;
 
   const layerRows = state.rows.get(layer);
@@ -137,13 +143,12 @@ export function enterLayer(state: GameState, layer: number): string | null {
     for (const id of row) {
       const h = state.hexesById.get(id);
       if (!h) continue;
-
       if (h.missing || h.blocked) continue;
 
       const tr = state.transitionsByFromId.get(id);
       if (tr?.type === "UP") {
         revealHex(state, id);
-        // These are optional fields in many setups; keep as-is if your GameState supports them.
+        // Optional: only if your GameState supports these fields
         (state as any).lastGuaranteedUpId = id;
         (state as any).lastGuaranteedUpTurn = state.turn;
         return id;
