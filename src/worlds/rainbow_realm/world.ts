@@ -26,6 +26,7 @@ export default {
           backgroundGame: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/game-bg.png",
           diceFacesBase: "worlds/rainbow_realm/scenarios/prism_path/assets/dice/faces",
           diceCornerBorder: "worlds/rainbow_realm/scenarios/prism_path/assets/dice/borders/corner_flame_red.png",
+          villainsBase: "worlds/rainbow_realm/scenarios/prism_path/assets/villains",
         },
       },
     },
