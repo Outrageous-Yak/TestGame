@@ -1,5 +1,5 @@
 // src/ui/app.tsx
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { GameState, Scenario, Hex } from "../engine/types";
 import { assertScenario } from "../engine/scenario";
@@ -7,11 +7,10 @@ import { newGame, getReachability, tryMove, endTurn, type ReachMap } from "../en
 import { ROW_LENS, enterLayer, revealHex } from "../engine/board";
 
 /* =========================================================
-   Types
+   Template Flow
+   Start -> World -> Character -> Scenario -> Difficulty? -> Game
 ========================================================= */
-type Screen = "start" | "select" | "setup" | "game";
-type Mode = "regular" | "kids";
-type Manifest = { initial: string; files: string[] };
+type Screen = "start" | "world" | "character" | "scenario" | "difficulty" | "game";
 
 type PlayerChoice =
   | { kind: "preset"; id: string; name: string }
@@ -21,12 +20,58 @@ type Coord = { layer: number; row: number; col: number };
 type LogEntry = { n: number; t: string; msg: string; kind?: "ok" | "bad" | "info" };
 
 /* =========================================================
-   Config
+   World / Scenario auto-discovery
 ========================================================= */
-const BUILD_TAG = "BUILD_TAG_TILES_DEMO_V1";
-const GAME_BG_URL = "images/ui/board-bg.png";
-const DICE_IMG_BASE = "images/d20"; // public/images/d20
-const DICE_BORDER_IMG = "images/d20/diceborder_flame_red2.png"; // ✅ flame border
+type LayerPalette = { L1: string; L2: string; L3: string; L4: string; L5: string; L6: string; L7: string };
+
+type ScenarioTheme = {
+  palette: LayerPalette;
+  assets: {
+    backgroundGame: string; // e.g. "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/game-bg.png"
+    diceFacesBase: string; // e.g. "worlds/rainbow_realm/scenarios/prism_path/assets/dice/faces" (expects D20_1.png ... D20_6.png)
+    diceCornerBorder: string; // e.g. "worlds/rainbow_realm/scenarios/prism_path/assets/dice/borders/corner_flame_red.png"
+  };
+};
+
+type Track = { id: string; name: string; scenarioJson: string }; // scenarioJson is a public path
+type ScenarioEntry = {
+  id: string;
+  name: string;
+  desc?: string;
+  scenarioJson: string; // public path to JSON
+  theme: ScenarioTheme;
+  tracks?: Track[]; // if absent or length===1 => skip difficulty
+};
+
+type WorldEntry = {
+  id: string;
+  name: string;
+  desc?: string;
+  // for now, start/world screens can be solid blue; later you can add menu art here
+  menu: { solidColor?: string };
+  scenarios: ScenarioEntry[];
+};
+
+// Auto-load all world modules under src/worlds/**/world.ts
+// Each world.ts should export default WorldEntry-like data (see note at bottom).
+const worldModules = import.meta.glob("../worlds/**/world.ts", { eager: true });
+
+function loadWorlds(): WorldEntry[] {
+  const list: WorldEntry[] = [];
+  for (const [path, mod] of Object.entries(worldModules as any)) {
+    const w = (mod as any)?.default ?? (mod as any)?.world ?? null;
+    if (!w) continue;
+    if (!w.id) {
+      // fallback id from folder name
+      const m = /..\/worlds\/([^/]+)\/world\.ts$/.exec(path);
+      w.id = m?.[1] ?? "world";
+    }
+    list.push(w as WorldEntry);
+  }
+  // stable order
+  list.sort((a, b) => a.name.localeCompare(b.name));
+  return list;
+}
 
 /* =========================================================
    Helpers
@@ -72,20 +117,6 @@ function isBlockedOrMissing(hex: any): { blocked: boolean; missing: boolean } {
 function layerCssVar(n: number) {
   const clamped = Math.max(1, Math.min(7, Math.floor(n || 1)));
   return `var(--L${clamped})`;
-}
-
-/** Filter reachability to a specific layer (for dice mini boards). */
-function filterReachForLayer(layer: number, reachMap: ReachMap) {
-  const prefix = `L${layer}-`;
-  const rm = {} as ReachMap;
-  const set = new Set<string>();
-
-  for (const [k, v] of Object.entries(reachMap as any)) {
-    if (!k.startsWith(prefix)) continue;
-    (rm as any)[k] = v;
-    if ((v as any)?.reachable) set.add(k);
-  }
-  return { reachMap: rm, reachable: set };
 }
 
 function nowHHMM() {
@@ -170,16 +201,12 @@ function findGoalId(s: any, fallbackLayer: number): string | null {
 }
 
 /* =========================================================
-   Minimal presets
+   Minimal players (template)
 ========================================================= */
-const PLAYER_PRESETS_REGULAR = [
+const PLAYER_PRESETS = [
   { id: "p1", name: "Aeris" },
   { id: "p2", name: "Devlan" },
 ];
-
-function scenarioLabel(s: any, i: number) {
-  return String(s?.name ?? s?.title ?? s?.id ?? `Scenario ${i + 1}`);
-}
 
 /* =========================================================
    Dice mapping
@@ -205,22 +232,33 @@ function rotForRoll(n: number) {
   }
 }
 
-function diceImg(n: number) {
-  return toPublicUrl(`${DICE_IMG_BASE}/D20_${n}.png`);
-}
-
 /* =========================================================
    App
 ========================================================= */
 export default function App() {
   const [screen, setScreen] = useState<Screen>("start");
-  const [mode, setMode] = useState<Mode | null>(null);
 
-  const [scenarios, setScenarios] = useState<Scenario[]>([]);
-  const [scenarioIndex, setScenarioIndex] = useState<number>(0);
+  // auto worlds
+  const [worlds, setWorlds] = useState<WorldEntry[]>([]);
+  const [worldId, setWorldId] = useState<string | null>(null);
 
+  const world = useMemo(() => worlds.find((w) => w.id === worldId) ?? null, [worlds, worldId]);
+
+  // scenario / track selection
+  const [scenarioId, setScenarioId] = useState<string | null>(null);
+  const scenarioEntry = useMemo(() => world?.scenarios.find((s) => s.id === scenarioId) ?? null, [world, scenarioId]);
+
+  const [trackId, setTrackId] = useState<string | null>(null);
+  const trackEntry = useMemo(() => {
+    const tracks = scenarioEntry?.tracks;
+    if (!tracks || tracks.length <= 0) return null;
+    return tracks.find((t) => t.id === trackId) ?? null;
+  }, [scenarioEntry, trackId]);
+
+  // player
   const [chosenPlayer, setChosenPlayer] = useState<PlayerChoice | null>(null);
 
+  // game state
   const [state, setState] = useState<GameState | null>(null);
   const [currentLayer, setCurrentLayer] = useState<number>(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -232,10 +270,16 @@ export default function App() {
     return set;
   }, [reachMap]);
 
-  const scenarioLayerCount = useMemo(() => {
-    const s: any = scenarios[scenarioIndex];
-    return Number(s?.layers ?? 1);
-  }, [scenarios, scenarioIndex]);
+  // palette + assets for the active scenario (used in CSS vars + images)
+  const activeTheme = scenarioEntry?.theme ?? null;
+  const palette = activeTheme?.palette ?? null;
+
+  const GAME_BG_URL = activeTheme?.assets.backgroundGame ?? ""; // public path
+  const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? ""; // public path folder
+  const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? ""; // public path
+
+  // layer count from scenario JSON (loaded when starting)
+  const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
 
   const barSegments = useMemo(() => [7, 6, 5, 4, 3, 2, 1], []);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -280,7 +324,7 @@ export default function App() {
   -------------------------- */
   const [rollValue, setRollValue] = useState<number>(1);
 
-  // ✅ Default view shows TOP+FRONT+RIGHT (3 faces)
+  // Default view shows TOP+FRONT+RIGHT (3 faces)
   const BASE_DICE_VIEW = { x: -28, y: -36 };
 
   const [diceRot, setDiceRot] = useState<{ x: number; y: number }>(BASE_DICE_VIEW);
@@ -299,6 +343,15 @@ export default function App() {
 
   const belowLayer = currentLayer - 1;
   const aboveLayer = currentLayer + 1;
+
+  useEffect(() => {
+    // one-time load of worlds
+    setWorlds(loadWorlds());
+  }, []);
+
+  function diceImg(n: number) {
+    return toPublicUrl(`${DICE_FACES_BASE}/D20_${n}.png`);
+  }
 
   const rollDice = useCallback(() => {
     const n = 1 + Math.floor(Math.random() * 6);
@@ -371,30 +424,6 @@ export default function App() {
   );
 
   /* --------------------------
-     Load mode content
-  -------------------------- */
-  const loadModeContent = useCallback(async (nextMode: Mode) => {
-    setMode(nextMode);
-    setChosenPlayer(null);
-
-    const base = nextMode === "kids" ? "kids/" : "";
-    const manifest = await fetchJson<Manifest>(`${base}scenarios/manifest.json`);
-    const list = await Promise.all(manifest.files.map((f) => loadScenario(`${base}${f}`)));
-
-    setScenarios(list);
-
-    const initialBase = manifest.initial.split("/").pop()?.replace(".json", "") ?? "";
-    const idx = Math.max(
-      0,
-      list.findIndex(
-        (s: any) => String((s as any).id ?? "") === initialBase || String((s as any).name ?? "") === initialBase
-      )
-    );
-    setScenarioIndex(idx);
-    setScreen("select");
-  }, []);
-
-  /* --------------------------
      Game helpers
   -------------------------- */
   const recomputeReachability = useCallback((st: GameState) => {
@@ -423,63 +452,73 @@ export default function App() {
     return Number.isFinite(d) ? d : null;
   }, []);
 
-  const startScenario = useCallback(
-    (idx: number) => {
-      const s = scenarios[idx] as any;
-      if (!s) return;
+  const startScenario = useCallback(async () => {
+    if (!scenarioEntry) return;
 
-      const st = newGame(s);
-      const pid = (st as any).playerHexId ?? null;
-      const layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
+    // choose which scenario JSON to load:
+    // - if tracks exist and user picked a track -> use track scenarioJson
+    // - else use scenarioEntry.scenarioJson
+    const tracks = scenarioEntry.tracks ?? [];
+    const hasTracks = tracks.length > 1;
+    const chosenJson = hasTracks ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson : scenarioEntry.scenarioJson;
 
-      const gid = findGoalId(s, layer);
-      setGoalId(gid);
+    const s = (await loadScenario(chosenJson)) as any;
 
-      enterLayer(st, layer);
-      revealWholeLayer(st, layer);
-      recomputeReachability(st);
+    const st = newGame(s);
+    const pid = (st as any).playerHexId ?? null;
+    const layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
 
-      setState(st);
-      setSelectedId(pid);
-      setCurrentLayer(layer);
+    const gid = findGoalId(s, layer);
+    setGoalId(gid);
 
-      // reset dice view
-      setRollValue(1);
-      setDiceRot(BASE_DICE_VIEW);
-      setDiceSpinning(false);
-      setDiceDragging(false);
+    const layerCount = Number(s?.layers ?? 1);
+    setScenarioLayerCount(layerCount);
 
-      // moves + optimal
-      setMovesTaken(0);
-      if (pid && gid) {
-        const startOpt = computeOptimal(st, layer, pid, gid);
-        setOptimalAtStart(startOpt);
-        setOptimalFromNow(startOpt);
-      } else {
-        setOptimalAtStart(null);
-        setOptimalFromNow(null);
-      }
+    enterLayer(st, layer);
+    revealWholeLayer(st, layer);
+    recomputeReachability(st);
 
-      // reset log
-      logNRef.current = 0;
-      setLog([]);
-      pushLog(`Started: ${scenarioLabel(s, idx)}`, "ok");
-      if (gid) pushLog(`Goal: ${gid}`, "info");
-      else pushLog(`Goal: (not set in scenario JSON)`, "bad");
+    setState(st);
+    setSelectedId(pid);
+    setCurrentLayer(layer);
 
-      // inventory defaults
-      setItems([
-        { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
-        { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
-        { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
-      ]);
+    // reset dice view
+    setRollValue(1);
+    setDiceRot(BASE_DICE_VIEW);
+    setDiceSpinning(false);
+    setDiceDragging(false);
 
-      window.setTimeout(() => {
-        if (scrollRef.current) scrollRef.current.scrollLeft = 0;
-      }, 0);
-    },
-    [scenarios, revealWholeLayer, recomputeReachability, computeOptimal, pushLog]
-  );
+    // moves + optimal
+    setMovesTaken(0);
+    if (pid && gid) {
+      const startOpt = computeOptimal(st, layer, pid, gid);
+      setOptimalAtStart(startOpt);
+      setOptimalFromNow(startOpt);
+    } else {
+      setOptimalAtStart(null);
+      setOptimalFromNow(null);
+    }
+
+    // reset log
+    logNRef.current = 0;
+    setLog([]);
+    pushLog(`Started: ${scenarioEntry.name}`, "ok");
+    if (gid) pushLog(`Goal: ${gid}`, "info");
+    else pushLog(`Goal: (not set in scenario JSON)`, "bad");
+
+    // inventory defaults
+    setItems([
+      { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
+      { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
+      { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
+    ]);
+
+    window.setTimeout(() => {
+      if (scrollRef.current) scrollRef.current.scrollLeft = 0;
+    }, 0);
+
+    setScreen("game");
+  }, [scenarioEntry, trackEntry, recomputeReachability, revealWholeLayer, computeOptimal, pushLog]);
 
   /* --------------------------
      Board click
@@ -573,10 +612,22 @@ export default function App() {
   const stripeCurr = layerCssVar(currentLayer);
   const stripeAbove = aboveLayer > scenarioLayerCount ? "rgba(0,0,0,.90)" : layerCssVar(aboveLayer);
 
-  // Align dice top with bar top when rollValue === 1
+  // ✅ keep cube position stable across modes
   const diceAlignY = 70;
 
   // Mini boards reachability filtered per layer
+  function filterReachForLayer(layer: number, reachMap: ReachMap) {
+    const prefix = `L${layer}-`;
+    const rm = {} as ReachMap;
+    const set = new Set<string>();
+    for (const [k, v] of Object.entries(reachMap as any)) {
+      if (!k.startsWith(prefix)) continue;
+      (rm as any)[k] = v;
+      if ((v as any)?.reachable) set.add(k);
+    }
+    return { reachMap: rm, reachable: set };
+  }
+
   const miniAboveLayer = Math.min(scenarioLayerCount, Math.max(1, aboveLayer));
   const miniCurrLayer = currentLayer;
   const miniBelowLayer = Math.max(1, belowLayer);
@@ -589,73 +640,106 @@ export default function App() {
     return movesTaken + optimalFromNow - optimalAtStart;
   }, [movesTaken, optimalAtStart, optimalFromNow]);
 
+  // Solid blue placeholder screens (start + world)
+  const stepBgBlue = "linear-gradient(180deg, rgba(40,120,255,.95), rgba(10,40,120,.95))";
+
+  // Inject palette + dice border + background safely via CSS variables
+  const cssVars = useMemo(() => {
+    const vars: any = {
+      ["--diceBorderImg"]: DICE_BORDER_IMG ? `url("${toPublicUrl(DICE_BORDER_IMG)}")` : "none",
+      ["--menuSolidBg"]: stepBgBlue,
+    };
+    if (palette) {
+      vars["--L1"] = palette.L1;
+      vars["--L2"] = palette.L2;
+      vars["--L3"] = palette.L3;
+      vars["--L4"] = palette.L4;
+      vars["--L5"] = palette.L5;
+      vars["--L6"] = palette.L6;
+      vars["--L7"] = palette.L7;
+    }
+    return vars;
+  }, [palette, DICE_BORDER_IMG]);
+
   return (
-    <div
-      className="appRoot"
-      data-mode={mode ?? ""}
-      style={
-        {
-          // ✅ BASE_URL-safe injection for CSS background-image
-          ["--diceBorderImg" as any]: `url("${toPublicUrl(DICE_BORDER_IMG)}")`,
-        } as any
-      }
-    >
+    <div className="appRoot" style={cssVars}>
       <style>{CSS}</style>
 
-      <div className="globalBg" aria-hidden="true" style={{ backgroundImage: `url("${toPublicUrl(GAME_BG_URL)}")` }} />
-      <div className="globalBgOverlay" aria-hidden="true" />
+      {/* Game background only when in-game and a world/scenario is chosen */}
+      {screen === "game" ? (
+        <>
+          <div className="globalBg" aria-hidden="true" style={{ backgroundImage: `url("${toPublicUrl(GAME_BG_URL)}")` }} />
+          <div className="globalBgOverlay" aria-hidden="true" />
+        </>
+      ) : (
+        <>
+          <div className="menuBg" aria-hidden="true" />
+          <div className="globalBgOverlay" aria-hidden="true" />
+        </>
+      )}
 
-      {/* START */}
+      {/* =====================================================
+          START (blue)
+      ====================================================== */}
       {screen === "start" ? (
         <div className="shell shellCard">
           <div className="card">
             <div className="cardTitleBig">Hex Layers</div>
-            <div className="cardMeta">Build: {BUILD_TAG}</div>
-
+            <div className="cardMeta">Template</div>
             <div className="row">
               <button
                 className="btn primary"
-                onClick={() => loadModeContent("regular").catch((e) => alert(String((e as any)?.message ?? e)))}
+                onClick={() => {
+                  // reset and go to world select
+                  setWorldId(null);
+                  setScenarioId(null);
+                  setTrackId(null);
+                  setChosenPlayer(null);
+                  setScreen("world");
+                }}
               >
-                Regular
-              </button>
-              <button className="btn" onClick={() => loadModeContent("kids").catch((e) => alert(String((e as any)?.message ?? e)))}>
-                Kids / Friendly
+                Start
               </button>
             </div>
           </div>
         </div>
       ) : null}
 
-      {/* SELECT */}
-      {screen === "select" ? (
+      {/* =====================================================
+          WORLD SELECT (blue for now)
+      ====================================================== */}
+      {screen === "world" ? (
         <div className="shell shellCard">
           <div className="card">
-            <div className="cardTitle">Select scenario</div>
-
+            <div className="cardTitle">Select world</div>
             <div className="selectList">
-              {scenarios.map((s: any, i: number) => {
-                const selected = i === scenarioIndex;
+              {worlds.map((w) => {
+                const selected = w.id === worldId;
                 return (
                   <div
-                    key={i}
+                    key={w.id}
                     className={"selectTile" + (selected ? " selected" : "")}
-                    onClick={() => setScenarioIndex(i)}
+                    onClick={() => {
+                      setWorldId(w.id);
+                      setScenarioId(null);
+                      setTrackId(null);
+                    }}
                     role="button"
                     tabIndex={0}
                   >
-                    <div className="selectTileTitle">{scenarioLabel(s, i)}</div>
-                    <div className="selectTileDesc">{String(s?.desc ?? s?.description ?? "")}</div>
+                    <div className="selectTileTitle">{w.name}</div>
+                    <div className="selectTileDesc">{w.desc ?? ""}</div>
                   </div>
                 );
               })}
+              {!worlds.length ? <div className="selectTileDesc">No worlds found. Add src/worlds/&lt;world&gt;/world.ts</div> : null}
             </div>
 
-            <div className="row rowEnd">
+            <div className="row rowBetween">
               <button className="btn" onClick={() => setScreen("start")}>
                 Back
               </button>
-              <button className="btn primary" onClick={() => setScreen("setup")} disabled={!scenarios.length}>
+              <button className="btn primary" disabled={!worldId} onClick={() => setScreen("character")}>
                 Continue
               </button>
             </div>
@@ -663,14 +747,16 @@ export default function App() {
         </div>
       ) : null}
 
-      {/* SETUP */}
-      {screen === "setup" ? (
+      {/* =====================================================
+          CHARACTER SELECT (3rd)
+      ====================================================== */}
+      {screen === "character" ? (
         <div className="shell shellCard">
           <div className="card">
-            <div className="cardTitle">Choose player</div>
+            <div className="cardTitle">Choose character</div>
 
             <div className="selectList">
-              {PLAYER_PRESETS_REGULAR.map((p) => {
+              {PLAYER_PRESETS.map((p) => {
                 const isSel = chosenPlayer?.kind === "preset" && chosenPlayer.id === p.id;
                 return (
                   <div
@@ -688,17 +774,106 @@ export default function App() {
             </div>
 
             <div className="row rowBetween">
-              <button className="btn" onClick={() => setScreen("select")}>
+              <button className="btn" onClick={() => setScreen("world")}>
+                Back
+              </button>
+              <button className="btn primary" disabled={!chosenPlayer || !world} onClick={() => setScreen("scenario")}>
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* =====================================================
+          SCENARIO SELECT (last before difficulty/game)
+      ====================================================== */}
+      {screen === "scenario" ? (
+        <div className="shell shellCard">
+          <div className="card">
+            <div className="cardTitle">Select scenario</div>
+            <div className="cardMeta">{world ? `World: ${world.name}` : ""}</div>
+
+            <div className="selectList">
+              {(world?.scenarios ?? []).map((s) => {
+                const selected = s.id === scenarioId;
+                return (
+                  <div
+                    key={s.id}
+                    className={"selectTile" + (selected ? " selected" : "")}
+                    onClick={() => {
+                      setScenarioId(s.id);
+                      setTrackId(null);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="selectTileTitle">{s.name}</div>
+                    <div className="selectTileDesc">{s.desc ?? ""}</div>
+                  </div>
+                );
+              })}
+              {!world?.scenarios?.length ? <div className="selectTileDesc">This world has no scenarios yet.</div> : null}
+            </div>
+
+            <div className="row rowBetween">
+              <button className="btn" onClick={() => setScreen("character")}>
                 Back
               </button>
               <button
                 className="btn primary"
-                disabled={!chosenPlayer || !scenarios.length}
+                disabled={!scenarioEntry}
                 onClick={() => {
-                  startScenario(scenarioIndex);
-                  setScreen("game");
+                  // difficulty step only if there are 2+ tracks
+                  const tracks = scenarioEntry?.tracks ?? [];
+                  if (tracks.length > 1) {
+                    setScreen("difficulty");
+                  } else {
+                    setTrackId(null);
+                    startScenario().catch((e) => alert(String((e as any)?.message ?? e)));
+                  }
                 }}
               >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* =====================================================
+          DIFFICULTY (tracks) — skips automatically if only 1
+      ====================================================== */}
+      {screen === "difficulty" ? (
+        <div className="shell shellCard">
+          <div className="card">
+            <div className="cardTitle">Choose difficulty</div>
+            <div className="cardMeta">{scenarioEntry ? scenarioEntry.name : ""}</div>
+
+            <div className="selectList">
+              {(scenarioEntry?.tracks ?? []).map((t) => {
+                const selected = t.id === trackId;
+                return (
+                  <div
+                    key={t.id}
+                    className={"selectTile" + (selected ? " selected" : "")}
+                    onClick={() => setTrackId(t.id)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="selectTileTitle">{t.name}</div>
+                    <div className="selectTileDesc">Track: {t.id}</div>
+                  </div>
+                );
+              })}
+              {!scenarioEntry?.tracks?.length ? <div className="selectTileDesc">No tracks found. (This screen should normally be skipped.)</div> : null}
+            </div>
+
+            <div className="row rowBetween">
+              <button className="btn" onClick={() => setScreen("scenario")}>
+                Back
+              </button>
+              <button className="btn primary" disabled={!trackId} onClick={() => startScenario().catch((e) => alert(String((e as any)?.message ?? e)))}>
                 Start game
               </button>
             </div>
@@ -706,7 +881,9 @@ export default function App() {
         </div>
       ) : null}
 
-      {/* GAME */}
+      {/* =====================================================
+          GAME (same layout as before, but themed from scenarioEntry.theme)
+      ====================================================== */}
       {screen === "game" ? (
         <div className="shell shellGame">
           <div className="scrollStage" ref={scrollRef}>
@@ -751,9 +928,7 @@ export default function App() {
                         cursor: diceMode ? "default" : diceDragging ? "grabbing" : "grab",
                       }}
                     >
-                      {/* =========================
-                          DICE MODE (images)
-                         ========================= */}
+                      {/* DICE MODE (images) */}
                       {diceMode ? (
                         <>
                           <FaceImage cls="diceFace faceTop" src={diceImg(1)} alt="Dice 1" />
@@ -765,14 +940,8 @@ export default function App() {
                         </>
                       ) : (
                         <>
-                          {/* =========================
-                              MINI BOARD MODE (3 faces)
-                              Top=Above, Front=Current, Right=Below/Invalid
-                             ========================= */}
-
-                          {/* TOP (Above) */}
+                          {/* MINI BOARD MODE (3 faces) — no border corners here */}
                           <div className="diceFace faceTop">
-                           
                             <div className="faceStripe" style={{ background: stripeAbove }} />
                             <div className="diceFaceInnerFixed">
                               <div className="miniFit">
@@ -792,9 +961,7 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* FRONT (Current) */}
                           <div className="diceFace faceFront">
-                         
                             <div className="faceStripe" style={{ background: stripeCurr }} />
                             <div className="diceFaceInnerFixed">
                               <div className="miniFit">
@@ -814,9 +981,7 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* RIGHT (Below) */}
                           <div className="diceFace faceRight">
-                           
                             <div className="faceStripe" style={{ background: stripeBelow }} />
                             <div className="diceFaceInnerFixed">
                               {belowLayer < 1 ? (
@@ -840,9 +1005,7 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* The other faces can remain as HUD */}
                           <div className="diceFace faceBack">
-                     
                             <div className="diceHud">
                               <div className="hudTitle">Moves</div>
                               <div className="hudRow">
@@ -870,7 +1033,6 @@ export default function App() {
                           </div>
 
                           <div className="diceFace faceLeft">
-                           
                             <div className="diceHud">
                               <div className="hudTitle">Story</div>
                               <div className="hudLog">
@@ -886,7 +1048,6 @@ export default function App() {
                           </div>
 
                           <div className="diceFace faceBottom">
-                          
                             <div className="diceHud">
                               <div className="hudTitle">Power</div>
                               <div className="invGrid">
@@ -946,6 +1107,19 @@ export default function App() {
                   <div className="dragHint">
                     {diceMode ? "Dice Mode: Roll only (no drag rotation)" : "Board Mode: Drag rotation only (no roll)"}
                   </div>
+
+                  <div className="row rowBetween" style={{ marginTop: 12 }}>
+                    <button
+                      className="btn"
+                      onClick={() => {
+                        // back to scenario select (template behavior)
+                        setScreen("scenario");
+                        setState(null);
+                      }}
+                    >
+                      Back to Scenarios
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -957,7 +1131,7 @@ export default function App() {
 }
 
 /* =========================================================
-   Dice corners (4x flames per face)
+   Dice corners (4x per face) — used ONLY in Dice Mode faces
 ========================================================= */
 function DiceCorners() {
   return (
@@ -994,7 +1168,14 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number; segments
       <div className="layerBar">
         {segments.map((layerVal) => {
           const active = layerVal === currentLayer;
-          return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} title={`Layer ${layerVal}`} />;
+          return (
+            <div
+              key={layerVal}
+              className={"barSeg" + (active ? " isActive" : "")}
+              data-layer={layerVal}
+              title={`Layer ${layerVal}`}
+            />
+          );
         })}
       </div>
     </div>
@@ -1016,7 +1197,8 @@ function HexBoard(props: {
   showCoords: boolean;
   showPlayerOnMini?: boolean;
 }) {
-  const { kind, activeLayer, maxLayer, state, selectedId, reachable, reachMap, onCellClick, showCoords, showPlayerOnMini } = props;
+  const { kind, activeLayer, maxLayer, state, selectedId, reachable, reachMap, onCellClick, showCoords, showPlayerOnMini } =
+    props;
   const playerId = (state as any)?.playerHexId ?? null;
 
   const hasAbove = activeLayer < maxLayer;
@@ -1101,13 +1283,14 @@ const CSS = `
 :root{
   --ink: rgba(255,255,255,.92);
 
-  --L1: rgba(255, 92, 120, .95);
-  --L2: rgba(255, 150, 90, .95);
-  --L3: rgba(255, 220, 120, .95);
-  --L4: rgba(120, 235, 170, .95);
-  --L5: rgba(120, 220, 255, .95);
-  --L6: rgba(135, 170, 255, .95);
-  --L7: rgba(200, 140, 255, .95);
+  /* Defaults (overridden via inline CSS vars from scenario theme) */
+  --L1: #FF4D7D;
+  --L2: #FF9A3D;
+  --L3: #FFD35A;
+  --L4: #4BEE9C;
+  --L5: #3ED7FF;
+  --L6: #5C7CFF;
+  --L7: #B66BFF;
 }
 
 *{ box-sizing: border-box; }
@@ -1130,6 +1313,14 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   filter: saturate(1.08) contrast(1.02);
   z-index: 0;
 }
+
+.menuBg{
+  position:absolute;
+  inset:0;
+  background: var(--menuSolidBg, linear-gradient(180deg, rgba(40,120,255,.95), rgba(10,40,120,.95)));
+  z-index:0;
+}
+
 .globalBgOverlay{
   position: absolute;
   inset: 0;
@@ -1394,7 +1585,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   overflow:hidden;
 }
 
-/* ✅ FLAME BORDER CORNERS (4x per face) */
+/* FLAME BORDER CORNERS (Dice Mode only; these spans exist only in FaceImage) */
 .diceCorner{
   position:absolute;
   width: 46%;
@@ -1429,7 +1620,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   filter: drop-shadow(0 2px 8px rgba(0,0,0,.25));
 }
 
-/* Keep mini boards same size while cube grows */
 .diceFaceInnerFixed{
   position:absolute;
   width: 260px;
@@ -1445,7 +1635,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   overflow:hidden;
 }
 
-/* Scale mini boards to fill the square more */
 .miniFit{
   transform: scale(var(--miniScale, 1.55));
   transform-origin: center;
