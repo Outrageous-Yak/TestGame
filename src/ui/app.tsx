@@ -570,7 +570,7 @@ export default function App() {
   const stripeAbove = aboveLayer > scenarioLayerCount ? "rgba(0,0,0,.90)" : layerCssVar(aboveLayer);
 
   // Align dice top with bar top when rollValue === 1
-  const diceAlignY = diceMode ? 45 : 0;
+  const diceAlignY = diceMode ? 60 : 0;
 
   // Mini boards reachability filtered per layer
   const miniAboveLayer = Math.min(scenarioLayerCount, Math.max(1, aboveLayer));
