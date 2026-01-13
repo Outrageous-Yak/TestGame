@@ -27,13 +27,14 @@ type LayerPalette = { L1: string; L2: string; L3: string; L4: string; L5: string
 type ScenarioTheme = {
   palette: LayerPalette;
   assets: {
-    backgroundGame: string; // e.g. "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/game-bg.jpg"
-    diceFacesBase: string; // e.g. "worlds/rainbow_realm/scenarios/prism_path/assets/dice/faces" (expects D20_1.png ... D20_6.png)
-    diceCornerBorder: string; // e.g. "worlds/rainbow_realm/scenarios/prism_path/assets/dice/borders/corner_flame_red.png"
+    backgroundGame: string; // e.g. "worlds/.../assets/backgrounds/game-bg.jpg"
+    diceFacesBase: string; // e.g. "worlds/.../assets/dice/faces" (expects D20_1.png..D20_6.png)
+    diceCornerBorder: string; // e.g. "worlds/.../assets/dice/borders/corner_flame_red.png"
+    villainsBase: string; // e.g. "worlds/.../assets/villains" (expects bad1.png..bad4.png)
   };
 };
 
-type Track = { id: string; name: string; scenarioJson: string }; // scenarioJson is a public path
+type Track = { id: string; name: string; scenarioJson: string }; // public path
 type ScenarioEntry = {
   id: string;
   name: string;
@@ -47,13 +48,11 @@ type WorldEntry = {
   id: string;
   name: string;
   desc?: string;
-  // for now, start/world screens can be solid blue; later you can add menu art here
   menu: { solidColor?: string };
   scenarios: ScenarioEntry[];
 };
 
 // Auto-load all world modules under src/worlds/**/world.ts
-// Each world.ts should export default WorldEntry-like data (see note at bottom).
 const worldModules = import.meta.glob("../worlds/**/world.ts", { eager: true });
 
 function loadWorlds(): WorldEntry[] {
@@ -62,16 +61,37 @@ function loadWorlds(): WorldEntry[] {
     const w = (mod as any)?.default ?? (mod as any)?.world ?? null;
     if (!w) continue;
     if (!w.id) {
-      // fallback id from folder name
       const m = /..\/worlds\/([^/]+)\/world\.ts$/.exec(path);
       w.id = m?.[1] ?? "world";
     }
     list.push(w as WorldEntry);
   }
-  // stable order
   list.sort((a, b) => a.name.localeCompare(b.name));
   return list;
 }
+
+/* =========================================================
+   Villain triggers (loaded from scenario.json, NOT hardcoded)
+========================================================= */
+type VillainKey = "bad1" | "bad2" | "bad3" | "bad4";
+
+/**
+ * In scenario.json you will define:
+ * villainTriggers: [
+ *   { "key":"bad1", "layer":1, "row":5, "cols":"any" },
+ *   { "key":"bad2", "layer":1, "row":6, "cols":"any" },
+ *   { "key":"bad3", "layer":2, "row":4, "cols":"any" },
+ *   { "key":"bad4", "layer":2, "row":5, "cols":"any" }
+ * ]
+ */
+type VillainTrigger = {
+  key: VillainKey;
+  layer: number;
+  row: number;
+  cols?: "any" | number[];
+};
+
+type Encounter = null | { villainKey: VillainKey; tries: number };
 
 /* =========================================================
    Helpers
@@ -212,8 +232,7 @@ const PLAYER_PRESETS = [
    Dice mapping
 ========================================================= */
 function rotForRoll(n: number) {
-  // Convention:
-  // 1=top, 6=bottom, 2=front, 5=back, 3=right, 4=left
+  // Convention: 1=top, 6=bottom, 2=front, 5=back, 3=right, 4=left
   switch (n) {
     case 1:
       return { x: -90, y: 0 };
@@ -241,7 +260,6 @@ export default function App() {
   // auto worlds
   const [worlds, setWorlds] = useState<WorldEntry[]>([]);
   const [worldId, setWorldId] = useState<string | null>(null);
-
   const world = useMemo(() => worlds.find((w) => w.id === worldId) ?? null, [worlds, worldId]);
 
   // scenario / track selection
@@ -270,24 +288,25 @@ export default function App() {
     return set;
   }, [reachMap]);
 
+  // villain triggers loaded from scenario.json
+  const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
+  const [encounter, setEncounter] = useState<Encounter>(null);
+  const encounterActive = !!encounter;
+
   // palette + assets for the active scenario (used in CSS vars + images)
   const activeTheme = scenarioEntry?.theme ?? null;
   const palette = activeTheme?.palette ?? null;
 
-  const GAME_BG_URL = activeTheme?.assets.backgroundGame ?? ""; // public path
-  const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? ""; // public path folder
-  const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? ""; // public path
+  const GAME_BG_URL = activeTheme?.assets.backgroundGame ?? "";
+  const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "";
+  const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
+  const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "";
 
   // layer count from scenario JSON (loaded when starting)
   const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
 
   const barSegments = useMemo(() => [7, 6, 5, 4, 3, 2, 1], []);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  /* --------------------------
-     Dice mode toggle
-  -------------------------- */
-  const [diceMode, setDiceMode] = useState(false);
 
   /* --------------------------
      Move counter + optimal
@@ -330,7 +349,7 @@ export default function App() {
   const [diceRot, setDiceRot] = useState<{ x: number; y: number }>(BASE_DICE_VIEW);
   const [diceSpinning, setDiceSpinning] = useState(false);
 
-  // drag rotation state (only active when diceMode === false)
+  // drag rotation state (disabled during encounter)
   const dragRef = useRef({
     active: false,
     startX: 0,
@@ -345,7 +364,6 @@ export default function App() {
   const aboveLayer = currentLayer + 1;
 
   useEffect(() => {
-    // one-time load of worlds
     setWorlds(loadWorlds());
   }, []);
 
@@ -353,7 +371,26 @@ export default function App() {
     return toPublicUrl(`${DICE_FACES_BASE}/D20_${n}.png`);
   }
 
+  function villainImg(key: VillainKey) {
+    return toPublicUrl(`${VILLAINS_BASE}/${key}.png`);
+  }
+
+  function findTriggerForHex(id: string): VillainKey | null {
+    const c = idToCoord(id);
+    if (!c) return null;
+    for (const t of villainTriggers) {
+      if (t.layer !== c.layer) continue;
+      if (t.row !== c.row) continue;
+      if (!t.cols || t.cols === "any") return t.key;
+      if (Array.isArray(t.cols) && t.cols.includes(c.col)) return t.key;
+    }
+    return null;
+  }
+
   const rollDice = useCallback(() => {
+    // every roll counts as a turn
+    setMovesTaken((m) => m + 1);
+
     const n = 1 + Math.floor(Math.random() * 6);
     setRollValue(n);
 
@@ -371,13 +408,23 @@ export default function App() {
       window.setTimeout(() => setDiceSpinning(false), 650);
     }, 40);
 
-    pushLog(`Rolled ${n}`, "ok");
+    pushLog(`Rolled ${n}`, n === 6 ? "ok" : "info");
+
+    // encounter: only 6 clears it
+    setEncounter((prev) => {
+      if (!prev) return prev;
+      if (n === 6) {
+        pushLog(`Encounter cleared (${prev.villainKey})`, "ok");
+        return null;
+      }
+      return { ...prev, tries: prev.tries + 1 };
+    });
   }, [pushLog]);
 
-  // Manual drag rotation ONLY when NOT in diceMode
+  // Manual drag rotation ONLY when NOT in encounter
   const onDicePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (diceMode) return;
+      if (encounterActive) return;
       if (diceSpinning) return;
       (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
 
@@ -390,12 +437,12 @@ export default function App() {
 
       setDiceDragging(true);
     },
-    [diceRot.x, diceRot.y, diceSpinning, diceMode]
+    [diceRot.x, diceRot.y, diceSpinning, encounterActive]
   );
 
   const onDicePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (diceMode) return;
+      if (encounterActive) return;
       if (!dragRef.current.active) return;
       if (e.pointerId !== dragRef.current.pointerId) return;
 
@@ -408,19 +455,19 @@ export default function App() {
 
       setDiceRot({ x: nextX, y: nextY });
     },
-    [diceMode]
+    [encounterActive]
   );
 
   const endDrag = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (diceMode) return;
+      if (encounterActive) return;
       if (!dragRef.current.active) return;
       if (e.pointerId !== dragRef.current.pointerId) return;
       dragRef.current.active = false;
       dragRef.current.pointerId = -1;
       setDiceDragging(false);
     },
-    [diceMode]
+    [encounterActive]
   );
 
   /* --------------------------
@@ -456,13 +503,18 @@ export default function App() {
     if (!scenarioEntry) return;
 
     // choose which scenario JSON to load:
-    // - if tracks exist and user picked a track -> use track scenarioJson
-    // - else use scenarioEntry.scenarioJson
     const tracks = scenarioEntry.tracks ?? [];
     const hasTracks = tracks.length > 1;
     const chosenJson = hasTracks ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson : scenarioEntry.scenarioJson;
 
     const s = (await loadScenario(chosenJson)) as any;
+
+    // load villain triggers from JSON (optional)
+    const triggers: VillainTrigger[] = Array.isArray(s?.villainTriggers) ? s.villainTriggers : [];
+    setVillainTriggers(triggers);
+
+    // reset encounter
+    setEncounter(null);
 
     const st = newGame(s);
     const pid = (st as any).playerHexId ?? null;
@@ -522,9 +574,28 @@ export default function App() {
 
   /* --------------------------
      Board click
+     - Every click counts as a turn attempt (even invalid)
+     - Triggers villain encounter if scenario.json says so
   -------------------------- */
   const tryMoveToId = useCallback(
     (id: string) => {
+      // every click counts
+      setMovesTaken((m) => m + 1);
+
+      // ignore board interaction during encounter (but click already counted)
+      if (encounterActive) return;
+
+      // check for villain trigger from scenario.json rules
+      const vk = findTriggerForHex(id);
+      if (vk) {
+        setEncounter({ villainKey: vk, tries: 0 });
+        setDiceRot(BASE_DICE_VIEW);
+        setDiceSpinning(false);
+        setDiceDragging(false);
+        pushLog(`Encounter: ${vk} — roll a 6 to continue`, "bad");
+        return;
+      }
+
       if (!state) return;
 
       setSelectedId(id);
@@ -543,8 +614,6 @@ export default function App() {
         setCurrentLayer(newLayer);
         setSelectedId(newPlayerId ?? id);
 
-        setMovesTaken((m) => m + 1);
-
         if (newPlayerId && goalId) {
           const o = computeOptimal(state, newLayer, newPlayerId, goalId);
           setOptimalFromNow(o);
@@ -561,7 +630,17 @@ export default function App() {
         pushLog(`Move blocked`, "bad");
       }
     },
-    [state, currentLayer, recomputeReachability, revealWholeLayer, pushLog, goalId, computeOptimal]
+    [
+      state,
+      currentLayer,
+      recomputeReachability,
+      revealWholeLayer,
+      pushLog,
+      goalId,
+      computeOptimal,
+      encounterActive,
+      villainTriggers,
+    ]
   );
 
   /* --------------------------
@@ -612,7 +691,7 @@ export default function App() {
   const stripeCurr = layerCssVar(currentLayer);
   const stripeAbove = aboveLayer > scenarioLayerCount ? "rgba(0,0,0,.90)" : layerCssVar(aboveLayer);
 
-  // ✅ keep cube position stable across modes
+  // keep cube position stable across modes
   const diceAlignY = 70;
 
   // Mini boards reachability filtered per layer
@@ -690,7 +769,6 @@ export default function App() {
               <button
                 className="btn primary"
                 onClick={() => {
-                  // reset and go to world select
                   setWorldId(null);
                   setScenarioId(null);
                   setTrackId(null);
@@ -732,7 +810,9 @@ export default function App() {
                   </div>
                 );
               })}
-              {!worlds.length ? <div className="selectTileDesc">No worlds found. Add src/worlds/&lt;world&gt;/world.ts</div> : null}
+              {!worlds.length ? (
+                <div className="selectTileDesc">No worlds found. Add src/worlds/&lt;world&gt;/world.ts</div>
+              ) : null}
             </div>
 
             <div className="row rowBetween">
@@ -786,7 +866,7 @@ export default function App() {
       ) : null}
 
       {/* =====================================================
-          SCENARIO SELECT (last before difficulty/game)
+          SCENARIO SELECT
       ====================================================== */}
       {screen === "scenario" ? (
         <div className="shell shellCard">
@@ -824,7 +904,6 @@ export default function App() {
                 className="btn primary"
                 disabled={!scenarioEntry}
                 onClick={() => {
-                  // difficulty step only if there are 2+ tracks
                   const tracks = scenarioEntry?.tracks ?? [];
                   if (tracks.length > 1) {
                     setScreen("difficulty");
@@ -842,7 +921,7 @@ export default function App() {
       ) : null}
 
       {/* =====================================================
-          DIFFICULTY (tracks) — skips automatically if only 1
+          DIFFICULTY (tracks) — skips if only 1
       ====================================================== */}
       {screen === "difficulty" ? (
         <div className="shell shellCard">
@@ -866,14 +945,20 @@ export default function App() {
                   </div>
                 );
               })}
-              {!scenarioEntry?.tracks?.length ? <div className="selectTileDesc">No tracks found. (This screen should normally be skipped.)</div> : null}
+              {!scenarioEntry?.tracks?.length ? (
+                <div className="selectTileDesc">No tracks found. (This screen should normally be skipped.)</div>
+              ) : null}
             </div>
 
             <div className="row rowBetween">
               <button className="btn" onClick={() => setScreen("scenario")}>
                 Back
               </button>
-              <button className="btn primary" disabled={!trackId} onClick={() => startScenario().catch((e) => alert(String((e as any)?.message ?? e)))}>
+              <button
+                className="btn primary"
+                disabled={!trackId}
+                onClick={() => startScenario().catch((e) => alert(String((e as any)?.message ?? e)))}
+              >
                 Start game
               </button>
             </div>
@@ -882,10 +967,23 @@ export default function App() {
       ) : null}
 
       {/* =====================================================
-          GAME (same layout as before, but themed from scenarioEntry.theme)
+          GAME
       ====================================================== */}
       {screen === "game" ? (
         <div className="shell shellGame">
+          {encounterActive ? <div className="blackout" aria-hidden="true" /> : null}
+
+          {encounterActive ? (
+            <div className="villainCenter">
+              <img className="villainImg" src={villainImg(encounter!.villainKey)} alt={encounter!.villainKey} />
+              <div className="villainText">Roll a 6 to continue</div>
+              <button className="btn primary" onClick={rollDice}>
+                🎲 Roll
+              </button>
+              <div className="villainSmall">Tries: {encounter!.tries}</div>
+            </div>
+          ) : null}
+
           <div className="scrollStage" ref={scrollRef}>
             <div className="scrollInner">
               <div className="gameLayout">
@@ -908,28 +1006,23 @@ export default function App() {
 
                 <SideBar side="right" currentLayer={currentLayer} segments={barSegments} />
 
-                {/* Dice OUTER RIGHT */}
+                {/* Cube / Dice */}
                 <div className="diceArea">
                   <div className="diceCubeWrap" aria-label="Layer dice">
                     <div
-                      className={
-                        "diceCube" +
-                        (diceSpinning ? " isSpinning" : "") +
-                        (diceDragging ? " isDragging" : "") +
-                        (diceMode ? " isDiceMode" : "")
-                      }
+                      className={"diceCube" + (diceSpinning ? " isSpinning" : "") + (diceDragging ? " isDragging" : "")}
                       onPointerDown={onDicePointerDown}
                       onPointerMove={onDicePointerMove}
                       onPointerUp={endDrag}
                       onPointerCancel={endDrag}
                       style={{
                         transform: `translateY(${diceAlignY}px) rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
-                        touchAction: diceMode ? "auto" : "none",
-                        cursor: diceMode ? "default" : diceDragging ? "grabbing" : "grab",
+                        touchAction: encounterActive ? "auto" : "none",
+                        cursor: encounterActive ? "default" : diceDragging ? "grabbing" : "grab",
                       }}
                     >
-                      {/* DICE MODE (images) */}
-                      {diceMode ? (
+                      {/* Dice faces during encounter, otherwise mini-board cube */}
+                      {encounterActive ? (
                         <>
                           <FaceImage cls="diceFace faceTop" src={diceImg(1)} alt="Dice 1" />
                           <FaceImage cls="diceFace faceFront" src={diceImg(2)} alt="Dice 2" />
@@ -940,7 +1033,7 @@ export default function App() {
                         </>
                       ) : (
                         <>
-                          {/* MINI BOARD MODE (3 faces) — no border corners here */}
+                          {/* MINI BOARD MODE (3 faces) */}
                           <div className="diceFace faceTop">
                             <div className="faceStripe" style={{ background: stripeAbove }} />
                             <div className="diceFaceInnerFixed">
@@ -1005,6 +1098,7 @@ export default function App() {
                             </div>
                           </div>
 
+                          {/* HUD faces */}
                           <div className="diceFace faceBack">
                             <div className="diceHud">
                               <div className="hudTitle">Moves</div>
@@ -1075,46 +1169,24 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* CONTROLS */}
+                  {/* Controls (no toggle button) */}
                   <div className="diceControls">
-                    <button
-                      className={"btn " + (diceMode ? "primary" : "")}
-                      onClick={() => {
-                        setDiceMode((v) => !v);
-                        window.setTimeout(() => {
-                          setDiceRot(BASE_DICE_VIEW);
-                          setDiceSpinning(false);
-                          setDiceDragging(false);
-                        }, 0);
-                      }}
-                      title="Toggle Dice Mode"
-                    >
-                      {diceMode ? "🧊 Boards" : "🎲 Dice Mode"}
-                    </button>
-
-                    {diceMode ? (
-                      <>
-                        <button className="btn primary" onClick={rollDice}>
-                          🎲 Roll
-                        </button>
-                        <div className="diceReadout">= {rollValue}</div>
-                      </>
+                    {encounterActive ? (
+                      <div className="diceReadout">Roll = {rollValue}</div>
                     ) : (
                       <div className="diceReadout subtle">Drag to rotate</div>
                     )}
                   </div>
 
-                  <div className="dragHint">
-                    {diceMode ? "Dice Mode: Roll only (no drag rotation)" : "Board Mode: Drag rotation only (no roll)"}
-                  </div>
+                  <div className="dragHint">{encounterActive ? "Encounter: roll a 6 to continue" : "Board Mode: Drag rotation only"}</div>
 
                   <div className="row rowBetween" style={{ marginTop: 12 }}>
                     <button
                       className="btn"
                       onClick={() => {
-                        // back to scenario select (template behavior)
                         setScreen("scenario");
                         setState(null);
+                        setEncounter(null);
                       }}
                     >
                       Back to Scenarios
@@ -1131,7 +1203,7 @@ export default function App() {
 }
 
 /* =========================================================
-   Dice corners (4x per face) — used ONLY in Dice Mode faces
+   Dice corners (4x per face) — used ONLY in Dice faces
 ========================================================= */
 function DiceCorners() {
   return (
@@ -1330,6 +1402,33 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   z-index: 1;
 }
 
+.blackout{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.85);
+  z-index: 50;
+}
+
+.villainCenter{
+  position: fixed;
+  left: 38%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 60; /* above blackout, below cube */
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  text-align: center;
+}
+.villainImg{
+  width: min(340px, 40vw);
+  height: auto;
+  border-radius: 16px;
+  box-shadow: 0 30px 80px rgba(0,0,0,.45);
+}
+.villainText{ font-weight: 1000; opacity: .96; }
+.villainSmall{ font-weight: 900; opacity: .8; font-size: 12px; }
+
 .shell{ position: relative; z-index: 2; padding: 22px; }
 .shellCard{ display: grid; place-items: center; min-height: 100vh; }
 
@@ -1346,7 +1445,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .cardMeta{ margin-top: 6px; opacity: .82; font-weight: 900; }
 
 .row{ display:flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-.rowEnd{ justify-content: flex-end; }
 .rowBetween{ justify-content: space-between; }
 
 .btn{
@@ -1554,7 +1652,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
 
 /* DICE */
-.diceArea{ display:grid; justify-items:center; gap: 14px; padding-top: 0; }
+.diceArea{ display:grid; justify-items:center; gap: 14px; padding-top: 0; position: relative; z-index: 70; }
 
 .diceCubeWrap{
   width: 460px;
@@ -1585,7 +1683,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   overflow:hidden;
 }
 
-/* FLAME BORDER CORNERS (Dice Mode only; these spans exist only in FaceImage) */
+/* FLAME BORDER CORNERS (Dice faces only) */
 .diceCorner{
   position:absolute;
   width: 46%;
