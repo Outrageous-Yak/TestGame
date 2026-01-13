@@ -20,7 +20,7 @@
   },
 
   "start": { "layer": 1, "row": 3, "col": 1 },
-  "goal": { "layer": 2, "row": 7, "col": 4 },
+  "goal": { "layer": 2, "row": 1, "col": 4 },
 
   "missing": [],
   "blocked": [],
