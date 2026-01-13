@@ -27,7 +27,7 @@ type LayerPalette = { L1: string; L2: string; L3: string; L4: string; L5: string
 type ScenarioTheme = {
   palette: LayerPalette;
   assets: {
-    backgroundGame: string; // e.g. "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/game-bg.png"
+    backgroundGame: string; // e.g. "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/game-bg.jpg"
     diceFacesBase: string; // e.g. "worlds/rainbow_realm/scenarios/prism_path/assets/dice/faces" (expects D20_1.png ... D20_6.png)
     diceCornerBorder: string; // e.g. "worlds/rainbow_realm/scenarios/prism_path/assets/dice/borders/corner_flame_red.png"
   };
