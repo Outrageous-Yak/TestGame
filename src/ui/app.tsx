@@ -26,7 +26,7 @@ type LogEntry = { n: number; t: string; msg: string; kind?: "ok" | "bad" | "info
 const BUILD_TAG = "BUILD_TAG_TILES_DEMO_V1";
 const GAME_BG_URL = "images/ui/board-bg.png";
 const DICE_IMG_BASE = "images/d20"; // public/images/d20
-const DICE_BORDER_IMG = "images/d20/diceborder_flame_red.png"; // ✅ flame border
+const DICE_BORDER_IMG = "images/d20/diceborder_flame_red2.png"; // ✅ flame border
 
 /* =========================================================
    Helpers
