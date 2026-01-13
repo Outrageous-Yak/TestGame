@@ -3,8 +3,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import type { GameState, Scenario, Hex } from "../engine/types";
 import { assertScenario } from "../engine/scenario";
-import { newGame, getReachability, tryMove, endTurn, type ReachMap } from "../engine/api";
+import { newGame, getReachability, tryMove, type ReachMap } from "../engine/api";
 import { ROW_LENS, enterLayer, revealHex } from "../engine/board";
+import { neighborIdsSameLayer } from "../engine/neighbors";
 
 /* =========================================================
    Template Flow
@@ -75,20 +76,11 @@ function loadWorlds(): WorldEntry[] {
 ========================================================= */
 type VillainKey = "bad1" | "bad2" | "bad3" | "bad4";
 
-/**
- * In scenario.json you will define:
- * villainTriggers: [
- *   { "key":"bad1", "layer":1, "row":5, "cols":"any" },
- *   { "key":"bad2", "layer":1, "row":6, "cols":"any" },
- *   { "key":"bad3", "layer":2, "row":4, "cols":"any" },
- *   { "key":"bad4", "layer":2, "row":5, "cols":"any" }
- * ]
- */
 type VillainTrigger = {
   key: VillainKey;
   layer: number;
-  row: number;
-  cols?: "any" | number[];
+  row: number; // 0-based (matches engine)
+  cols?: "any" | number[]; // 0-based col indices if provided
 };
 
 type Encounter = null | { villainKey: VillainKey; tries: number };
@@ -117,7 +109,7 @@ async function fetchJson<T>(path: string): Promise<T> {
 
 async function loadScenario(path: string): Promise<Scenario> {
   const s = await fetchJson<Scenario>(path);
-  assertScenario(s);
+  assertScenario(s as any);
   return s;
 }
 
@@ -146,56 +138,7 @@ function nowHHMM() {
   return `${hh}:${mm}`;
 }
 
-function inBounds(row: number, col: number) {
-  if (row < 1 || row > ROW_LENS.length) return false;
-  const len = ROW_LENS[row - 1] ?? 7;
-  return col >= 1 && col <= len;
-}
-
-// flat-topped offset rows (your CSS shifts even rows right)
-function neighborsFlatTop(row: number, col: number) {
-  const even = row % 2 === 0;
-  const cand = [
-    { row, col: col - 1 }, // W
-    { row, col: col + 1 }, // E
-    { row: row - 1, col: col + (even ? 0 : -1) }, // NW
-    { row: row - 1, col: col + (even ? 1 : 0) }, // NE
-    { row: row + 1, col: col + (even ? 0 : -1) }, // SW
-    { row: row + 1, col: col + (even ? 1 : 0) }, // SE
-  ];
-  return cand.filter((p) => inBounds(p.row, p.col));
-}
-
-function shortestMovesSameLayer(state: GameState | null, layer: number, startId: string, goalId: string) {
-  if (!state) return Infinity;
-  if (!startId || !goalId) return Infinity;
-  if (startId === goalId) return 0;
-
-  const q: Array<{ id: string; d: number }> = [{ id: startId, d: 0 }];
-  const seen = new Set<string>([startId]);
-
-  while (q.length) {
-    const { id, d } = q.shift()!;
-    const c = idToCoord(id);
-    if (!c) continue;
-
-    for (const nb of neighborsFlatTop(c.row, c.col)) {
-      const nid = `L${layer}-R${nb.row}-C${nb.col}`;
-      if (seen.has(nid)) continue;
-
-      const hex = getHexFromState(state, nid) as any;
-      const { blocked, missing } = isBlockedOrMissing(hex);
-      if (blocked || missing) continue;
-
-      if (nid === goalId) return d + 1;
-      seen.add(nid);
-      q.push({ id: nid, d: d + 1 });
-    }
-  }
-  return Infinity;
-}
-
-/** Best-effort goal id discovery (safe if scenario doesn’t define it). */
+/** Best-effort goal id discovery (safe if scenario doesn’t define it). Assumes 0-based row/col. */
 function findGoalId(s: any, fallbackLayer: number): string | null {
   const direct =
     s?.goalHexId ??
@@ -474,29 +417,62 @@ export default function App() {
      Game helpers
   -------------------------- */
   const recomputeReachability = useCallback((st: GameState) => {
+    // hard guard against invalid state
+    if (!(st as any)?.hexesById?.get?.(st.playerHexId)) {
+      setReachMap({} as ReachMap);
+      return;
+    }
     setReachMap(getReachability(st) as any);
   }, []);
 
   const revealWholeLayer = useCallback((st: GameState, layer: number) => {
-    for (let r = 1; r <= ROW_LENS.length; r++) {
-      const len = ROW_LENS[r - 1] ?? 7;
-      for (let c = 1; c <= len; c++) revealHex(st, `L${layer}-R${r}-C${c}`);
+    for (let r = 0; r < ROW_LENS.length; r++) {
+      const len = ROW_LENS[r] ?? 7;
+      for (let c = 0; c < len; c++) {
+        revealHex(st, `L${layer}-R${r}-C${c}`);
+      }
     }
   }, []);
 
-  const revealRing = useCallback((st: GameState, layer: number, centerId: string) => {
-    const c = idToCoord(centerId);
-    if (!c) return;
+  const revealRing = useCallback((st: GameState, centerId: string) => {
     revealHex(st, centerId);
-    for (const nb of neighborsFlatTop(c.row, c.col)) {
-      revealHex(st, `L${layer}-R${nb.row}-C${nb.col}`);
+    for (const nbId of neighborIdsSameLayer(st, centerId)) {
+      revealHex(st, nbId);
     }
   }, []);
 
-  const computeOptimal = useCallback((st: GameState, layer: number, startId: string, gid: string | null) => {
+  const computeOptimalFromReachMap = useCallback((rm: ReachMap, gid: string | null) => {
     if (!gid) return null;
-    const d = shortestMovesSameLayer(st, layer, startId, gid);
-    return Number.isFinite(d) ? d : null;
+    const info: any = (rm as any)[gid];
+    return info?.reachable ? (info.distance as number) : null;
+  }, []);
+
+  const parseVillainsFromScenario = useCallback((s: any): VillainTrigger[] => {
+    // Preferred: explicit list
+    if (Array.isArray(s?.villainTriggers)) {
+      return s.villainTriggers
+        .map((t: any) => ({
+          key: t.key as VillainKey,
+          layer: Number(t.layer),
+          row: Number(t.row),
+          cols: t.cols ?? "any",
+        }))
+        .filter((t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row));
+    }
+
+    // Fallback: your current JSON format: villains.triggers [{id, layer, row}]
+    if (Array.isArray(s?.villains?.triggers)) {
+      return s.villains.triggers
+        .map((t: any) => ({
+          key: String(t.id) as VillainKey,
+          layer: Number(t.layer),
+          row: Number(t.row),
+          cols: "any" as const,
+        }))
+        .filter((t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row));
+    }
+
+    return [];
   }, []);
 
   const startScenario = useCallback(async () => {
@@ -509,15 +485,14 @@ export default function App() {
 
     const s = (await loadScenario(chosenJson)) as any;
 
-    // load villain triggers from JSON (optional)
-    const triggers: VillainTrigger[] = Array.isArray(s?.villainTriggers) ? s.villainTriggers : [];
-    setVillainTriggers(triggers);
+    // villain triggers from JSON (optional)
+    setVillainTriggers(parseVillainsFromScenario(s));
 
     // reset encounter
     setEncounter(null);
 
     const st = newGame(s);
-    const pid = (st as any).playerHexId ?? null;
+    const pid = st.playerHexId ?? null;
     const layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
 
     const gid = findGoalId(s, layer);
@@ -526,9 +501,13 @@ export default function App() {
     const layerCount = Number(s?.layers ?? 1);
     setScenarioLayerCount(layerCount);
 
+    // Make sure current layer is visible and revealed
     enterLayer(st, layer);
     revealWholeLayer(st, layer);
-    recomputeReachability(st);
+
+    // compute reachability once at start
+    const rm = getReachability(st) as any;
+    setReachMap(rm);
 
     setState(st);
     setSelectedId(pid);
@@ -542,14 +521,8 @@ export default function App() {
 
     // moves + optimal
     setMovesTaken(0);
-    if (pid && gid) {
-      const startOpt = computeOptimal(st, layer, pid, gid);
-      setOptimalAtStart(startOpt);
-      setOptimalFromNow(startOpt);
-    } else {
-      setOptimalAtStart(null);
-      setOptimalFromNow(null);
-    }
+    setOptimalAtStart(computeOptimalFromReachMap(rm as any, gid));
+    setOptimalFromNow(computeOptimalFromReachMap(rm as any, gid));
 
     // reset log
     logNRef.current = 0;
@@ -570,7 +543,7 @@ export default function App() {
     }, 0);
 
     setScreen("game");
-  }, [scenarioEntry, trackEntry, recomputeReachability, revealWholeLayer, computeOptimal, pushLog]);
+  }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog]);
 
   /* --------------------------
      Board click
@@ -600,13 +573,18 @@ export default function App() {
 
       setSelectedId(id);
 
+      // IMPORTANT: attemptMove (engine) already ends the turn + applies shift.
       const res = tryMove(state, id);
+
+      // Always recompute reachability based on the mutated engine state
+      const rm = getReachability(state) as any;
+      setReachMap(rm);
+
       if (res.ok) {
         const newPlayerId = (state as any).playerHexId;
         const newLayer = newPlayerId ? idToCoord(newPlayerId)?.layer ?? currentLayer : currentLayer;
 
         if (!res.won) {
-          endTurn(state);
           enterLayer(state, newLayer);
           revealWholeLayer(state, newLayer);
         }
@@ -614,18 +592,16 @@ export default function App() {
         setCurrentLayer(newLayer);
         setSelectedId(newPlayerId ?? id);
 
-        if (newPlayerId && goalId) {
-          const o = computeOptimal(state, newLayer, newPlayerId, goalId);
-          setOptimalFromNow(o);
-        }
+        setOptimalFromNow(computeOptimalFromReachMap(rm as any, goalId));
 
-        recomputeReachability(state);
         setState({ ...(state as any) });
 
         const c = newPlayerId ? idToCoord(newPlayerId) : null;
-        pushLog(c ? `Move OK → R${c.row}C${c.col} (L${c.layer})` : `Move OK`, "ok");
+        pushLog(
+          c ? `Move OK → R${c.row + 1}C${c.col + 1} (L${c.layer})` : `Move OK`,
+          "ok"
+        );
       } else {
-        recomputeReachability(state);
         setState({ ...(state as any) });
         pushLog(`Move blocked`, "bad");
       }
@@ -633,13 +609,12 @@ export default function App() {
     [
       state,
       currentLayer,
-      recomputeReachability,
-      revealWholeLayer,
       pushLog,
       goalId,
-      computeOptimal,
+      computeOptimalFromReachMap,
       encounterActive,
       villainTriggers,
+      revealWholeLayer,
     ]
   );
 
@@ -665,8 +640,8 @@ export default function App() {
       if (!pid) return;
 
       if (id === "revealRing") {
-        revealRing(state, currentLayer, pid);
-        recomputeReachability(state);
+        revealRing(state, pid);
+        setReachMap(getReachability(state) as any);
         setState({ ...(state as any) });
         pushLog("Used: Reveal (ring)", "ok");
         return;
@@ -675,15 +650,21 @@ export default function App() {
       if (id === "peek") {
         const up = Math.min(scenarioLayerCount, currentLayer + 1);
         const dn = Math.max(1, currentLayer - 1);
-        revealRing(state, up, pid.replace(/^L\d+-/, `L${up}-`));
-        revealRing(state, dn, pid.replace(/^L\d+-/, `L${dn}-`));
-        recomputeReachability(state);
+
+        // same row/col, different layer
+        const upId = pid.replace(/^L\d+-/, `L${up}-`);
+        const dnId = pid.replace(/^L\d+-/, `L${dn}-`);
+
+        revealRing(state, upId);
+        revealRing(state, dnId);
+
+        setReachMap(getReachability(state) as any);
         setState({ ...(state as any) });
         pushLog("Used: Peek (above/below ring)", "info");
         return;
       }
     },
-    [items, state, currentLayer, scenarioLayerCount, rollDice, pushLog, revealRing, recomputeReachability]
+    [items, state, currentLayer, scenarioLayerCount, rollDice, pushLog, revealRing]
   );
 
   // Stripes (mini-board mode only)
@@ -695,11 +676,11 @@ export default function App() {
   const diceAlignY = 70;
 
   // Mini boards reachability filtered per layer
-  function filterReachForLayer(layer: number, reachMap: ReachMap) {
+  function filterReachForLayer(layer: number, rmAll: ReachMap) {
     const prefix = `L${layer}-`;
     const rm = {} as ReachMap;
     const set = new Set<string>();
-    for (const [k, v] of Object.entries(reachMap as any)) {
+    for (const [k, v] of Object.entries(rmAll as any)) {
       if (!k.startsWith(prefix)) continue;
       (rm as any)[k] = v;
       if ((v as any)?.reachable) set.add(k);
@@ -1016,7 +997,7 @@ export default function App() {
                       onPointerUp={endDrag}
                       onPointerCancel={endDrag}
                       style={{
-                        transform: `translateY(${diceAlignY}px) rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
+                        transform: `translateY(70px) rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
                         touchAction: encounterActive ? "auto" : "none",
                         cursor: encounterActive ? "default" : diceDragging ? "grabbing" : "grab",
                       }}
@@ -1240,14 +1221,7 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number; segments
       <div className="layerBar">
         {segments.map((layerVal) => {
           const active = layerVal === currentLayer;
-          return (
-            <div
-              key={layerVal}
-              className={"barSeg" + (active ? " isActive" : "")}
-              data-layer={layerVal}
-              title={`Layer ${layerVal}`}
-            />
-          );
+          return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} title={`Layer ${layerVal}`} />;
         })}
       </div>
     </div>
@@ -1269,8 +1243,7 @@ function HexBoard(props: {
   showCoords: boolean;
   showPlayerOnMini?: boolean;
 }) {
-  const { kind, activeLayer, maxLayer, state, selectedId, reachable, reachMap, onCellClick, showCoords, showPlayerOnMini } =
-    props;
+  const { kind, activeLayer, maxLayer, state, selectedId, reachable, reachMap, onCellClick, showCoords, showPlayerOnMini } = props;
   const playerId = (state as any)?.playerHexId ?? null;
 
   const hasAbove = activeLayer < maxLayer;
@@ -1292,13 +1265,13 @@ function HexBoard(props: {
       }
     >
       {ROW_LENS.map((len, rIdx) => {
-        const row = rIdx + 1;
-        const isEvenRow = row % 2 === 0;
+        const row = rIdx; // 0-based
+        const isEvenRow = (row + 1) % 2 === 0; // visual "even" rows still based on display row number
 
         return (
           <div key={row} className={"hexRow" + (isEvenRow ? " even" : "")} data-row={row}>
             {Array.from({ length: len }, (_, cIdx) => {
-              const col = cIdx + 1;
+              const col = cIdx; // 0-based
               const id = `L${activeLayer}-R${row}-C${col}`;
 
               const hex = getHexFromState(state, id) as any;
@@ -1325,19 +1298,19 @@ function HexBoard(props: {
                   onClick={onCellClick ? () => onCellClick(id) : undefined}
                   role={onCellClick ? "button" : undefined}
                   tabIndex={onCellClick ? 0 : undefined}
-                  title={showCoords ? `L${activeLayer} R${row} C${col}` : undefined}
+                  title={showCoords ? `L${activeLayer} R${row + 1} C${col + 1}` : undefined}
                 >
                   <span className="hexRim hexRimTop" aria-hidden="true" />
                   <span className="hexRim hexRimBottom" aria-hidden="true" />
 
                   {showCoords ? (
                     <span className="hexLabel">
-                      <div>R{row}</div>
-                      <div>C{col}</div>
+                      <div>R{row + 1}</div>
+                      <div>C{col + 1}</div>
                     </span>
                   ) : null}
 
-                  {kind === "mini" ? <span className="miniNum">{col}</span> : null}
+                  {kind === "mini" ? <span className="miniNum">{col + 1}</span> : null}
                 </div>
               );
             })}
