@@ -38,7 +38,7 @@
   "transitions": [
     {
       "type": "UP",
-      "from": { "layer": 1, "row": 3, "col": 7 },
+      "from": { "layer": 1, "row": 3, "col": 5 },
       "to": { "layer": 2, "row": 2, "col": 2 }
     }
   ],
