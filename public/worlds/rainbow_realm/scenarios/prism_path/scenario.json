@@ -1,7 +1,7 @@
 {
   "id": "demo_v01",
   "name": "Demo v0.1",
-  "layers": 7,
+  "layers": 2,
   "objective": "Reach the goal hex.",
   "description": "A small demo showing fog, shifting layers, and transitions.",
   "notes": [
@@ -9,7 +9,7 @@
     "Some layers shift after each turn."
   ],
   "start": { "layer": 1, "row": 3, "col": 1 },
-  "goal": { "layer": 2, "row": 7, "col": 7 },
+  "goal": { "layer": 2, "row": 7, "col": 6 },
   "missing": [],
   "blocked": [{ "layer": 1, "row": 3, "col": 0 }],
   "movement": {
