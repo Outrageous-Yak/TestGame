@@ -1,6 +1,6 @@
 // src/ui/app.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import "./appBase.css";
+
 import "./app.css";
 
 
