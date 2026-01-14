@@ -1,8 +1,8 @@
 // src/ui/app.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-// ✅ ONLY cinematic add-ons here. Base UI look must be imported in main.tsx.
+import "./appBase.css";
 import "./app.css";
+
 
 import type { GameState, Scenario, Hex } from "../engine/types";
 import { assertScenario } from "../engine/scenario";
