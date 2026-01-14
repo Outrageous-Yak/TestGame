@@ -567,7 +567,7 @@ export default function App() {
         setDiceRot(BASE_DICE_VIEW);
         setDiceSpinning(false);
         setDiceDragging(false);
-        pushLog(`Encounter: ${vk} —  to continue`, "bad");
+        pushLog(`Encounter: ${vk} — roll a 6 to continue`, "bad");
         return;
       }
 
@@ -902,7 +902,7 @@ export default function App() {
           {encounterActive ? <div className={"blackout" + (sixHoldActive && sixVsVillain ? " fadeOut" : "")} aria-hidden="true" /> : null}
 
           {encounterActive ? (
-            <div>
+            <div className="villainCenter">
               <img className={"villainImg" + (sixHoldActive && sixVsVillain ? " glowIn" : "")} src={villainImg(encounter!.villainKey)} alt={encounter!.villainKey} />
               <div className="villainText">Roll a 6 to continue</div>
 
@@ -911,7 +911,7 @@ export default function App() {
               </button>
 
               <div className="villainSmall">Tries: {encounter!.tries}</div>
-           </div>
+            </div>
           ) : null}
 
           <div className="scrollStage" ref={scrollRef}>
