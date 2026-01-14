@@ -902,8 +902,8 @@ export default function App() {
           {encounterActive ? <div className={"blackout" + (sixHoldActive && sixVsVillain ? " fadeOut" : "")} aria-hidden="true" /> : null}
 
           {encounterActive ? (
-            
-              <img className={"villainImg" + (sixHoldActive && sixVsVillain ? " glowIn" : "")} src={villainImg(encounter!.villainKey)} alt={encounter!.villainKey} />
+            <div className="villainCenter">
+              <img className={"villainImg" + (sixHoldActive && sixVsVillain ? " glowIn" : "")} src={villainImg(encounter!.villainKey)} alt={encounter!.villainKey} 
               <div className="villainText">Roll a 6 to continue</div>
 
               <button className="btn primary" onClick={rollDice} disabled={sixHoldActive}>
