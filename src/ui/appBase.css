@@ -1,6 +1,6 @@
 /* src/ui/appBase.css
-   Base UI styles ONLY (the “look” you want).
-   Put your cinematic add-ons (6-roll glow/fade/overlay) in src/ui/app.css instead.
+   BASE UI styles only.
+   (No cinematic “roll 6” add-ons in here.)
 */
 
 :root {
