@@ -28,21 +28,21 @@ type LayerPalette = { L1: string; L2: string; L3: string; L4: string; L5: string
 type ScenarioTheme = {
   palette: LayerPalette;
   assets: {
-    backgroundGame: string; // e.g. "worlds/.../assets/backgrounds/game-bg.jpg"
-    diceFacesBase: string; // e.g. "worlds/.../assets/dice/faces" (expects D20_1.png..D20_6.png)
-    diceCornerBorder: string; // e.g. "worlds/.../assets/dice/borders/corner_flame_red.png"
-    villainsBase: string; // e.g. "worlds/.../assets/villains" (expects bad1.png..bad4.png)
+    backgroundGame: string;
+    diceFacesBase: string;
+    diceCornerBorder: string;
+    villainsBase: string;
   };
 };
 
-type Track = { id: string; name: string; scenarioJson: string }; // public path
+type Track = { id: string; name: string; scenarioJson: string };
 type ScenarioEntry = {
   id: string;
   name: string;
   desc?: string;
-  scenarioJson: string; // public path to JSON
+  scenarioJson: string;
   theme: ScenarioTheme;
-  tracks?: Track[]; // if absent or length===1 => skip difficulty
+  tracks?: Track[];
 };
 
 type WorldEntry = {
@@ -79,8 +79,8 @@ type VillainKey = "bad1" | "bad2" | "bad3" | "bad4";
 type VillainTrigger = {
   key: VillainKey;
   layer: number;
-  row: number; // 0-based (matches engine)
-  cols?: "any" | number[]; // 0-based col indices if provided
+  row: number;
+  cols?: "any" | number[];
 };
 
 type Encounter = null | { villainKey: VillainKey; tries: number };
@@ -125,7 +125,6 @@ function isBlockedOrMissing(hex: any): { blocked: boolean; missing: boolean } {
   return { missing: !!hex.missing, blocked: !!hex.blocked };
 }
 
-/** For CSS vars like var(--L2) */
 function layerCssVar(n: number) {
   const clamped = Math.max(1, Math.min(7, Math.floor(n || 1)));
   return `var(--L${clamped})`;
@@ -138,7 +137,7 @@ function nowHHMM() {
   return `${hh}:${mm}`;
 }
 
-/** Best-effort goal id discovery (safe if scenario doesn’t define it). Assumes 0-based row/col. */
+/** Best-effort goal id discovery (safe if scenario doesn’t define it). */
 function findGoalId(s: any, fallbackLayer: number): string | null {
   const direct =
     s?.goalHexId ??
@@ -236,7 +235,7 @@ export default function App() {
   const [encounter, setEncounter] = useState<Encounter>(null);
   const encounterActive = !!encounter;
 
-  // ✅ ONLY ADD-ON: 6-glow + quick reset to BASE pose (mini cube returns to initial position)
+  // ✅ 6-glow + quick reset to BASE pose (mini cube returns to initial position)
   const [sixGlow, setSixGlow] = useState(false);
   const [sixGlowVsVillain, setSixGlowVsVillain] = useState(false);
   const sixTimersRef = useRef<number[]>([]);
@@ -251,13 +250,10 @@ export default function App() {
       setSixGlow(true);
       setSixGlowVsVillain(opts.vsVillain);
 
-      // After the dice lands, snap back to BASE pose so the mini-cube is "home" again.
-      // (No long hold; just a quick flourish.)
       const t1 = window.setTimeout(() => {
         setDiceRot(BASE_DICE_VIEW);
       }, 900);
 
-      // Turn off glow shortly after, and optionally clear encounter (so villain glow is visible briefly).
       const t2 = window.setTimeout(() => {
         setSixGlow(false);
         setSixGlowVsVillain(false);
@@ -368,7 +364,7 @@ export default function App() {
   }
 
   const rollDice = useCallback(() => {
-    // every roll counts as a turn
+    // dice roll counts as a turn
     setMovesTaken((m) => m + 1);
 
     const n = 1 + Math.floor(Math.random() * 6);
@@ -392,7 +388,6 @@ export default function App() {
 
     // encounter: only 6 clears it
     if (encounterActive && n === 6) {
-      // ✅ glow on cube + villain, then clear encounter a moment later (no other behavior changes)
       triggerSixCinematic({
         vsVillain: true,
         clearEncounter: () => {
@@ -404,7 +399,6 @@ export default function App() {
     }
 
     if (!encounterActive && n === 6) {
-      // ✅ glow on cube, then return cube to BASE pose (mini cube back to initial position)
       triggerSixCinematic({ vsVillain: false });
       return;
     }
@@ -468,15 +462,6 @@ export default function App() {
   /* --------------------------
      Game helpers
   -------------------------- */
-  const recomputeReachability = useCallback((st: GameState) => {
-    // hard guard against invalid state
-    if (!(st as any)?.hexesById?.get?.(st.playerHexId)) {
-      setReachMap({} as ReachMap);
-      return;
-    }
-    setReachMap(getReachability(st) as any);
-  }, []);
-
   const revealWholeLayer = useCallback((st: GameState, layer: number) => {
     for (let r = 0; r < ROW_LENS.length; r++) {
       const len = ROW_LENS[r] ?? 7;
@@ -500,7 +485,6 @@ export default function App() {
   }, []);
 
   const parseVillainsFromScenario = useCallback((s: any): VillainTrigger[] => {
-    // Preferred: explicit list
     if (Array.isArray(s?.villainTriggers)) {
       return s.villainTriggers
         .map((t: any) => ({
@@ -512,7 +496,6 @@ export default function App() {
         .filter((t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row));
     }
 
-    // Fallback: your current JSON format: villains.triggers [{id, layer, row}]
     if (Array.isArray(s?.villains?.triggers)) {
       return s.villains.triggers
         .map((t: any) => ({
@@ -530,17 +513,13 @@ export default function App() {
   const startScenario = useCallback(async () => {
     if (!scenarioEntry) return;
 
-    // choose which scenario JSON to load:
     const tracks = scenarioEntry.tracks ?? [];
     const hasTracks = tracks.length > 1;
     const chosenJson = hasTracks ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson : scenarioEntry.scenarioJson;
 
     const s = (await loadScenario(chosenJson)) as any;
 
-    // villain triggers from JSON (optional)
     setVillainTriggers(parseVillainsFromScenario(s));
-
-    // reset encounter
     setEncounter(null);
 
     const st = newGame(s);
@@ -553,11 +532,9 @@ export default function App() {
     const layerCount = Number(s?.layers ?? 1);
     setScenarioLayerCount(layerCount);
 
-    // Make sure current layer is visible and revealed
     enterLayer(st, layer);
     revealWholeLayer(st, layer);
 
-    // compute reachability once at start
     const rm = getReachability(st) as any;
     setReachMap(rm);
 
@@ -565,30 +542,25 @@ export default function App() {
     setSelectedId(pid);
     setCurrentLayer(layer);
 
-    // reset dice view
     setRollValue(1);
     setDiceRot(BASE_DICE_VIEW);
     setDiceSpinning(false);
     setDiceDragging(false);
 
-    // ✅ reset glow
     clearSixTimers();
     setSixGlow(false);
     setSixGlowVsVillain(false);
 
-    // moves + optimal
     setMovesTaken(0);
     setOptimalAtStart(computeOptimalFromReachMap(rm as any, gid));
     setOptimalFromNow(computeOptimalFromReachMap(rm as any, gid));
 
-    // reset log
     logNRef.current = 0;
     setLog([]);
     pushLog(`Started: ${scenarioEntry.name}`, "ok");
     if (gid) pushLog(`Goal: ${gid}`, "info");
     else pushLog(`Goal: (not set in scenario JSON)`, "bad");
 
-    // inventory defaults
     setItems([
       { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
       { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
@@ -604,18 +576,14 @@ export default function App() {
 
   /* --------------------------
      Board click
-     - Every click counts as a turn attempt (even invalid)
+     - ✅ change #4: only successful moves increment movesTaken
      - Triggers villain encounter if scenario.json says so
   -------------------------- */
   const tryMoveToId = useCallback(
     (id: string) => {
-      // every click counts
-      setMovesTaken((m) => m + 1);
-
-      // ignore board interaction during encounter (but click already counted)
+      // ignore board interaction during encounter
       if (encounterActive) return;
 
-      // check for villain trigger from scenario.json rules
       const vk = findTriggerForHex(id);
       if (vk) {
         setEncounter({ villainKey: vk, tries: 0 });
@@ -630,14 +598,15 @@ export default function App() {
 
       setSelectedId(id);
 
-      // IMPORTANT: attemptMove (engine) already ends the turn + applies shift.
       const res = tryMove(state, id);
 
-      // Always recompute reachability based on the mutated engine state
       const rm = getReachability(state) as any;
       setReachMap(rm);
 
       if (res.ok) {
+        // ✅ only count successful moves
+        setMovesTaken((m) => m + 1);
+
         const newPlayerId = (state as any).playerHexId;
         const newLayer = newPlayerId ? idToCoord(newPlayerId)?.layer ?? currentLayer : currentLayer;
 
@@ -696,7 +665,6 @@ export default function App() {
         const up = Math.min(scenarioLayerCount, currentLayer + 1);
         const dn = Math.max(1, currentLayer - 1);
 
-        // same row/col, different layer
         const upId = pid.replace(/^L\d+-/, `L${up}-`);
         const dnId = pid.replace(/^L\d+-/, `L${dn}-`);
 
@@ -712,12 +680,10 @@ export default function App() {
     [items, state, currentLayer, scenarioLayerCount, rollDice, pushLog, revealRing]
   );
 
-  // Stripes (mini-board mode only)
   const stripeBelow = belowLayer < 1 ? "rgba(0,0,0,.90)" : layerCssVar(belowLayer);
   const stripeCurr = layerCssVar(currentLayer);
   const stripeAbove = aboveLayer > scenarioLayerCount ? "rgba(0,0,0,.90)" : layerCssVar(aboveLayer);
 
-  // Mini boards reachability filtered per layer
   function filterReachForLayer(layer: number, rmAll: ReachMap) {
     const prefix = `L${layer}-`;
     const rm = {} as ReachMap;
@@ -742,10 +708,8 @@ export default function App() {
     return movesTaken + optimalFromNow - optimalAtStart;
   }, [movesTaken, optimalAtStart, optimalFromNow]);
 
-  // Solid blue placeholder screens (start + world)
   const stepBgBlue = "linear-gradient(180deg, rgba(40,120,255,.95), rgba(10,40,120,.95))";
 
-  // Inject palette + dice border + background safely via CSS variables
   const cssVars = useMemo(() => {
     const vars: any = {
       ["--diceBorderImg"]: DICE_BORDER_IMG ? `url("${toPublicUrl(DICE_BORDER_IMG)}")` : "none",
@@ -763,11 +727,14 @@ export default function App() {
     return vars;
   }, [palette, DICE_BORDER_IMG]);
 
+  const playerId = (state as any)?.playerHexId ?? null;
+  const playerCoord = playerId ? idToCoord(playerId) : null;
+  const playerPosText = playerCoord ? `R${playerCoord.row + 1} C${playerCoord.col + 1} (L${playerCoord.layer})` : "—";
+
   return (
     <div className="appRoot" style={cssVars}>
       <style>{CSS}</style>
 
-      {/* Game background only when in-game and a world/scenario is chosen */}
       {screen === "game" ? (
         <>
           <div className="globalBg" aria-hidden="true" style={{ backgroundImage: `url("${toPublicUrl(GAME_BG_URL)}")` }} />
@@ -780,9 +747,7 @@ export default function App() {
         </>
       )}
 
-      {/* =====================================================
-          START (blue)
-      ====================================================== */}
+      {/* START */}
       {screen === "start" ? (
         <div className="shell shellCard">
           <div className="card">
@@ -806,9 +771,7 @@ export default function App() {
         </div>
       ) : null}
 
-      {/* =====================================================
-          WORLD SELECT (blue for now)
-      ====================================================== */}
+      {/* WORLD SELECT */}
       {screen === "world" ? (
         <div className="shell shellCard">
           <div className="card">
@@ -833,9 +796,7 @@ export default function App() {
                   </div>
                 );
               })}
-              {!worlds.length ? (
-                <div className="selectTileDesc">No worlds found. Add src/worlds/&lt;world&gt;/world.ts</div>
-              ) : null}
+              {!worlds.length ? <div className="selectTileDesc">No worlds found. Add src/worlds/&lt;world&gt;/world.ts</div> : null}
             </div>
 
             <div className="row rowBetween">
@@ -850,9 +811,7 @@ export default function App() {
         </div>
       ) : null}
 
-      {/* =====================================================
-          CHARACTER SELECT (3rd)
-      ====================================================== */}
+      {/* CHARACTER SELECT */}
       {screen === "character" ? (
         <div className="shell shellCard">
           <div className="card">
@@ -888,9 +847,7 @@ export default function App() {
         </div>
       ) : null}
 
-      {/* =====================================================
-          SCENARIO SELECT
-      ====================================================== */}
+      {/* SCENARIO SELECT */}
       {screen === "scenario" ? (
         <div className="shell shellCard">
           <div className="card">
@@ -928,9 +885,8 @@ export default function App() {
                 disabled={!scenarioEntry}
                 onClick={() => {
                   const tracks = scenarioEntry?.tracks ?? [];
-                  if (tracks.length > 1) {
-                    setScreen("difficulty");
-                  } else {
+                  if (tracks.length > 1) setScreen("difficulty");
+                  else {
                     setTrackId(null);
                     startScenario().catch((e) => alert(String((e as any)?.message ?? e)));
                   }
@@ -943,9 +899,7 @@ export default function App() {
         </div>
       ) : null}
 
-      {/* =====================================================
-          DIFFICULTY (tracks) — skips if only 1
-      ====================================================== */}
+      {/* DIFFICULTY (tracks) */}
       {screen === "difficulty" ? (
         <div className="shell shellCard">
           <div className="card">
@@ -968,20 +922,14 @@ export default function App() {
                   </div>
                 );
               })}
-              {!scenarioEntry?.tracks?.length ? (
-                <div className="selectTileDesc">No tracks found. (This screen should normally be skipped.)</div>
-              ) : null}
+              {!scenarioEntry?.tracks?.length ? <div className="selectTileDesc">No tracks found. (This screen should normally be skipped.)</div> : null}
             </div>
 
             <div className="row rowBetween">
               <button className="btn" onClick={() => setScreen("scenario")}>
                 Back
               </button>
-              <button
-                className="btn primary"
-                disabled={!trackId}
-                onClick={() => startScenario().catch((e) => alert(String((e as any)?.message ?? e)))}
-              >
+              <button className="btn primary" disabled={!trackId} onClick={() => startScenario().catch((e) => alert(String((e as any)?.message ?? e)))}>
                 Start game
               </button>
             </div>
@@ -989,21 +937,14 @@ export default function App() {
         </div>
       ) : null}
 
-      {/* =====================================================
-          GAME
-      ====================================================== */}
+      {/* GAME */}
       {screen === "game" ? (
         <div className="shell shellGame">
           {encounterActive ? <div className="blackout" aria-hidden="true" /> : null}
 
           {encounterActive ? (
             <div className="villainCenter">
-              {/* ✅ only adds a class when 6 hits during encounter */}
-              <img
-                className={"villainImg" + (sixGlow && sixGlowVsVillain ? " glowSix" : "")}
-                src={villainImg(encounter!.villainKey)}
-                alt={encounter!.villainKey}
-              />
+              <img className={"villainImg" + (sixGlow && sixGlowVsVillain ? " glowSix" : "")} src={villainImg(encounter!.villainKey)} alt={encounter!.villainKey} />
               <div className="villainText">Roll a 6 to continue</div>
               <button className="btn primary" onClick={rollDice}>
                 🎲 Roll
@@ -1049,12 +990,12 @@ export default function App() {
                       onPointerUp={endDrag}
                       onPointerCancel={endDrag}
                       style={{
-                        transform: `translateY(70px) rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
+                        // ✅ change #6: move cube up
+                        transform: `translateY(30px) rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
                         touchAction: encounterActive ? "auto" : "none",
                         cursor: encounterActive ? "default" : diceDragging ? "grabbing" : "grab",
                       }}
                     >
-                      {/* Dice faces during encounter, otherwise mini-board cube */}
                       {encounterActive ? (
                         <>
                           <FaceImage cls="diceFace faceTop" src={diceImg(1)} alt="Dice 1" />
@@ -1153,6 +1094,11 @@ export default function App() {
                                   {delta == null ? "—" : delta}
                                 </span>
                               </div>
+
+                              {/* ✅ modest change: show current position at bottom */}
+                              <div className="hudNote">
+                                Pos: <span className="mono">{playerPosText}</span>
+                              </div>
                               <div className="hudNote">
                                 Goal: <span className="mono">{goalId ?? "not set"}</span>
                               </div>
@@ -1194,15 +1140,30 @@ export default function App() {
                                   </button>
                                 ))}
                               </div>
-                              <div className="hudNote">Drag to rotate • Tap items to use</div>
+                              <div className="hudNote">Drag cube or sphere • Tap items to use</div>
                             </div>
                           </div>
                         </>
                       )}
                     </div>
+
+                    {/* ✅ stationary “sphere” control (trackball) */}
+                    <div
+                      className={"orbitSphere" + (diceDragging ? " isDragging" : "")}
+                      onPointerDown={onDicePointerDown}
+                      onPointerMove={onDicePointerMove}
+                      onPointerUp={endDrag}
+                      onPointerCancel={endDrag}
+                      title="Drag to rotate cube"
+                      role="button"
+                      tabIndex={0}
+                      style={{
+                        cursor: encounterActive ? "default" : diceDragging ? "grabbing" : "grab",
+                        touchAction: encounterActive ? "auto" : "none",
+                      }}
+                    />
                   </div>
 
-                  {/* Controls (no toggle button) */}
                   <div className="diceControls">
                     {encounterActive ? <div className="diceReadout">Roll = {rollValue}</div> : <div className="diceReadout subtle">Drag to rotate</div>}
                   </div>
@@ -1232,7 +1193,7 @@ export default function App() {
 }
 
 /* =========================================================
-   Dice corners (4x per face) — used ONLY in Dice faces
+   Dice corners (4x per face)
 ========================================================= */
 function DiceCorners() {
   return (
@@ -1269,14 +1230,7 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number; segments
       <div className="layerBar">
         {segments.map((layerVal) => {
           const active = layerVal === currentLayer;
-          return (
-            <div
-              key={layerVal}
-              className={"barSeg" + (active ? " isActive" : "")}
-              data-layer={layerVal}
-              title={`Layer ${layerVal}`}
-            />
-          );
+          return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} title={`Layer ${layerVal}`} />;
         })}
       </div>
     </div>
@@ -1320,13 +1274,13 @@ function HexBoard(props: {
       }
     >
       {ROW_LENS.map((len, rIdx) => {
-        const row = rIdx; // 0-based
-        const isEvenRow = (row + 1) % 2 === 0; // visual "even" rows still based on display row number
+        const row = rIdx;
+        const isEvenRow = (row + 1) % 2 === 0;
 
         return (
           <div key={row} className={"hexRow" + (isEvenRow ? " even" : "")} data-row={row}>
             {Array.from({ length: len }, (_, cIdx) => {
-              const col = cIdx; // 0-based
+              const col = cIdx;
               const id = `L${activeLayer}-R${row}-C${col}`;
 
               const hex = getHexFromState(state, id) as any;
@@ -1442,7 +1396,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   left: 38%;
   top: 50%;
   transform: translate(-50%, -50%);
-  z-index: 60; /* above blackout, below cube */
+  z-index: 60;
   display: grid;
   gap: 12px;
   justify-items: center;
@@ -1454,7 +1408,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   border-radius: 16px;
   box-shadow: 0 30px 80px rgba(0,0,0,.45);
 }
-/* ✅ add-on only: glow when 6 clears villain */
 .villainImg.glowSix{
   box-shadow:
     0 0 18px rgba(220,245,255,.95),
@@ -1573,7 +1526,8 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .barSeg[data-layer="5"]{ background: var(--L5); }
 .barSeg[data-layer="6"]{ background: var(--L6); }
 .barSeg[data-layer="7"]{ background: var(--L7); }
-.barSeg.isActive{ outline: 1px solid rgba(255,255,255,.25); z-index: 3; }
+
+.barSeg.isActive{ outline: 1px solid rgba(255,255,255,.30); z-index: 3; }
 .barSeg.isActive::after{
   content: "";
   position: absolute;
@@ -1582,6 +1536,18 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   filter: blur(14px);
   opacity: .95;
   border-radius: 999px;
+}
+
+/* ✅ modest change: RIGHT bar active segment = layer + white glow */
+.barRight .barSeg.isActive{
+  outline: 1px solid rgba(255,255,255,.95);
+  box-shadow:
+    0 0 18px rgba(255,255,255,.70),
+    0 0 44px rgba(255,255,255,.25);
+}
+.barRight .barSeg.isActive::after{
+  opacity: 1;
+  filter: blur(18px);
 }
 
 /* HEX BOARD */
@@ -1610,7 +1576,8 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   margin-right: calc(var(--hexPitch) - var(--hexW));
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
   position: relative;
-  background: rgba(255,255,255,.14);
+  /* ✅ change #1: less transparent tiles */
+  background: rgba(255,255,255,.26);
   border: 1px solid rgba(0,0,0,.75);
   box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 6px 16px rgba(0,0,0,.10);
   cursor: default;
@@ -1651,7 +1618,8 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
      1px  1px 0 rgba(0,0,0,.75),
      0 0 12px rgba(0,0,0,.45);
 }
-.hexBoardMain .hexLabel{ font-size: 13px; }
+/* ✅ change #3: smaller / less dominant coords */
+.hexBoardMain .hexLabel{ font-size: 11px; opacity: .92; }
 
 .miniNum{
   position:absolute;
@@ -1669,24 +1637,33 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 /* Only MAIN board overlays; mini stays uniform */
 .hex::before{ content:""; position:absolute; inset:0; pointer-events:none; z-index:1; opacity:0; }
 .hexBoardMain .hex.notReach{ cursor: not-allowed; }
-.hexBoardMain .hex.notReach::before{ background: rgba(0,0,0,.28); opacity: 1; }
-.hexBoardMain .hex.blocked::before{ background: rgba(0,0,0,.34); opacity: 1; }
-.hexBoardMain .hex.missing::before{ background: rgba(0,0,0,.48); opacity: 1; }
+
+/* ✅ change #2: overlays less dark */
+.hexBoardMain .hex.notReach::before{ background: rgba(0,0,0,.18); opacity: 1; }
+.hexBoardMain .hex.blocked::before{ background: rgba(0,0,0,.22); opacity: 1; }
+.hexBoardMain .hex.missing::before{ background: rgba(0,0,0,.32); opacity: 1; }
+
 .hexBoardMini .hex::before{ opacity: 0 !important; }
 
+/* ✅ modest change: BIG blue+white reachable glow */
 .hex.reach{
   box-shadow:
-    0 0 0 2px rgba(255,255,255,.12) inset,
-    0 0 18px rgba(0,200,255,.42),
-    0 0 44px rgba(0,200,255,.22);
-  filter: brightness(1.6);
+    0 0 0 2px rgba(255,255,255,.22) inset,
+    0 0 18px rgba(255,255,255,.55),
+    0 0 44px rgba(140,220,255,.55),
+    0 0 110px rgba(120,210,255,.35);
+  filter: brightness(1.70);
+  z-index: 3;
 }
+
+/* ✅ modest change: BIG green+white player glow */
 .hex.player{
   box-shadow:
-    0 0 0 2px rgba(255,255,255,.18) inset,
-    0 0 26px rgba(76,255,80,.70),
-    0 0 80px rgba(76,255,80,.45);
-  filter: brightness(1.6);
+    0 0 0 2px rgba(255,255,255,.26) inset,
+    0 0 18px rgba(255,255,255,.50),
+    0 0 52px rgba(120,255,170,.62),
+    0 0 120px rgba(120,255,170,.38);
+  filter: brightness(1.75);
   z-index: 4;
 }
 .hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
@@ -1710,7 +1687,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   transform-style: preserve-3d;
   transition: transform 650ms cubic-bezier(.2,.9,.2,1);
 }
-/* ✅ add-on only: glow when roll is 6 */
 .diceCube.glowSix{
   box-shadow:
     0 0 18px rgba(220,245,255,.95),
@@ -1734,7 +1710,34 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   overflow:hidden;
 }
 
-/* FLAME BORDER CORNERS (Dice faces only) */
+/* Stationary sphere control */
+.orbitSphere{
+  position: absolute;
+  right: 22px;
+  bottom: 18px;
+  width: 74px;
+  height: 74px;
+  border-radius: 999px;
+  z-index: 90; /* ✅ slightly above cube if overlap */
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,.85), rgba(160,220,255,.50) 40%, rgba(40,120,255,.20) 70%, rgba(0,0,0,.10) 100%);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.22) inset,
+    0 18px 40px rgba(0,0,0,.22),
+    0 0 30px rgba(160,220,255,.28);
+  backdrop-filter: blur(6px);
+}
+.orbitSphere:hover{
+  filter: brightness(1.05);
+}
+.orbitSphere.isDragging{
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.26) inset,
+    0 22px 50px rgba(0,0,0,.26),
+    0 0 44px rgba(180,235,255,.40);
+}
+
+/* FLAME BORDER CORNERS */
 .diceCorner{
   position:absolute;
   width: 46%;
@@ -1784,8 +1787,9 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   overflow:hidden;
 }
 
+/* ✅ change #5: mini scale slightly reduced */
 .miniFit{
-  transform: scale(var(--miniScale, 1.55));
+  transform: scale(var(--miniScale, 1.42));
   transform-origin: center;
   display: grid;
   place-items: center;
@@ -1840,7 +1844,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hudVal{ font-weight: 1000; }
 .hudVal.ok{ color: rgba(140,255,170,.95); }
 .hudVal.bad{ color: rgba(255,160,160,.95); }
-.hudNote{ margin-top: auto; opacity: .78; font-weight: 900; font-size: 12px; }
+.hudNote{ margin-top: 2px; opacity: .82; font-weight: 900; font-size: 12px; }
 .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 
 .hudLog{ display:flex; flex-direction: column; gap: 6px; overflow:hidden; }
