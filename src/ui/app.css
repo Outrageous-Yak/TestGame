@@ -40,8 +40,8 @@
   z-index: 9999;
 }
 
-/* The card is optional, but safe (it doesn't affect layout) */
-.diceSixOverlay .diceSixCard {
+/* Optional card wrapper */
+.diceSixCard {
   width: 190px;
   height: 190px;
   border-radius: 18px;
