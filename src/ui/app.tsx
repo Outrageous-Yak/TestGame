@@ -1,8 +1,7 @@
 // src/ui/app.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-// ✅ Always load base UI look + cinematic add-ons from here (prevents “lost all graphics”)
-import "./appBase.css";
+// ✅ ONLY cinematic add-ons here. Base UI look must be imported in main.tsx.
 import "./app.css";
 
 import type { GameState, Scenario, Hex } from "../engine/types";
@@ -169,25 +168,21 @@ const PLAYER_PRESETS = [
 
 function rotForRoll(n: number) {
   switch (n) {
-    case 1:
-      return { x: -90, y: 0 };
-    case 2:
-      return { x: 0, y: 0 };
-    case 3:
-      return { x: 0, y: -90 };
-    case 4:
-      return { x: 0, y: 90 };
-    case 5:
-      return { x: 0, y: 180 };
-    case 6:
-      return { x: 90, y: 0 };
-    default:
-      return { x: 0, y: 0 };
+    case 1: return { x: -90, y: 0 };
+    case 2: return { x: 0, y: 0 };
+    case 3: return { x: 0, y: -90 };
+    case 4: return { x: 0, y: 90 };
+    case 5: return { x: 0, y: 180 };
+    case 6: return { x: 90, y: 0 };
+    default: return { x: 0, y: 0 };
   }
 }
 
 /** ✅ 3-second hold on rolling a 6 */
 const SIX_HOLD_MS = 3000;
+
+/** ✅ Start pose: shows (above / current / below) like at game start */
+const BASE_DICE_VIEW = { x: -28, y: -36 };
 
 /* =========================================================
    App
@@ -262,8 +257,6 @@ export default function App() {
 
   const [rollValue, setRollValue] = useState<number>(1);
 
-  // Start pose: shows (above / current / below) like at game start
-  const BASE_DICE_VIEW = { x: -28, y: -36 };
   const [diceRot, setDiceRot] = useState<{ x: number; y: number }>(BASE_DICE_VIEW);
   const [diceSpinning, setDiceSpinning] = useState(false);
 
@@ -287,13 +280,18 @@ export default function App() {
   const [sixVsVillain, setSixVsVillain] = useState(false);
   const sixTimerRef = useRef<number | null>(null);
 
+  const cancelSixHold = useCallback(() => {
+    if (sixTimerRef.current) {
+      window.clearTimeout(sixTimerRef.current);
+      sixTimerRef.current = null;
+    }
+    setSixHoldActive(false);
+    setSixVsVillain(false);
+  }, []);
+
   const beginSixHold = useCallback(
     (opts: { vsVillain: boolean }) => {
-      // cancel any previous hold
-      if (sixTimerRef.current) {
-        window.clearTimeout(sixTimerRef.current);
-        sixTimerRef.current = null;
-      }
+      cancelSixHold();
 
       setSixHoldActive(true);
       setSixVsVillain(opts.vsVillain);
@@ -308,13 +306,13 @@ export default function App() {
         setDiceSpinning(false);
         setDiceDragging(false);
 
-        // if it was vs villain, clear encounter AFTER the 3s “overwhelm”
+        // clear encounter AFTER the 3s overwhelm if it was vs villain
         if (opts.vsVillain) setEncounter(null);
 
         sixTimerRef.current = null;
       }, SIX_HOLD_MS);
     },
-    [BASE_DICE_VIEW]
+    [cancelSixHold]
   );
 
   useEffect(() => {
@@ -348,7 +346,6 @@ export default function App() {
   }
 
   const rollDice = useCallback(() => {
-    // ✅ During the 3-second hold: ignore roll presses
     if (sixHoldActive) return;
 
     setMovesTaken((m) => m + 1);
@@ -372,18 +369,18 @@ export default function App() {
 
     pushLog(`Rolled ${n}`, n === 6 ? "ok" : "info");
 
-    // ✅ If 6 rolled: begin cinematic hold (always).
+    // ✅ 6: pause 3s showing the 6, and if vs villain do glow/fade/overwhelm
     if (n === 6) {
       beginSixHold({ vsVillain: encounterActive });
-      return; // important: do NOT do immediate encounter clearing
+      return;
     }
 
-    // Normal encounter logic for non-6
+    // Encounter: non-6 increments tries
     setEncounter((prev) => {
       if (!prev) return prev;
       return { ...prev, tries: prev.tries + 1 };
     });
-  }, [BASE_DICE_VIEW.x, BASE_DICE_VIEW.y, beginSixHold, encounterActive, pushLog, sixHoldActive]);
+  }, [beginSixHold, encounterActive, pushLog, sixHoldActive]);
 
   const onDicePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -522,13 +519,7 @@ export default function App() {
     setDiceSpinning(false);
     setDiceDragging(false);
 
-    // reset cinematic state/timer
-    setSixHoldActive(false);
-    setSixVsVillain(false);
-    if (sixTimerRef.current) {
-      window.clearTimeout(sixTimerRef.current);
-      sixTimerRef.current = null;
-    }
+    cancelSixHold();
 
     setMovesTaken(0);
     setOptimalAtStart(computeOptimalFromReachMap(rm as any, gid));
@@ -551,13 +542,12 @@ export default function App() {
     }, 0);
 
     setScreen("game");
-  }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog]);
+  }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog, cancelSixHold]);
 
   const tryMoveToId = useCallback(
     (id: string) => {
       setMovesTaken((m) => m + 1);
 
-      // ✅ During hold/cinematic, ignore board clicks
       if (sixHoldActive) return;
       if (encounterActive) return;
 
@@ -601,7 +591,7 @@ export default function App() {
         pushLog(`Move blocked`, "bad");
       }
     },
-    [state, currentLayer, encounterActive, revealWholeLayer, pushLog, computeOptimalFromReachMap, goalId, villainTriggers, sixHoldActive, BASE_DICE_VIEW]
+    [state, currentLayer, encounterActive, revealWholeLayer, pushLog, computeOptimalFromReachMap, goalId, villainTriggers, sixHoldActive]
   );
 
   const useItem = useCallback(
@@ -969,7 +959,6 @@ export default function App() {
                   setScreen={setScreen}
                   setState={setState}
                   setEncounter={setEncounter}
-                  // cinematic flags
                   sixHoldActive={sixHoldActive}
                   sixVsVillain={sixVsVillain}
                 />
@@ -983,7 +972,7 @@ export default function App() {
 }
 
 /* =========================================================
-   Extracted: DicePanel (same layout, cinematic overlay only)
+   DicePanel
 ========================================================= */
 function DicePanel(props: any) {
   const {
@@ -1147,7 +1136,7 @@ function DicePanel(props: any) {
           )}
         </div>
 
-        {/* ✅ 3-second pause: big “6” overlay (no layout changes) */}
+        {/* ✅ 3-second pause: big “6” overlay */}
         {sixHoldActive ? (
           <div className={"diceSixOverlay" + (sixVsVillain ? " glow" : "")} aria-hidden="true">
             <div className="diceSixCard">
@@ -1161,7 +1150,7 @@ function DicePanel(props: any) {
         {encounterActive ? <div className="diceReadout">Roll = {rollValue}</div> : <div className="diceReadout subtle">Drag to rotate</div>}
       </div>
 
-      <div className="dragHint">{sixHoldActive ? "Showing roll…" : encounterActive ? "Encounter: roll a 6 to continue" : "Board Mode: Drag rotation only"}</div>
+      <div className="dragHint">{sixHoldActive ? "Showing roll…" : encounterActive ? "Encounter: roll a 6 to continue" : "Board Mode: Drag rotation onlyotation only"}</div>
 
       <div className="row rowBetween" style={{ marginTop: 12 }}>
         <button
