@@ -236,6 +236,43 @@ export default function App() {
   const [encounter, setEncounter] = useState<Encounter>(null);
   const encounterActive = !!encounter;
 
+  // ✅ ONLY ADD-ON: 6-glow + quick reset to BASE pose (mini cube returns to initial position)
+  const [sixGlow, setSixGlow] = useState(false);
+  const [sixGlowVsVillain, setSixGlowVsVillain] = useState(false);
+  const sixTimersRef = useRef<number[]>([]);
+  const clearSixTimers = useCallback(() => {
+    for (const t of sixTimersRef.current) window.clearTimeout(t);
+    sixTimersRef.current = [];
+  }, []);
+  const triggerSixCinematic = useCallback(
+    (opts: { vsVillain: boolean; clearEncounter?: () => void }) => {
+      clearSixTimers();
+
+      setSixGlow(true);
+      setSixGlowVsVillain(opts.vsVillain);
+
+      // After the dice lands, snap back to BASE pose so the mini-cube is "home" again.
+      // (No long hold; just a quick flourish.)
+      const t1 = window.setTimeout(() => {
+        setDiceRot(BASE_DICE_VIEW);
+      }, 900);
+
+      // Turn off glow shortly after, and optionally clear encounter (so villain glow is visible briefly).
+      const t2 = window.setTimeout(() => {
+        setSixGlow(false);
+        setSixGlowVsVillain(false);
+        opts.clearEncounter?.();
+      }, 1200);
+
+      sixTimersRef.current.push(t1, t2);
+    },
+    [clearSixTimers]
+  );
+
+  useEffect(() => {
+    return () => clearSixTimers();
+  }, [clearSixTimers]);
+
   // palette + assets for the active scenario (used in CSS vars + images)
   const activeTheme = scenarioEntry?.theme ?? null;
   const palette = activeTheme?.palette ?? null;
@@ -354,15 +391,30 @@ export default function App() {
     pushLog(`Rolled ${n}`, n === 6 ? "ok" : "info");
 
     // encounter: only 6 clears it
+    if (encounterActive && n === 6) {
+      // ✅ glow on cube + villain, then clear encounter a moment later (no other behavior changes)
+      triggerSixCinematic({
+        vsVillain: true,
+        clearEncounter: () => {
+          setEncounter(null);
+          pushLog(`Encounter cleared (${encounter!.villainKey})`, "ok");
+        },
+      });
+      return;
+    }
+
+    if (!encounterActive && n === 6) {
+      // ✅ glow on cube, then return cube to BASE pose (mini cube back to initial position)
+      triggerSixCinematic({ vsVillain: false });
+      return;
+    }
+
+    // Encounter: non-6 increments tries (unchanged)
     setEncounter((prev) => {
       if (!prev) return prev;
-      if (n === 6) {
-        pushLog(`Encounter cleared (${prev.villainKey})`, "ok");
-        return null;
-      }
       return { ...prev, tries: prev.tries + 1 };
     });
-  }, [pushLog]);
+  }, [pushLog, encounterActive, triggerSixCinematic, encounter]);
 
   // Manual drag rotation ONLY when NOT in encounter
   const onDicePointerDown = useCallback(
@@ -519,6 +571,11 @@ export default function App() {
     setDiceSpinning(false);
     setDiceDragging(false);
 
+    // ✅ reset glow
+    clearSixTimers();
+    setSixGlow(false);
+    setSixGlowVsVillain(false);
+
     // moves + optimal
     setMovesTaken(0);
     setOptimalAtStart(computeOptimalFromReachMap(rm as any, gid));
@@ -543,7 +600,7 @@ export default function App() {
     }, 0);
 
     setScreen("game");
-  }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog]);
+  }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog, clearSixTimers]);
 
   /* --------------------------
      Board click
@@ -597,25 +654,13 @@ export default function App() {
         setState({ ...(state as any) });
 
         const c = newPlayerId ? idToCoord(newPlayerId) : null;
-        pushLog(
-          c ? `Move OK → R${c.row + 1}C${c.col + 1} (L${c.layer})` : `Move OK`,
-          "ok"
-        );
+        pushLog(c ? `Move OK → R${c.row + 1}C${c.col + 1} (L${c.layer})` : `Move OK`, "ok");
       } else {
         setState({ ...(state as any) });
         pushLog(`Move blocked`, "bad");
       }
     },
-    [
-      state,
-      currentLayer,
-      pushLog,
-      goalId,
-      computeOptimalFromReachMap,
-      encounterActive,
-      villainTriggers,
-      revealWholeLayer,
-    ]
+    [state, currentLayer, pushLog, goalId, computeOptimalFromReachMap, encounterActive, villainTriggers, revealWholeLayer]
   );
 
   /* --------------------------
@@ -671,9 +716,6 @@ export default function App() {
   const stripeBelow = belowLayer < 1 ? "rgba(0,0,0,.90)" : layerCssVar(belowLayer);
   const stripeCurr = layerCssVar(currentLayer);
   const stripeAbove = aboveLayer > scenarioLayerCount ? "rgba(0,0,0,.90)" : layerCssVar(aboveLayer);
-
-  // keep cube position stable across modes
-  const diceAlignY = 70;
 
   // Mini boards reachability filtered per layer
   function filterReachForLayer(layer: number, rmAll: ReachMap) {
@@ -956,7 +998,12 @@ export default function App() {
 
           {encounterActive ? (
             <div className="villainCenter">
-              <img className="villainImg" src={villainImg(encounter!.villainKey)} alt={encounter!.villainKey} />
+              {/* ✅ only adds a class when 6 hits during encounter */}
+              <img
+                className={"villainImg" + (sixGlow && sixGlowVsVillain ? " glowSix" : "")}
+                src={villainImg(encounter!.villainKey)}
+                alt={encounter!.villainKey}
+              />
               <div className="villainText">Roll a 6 to continue</div>
               <button className="btn primary" onClick={rollDice}>
                 🎲 Roll
@@ -991,7 +1038,12 @@ export default function App() {
                 <div className="diceArea">
                   <div className="diceCubeWrap" aria-label="Layer dice">
                     <div
-                      className={"diceCube" + (diceSpinning ? " isSpinning" : "") + (diceDragging ? " isDragging" : "")}
+                      className={
+                        "diceCube" +
+                        (diceSpinning ? " isSpinning" : "") +
+                        (diceDragging ? " isDragging" : "") +
+                        (sixGlow ? " glowSix" : "")
+                      }
                       onPointerDown={onDicePointerDown}
                       onPointerMove={onDicePointerMove}
                       onPointerUp={endDrag}
@@ -1152,11 +1204,7 @@ export default function App() {
 
                   {/* Controls (no toggle button) */}
                   <div className="diceControls">
-                    {encounterActive ? (
-                      <div className="diceReadout">Roll = {rollValue}</div>
-                    ) : (
-                      <div className="diceReadout subtle">Drag to rotate</div>
-                    )}
+                    {encounterActive ? <div className="diceReadout">Roll = {rollValue}</div> : <div className="diceReadout subtle">Drag to rotate</div>}
                   </div>
 
                   <div className="dragHint">{encounterActive ? "Encounter: roll a 6 to continue" : "Board Mode: Drag rotation only"}</div>
@@ -1221,7 +1269,14 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number; segments
       <div className="layerBar">
         {segments.map((layerVal) => {
           const active = layerVal === currentLayer;
-          return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} title={`Layer ${layerVal}`} />;
+          return (
+            <div
+              key={layerVal}
+              className={"barSeg" + (active ? " isActive" : "")}
+              data-layer={layerVal}
+              title={`Layer ${layerVal}`}
+            />
+          );
         })}
       </div>
     </div>
@@ -1399,6 +1454,18 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   border-radius: 16px;
   box-shadow: 0 30px 80px rgba(0,0,0,.45);
 }
+/* ✅ add-on only: glow when 6 clears villain */
+.villainImg.glowSix{
+  box-shadow:
+    0 0 18px rgba(220,245,255,.95),
+    0 0 42px rgba(120,210,255,.85),
+    0 0 80px rgba(255,255,255,.65),
+    0 30px 80px rgba(0,0,0,.45);
+  filter:
+    drop-shadow(0 0 12px rgba(160,230,255,.95))
+    drop-shadow(0 0 22px rgba(255,255,255,.75));
+}
+
 .villainText{ font-weight: 1000; opacity: .96; }
 .villainSmall{ font-weight: 900; opacity: .8; font-size: 12px; }
 
@@ -1643,6 +1710,17 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   transform-style: preserve-3d;
   transition: transform 650ms cubic-bezier(.2,.9,.2,1);
 }
+/* ✅ add-on only: glow when roll is 6 */
+.diceCube.glowSix{
+  box-shadow:
+    0 0 18px rgba(220,245,255,.95),
+    0 0 42px rgba(120,210,255,.85),
+    0 0 80px rgba(255,255,255,.65);
+  filter:
+    drop-shadow(0 0 12px rgba(160,230,255,.95))
+    drop-shadow(0 0 22px rgba(255,255,255,.75));
+}
+
 .diceCube.isSpinning{ transition: transform 900ms cubic-bezier(.12,.85,.18,1); }
 .diceCube.isDragging{ transition: none !important; }
 
