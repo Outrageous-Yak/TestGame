@@ -299,6 +299,7 @@ button { font-family: inherit; }
   box-shadow: 0 18px 50px rgba(0,0,0,0.35);
   padding: 14px;
   min-height: 560px;
+    z-index: 60;
 }
 
 .diceCubeWrap {
