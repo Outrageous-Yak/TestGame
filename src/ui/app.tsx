@@ -184,7 +184,7 @@ function rotForRoll(n: number) {
   }
 }
 
-/** 3-second hold on rolling a 6 */
+/** 🎬 3-second hold on rolling a 6 */
 const SIX_HOLD_MS = 3000;
 
 /* =========================================================
@@ -259,8 +259,6 @@ export default function App() {
   ]);
 
   const [rollValue, setRollValue] = useState<number>(1);
-
-  // Start pose: shows (above / current / below) like at game start
   const BASE_DICE_VIEW = { x: -28, y: -36 };
   const [diceRot, setDiceRot] = useState<{ x: number; y: number }>(BASE_DICE_VIEW);
   const [diceSpinning, setDiceSpinning] = useState(false);
@@ -279,7 +277,7 @@ export default function App() {
   const aboveLayer = currentLayer + 1;
 
   // ---------------------------------------------------------
-  // 🎬 SIX CINEMATIC (global)
+  // 🎬 SIX CINEMATIC (add-on, no layout changes)
   // ---------------------------------------------------------
   const [sixHoldActive, setSixHoldActive] = useState(false);
   const [sixVsVillain, setSixVsVillain] = useState(false);
@@ -287,7 +285,6 @@ export default function App() {
 
   const beginSixHold = useCallback(
     (opts: { vsVillain: boolean }) => {
-      // cancel any previous hold
       if (sixTimerRef.current) {
         window.clearTimeout(sixTimerRef.current);
         sixTimerRef.current = null;
@@ -296,7 +293,7 @@ export default function App() {
       setSixHoldActive(true);
       setSixVsVillain(opts.vsVillain);
 
-      // After the hold:
+      // After 3 seconds: stop effects + reset cube pose + (if encounter) clear it.
       sixTimerRef.current = window.setTimeout(() => {
         setSixHoldActive(false);
         setSixVsVillain(false);
@@ -306,18 +303,17 @@ export default function App() {
         setDiceSpinning(false);
         setDiceDragging(false);
 
-        // If it was vs villain, clear the encounter now (after the 3s “overwhelm”)
         if (opts.vsVillain) {
           setEncounter(null);
+          pushLog(`Encounter cleared`, "ok");
         }
 
         sixTimerRef.current = null;
       }, SIX_HOLD_MS);
     },
-    [BASE_DICE_VIEW]
+    [BASE_DICE_VIEW, pushLog]
   );
 
-  // Cleanup timer on unmount
   useEffect(() => {
     return () => {
       if (sixTimerRef.current) window.clearTimeout(sixTimerRef.current);
@@ -373,14 +369,15 @@ export default function App() {
 
     pushLog(`Rolled ${n}`, n === 6 ? "ok" : "info");
 
-    // If 6 rolled: begin cinematic hold (always), with extra effects if vs villain
+    // 🎬 If 6 rolled:
     if (n === 6) {
-      const vsVillain = encounterActive;
-      beginSixHold({ vsVillain });
+      // Always pause 3s showing the big 6 overlay.
+      // If we're in an encounter, also do glow + blackout fade + villain glow, and clear after 3s.
+      beginSixHold({ vsVillain: encounterActive });
       return;
     }
 
-    // Non-6 encounter handling continues normally
+    // Normal encounter tries increment (non-6)
     setEncounter((prev) => {
       if (!prev) return prev;
       return { ...prev, tries: prev.tries + 1 };
@@ -524,7 +521,7 @@ export default function App() {
     setDiceSpinning(false);
     setDiceDragging(false);
 
-    // reset six cinematic state
+    // reset cinematic
     setSixHoldActive(false);
     setSixVsVillain(false);
     if (sixTimerRef.current) {
@@ -559,7 +556,7 @@ export default function App() {
     (id: string) => {
       setMovesTaken((m) => m + 1);
 
-      // During hold/cinematic, ignore board clicks
+      // During the cinematic, ignore clicks
       if (sixHoldActive) return;
       if (encounterActive) return;
 
@@ -604,18 +601,7 @@ export default function App() {
         pushLog(`Move blocked`, "bad");
       }
     },
-    [
-      state,
-      currentLayer,
-      encounterActive,
-      revealWholeLayer,
-      pushLog,
-      computeOptimalFromReachMap,
-      goalId,
-      villainTriggers,
-      sixHoldActive,
-      BASE_DICE_VIEW,
-    ]
+    [state, currentLayer, encounterActive, revealWholeLayer, pushLog, computeOptimalFromReachMap, goalId, villainTriggers, sixHoldActive, BASE_DICE_VIEW]
   );
 
   const useItem = useCallback(
@@ -902,7 +888,11 @@ export default function App() {
               <button className="btn" onClick={() => setScreen("scenario")}>
                 Back
               </button>
-              <button className="btn primary" disabled={!trackId} onClick={() => startScenario().catch((e) => alert(String((e as any)?.message ?? e)))}>
+              <button
+                className="btn primary"
+                disabled={!trackId}
+                onClick={() => startScenario().catch((e) => alert(String((e as any)?.message ?? e)))}
+              >
                 Start game
               </button>
             </div>
@@ -912,7 +902,7 @@ export default function App() {
 
       {screen === "game" ? (
         <div className="shell shellGame">
-          {/* blackened z layer (blackout) */}
+          {/* blackout fades only during "6 vs villain" */}
           {encounterActive ? (
             <div className={"blackout" + (sixHoldActive && sixVsVillain ? " fadeOut" : "")} aria-hidden="true" />
           ) : null}
@@ -925,11 +915,9 @@ export default function App() {
                 alt={encounter!.villainKey}
               />
               <div className="villainText">Roll a 6 to continue</div>
-
               <button className="btn primary" onClick={rollDice} disabled={sixHoldActive}>
                 🎲 Roll
               </button>
-
               <div className="villainSmall">Tries: {encounter!.tries}</div>
             </div>
           ) : null}
@@ -962,6 +950,7 @@ export default function App() {
                   diceSpinning={diceSpinning}
                   diceDragging={diceDragging}
                   diceRot={diceRot}
+                  setDiceRot={setDiceRot}
                   onDicePointerDown={onDicePointerDown}
                   onDicePointerMove={onDicePointerMove}
                   endDrag={endDrag}
@@ -990,6 +979,7 @@ export default function App() {
                   setScreen={setScreen}
                   setState={setState}
                   setEncounter={setEncounter}
+                  // 🎬 add-on flags
                   sixHoldActive={sixHoldActive}
                   sixVsVillain={sixVsVillain}
                 />
@@ -1003,7 +993,7 @@ export default function App() {
 }
 
 /* =========================================================
-   DicePanel
+   Extracted: DicePanel (keeps app.tsx smaller, faster to build)
 ========================================================= */
 function DicePanel(props: any) {
   const {
@@ -1058,8 +1048,8 @@ function DicePanel(props: any) {
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
           style={{
-            // IMPORTANT: removed translateY(70px) to restore original look
-            transform: `rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
+            // KEEP your original look/positioning:
+            transform: `translateY(70px) rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
             touchAction: encounterActive || sixHoldActive ? "auto" : "none",
             cursor: encounterActive || sixHoldActive ? "default" : diceDragging ? "grabbing" : "grab",
             pointerEvents: sixHoldActive ? "none" : "auto",
@@ -1081,7 +1071,18 @@ function DicePanel(props: any) {
                 <div className="faceStripe" style={{ background: stripeAbove }} />
                 <div className="diceFaceInnerFixed">
                   <div className="miniFit">
-                    <HexBoard kind="mini" activeLayer={miniAboveLayer} maxLayer={scenarioLayerCount} state={state} selectedId={null} reachable={miniAboveReach.reachable} reachMap={miniAboveReach.reachMap} showCoords={false} onCellClick={undefined} showPlayerOnMini />
+                    <HexBoard
+                      kind="mini"
+                      activeLayer={miniAboveLayer}
+                      maxLayer={scenarioLayerCount}
+                      state={state}
+                      selectedId={null}
+                      reachable={miniAboveReach.reachable}
+                      reachMap={miniAboveReach.reachMap}
+                      showCoords={false}
+                      onCellClick={undefined}
+                      showPlayerOnMini
+                    />
                   </div>
                 </div>
               </div>
@@ -1090,7 +1091,18 @@ function DicePanel(props: any) {
                 <div className="faceStripe" style={{ background: stripeCurr }} />
                 <div className="diceFaceInnerFixed">
                   <div className="miniFit">
-                    <HexBoard kind="mini" activeLayer={miniCurrLayer} maxLayer={scenarioLayerCount} state={state} selectedId={null} reachable={miniCurrReach.reachable} reachMap={miniCurrReach.reachMap} showCoords={false} onCellClick={undefined} showPlayerOnMini />
+                    <HexBoard
+                      kind="mini"
+                      activeLayer={miniCurrLayer}
+                      maxLayer={scenarioLayerCount}
+                      state={state}
+                      selectedId={null}
+                      reachable={miniCurrReach.reachable}
+                      reachMap={miniCurrReach.reachMap}
+                      showCoords={false}
+                      onCellClick={undefined}
+                      showPlayerOnMini
+                    />
                   </div>
                 </div>
               </div>
@@ -1099,12 +1111,21 @@ function DicePanel(props: any) {
                 <div className="faceStripe" style={{ background: stripeBelow }} />
                 <div className="diceFaceInnerFixed">
                   {belowLayer < 1 ? (
-                    <div className="miniFit" style={{ display: "grid", placeItems: "center", opacity: 0.55, fontWeight: 700 }}>
-                      <div style={{ fontSize: 12, letterSpacing: 0.3 }}>—</div>
-                    </div>
+                    <div className="miniInvalid">NO LAYER BELOW</div>
                   ) : (
                     <div className="miniFit">
-                      <HexBoard kind="mini" activeLayer={miniBelowLayer} maxLayer={scenarioLayerCount} state={state} selectedId={null} reachable={miniBelowReach.reachable} reachMap={miniBelowReach.reachMap} showCoords={false} onCellClick={undefined} showPlayerOnMini />
+                      <HexBoard
+                        kind="mini"
+                        activeLayer={miniBelowLayer}
+                        maxLayer={scenarioLayerCount}
+                        state={state}
+                        selectedId={null}
+                        reachable={miniBelowReach.reachable}
+                        reachMap={miniBelowReach.reachMap}
+                        showCoords={false}
+                        onCellClick={undefined}
+                        showPlayerOnMini
+                      />
                     </div>
                   )}
                 </div>
@@ -1127,7 +1148,9 @@ function DicePanel(props: any) {
                   </div>
                   <div className="hudRow">
                     <span className="hudKey">Δ</span>
-                    <span className={"hudVal " + (delta == null ? "" : delta <= 0 ? "ok" : "bad")}>{delta == null ? "—" : delta}</span>
+                    <span className={"hudVal " + (delta == null ? "" : delta <= 0 ? "ok" : "bad")}>
+                      {delta == null ? "—" : delta}
+                    </span>
                   </div>
                   <div className="hudNote">
                     Goal: <span className="mono">{goalId ?? "not set"}</span>
@@ -1155,7 +1178,13 @@ function DicePanel(props: any) {
                   <div className="hudTitle">Power</div>
                   <div className="invGrid">
                     {items.map((it: any) => (
-                      <button key={it.id} className="invSlot" onClick={() => useItem(it.id)} disabled={it.charges <= 0 || sixHoldActive} title={`${it.name} (${it.charges})`}>
+                      <button
+                        key={it.id}
+                        className="invSlot"
+                        onClick={() => useItem(it.id)}
+                        disabled={it.charges <= 0 || sixHoldActive}
+                        title={`${it.name} (${it.charges})`}
+                      >
                         <div className="invIcon">{it.icon}</div>
                         <div className="invMeta">
                           <div className="invName">{it.name}</div>
@@ -1171,7 +1200,7 @@ function DicePanel(props: any) {
           )}
         </div>
 
-        {/* ✅ 3-second pause: show big “6” face (matches your app.css structure) */}
+        {/* 🎬 big “6” overlay for 3 seconds */}
         {sixHoldActive ? (
           <div className={"diceSixOverlay" + (sixVsVillain ? " glow" : "")} aria-hidden="true">
             <div className="diceSixCard">
