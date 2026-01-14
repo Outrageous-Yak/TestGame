@@ -1,3 +1,590 @@
+/* src/ui/app.css */
+
+/* =========================================================
+   Base / Reset
+========================================================= */
+:root {
+  --L1: #ff4d7d;
+  --L2: #ff9a3d;
+  --L3: #ffd35a;
+  --L4: #4bee9c;
+  --L5: #3ed7ff;
+  --L6: #5c7cff;
+  --L7: #b66bff;
+
+  --menuSolidBg: linear-gradient(180deg, rgba(40, 120, 255, 0.95), rgba(10, 40, 120, 0.95));
+  --diceBorderImg: none;
+
+  --cardBg: rgba(10, 12, 18, 0.62);
+  --cardBd: rgba(255, 255, 255, 0.14);
+  --text: rgba(255, 255, 255, 0.92);
+  --muted: rgba(255, 255, 255, 0.70);
+  --shadow: 0 22px 60px rgba(0, 0, 0, 0.42);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  background: #070812;
+}
+
+button { font-family: inherit; }
+
+/* =========================================================
+   Root + Backgrounds
+========================================================= */
+.appRoot {
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Menu background (non-game screens) */
+.menuBg {
+  position: fixed;
+  inset: 0;
+  background: var(--menuSolidBg);
+  filter: saturate(1.05);
+}
+
+/* Game background image set inline via style attribute */
+.globalBg {
+  position: fixed;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transform: scale(1.02);
+  filter: saturate(1.05) contrast(1.02);
+}
+
+/* Soft dark overlay used both menu + game */
+.globalBgOverlay {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(900px 520px at 30% 20%, rgba(90, 140, 255, 0.25), transparent),
+    radial-gradient(820px 520px at 70% 40%, rgba(170, 90, 255, 0.18), transparent),
+    rgba(7, 8, 18, 0.58);
+}
+
+/* =========================================================
+   Shell / Cards / Buttons
+========================================================= */
+.shell {
+  position: relative;
+  z-index: 2;
+  padding: 22px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.shellCard .card {
+  width: min(860px, 92vw);
+}
+
+.card {
+  border-radius: 20px;
+  background: var(--cardBg);
+  border: 1px solid var(--cardBd);
+  box-shadow: var(--shadow);
+  padding: 18px 18px 16px;
+  backdrop-filter: blur(10px);
+}
+
+.cardTitleBig {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+}
+
+.cardTitle {
+  font-size: 18px;
+  font-weight: 850;
+  letter-spacing: 0.2px;
+}
+
+.cardMeta {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.rowBetween {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: transform 120ms ease, background 140ms ease, border-color 140ms ease, opacity 140ms ease;
+}
+
+.btn:hover { transform: translateY(-1px); background: rgba(255, 255, 255, 0.12); }
+.btn:active { transform: translateY(0px); }
+.btn:disabled { opacity: 0.45; cursor: default; transform: none; }
+
+.btn.primary {
+  background: rgba(80, 150, 255, 0.22);
+  border-color: rgba(120, 180, 255, 0.36);
+}
+
+.btn.primary:hover {
+  background: rgba(80, 150, 255, 0.28);
+  border-color: rgba(160, 210, 255, 0.46);
+}
+
+.selectList {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.selectTile {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 12px 12px;
+  cursor: pointer;
+  transition: transform 120ms ease, background 140ms ease, border-color 140ms ease;
+}
+
+.selectTile:hover { transform: translateY(-1px); background: rgba(255, 255, 255, 0.08); }
+.selectTile.selected {
+  border-color: rgba(140, 210, 255, 0.55);
+  box-shadow: 0 0 0 2px rgba(80, 170, 255, 0.18) inset;
+}
+
+.selectTileTitle { font-weight: 850; }
+.selectTileDesc { margin-top: 6px; color: var(--muted); font-size: 13px; line-height: 1.25; }
+
+/* =========================================================
+   Game Layout
+========================================================= */
+.shellGame {
+  position: relative;
+  z-index: 2;
+  padding: 14px;
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.scrollStage {
+  width: 100%;
+  overflow: auto;
+  padding-bottom: 16px;
+}
+
+.scrollInner {
+  min-width: 1100px;
+  margin: 0 auto;
+  padding: 6px;
+}
+
+.gameLayout {
+  display: grid;
+  grid-template-columns: 64px 1fr 64px 420px;
+  gap: 12px;
+  align-items: start;
+}
+
+/* =========================================================
+   Side Bars (Layer indicator)
+========================================================= */
+.barWrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.layerBar {
+  width: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+  border-radius: 16px;
+  background: rgba(10, 12, 18, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+}
+
+.barSeg {
+  height: 22px;
+  width: 100%;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  position: relative;
+}
+
+.barSeg.isActive {
+  background: rgba(120, 210, 255, 0.25);
+  border-color: rgba(140, 220, 255, 0.42);
+  box-shadow: 0 0 18px rgba(120, 210, 255, 0.18);
+}
+
+/* =========================================================
+   Board Wrap
+========================================================= */
+.mainBoardWrap {
+  border-radius: 18px;
+  background: rgba(10, 12, 18, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  padding: 14px;
+}
+
+/* =========================================================
+   Hex Board
+========================================================= */
+.hexBoard {
+  --rimTop: rgba(255,255,255,0.12);
+  --rimBottom: rgba(255,255,255,0.10);
+
+  display: inline-block;
+  border-radius: 18px;
+  padding: 10px 12px;
+  position: relative;
+}
+
+.hexBoardMain { transform: translateZ(0); }
+.hexBoardMini { transform: scale(0.78); transform-origin: top left; }
+
+.hexRow {
+  display: flex;
+  gap: 10px;
+  margin: 6px 0;
+}
+
+.hexRow.even { padding-left: 18px; }
+
+/* Pointy left-right hex using clip-path */
+.hex {
+  width: 58px;
+  height: 46px;
+  position: relative;
+  border-radius: 10px;
+  clip-path: polygon(8% 50%, 26% 8%, 74% 8%, 92% 50%, 74% 92%, 26% 92%);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  cursor: pointer;
+  transition: transform 110ms ease, background 140ms ease, border-color 140ms ease, filter 140ms ease;
+  user-select: none;
+}
+
+.hex:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.hex.missing { opacity: 0.18; pointer-events: none; }
+.hex.blocked { opacity: 0.38; }
+
+.hex.sel {
+  border-color: rgba(255, 255, 255, 0.30);
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.12) inset;
+}
+
+.hex.reach {
+  border-color: rgba(140, 220, 255, 0.52);
+  box-shadow: 0 0 18px rgba(120, 210, 255, 0.18);
+}
+
+.hex.notReach {
+  filter: grayscale(0.35);
+  opacity: 0.60;
+}
+
+.hex.player {
+  border-color: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.18) inset, 0 0 18px rgba(255,255,255,0.12);
+}
+
+.hexRim {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  height: 4px;
+  border-radius: 999px;
+  opacity: 0.9;
+}
+.hexRimTop { top: 6px; background: var(--rimTop); }
+.hexRimBottom { bottom: 6px; background: var(--rimBottom); }
+
+.hexLabel {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  font-size: 10px;
+  line-height: 1.05;
+  color: rgba(255,255,255,0.86);
+  text-shadow: 0 2px 10px rgba(0,0,0,0.45);
+}
+
+.miniNum {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+/* =========================================================
+   Encounter Overlay
+========================================================= */
+.blackout {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  z-index: 40;
+  opacity: 1;
+}
+
+.villainCenter {
+  position: fixed;
+  left: 50%;
+  top: 48%;
+  transform: translate(-50%, -50%);
+  z-index: 45;
+  display: grid;
+  gap: 10px;
+  place-items: center;
+  padding: 18px 18px;
+  border-radius: 20px;
+  background: rgba(10, 12, 18, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+.villainImg {
+  width: 160px;
+  height: 160px;
+  object-fit: contain;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.06);
+}
+
+.villainText { font-weight: 850; }
+.villainSmall { opacity: 0.8; font-size: 12px; }
+
+/* =========================================================
+   Dice Panel + Cube
+========================================================= */
+.diceArea {
+  border-radius: 18px;
+  background: rgba(10, 12, 18, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  padding: 14px;
+  min-height: 560px;
+}
+
+.diceCubeWrap {
+  position: relative;
+  height: 320px;
+  display: grid;
+  place-items: center;
+  perspective: 950px;
+}
+
+.diceCube {
+  width: 240px;
+  height: 240px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 650ms ease;
+}
+
+.diceCube.isSpinning {
+  transition: transform 650ms ease;
+}
+
+.diceCube.isDragging {
+  transition: none;
+}
+
+/* faces */
+.diceFace {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(10, 12, 18, 0.60);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backface-visibility: hidden;
+}
+
+/* corner border decoration */
+.diceCorner {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  background-image: var(--diceBorderImg);
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: 0.85;
+  pointer-events: none;
+}
+.diceCorner.tl { left: 8px; top: 8px; }
+.diceCorner.tr { right: 8px; top: 8px; transform: scaleX(-1); }
+.diceCorner.bl { left: 8px; bottom: 8px; transform: scaleY(-1); }
+.diceCorner.br { right: 8px; bottom: 8px; transform: scale(-1); }
+
+/* place faces in 3D space */
+.faceFront  { transform: rotateY(0deg) translateZ(120px); }
+.faceBack   { transform: rotateY(180deg) translateZ(120px); }
+.faceRight  { transform: rotateY(90deg) translateZ(120px); }
+.faceLeft   { transform: rotateY(-90deg) translateZ(120px); }
+.faceTop    { transform: rotateX(90deg) translateZ(120px); }
+.faceBottom { transform: rotateX(-90deg) translateZ(120px); }
+
+/* Small stripe indicator on mini-board faces */
+.faceStripe {
+  height: 10px;
+  width: 100%;
+  opacity: 0.95;
+}
+
+.diceFaceInnerFixed {
+  width: 100%;
+  height: calc(100% - 10px);
+  padding: 10px;
+}
+
+.miniFit {
+  transform: scale(0.86);
+  transform-origin: top left;
+}
+
+/* encounter dice image faces */
+.diceImgWrap {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.diceImg {
+  width: 92%;
+  height: 92%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* HUD faces */
+.diceHud {
+  padding: 12px;
+  height: 100%;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.hudTitle {
+  font-weight: 900;
+  letter-spacing: 0.2px;
+}
+
+.hudRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: rgba(255,255,255,0.84);
+}
+
+.hudKey { opacity: 0.72; }
+.hudVal { font-weight: 800; }
+.hudVal.ok { color: rgba(140, 255, 190, 0.95); }
+.hudVal.bad { color: rgba(255, 160, 170, 0.95); }
+
+.hudNote {
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+.hudLog {
+  display: grid;
+  gap: 6px;
+}
+
+.hudLogLine {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.15;
+  opacity: 0.92;
+}
+
+.hudLogLine.ok { color: rgba(140,255,190,0.95); }
+.hudLogLine.bad { color: rgba(255,160,170,0.95); }
+.hudLogLine.info { color: rgba(255,255,255,0.86); }
+
+.hudTime { opacity: 0.72; }
+.hudLogEmpty { opacity: 0.6; font-size: 12px; }
+
+.invGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.invSlot {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border-radius: 14px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: white;
+  cursor: pointer;
+}
+
+.invSlot:disabled { opacity: 0.45; cursor: default; }
+
+.invIcon { font-size: 18px; width: 24px; text-align: center; }
+.invMeta { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+.invName { font-weight: 800; font-size: 13px; opacity: 0.92; }
+.invCharges { font-weight: 900; opacity: 0.78; }
+
+.diceControls { margin-top: 10px; }
+.diceReadout { font-weight: 850; }
+.diceReadout.subtle { opacity: 0.65; font-weight: 800; }
+
+.dragHint {
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.72;
+}
+
 /* =========================================================
    SIX CINEMATIC: glow + pause + blackout fade
 ========================================================= */
@@ -31,10 +618,6 @@
 }
 
 /* Big “6” overlay shown during pause */
-.diceCubeWrap {
-  position: relative;
-}
-
 .diceSixOverlay {
   position: absolute;
   left: 50%;
@@ -45,9 +628,10 @@
   border-radius: 18px;
   display: grid;
   place-items: center;
-  background: rgba(10, 12, 18, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  z-index: 20;
+  background: rgba(10, 12, 18, 0.70);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.45);
+  z-index: 60;
 }
 
 .diceSixOverlay.glow {
@@ -55,6 +639,9 @@
     0 0 18px rgba(220, 245, 255, 0.95),
     0 0 42px rgba(120, 210, 255, 0.85),
     0 0 80px rgba(255, 255, 255, 0.65);
+  filter:
+    drop-shadow(0 0 12px rgba(160, 230, 255, 0.95))
+    drop-shadow(0 0 22px rgba(255, 255, 255, 0.75));
 }
 
 .diceSixImg {
