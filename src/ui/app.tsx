@@ -1684,7 +1684,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
     drop-shadow(0 0 10px rgba(255,255,255,.65))
     drop-shadow(0 0 22px rgba(140,220,255,.70))
     drop-shadow(0 0 55px rgba(120,210,255,.55));
-  outline: 2px solid rgba(255,255,255, 1);
+  outline: 52px solid rgba(255,255,255, 1);
 }
 
 /* ✅ Player glow: green + white */
@@ -1695,7 +1695,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
     drop-shadow(0 0 10px rgba(255,255,255,.60))
     drop-shadow(0 0 24px rgba(120,255,170,.78))
     drop-shadow(0 0 58px rgba(120,255,170,.60));
-  outline: 2px solid rgba(255,255,255, 1);
+  outline: 32px solid rgba(255,255,255, 1);
 }
 .hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
 
