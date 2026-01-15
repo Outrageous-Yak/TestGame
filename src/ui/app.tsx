@@ -162,6 +162,23 @@ function findGoalId(s: any, fallbackLayer: number): string | null {
   return null;
 }
 
+/** If scenario/newGame doesn't provide a start tile, choose a safe one. */
+function findFirstPlayableHexId(st: GameState, layer: number): string {
+  for (let r = 0; r < ROW_LENS.length; r++) {
+    const len = ROW_LENS[r] ?? 7;
+    for (let c = 0; c < len; c++) {
+      const id = `L${layer}-R${r}-C${c}`;
+      const hex = getHexFromState(st, id) as any;
+      if (!hex) continue;
+      if (hex.missing) continue;
+      if (hex.blocked) continue;
+      return id;
+    }
+  }
+  // absolute fallback
+  return `L${layer}-R0-C0`;
+}
+
 /* =========================================================
    Minimal players (template)
 ========================================================= */
@@ -235,7 +252,7 @@ export default function App() {
   const [encounter, setEncounter] = useState<Encounter>(null);
   const encounterActive = !!encounter;
 
-  // ✅ 6-glow + quick reset to BASE pose (mini cube returns to initial position)
+  // ✅ 6-glow + quick reset to BASE pose
   const [sixGlow, setSixGlow] = useState(false);
   const [sixGlowVsVillain, setSixGlowVsVillain] = useState(false);
   const sixTimersRef = useRef<number[]>([]);
@@ -403,7 +420,7 @@ export default function App() {
       return;
     }
 
-    // Encounter: non-6 increments tries (unchanged)
+    // Encounter: non-6 increments tries
     setEncounter((prev) => {
       if (!prev) return prev;
       return { ...prev, tries: prev.tries + 1 };
@@ -523,18 +540,33 @@ export default function App() {
     setEncounter(null);
 
     const st = newGame(s);
-    const pid = (st as any).playerHexId ?? null;
-    const layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
+
+    // ✅ ensure layer count
+    const layerCount = Math.max(1, Number(s?.layers ?? 1));
+    setScenarioLayerCount(layerCount);
+
+    // ✅ ensure player start exists (THIS FIXES “no .player / no .reach”)
+    let pid = (st as any).playerHexId as string | null;
+    let layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
+    layer = Math.max(1, Math.min(layerCount, layer));
+
+    if (!pid || !/^L\d+-R\d+-C\d+$/.test(pid)) {
+      pid = findFirstPlayableHexId(st, layer);
+      (st as any).playerHexId = pid;
+    }
+
+    // ✅ clamp pid to valid layer
+    const pidCoord = idToCoord(pid);
+    if (pidCoord) layer = Math.max(1, Math.min(layerCount, pidCoord.layer));
 
     const gid = findGoalId(s, layer);
     setGoalId(gid);
 
-    const layerCount = Number(s?.layers ?? 1);
-    setScenarioLayerCount(layerCount);
-
+    // ✅ enter/reveal before reachability so it has correct active layer context
     enterLayer(st, layer);
     revealWholeLayer(st, layer);
 
+    // ✅ compute reachability AFTER player start is guaranteed
     const rm = getReachability(st) as any;
     setReachMap(rm);
 
@@ -558,6 +590,7 @@ export default function App() {
     logNRef.current = 0;
     setLog([]);
     pushLog(`Started: ${scenarioEntry.name}`, "ok");
+    if (pid) pushLog(`Start: ${pid}`, "info");
     if (gid) pushLog(`Goal: ${gid}`, "info");
     else pushLog(`Goal: (not set in scenario JSON)`, "bad");
 
@@ -572,16 +605,7 @@ export default function App() {
     }, 0);
 
     setScreen("game");
-  }, [
-    scenarioEntry,
-    trackEntry,
-    parseVillainsFromScenario,
-    revealWholeLayer,
-    computeOptimalFromReachMap,
-    pushLog,
-    clearSixTimers,
-    BASE_DICE_VIEW,
-  ]);
+  }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog, clearSixTimers, BASE_DICE_VIEW]);
 
   /* --------------------------
      Board click
@@ -616,7 +640,7 @@ export default function App() {
         // ✅ only count successful moves
         setMovesTaken((m) => m + 1);
 
-        const newPlayerId = (state as any).playerHexId;
+        const newPlayerId = (state as any).playerHexId as string | null;
         const newLayer = newPlayerId ? idToCoord(newPlayerId)?.layer ?? currentLayer : currentLayer;
 
         if (!res.won) {
@@ -938,11 +962,7 @@ export default function App() {
               <button className="btn" onClick={() => setScreen("scenario")}>
                 Back
               </button>
-              <button
-                className="btn primary"
-                disabled={!trackId}
-                onClick={() => startScenario().catch((e) => alert(String((e as any)?.message ?? e)))}
-              >
+              <button className="btn primary" disabled={!trackId} onClick={() => startScenario().catch((e) => alert(String((e as any)?.message ?? e)))}>
                 Start game
               </button>
             </div>
@@ -996,12 +1016,7 @@ export default function App() {
                 <div className="diceArea">
                   <div className="diceCubeWrap" aria-label="Layer dice">
                     <div
-                      className={
-                        "diceCube" +
-                        (diceSpinning ? " isSpinning" : "") +
-                        (diceDragging ? " isDragging" : "") +
-                        (sixGlow ? " glowSix" : "")
-                      }
+                      className={"diceCube" + (diceSpinning ? " isSpinning" : "") + (diceDragging ? " isDragging" : "") + (sixGlow ? " glowSix" : "")}
                       onPointerDown={onDicePointerDown}
                       onPointerMove={onDicePointerMove}
                       onPointerUp={endDrag}
@@ -1106,9 +1121,7 @@ export default function App() {
                               </div>
                               <div className="hudRow">
                                 <span className="hudKey">Δ</span>
-                                <span className={"hudVal " + (delta == null ? "" : delta <= 0 ? "ok" : "bad")}>
-                                  {delta == null ? "—" : delta}
-                                </span>
+                                <span className={"hudVal " + (delta == null ? "" : delta <= 0 ? "ok" : "bad")}>{delta == null ? "—" : delta}</span>
                               </div>
 
                               {/* show current position at bottom */}
@@ -1180,13 +1193,7 @@ export default function App() {
                     />
                   </div>
 
-                  <div className="diceControls">
-                    {encounterActive ? (
-                      <div className="diceReadout">Roll = {rollValue}</div>
-                    ) : (
-                      <div className="diceReadout subtle">Drag to rotate</div>
-                    )}
-                  </div>
+                  <div className="diceControls">{encounterActive ? <div className="diceReadout">Roll = {rollValue}</div> : <div className="diceReadout subtle">Drag to rotate</div>}</div>
 
                   <div className="dragHint">{encounterActive ? "Encounter: roll a 6 to continue" : "Board Mode: Drag rotation only"}</div>
 
@@ -1272,7 +1279,7 @@ function HexBoard(props: {
   showCoords: boolean;
   showPlayerOnMini?: boolean;
 }) {
-  const { kind, activeLayer, maxLayer, state, selectedId, reachable, reachMap, onCellClick, showCoords, showPlayerOnMini } = props;
+  const { kind, activeLayer, maxLayer, state, selectedId, reachable, onCellClick, showCoords, showPlayerOnMini } = props;
   const playerId = (state as any)?.playerHexId ?? null;
 
   const hasAbove = activeLayer < maxLayer;
@@ -1308,7 +1315,8 @@ function HexBoard(props: {
 
               const isSel = selectedId === id;
               const isPlayer = playerId === id && (kind === "main" || !!showPlayerOnMini);
-              const canMove = !!(reachMap as any)?.[id]?.reachable;
+
+              // ✅ IMPORTANT: notReach should be based on the Set we computed, not a separate canMove boolean.
               const isReach = reachable.has(id);
 
               return (
@@ -1319,7 +1327,7 @@ function HexBoard(props: {
                     (isSel ? " sel" : "") +
                     (isPlayer ? " player" : "") +
                     (isReach ? " reach" : "") +
-                    (!canMove && kind === "main" && !isPlayer ? " notReach" : "") +
+                    (!isReach && kind === "main" && !isPlayer ? " notReach" : "") +
                     (blocked ? " blocked" : "") +
                     (missing ? " missing" : "")
                   }
@@ -1374,7 +1382,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .appRoot{
   min-height: 100vh;
   position: relative;
-  overflow: hidden; /* ✅ FIXED (was ': hidden;') */
+  overflow: hidden;
   color: var(--ink);
 }
 
@@ -1536,10 +1544,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   width: 18px;
   height: calc(var(--hexHMain) * var(--rows));
   border-radius: 999px;
-
-  /* ✅ IMPORTANT: allow glow to extend outside */
   overflow: visible;
-
   background: rgba(0,0,0,.22);
   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.18);
   display: grid;
@@ -1609,13 +1614,12 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   margin-right: calc(var(--hexPitch) - var(--hexW));
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
   position: relative;
+  isolation: isolate;
 
   background: rgba(255,255,255,.26);
   border: 1px solid rgba(0,0,0,.75);
   box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 6px 16px rgba(0,0,0,.10);
   cursor: default;
-  position: relative;
-  isolation: isolate; /* ✅ ensures ::before/::after paint correctly above the tile */
 }
 .hexBoardMain .hex{ cursor: pointer; }
 
@@ -1668,8 +1672,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   text-shadow: 0 0 6px rgba(255,255,255,.35);
 }
 
-/* ✅ Overlay darkening ONLY for these states (no global .hex::before) */
-.hexBoardMain .hex.notReach{ cursor: not-allowed; }
+/* Dark overlays (only for these states) */
 .hexBoardMain .hex.notReach::before,
 .hexBoardMain .hex.blocked::before,
 .hexBoardMain .hex.missing::before{
@@ -1684,62 +1687,17 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hexBoardMain .hex.blocked::before{ background: rgba(0,0,0,.22); }
 .hexBoardMain .hex.missing::before{ background: rgba(0,0,0,.32); }
 
-/* Only create ::before for the dark overlays */
-.hexBoardMain .hex.notReach::before,
-.hexBoardMain .hex.blocked::before,
-.hexBoardMain .hex.missing::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  z-index:1;
-  opacity:1;
-}
+/* Mini never darkens */
+.hexBoardMini .hex::before{ opacity: 0 !important; }
 
-/* ✅ Reachable glow (tile glow) */
-.hex.reach{
-  z-index: 40;
-  filter:
-    brightness(1.75)
-    drop-shadow(0 0 10px rgba(255,255,255,.55))
-    drop-shadow(0 0 22px rgba(140,220,255,.70))
-    drop-shadow(0 0 55px rgba(120,210,255,.55));
-  outline: 2px solid rgba(255,255,255,.18);
-}
+/* =========================================================
+   ✅ BORDER-ALIGNED HEX GLOWS
+   Player = green/white
+   Reach  = blue/white
+========================================================= */
 
-.hex.player{ z-index: 50; }
-
-.hex.player::before{
-  content:"";
-  position:absolute;
-  inset: -10px;
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  background: rgba(120,255,170,.28);
-  filter: blur(10px);
-  opacity: .95;
-  pointer-events:none;
-  z-index: 5;
-  mix-blend-mode: screen;
-}
-
-.hex.player::after{
-  content:"";
-  position:absolute;
-  inset: -3px;
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  border: 2px solid rgba(255,255,255,.90);
-  box-shadow:
-    0 0 10px rgba(255,255,255,.55),
-    0 0 22px rgba(120,255,170,.75),
-    0 0 44px rgba(120,255,170,.45);
-  pointer-events:none;
-  z-index: 6;
-  mix-blend-mode: screen;
-}
-
-
+/* Reachable */
 .hex.reach{ z-index: 40; }
-
 .hex.reach::before{
   content:"";
   position:absolute;
@@ -1752,7 +1710,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   z-index: 5;
   mix-blend-mode: screen;
 }
-
 .hex.reach::after{
   content:"";
   position:absolute;
@@ -1768,6 +1725,36 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   mix-blend-mode: screen;
 }
 
+/* Player */
+.hex.player{ z-index: 50; }
+.hex.player::before{
+  content:"";
+  position:absolute;
+  inset: -10px;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  background: rgba(120,255,170,.28);
+  filter: blur(10px);
+  opacity: .95;
+  pointer-events:none;
+  z-index: 5;
+  mix-blend-mode: screen;
+}
+.hex.player::after{
+  content:"";
+  position:absolute;
+  inset: -3px;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  border: 2px solid rgba(255,255,255,.90);
+  box-shadow:
+    0 0 10px rgba(255,255,255,.55),
+    0 0 22px rgba(120,255,170,.75),
+    0 0 44px rgba(120,255,170,.45);
+  pointer-events:none;
+  z-index: 6;
+  mix-blend-mode: screen;
+}
+
+.hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
 
 /* DICE */
 .diceArea{ display:grid; justify-items:center; gap: 14px; padding-top: 0; position: relative; z-index: 70; }
@@ -1819,7 +1806,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   width: 74px;
   height: 74px;
   border-radius: 999px;
-  z-index: 5; /* slightly above cube if overlap */
+  z-index: 5;
   background:
     radial-gradient(circle at 30% 30%, rgba(255,255,255,.85), rgba(160,220,255,.50) 40%, rgba(40,120,255,.20) 70%, rgba(0,0,0,.10) 100%);
   box-shadow:
@@ -1843,12 +1830,10 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   aspect-ratio: 1 / 1;
   pointer-events:none;
   z-index: 20;
-
   background-image: var(--diceBorderImg);
   background-repeat: no-repeat;
   background-size: contain;
   background-position: top left;
-
   opacity: 0.92;
   mix-blend-mode: screen;
   filter: drop-shadow(0 0 10px rgba(255,60,0,.30));
