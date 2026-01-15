@@ -1508,35 +1508,31 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 
 /* BARS */
 .barWrap{ display:flex; align-items: flex-start; justify-content: center; }
+/* BARS */
 .layerBar{
   width: 18px;
   height: calc(var(--hexHMain) * var(--rows));
   border-radius: 999px;
-  overflow: hidden;
+
+  /* ✅ IMPORTANT: allow glow to extend outside */
+  overflow: visible;
+
   background: rgba(0,0,0,.22);
   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.18);
   display: grid;
   grid-template-rows: repeat(7, 1fr);
 }
-.barSeg{ opacity: .95; position: relative; }
-.barSeg[data-layer="1"]{ background: var(--L1); }
-.barSeg[data-layer="2"]{ background: var(--L2); }
-.barSeg[data-layer="3"]{ background: var(--L3); }
-.barSeg[data-layer="4"]{ background: var(--L4); }
-.barSeg[data-layer="5"]{ background: var(--L5); }
-.barSeg[data-layer="6"]{ background: var(--L6); }
-.barSeg[data-layer="7"]{ background: var(--L7); }
 
-.barSeg.isActive{ outline: 1px solid rgba(255,255,255,.30); z-index: 3; }
-.barSeg.isActive::after{
-  content: "";
-  position: absolute;
-  inset: -10px;
-  background: inherit;
-  filter: blur(14px);
-  opacity: .95;
-  border-radius: 999px;
+/* keep the “pill” shape even without overflow hidden */
+.barSeg:first-child{
+  border-top-left-radius: 999px;
+  border-top-right-radius: 999px;
 }
+.barSeg:last-child{
+  border-bottom-left-radius: 999px;
+  border-bottom-right-radius: 999px;
+}
+
 
 /* ✅ modest change: RIGHT bar active segment = layer + white glow */
 .barRight .barSeg.isActive{
