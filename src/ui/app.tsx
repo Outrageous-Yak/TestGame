@@ -1696,88 +1696,82 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 /* ✅ Player glow (tile glow) */
+/* === HEX BORDER GLOW (player) === */
 .hex.player{
   z-index: 50;
   filter:
-    brightness(1.80)
-    drop-shadow(0 0 10px rgba(255,255,255,.45))
-    drop-shadow(0 0 24px rgba(120,255,170,.80))
-    drop-shadow(0 0 58px rgba(120,255,170,.60));
-  outline: 2px solid rgba(255,255,255,.20);
+    brightness(1.15)
+    drop-shadow(0 0 10px rgba(255,255,255,.35))
+    drop-shadow(0 0 26px rgba(120,255,170,.55))
+    drop-shadow(0 0 60px rgba(120,255,170,.35));
 }
 
-.hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
-
-/* =========================================================
-   ✅ MAGIC RINGS (like your reference image)
-   - ::before = soft halo
-   - ::after  = bright ring
-========================================================= */
-
-/* Player ring (green/white) */
+/* Soft halo behind, hex-shaped */
 .hex.player::before{
   content:"";
   position:absolute;
-  left:50%;
-  top:58%;
-  width:74%;
-  height:74%;
-  transform: translate(-50%, -50%);
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(120,255,170,.25), transparent 65%);
-  filter: blur(2px);
+  inset: -10px;                 /* extend outside the tile */
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  background: rgba(120,255,170,.25);
+  filter: blur(10px);
+  opacity: .9;
   pointer-events:none;
-  z-index: 9;
+  z-index: 0;
 }
+
+/* Crisp glowing border, hex-shaped */
 .hex.player::after{
   content:"";
   position:absolute;
-  left:50%;
-  top:58%;
-  width:64%;
-  height:64%;
-  transform: translate(-50%, -50%);
-  border-radius: 999px;
-  border: 2px solid rgba(180,255,210,.95);
+  inset: -3px;                  /* border sits just outside the tile */
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  border: 2px solid rgba(255,255,255,.85);
   box-shadow:
-    0 0 10px rgba(255,255,255,.40),
-    0 0 22px rgba(120,255,170,.55),
+    0 0 10px rgba(255,255,255,.55),
+    0 0 22px rgba(120,255,170,.65),
     0 0 44px rgba(120,255,170,.35);
   pointer-events:none;
-  z-index: 10;
+  z-index: 1;
 }
 
+
 /* Reachable ring (blue/white) */
+/* === HEX BORDER GLOW (reachable) === */
+.hex.reach{
+  z-index: 40;
+  filter:
+    brightness(1.12)
+    drop-shadow(0 0 10px rgba(255,255,255,.30))
+    drop-shadow(0 0 26px rgba(140,220,255,.55))
+    drop-shadow(0 0 60px rgba(120,210,255,.35));
+}
+
+/* Soft halo behind, hex-shaped */
 .hex.reach::before{
   content:"";
   position:absolute;
-  left:50%;
-  top:58%;
-  width:74%;
-  height:74%;
-  transform: translate(-50%, -50%);
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(120,210,255,.22), transparent 65%);
-  filter: blur(2px);
+  inset: -10px;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  background: rgba(120,210,255,.22);
+  filter: blur(10px);
+  opacity: .9;
   pointer-events:none;
-  z-index: 9;
+  z-index: 0;
 }
+
+/* Crisp glowing border, hex-shaped */
 .hex.reach::after{
   content:"";
   position:absolute;
-  left:50%;
-  top:58%;
-  width:64%;
-  height:64%;
-  transform: translate(-50%, -50%);
-  border-radius: 999px;
-  border: 2px solid rgba(200,240,255,.95);
+  inset: -3px;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  border: 2px solid rgba(255,255,255,.80);
   box-shadow:
-    0 0 10px rgba(255,255,255,.40),
-    0 0 22px rgba(140,220,255,.55),
+    0 0 10px rgba(255,255,255,.50),
+    0 0 22px rgba(140,220,255,.65),
     0 0 44px rgba(120,210,255,.35);
   pointer-events:none;
-  z-index: 10;
+  z-index: 1;
 }
 
 /* DICE */
