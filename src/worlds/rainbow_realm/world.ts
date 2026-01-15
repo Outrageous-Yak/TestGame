@@ -27,6 +27,8 @@ export default {
           diceFacesBase: "worlds/rainbow_realm/scenarios/prism_path/assets/dice/faces",
           diceCornerBorder: "worlds/rainbow_realm/scenarios/prism_path/assets/dice/borders/corner_flame_red.png",
           villainsBase: "worlds/rainbow_realm/scenarios/prism_path/assets/villains",
+            // ✅ add this
+    hexTile: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/bg-tile.png",
         },
       },
     },
