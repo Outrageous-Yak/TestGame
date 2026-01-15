@@ -113,16 +113,16 @@ async function loadScenario(path: string): Promise<Scenario> {
   return s;
 }
 
-function getHexFromState(state: GameState | null, id: string): Hex | undefined {
+function getFromState(state: GameState | null, id: string):  | undefined {
   if (!state) return undefined;
-  const m: any = (state as any).hexesById;
+  const m: any = (state as any).esById;
   if (m?.get) return m.get(id);
-  return (state as any).hexesById?.[id];
+  return (state as any).esById?.[id];
 }
 
-function isBlockedOrMissing(hex: any): { blocked: boolean; missing: boolean } {
-  if (!hex) return { blocked: true, missing: true };
-  return { missing: !!hex.missing, blocked: !!hex.blocked };
+function isBlockedOrMissing(: any): { blocked: boolean; missing: boolean } {
+  if (!) return { blocked: true, missing: true };
+  return { missing: !!.missing, blocked: !!.blocked };
 }
 
 function layerCssVar(n: number) {
@@ -140,13 +140,13 @@ function nowHHMM() {
 /** Best-effort goal id discovery (safe if scenario doesn’t define it). */
 function findGoalId(s: any, fallbackLayer: number): string | null {
   const direct =
-    s?.goalHexId ??
     s?.goalId ??
-    s?.exitHexId ??
+    s?.goalId ??
     s?.exitId ??
-    s?.targetHexId ??
+    s?.exitId ??
     s?.targetId ??
-    s?.winHexId ??
+    s?.targetId ??
+    s?.winId ??
     s?.winId ??
     null;
 
@@ -163,15 +163,15 @@ function findGoalId(s: any, fallbackLayer: number): string | null {
 }
 
 /** If scenario/newGame doesn't provide a start tile, choose a safe one. */
-function findFirstPlayableHexId(st: GameState, layer: number): string {
+function findFirstPlayableId(st: GameState, layer: number): string {
   for (let r = 0; r < ROW_LENS.length; r++) {
     const len = ROW_LENS[r] ?? 7;
     for (let c = 0; c < len; c++) {
       const id = `L${layer}-R${r}-C${c}`;
-      const hex = getHexFromState(st, id) as any;
-      if (!hex) continue;
-      if (hex.missing) continue;
-      if (hex.blocked) continue;
+      const  = getFromState(st, id) as any;
+      if (!) continue;
+      if (.missing) continue;
+      if (.blocked) continue;
       return id;
     }
   }
@@ -368,7 +368,7 @@ export default function App() {
     return toPublicUrl(`${VILLAINS_BASE}/${key}.png`);
   }
 
-  function findTriggerForHex(id: string): VillainKey | null {
+  function findTriggerFor(id: string): VillainKey | null {
     const c = idToCoord(id);
     if (!c) return null;
     for (const t of villainTriggers) {
@@ -483,15 +483,15 @@ export default function App() {
     for (let r = 0; r < ROW_LENS.length; r++) {
       const len = ROW_LENS[r] ?? 7;
       for (let c = 0; c < len; c++) {
-        revealHex(st, `L${layer}-R${r}-C${c}`);
+        reveal(st, `L${layer}-R${r}-C${c}`);
       }
     }
   }, []);
 
   const revealRing = useCallback((st: GameState, centerId: string) => {
-    revealHex(st, centerId);
+    reveal(st, centerId);
     for (const nbId of neighborIdsSameLayer(st, centerId)) {
-      revealHex(st, nbId);
+      reveal(st, nbId);
     }
   }, []);
 
@@ -546,13 +546,13 @@ export default function App() {
     setScenarioLayerCount(layerCount);
 
     // ✅ ensure player start exists (THIS FIXES “no .player / no .reach”)
-    let pid = (st as any).playerHexId as string | null;
+    let pid = (st as any).playerId as string | null;
     let layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
     layer = Math.max(1, Math.min(layerCount, layer));
 
     if (!pid || !/^L\d+-R\d+-C\d+$/.test(pid)) {
-      pid = findFirstPlayableHexId(st, layer);
-      (st as any).playerHexId = pid;
+      pid = findFirstPlayableId(st, layer);
+      (st as any).playerId = pid;
     }
 
     // ✅ clamp pid to valid layer
@@ -617,7 +617,7 @@ export default function App() {
       // ignore board interaction during encounter
       if (encounterActive) return;
 
-      const vk = findTriggerForHex(id);
+      const vk = findTriggerFor(id);
       if (vk) {
         setEncounter({ villainKey: vk, tries: 0 });
         setDiceRot(BASE_DICE_VIEW);
@@ -640,7 +640,7 @@ export default function App() {
         // ✅ only count successful moves
         setMovesTaken((m) => m + 1);
 
-        const newPlayerId = (state as any).playerHexId as string | null;
+        const newPlayerId = (state as any).playerId as string | null;
         const newLayer = newPlayerId ? idToCoord(newPlayerId)?.layer ?? currentLayer : currentLayer;
 
         if (!res.won) {
@@ -683,7 +683,7 @@ export default function App() {
 
       if (!state) return;
 
-      const pid = (state as any).playerHexId ?? null;
+      const pid = (state as any).playerId ?? null;
       if (!pid) return;
 
       if (id === "revealRing") {
@@ -760,7 +760,7 @@ export default function App() {
     return vars;
   }, [palette, DICE_BORDER_IMG]);
 
-  const playerId = (state as any)?.playerHexId ?? null;
+  const playerId = (state as any)?.playerId ?? null;
   const playerCoord = playerId ? idToCoord(playerId) : null;
   const playerPosText = playerCoord ? `R${playerCoord.row + 1} C${playerCoord.col + 1} (L${playerCoord.layer})` : "—";
 
@@ -1336,6 +1336,8 @@ function HexBoard(props: {
   tabIndex={onCellClick ? 0 : undefined}
   title={showCoords ? `L${activeLayer} R${row + 1} C${col + 1}` : undefined}
 >
+              {/* ✅ tile clip (this is what gets clipped, NOT the whole .hex container) */}
+<span className="hexClip" aria-hidden="true" />
   {/* ✅ glow layers (always present) */}
   <span className="hexGlowOuter" aria-hidden="true" />
   <span className="hexGlowRing" aria-hidden="true" />
@@ -1389,7 +1391,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .appRoot{
   min-height: 100vh;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   color: var(--ink);
 }
 
@@ -1628,6 +1630,23 @@ overflow: visible;
   box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 6px 16px rgba(0,0,0,.10);
   cursor: default;
 }
+.hexClip{
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  background: rgba(255,255,255,.26);
+  border: 1px solid rgba(0,0,0,.75);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 6px 16px rgba(0,0,0,.10);
+  z-index: 0;
+  pointer-events: none;
+}
+.hexRim,
+.hexLabel,
+.miniNum,
+.hexShade{
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+
 .hexBoardMain .hex{ cursor: pointer; }
 
 .hexRim{
