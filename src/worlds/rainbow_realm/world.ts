@@ -23,12 +23,18 @@ export default {
           L7: "#B66BFF",
         },
         assets: {
-          backgroundGame: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/game-bg.png",
-          diceFacesBase: "worlds/rainbow_realm/scenarios/prism_path/assets/dice/faces",
-          diceCornerBorder: "worlds/rainbow_realm/scenarios/prism_path/assets/dice/borders/corner_flame_red.png",
-          villainsBase: "worlds/rainbow_realm/scenarios/prism_path/assets/villains",
-            // ✅ add this
-    hexTile: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/bg-tile.png",
+          backgroundGame:
+            "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/game-bg.png",
+          diceFacesBase:
+            "worlds/rainbow_realm/scenarios/prism_path/assets/dice/faces",
+          diceCornerBorder:
+            "worlds/rainbow_realm/scenarios/prism_path/assets/dice/borders/corner_flame_red.png",
+          villainsBase:
+            "worlds/rainbow_realm/scenarios/prism_path/assets/villains",
+
+          // ✅ HEX TILE TEXTURE (this is the important part)
+          hexTile:
+            "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/bg-tile.png",
         },
       },
     },
