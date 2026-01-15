@@ -1320,35 +1320,42 @@ function HexBoard(props: {
               const isReach = reachable.has(id);
 
               return (
-                <div
-                  key={id}
-                  className={
-                    "hex" +
-                    (isSel ? " sel" : "") +
-                    (isPlayer ? " player" : "") +
-                    (isReach ? " reach" : "") +
-                    (!isReach && kind === "main" && !isPlayer ? " notReach" : "") +
-                    (blocked ? " blocked" : "") +
-                    (missing ? " missing" : "")
-                  }
-                  data-row={row}
-                  onClick={onCellClick ? () => onCellClick(id) : undefined}
-                  role={onCellClick ? "button" : undefined}
-                  tabIndex={onCellClick ? 0 : undefined}
-                  title={showCoords ? `L${activeLayer} R${row + 1} C${col + 1}` : undefined}
-                >
-                  <span className="hexRim hexRimTop" aria-hidden="true" />
-                  <span className="hexRim hexRimBottom" aria-hidden="true" />
+           <div
+  key={id}
+  className={
+    "hex" +
+    (isSel ? " sel" : "") +
+    (isPlayer ? " player" : "") +
+    (isReach ? " reach" : "") +
+    (!isReach && kind === "main" && !isPlayer ? " notReach" : "") +
+    (blocked ? " blocked" : "") +
+    (missing ? " missing" : "")
+  }
+  onClick={onCellClick ? () => onCellClick(id) : undefined}
+  role={onCellClick ? "button" : undefined}
+  tabIndex={onCellClick ? 0 : undefined}
+  title={showCoords ? `L${activeLayer} R${row + 1} C${col + 1}` : undefined}
+>
+  {/* ✅ glow layers (always present) */}
+  <span className="hexGlowOuter" aria-hidden="true" />
+  <span className="hexGlowRing" aria-hidden="true" />
 
-                  {showCoords ? (
-                    <span className="hexLabel">
-                      <div>R{row + 1}</div>
-                      <div>C{col + 1}</div>
-                    </span>
-                  ) : null}
+  {/* ✅ shade layer (always present) */}
+  <span className="hexShade" aria-hidden="true" />
 
-                  {kind === "mini" ? <span className="miniNum">{col + 1}</span> : null}
-                </div>
+  <span className="hexRim hexRimTop" aria-hidden="true" />
+  <span className="hexRim hexRimBottom" aria-hidden="true" />
+
+  {showCoords ? (
+    <span className="hexLabel">
+      <div>R{row + 1}</div>
+      <div>C{col + 1}</div>
+    </span>
+  ) : null}
+
+  {kind === "mini" ? <span className="miniNum">{col + 1}</span> : null}
+</div>
+
               );
             })}
           </div>
@@ -1683,9 +1690,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   z-index:1;
   opacity: 1;
 }
-.hexBoardMain .hex.notReach::before{ background: rgba(0,0,0,.18); }
-.hexBoardMain .hex.blocked::before{ background: rgba(0,0,0,.22); }
-.hexBoardMain .hex.missing::before{ background: rgba(0,0,0,.32); }
 
 /* Mini never darkens */
 .hexBoardMini .hex::before{ opacity: 0 !important; }
@@ -1698,63 +1702,69 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 
 /* Reachable */
 .hex.reach{ z-index: 40; }
-.hex.reach::before{
-  content:"";
-  position:absolute;
-  inset: -10px;
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  background: rgba(120,210,255,.25);
-  filter: blur(10px);
-  opacity: .95;
-  pointer-events:none;
-  z-index: 5;
-  mix-blend-mode: screen;
-}
-.hex.reach::after{
-  content:"";
-  position:absolute;
-  inset: -3px;
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  border: 2px solid rgba(255,255,255,.85);
-  box-shadow:
-    0 0 10px rgba(255,255,255,.55),
-    0 0 22px rgba(140,220,255,.70),
-    0 0 44px rgba(120,210,255,.40);
-  pointer-events:none;
-  z-index: 6;
-  mix-blend-mode: screen;
-}
+
 
 /* Player */
 .hex.player{ z-index: 50; }
-.hex.player::before{
-  content:"";
-  position:absolute;
-  inset: -10px;
+
+
+.hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
+/* Shade layer (replaces ::before overlay) */
+.hexShade{
+  position: absolute;
+  inset: 0;
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  background: rgba(120,255,170,.28);
-  filter: blur(10px);
-  opacity: .95;
-  pointer-events:none;
-  z-index: 5;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+}
+.hex.notReach .hexShade{ opacity: 1; background: rgba(0,0,0,.18); }
+.hex.blocked  .hexShade{ opacity: 1; background: rgba(0,0,0,.22); }
+.hex.missing  .hexShade{ opacity: 1; background: rgba(0,0,0,.32); }
+.hexBoardMini .hexShade{ display:none; }
+
+/* Glow layers */
+.hexGlowOuter,
+.hexGlowRing{
+  position: absolute;
+  pointer-events: none;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  opacity: 0;
+}
+.hexGlowOuter{
+  inset: -12px;
+  z-index: 4;
+  filter: blur(12px);
   mix-blend-mode: screen;
 }
-.hex.player::after{
-  content:"";
-  position:absolute;
+.hexGlowRing{
   inset: -3px;
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  border: 2px solid rgba(255,255,255,.90);
-  box-shadow:
-    0 0 10px rgba(255,255,255,.55),
-    0 0 22px rgba(120,255,170,.75),
-    0 0 44px rgba(120,255,170,.45);
-  pointer-events:none;
-  z-index: 6;
+  z-index: 5;
+  border: 2px solid rgba(255,255,255,0);
   mix-blend-mode: screen;
 }
 
-.hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
+/* Reachable = blue */
+.hex.reach .hexGlowOuter{ opacity: .95; background: rgba(120,210,255,.28); }
+.hex.reach .hexGlowRing{
+  opacity: 1;
+  border-color: rgba(255,255,255,.90);
+  box-shadow:
+    0 0 10px rgba(255,255,255,.55),
+    0 0 22px rgba(140,220,255,.78),
+    0 0 52px rgba(120,210,255,.55);
+}
+
+/* Player = green */
+.hex.player .hexGlowOuter{ opacity: .95; background: rgba(120,255,170,.30); }
+.hex.player .hexGlowRing{
+  opacity: 1;
+  border-color: rgba(255,255,255,.95);
+  box-shadow:
+    0 0 10px rgba(255,255,255,.55),
+    0 0 24px rgba(120,255,170,.82),
+    0 0 58px rgba(120,255,170,.60);
+}
 
 /* DICE */
 .diceArea{ display:grid; justify-items:center; gap: 14px; padding-top: 0; position: relative; z-index: 70; }
