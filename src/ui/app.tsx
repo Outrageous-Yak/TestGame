@@ -1544,10 +1544,14 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   box-shadow:
     0 0 18px rgba(255,255,255,.70),
     0 0 44px rgba(255,255,255,.25);
+  z-index: 2;
+    
 }
 .barRight .barSeg.isActive::after{
   opacity: 1;
   filter: blur(18px);
+  z-index: 2;
+  
 }
 
 /* HEX BOARD */
@@ -1653,7 +1657,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
     0 0 44px rgba(140,220,255,.55),
     0 0 110px rgba(120,210,255,.35);
   filter: brightness(1.70);
-  z-index: 3;
+  z-index: 20;
 }
 
 /* ✅ modest change: BIG green+white player glow */
@@ -1664,7 +1668,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
     0 0 52px rgba(120,255,170,.62),
     0 0 120px rgba(120,255,170,.38);
   filter: brightness(1.75);
-  z-index: 4;
+  z-index: 20;
 }
 .hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
 
