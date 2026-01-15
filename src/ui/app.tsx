@@ -408,7 +408,7 @@ export default function App() {
       if (!prev) return prev;
       return { ...prev, tries: prev.tries + 1 };
     });
-  }, [pushLog, encounterActive, triggerSixCinematic, encounter]);
+  }, [pushLog, encounterActive, triggerSixCinematic, encounter, BASE_DICE_VIEW.x, BASE_DICE_VIEW.y]);
 
   // Manual drag rotation ONLY when NOT in encounter
   const onDicePointerDown = useCallback(
@@ -523,7 +523,7 @@ export default function App() {
     setEncounter(null);
 
     const st = newGame(s);
-    const pid = st.playerHexId ?? null;
+    const pid = (st as any).playerHexId ?? null;
     const layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
 
     const gid = findGoalId(s, layer);
@@ -572,11 +572,20 @@ export default function App() {
     }, 0);
 
     setScreen("game");
-  }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog, clearSixTimers]);
+  }, [
+    scenarioEntry,
+    trackEntry,
+    parseVillainsFromScenario,
+    revealWholeLayer,
+    computeOptimalFromReachMap,
+    pushLog,
+    clearSixTimers,
+    BASE_DICE_VIEW,
+  ]);
 
   /* --------------------------
      Board click
-     - ✅ change #4: only successful moves increment movesTaken
+     - only successful moves increment movesTaken
      - Triggers villain encounter if scenario.json says so
   -------------------------- */
   const tryMoveToId = useCallback(
@@ -629,7 +638,7 @@ export default function App() {
         pushLog(`Move blocked`, "bad");
       }
     },
-    [state, currentLayer, pushLog, goalId, computeOptimalFromReachMap, encounterActive, villainTriggers, revealWholeLayer]
+    [state, currentLayer, pushLog, goalId, computeOptimalFromReachMap, encounterActive, villainTriggers, revealWholeLayer, BASE_DICE_VIEW]
   );
 
   /* --------------------------
@@ -929,7 +938,11 @@ export default function App() {
               <button className="btn" onClick={() => setScreen("scenario")}>
                 Back
               </button>
-              <button className="btn primary" disabled={!trackId} onClick={() => startScenario().catch((e) => alert(String((e as any)?.message ?? e)))}>
+              <button
+                className="btn primary"
+                disabled={!trackId}
+                onClick={() => startScenario().catch((e) => alert(String((e as any)?.message ?? e)))}
+              >
                 Start game
               </button>
             </div>
@@ -944,7 +957,11 @@ export default function App() {
 
           {encounterActive ? (
             <div className="villainCenter">
-              <img className={"villainImg" + (sixGlow && sixGlowVsVillain ? " glowSix" : "")} src={villainImg(encounter!.villainKey)} alt={encounter!.villainKey} />
+              <img
+                className={"villainImg" + (sixGlow && sixGlowVsVillain ? " glowSix" : "")}
+                src={villainImg(encounter!.villainKey)}
+                alt={encounter!.villainKey}
+              />
               <div className="villainText">Roll a 6 to continue</div>
               <button className="btn primary" onClick={rollDice}>
                 🎲 Roll
@@ -990,7 +1007,6 @@ export default function App() {
                       onPointerUp={endDrag}
                       onPointerCancel={endDrag}
                       style={{
-                        // ✅ change #6: move cube up
                         transform: `translateY(30px) rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
                         touchAction: encounterActive ? "auto" : "none",
                         cursor: encounterActive ? "default" : diceDragging ? "grabbing" : "grab",
@@ -1095,7 +1111,7 @@ export default function App() {
                                 </span>
                               </div>
 
-                              {/* ✅ modest change: show current position at bottom */}
+                              {/* show current position at bottom */}
                               <div className="hudNote">
                                 Pos: <span className="mono">{playerPosText}</span>
                               </div>
@@ -1140,14 +1156,14 @@ export default function App() {
                                   </button>
                                 ))}
                               </div>
-                              <div className="hudNote">Drag cube or  • Tap items to use</div>
+                              <div className="hudNote">Drag cube or • Tap items to use</div>
                             </div>
                           </div>
                         </>
                       )}
                     </div>
 
-                    {/* ✅ stationary “” control (trackball) */}
+                    {/* ✅ stationary control (trackball) */}
                     <div
                       className={"orbit" + (diceDragging ? " isDragging" : "")}
                       onPointerDown={onDicePointerDown}
@@ -1165,7 +1181,11 @@ export default function App() {
                   </div>
 
                   <div className="diceControls">
-                    {encounterActive ? <div className="diceReadout">Roll = {rollValue}</div> : <div className="diceReadout subtle">Drag to rotate</div>}
+                    {encounterActive ? (
+                      <div className="diceReadout">Roll = {rollValue}</div>
+                    ) : (
+                      <div className="diceReadout subtle">Drag to rotate</div>
+                    )}
                   </div>
 
                   <div className="dragHint">{encounterActive ? "Encounter: roll a 6 to continue" : "Board Mode: Drag rotation only"}</div>
@@ -1227,7 +1247,7 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number; segments
   const { side, currentLayer, segments } = props;
   return (
     <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")} aria-label={`Layer bar ${side}`}>
-      <div className="">
+      <div className="layerBar">
         {segments.map((layerVal) => {
           const active = layerVal === currentLayer;
           return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} title={`Layer ${layerVal}`} />;
@@ -1384,6 +1404,10 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   z-index: 0;
 }
 
+.shell{ position: relative; z-index: 2; padding: 22px; }
+.shellCard{ display: grid; place-items: center; min-height: 100vh; }
+.shellGame{ min-height: 100vh; display: grid; place-items: start center; padding-top: 18px; }
+
 .blackout{
   position: fixed;
   inset: 0;
@@ -1421,9 +1445,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 
 .villainText{ font-weight: 1000; opacity: .96; }
 .villainSmall{ font-weight: 900; opacity: .8; font-size: 12px; }
-
-.{ position: relative; z-index: 2; padding: 22px; }
-.Card{ display: grid; place-items: center; min-height: 100vh; }
 
 .card{
   width: min(980px, calc(100vw - 44px));
@@ -1474,8 +1495,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .selectTileDesc{ margin-top: 4px; opacity: .80; line-height: 1.25; }
 
 /* GAME */
-.Game{ min-height: 100vh; display: grid; place-items: start center; padding-top: 18px; }
-
 .scrollStage{
   width: calc(100vw - 44px);
   max-width: 100vw;
@@ -1506,9 +1525,13 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   justify-content: center;
 }
 
+/* ✅ allow glows to escape */
+.mainBoardWrap{ overflow: visible; }
+.hexBoardMain{ overflow: visible; }
+.hexRow{ overflow: visible; }
+
 /* BARS */
 .barWrap{ display:flex; align-items: flex-start; justify-content: center; }
-/* BARS */
 .layerBar{
   width: 18px;
   height: calc(var(--hexHMain) * var(--rows));
@@ -1523,31 +1546,41 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   grid-template-rows: repeat(7, 1fr);
 }
 
-/* keep the “pill” shape even without overflow hidden */
-.barSeg:first-child{
-  border-top-left-radius: 999px;
-  border-top-right-radius: 999px;
-}
-.barSeg:last-child{
-  border-bottom-left-radius: 999px;
-  border-bottom-right-radius: 999px;
+.barSeg{ opacity: .95; position: relative; }
+.barSeg:first-child{ border-top-left-radius: 999px; border-top-right-radius: 999px; }
+.barSeg:last-child{ border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
+
+.barSeg[data-layer="1"]{ background: var(--L1); }
+.barSeg[data-layer="2"]{ background: var(--L2); }
+.barSeg[data-layer="3"]{ background: var(--L3); }
+.barSeg[data-layer="4"]{ background: var(--L4); }
+.barSeg[data-layer="5"]{ background: var(--L5); }
+.barSeg[data-layer="6"]{ background: var(--L6); }
+.barSeg[data-layer="7"]{ background: var(--L7); }
+
+.barSeg.isActive{ outline: 1px solid rgba(255,255,255,.30); z-index: 3; }
+.barSeg.isActive::after{
+  content: "";
+  position: absolute;
+  inset: -10px;
+  background: inherit;
+  filter: blur(14px);
+  opacity: .95;
+  border-radius: 999px;
+  pointer-events:none;
 }
 
-
-/* ✅ modest change: RIGHT bar active segment = layer + white glow */
+/* ✅ RIGHT bar active segment = layer + white glow */
 .barRight .barSeg.isActive{
   outline: 1px solid rgba(255,255,255,.95);
   box-shadow:
     0 0 18px rgba(255,255,255,.70),
     0 0 44px rgba(255,255,255,.25);
   z-index: 49;
-    
 }
 .barRight .barSeg.isActive::after{
   opacity: 1;
   filter: blur(18px);
-  z-index: 2;
-  
 }
 
 /* HEX BOARD */
@@ -1576,7 +1609,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   margin-right: calc(var(--hexPitch) - var(--hexW));
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
   position: relative;
-  /* ✅ change #1: less transparent tiles */
+
   background: rgba(255,255,255,.26);
   border: 1px solid rgba(0,0,0,.75);
   box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 6px 16px rgba(0,0,0,.10);
@@ -1618,7 +1651,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
      1px  1px 0 rgba(0,0,0,.75),
      0 0 12px rgba(0,0,0,.45);
 }
-/* ✅ change #3: smaller / less dominant coords */
 .hexBoardMain .hexLabel{ font-size: 11px; opacity: .92; }
 
 .miniNum{
@@ -1638,33 +1670,32 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hex::before{ content:""; position:absolute; inset:0; pointer-events:none; z-index:1; opacity:0; }
 .hexBoardMain .hex.notReach{ cursor: not-allowed; }
 
-/* ✅ change #2: overlays less dark */
 .hexBoardMain .hex.notReach::before{ background: rgba(0,0,0,.18); opacity: 1; }
 .hexBoardMain .hex.blocked::before{ background: rgba(0,0,0,.22); opacity: 1; }
 .hexBoardMain .hex.missing::before{ background: rgba(0,0,0,.32); opacity: 1; }
 
 .hexBoardMini .hex::before{ opacity: 0 !important; }
 
-/* ✅ modest change: BIG blue+white reachable glow */
+/* ✅ Reachable glow: use drop-shadow so the glow follows the clipped hex */
 .hex.reach{
-  box-shadow:
-    0 0 0 2px rgba(255,255,255,.22) inset,
-    0 0 18px rgba(255,255,255,.55),
-    0 0 44px rgba(140,220,255,.55),
-    0 0 110px rgba(120,210,255,.35);
-  filter: brightness(1.70);
-  z-index: 20;
+  z-index: 40;
+  filter:
+    brightness(1.75)
+    drop-shadow(0 0 10px rgba(255,255,255,.65))
+    drop-shadow(0 0 22px rgba(140,220,255,.70))
+    drop-shadow(0 0 55px rgba(120,210,255,.55));
+  outline: 2px solid rgba(255,255,255,.22);
 }
 
-/* ✅ modest change: BIG green+white player glow */
+/* ✅ Player glow: green + white */
 .hex.player{
-  box-shadow:
-    0 0 0 2px rgba(255,255,255,.26) inset,
-    0 0 18px rgba(255,255,255,.50),
-    0 0 52px rgba(120,255,170,.62),
-    0 0 120px rgba(120,255,170,.38);
-  filter: brightness(1.75);
-  z-index: 20;
+  z-index: 50;
+  filter:
+    brightness(1.80)
+    drop-shadow(0 0 10px rgba(255,255,255,.60))
+    drop-shadow(0 0 24px rgba(120,255,170,.78))
+    drop-shadow(0 0 58px rgba(120,255,170,.60));
+  outline: 2px solid rgba(255,255,255,.24);
 }
 .hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
 
@@ -1710,7 +1741,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   overflow:hidden;
 }
 
-/* Stationary  control */
+/* Stationary control */
 .orbit{
   position: absolute;
   right: 22px;
@@ -1718,7 +1749,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   width: 74px;
   height: 74px;
   border-radius: 999px;
-  z-index: 5; /* ✅ slightly above cube if overlap */
+  z-index: 5; /* slightly above cube if overlap */
   background:
     radial-gradient(circle at 30% 30%, rgba(255,255,255,.85), rgba(160,220,255,.50) 40%, rgba(40,120,255,.20) 70%, rgba(0,0,0,.10) 100%);
   box-shadow:
@@ -1727,10 +1758,8 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
     0 0 30px rgba(160,220,255,.28);
   backdrop-filter: blur(6px);
 }
-.orbitSphere:hover{
-  filter: brightness(1.05);
-}
-.orbitSphere.isDragging{
+.orbit:hover{ filter: brightness(1.05); }
+.orbit.isDragging{
   box-shadow:
     0 0 0 1px rgba(255,255,255,.26) inset,
     0 22px 50px rgba(0,0,0,.26),
@@ -1787,7 +1816,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   overflow:hidden;
 }
 
-/* ✅ change #5: mini scale slightly reduced */
 .miniFit{
   transform: scale(var(--miniScale, 1.42));
   transform-origin: center;
