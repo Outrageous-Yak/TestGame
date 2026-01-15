@@ -1742,7 +1742,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hexGlowRing{
   inset: -3px;
   z-index: 5;
-  border: 2px solid rgba(255,255,255,0);
+  border: 2px solid rgba(255,255,255,1);
   mix-blend-mode: screen;
 }
 
@@ -1758,7 +1758,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 
 /* Player = green */
-.hex.player .hexGlowOuter{ opacity: .95; background: rgba(120,255,170,.30); }
+.hex.player .hexGlowOuter{ opacity: .95; background: rgba(120,255,170, 1); }
 .hex.player .hexGlowRing{
   opacity: 1;
   border-color: rgba(255,255,255,.95);
