@@ -34,7 +34,7 @@ export default {
 
           // ✅ HEX TILE TEXTURE (this is the important part)
           hexTile:
-            "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/bg-tile.png",
+            "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4098.jpeg",
         },
       },
     },
