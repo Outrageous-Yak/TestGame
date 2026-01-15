@@ -1603,7 +1603,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   --hexOverlap: 0.0;
   --hexPitch: calc(var(--hexW) * (1 - var(--hexOverlap)) + var(--hexGap));
   --maxCols: 7;
-
+overflow: visible;
   width: calc(var(--hexW) + (var(--maxCols) - 1) * var(--hexPitch));
   display: grid;
   justify-content: center;
@@ -1679,20 +1679,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   text-shadow: 0 0 6px rgba(255,255,255,.35);
 }
 
-/* Dark overlays (only for these states) */
-.hexBoardMain .hex.notReach::before,
-.hexBoardMain .hex.blocked::before,
-.hexBoardMain .hex.missing::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  z-index:1;
-  opacity: 1;
-}
 
-/* Mini never darkens */
-.hexBoardMini .hex::before{ opacity: 0 !important; }
 
 /* =========================================================
    ✅ BORDER-ALIGNED HEX GLOWS
