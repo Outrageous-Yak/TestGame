@@ -1381,7 +1381,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   background:
     radial-gradient(900px 600px at 50% 50%, rgba(255,255,255,.18), transparent 55%),
     linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,.24));
-  z-index: 1;
+  z-index: 0;
 }
 
 .blackout{
