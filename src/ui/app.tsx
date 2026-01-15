@@ -1614,6 +1614,8 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   border: 1px solid rgba(0,0,0,.75);
   box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 6px 16px rgba(0,0,0,.10);
   cursor: default;
+  position: relative;
+  isolation: isolate; /* ✅ ensures ::before/::after paint correctly above the tile */
 }
 .hexBoardMain .hex{ cursor: pointer; }
 
@@ -1682,7 +1684,17 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hexBoardMain .hex.blocked::before{ background: rgba(0,0,0,.22); }
 .hexBoardMain .hex.missing::before{ background: rgba(0,0,0,.32); }
 
-.hexBoardMini .hex::before{ opacity: 0 !important; }
+/* Only create ::before for the dark overlays */
+.hexBoardMain .hex.notReach::before,
+.hexBoardMain .hex.blocked::before,
+.hexBoardMain .hex.missing::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:1;
+  opacity:1;
+}
 
 /* ✅ Reachable glow (tile glow) */
 .hex.reach{
@@ -1695,84 +1707,67 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   outline: 2px solid rgba(255,255,255,.18);
 }
 
-/* ✅ Player glow (tile glow) */
-/* === HEX BORDER GLOW (player) === */
-.hex.player{
-  z-index: 50;
-  filter:
-    brightness(1.15)
-    drop-shadow(0 0 10px rgba(255,255,255,.35))
-    drop-shadow(0 0 26px rgba(120,255,170,.55))
-    drop-shadow(0 0 60px rgba(120,255,170,.35));
-}
+.hex.player{ z-index: 50; }
 
-/* Soft halo behind, hex-shaped */
 .hex.player::before{
   content:"";
   position:absolute;
-  inset: -10px;                 /* extend outside the tile */
+  inset: -10px;
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  background: rgba(120,255,170,.25);
+  background: rgba(120,255,170,.28);
   filter: blur(10px);
-  opacity: .9;
+  opacity: .95;
   pointer-events:none;
-  z-index: 0;
+  z-index: 5;
+  mix-blend-mode: screen;
 }
 
-/* Crisp glowing border, hex-shaped */
 .hex.player::after{
   content:"";
   position:absolute;
-  inset: -3px;                  /* border sits just outside the tile */
+  inset: -3px;
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  border: 2px solid rgba(255,255,255,.85);
+  border: 2px solid rgba(255,255,255,.90);
   box-shadow:
     0 0 10px rgba(255,255,255,.55),
-    0 0 22px rgba(120,255,170,.65),
-    0 0 44px rgba(120,255,170,.35);
+    0 0 22px rgba(120,255,170,.75),
+    0 0 44px rgba(120,255,170,.45);
   pointer-events:none;
-  z-index: 1;
+  z-index: 6;
+  mix-blend-mode: screen;
 }
 
 
-/* Reachable ring (blue/white) */
-/* === HEX BORDER GLOW (reachable) === */
-.hex.reach{
-  z-index: 40;
-  filter:
-    brightness(1.12)
-    drop-shadow(0 0 10px rgba(255,255,255,.30))
-    drop-shadow(0 0 26px rgba(140,220,255,.55))
-    drop-shadow(0 0 60px rgba(120,210,255,.35));
-}
+.hex.reach{ z-index: 40; }
 
-/* Soft halo behind, hex-shaped */
 .hex.reach::before{
   content:"";
   position:absolute;
   inset: -10px;
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  background: rgba(120,210,255,.22);
+  background: rgba(120,210,255,.25);
   filter: blur(10px);
-  opacity: .9;
+  opacity: .95;
   pointer-events:none;
-  z-index: 0;
+  z-index: 5;
+  mix-blend-mode: screen;
 }
 
-/* Crisp glowing border, hex-shaped */
 .hex.reach::after{
   content:"";
   position:absolute;
   inset: -3px;
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  border: 2px solid rgba(255,255,255,.80);
+  border: 2px solid rgba(255,255,255,.85);
   box-shadow:
-    0 0 10px rgba(255,255,255,.50),
-    0 0 22px rgba(140,220,255,.65),
-    0 0 44px rgba(120,210,255,.35);
+    0 0 10px rgba(255,255,255,.55),
+    0 0 22px rgba(140,220,255,.70),
+    0 0 44px rgba(120,210,255,.40);
   pointer-events:none;
-  z-index: 1;
+  z-index: 6;
+  mix-blend-mode: screen;
 }
+
 
 /* DICE */
 .diceArea{ display:grid; justify-items:center; gap: 14px; padding-top: 0; position: relative; z-index: 70; }
