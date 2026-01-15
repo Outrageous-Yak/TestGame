@@ -1722,7 +1722,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 ========================================================= */
 .hex.reach{ z-index: 40; }
 .hex.player{ z-index: 50; }
-.hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
+.hex.sel{ outline: 2px solid rgba(255,255,255,1); outline-offset: 2px; }
 
 /* Glow layers (unclipped, but shaped via clip-path) */
 .hexGlowOuter,
@@ -1730,7 +1730,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   position: absolute;
   pointer-events: none;
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  opacity: 0;
+  opacity: 1;
 }
 
 .hexGlowOuter{
