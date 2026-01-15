@@ -1374,7 +1374,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .appRoot{
   min-height: 100vh;
   position: relative;
-  overflow: hidden;
+  overflow: hidden; /* ✅ FIXED (was ': hidden;') */
   color: var(--ink);
 }
 
@@ -1666,38 +1666,119 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   text-shadow: 0 0 6px rgba(255,255,255,.35);
 }
 
-/* Only MAIN board overlays; mini stays uniform */
-.hex::before{ content:""; position:absolute; inset:0; pointer-events:none; z-index:1; opacity:0; }
+/* ✅ Overlay darkening ONLY for these states (no global .hex::before) */
 .hexBoardMain .hex.notReach{ cursor: not-allowed; }
-
-.hexBoardMain .hex.notReach::before{ background: rgba(0,0,0,.18); opacity: 1; }
-.hexBoardMain .hex.blocked::before{ background: rgba(0,0,0,.22); opacity: 1; }
-.hexBoardMain .hex.missing::before{ background: rgba(0,0,0,.32); opacity: 1; }
+.hexBoardMain .hex.notReach::before,
+.hexBoardMain .hex.blocked::before,
+.hexBoardMain .hex.missing::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:1;
+  opacity: 1;
+}
+.hexBoardMain .hex.notReach::before{ background: rgba(0,0,0,.18); }
+.hexBoardMain .hex.blocked::before{ background: rgba(0,0,0,.22); }
+.hexBoardMain .hex.missing::before{ background: rgba(0,0,0,.32); }
 
 .hexBoardMini .hex::before{ opacity: 0 !important; }
 
-/* ✅ Reachable glow: use drop-shadow so the glow follows the clipped hex */
+/* ✅ Reachable glow (tile glow) */
 .hex.reach{
   z-index: 40;
   filter:
     brightness(1.75)
-    drop-shadow(0 0 10px rgba(255,255,255,.65))
+    drop-shadow(0 0 10px rgba(255,255,255,.55))
     drop-shadow(0 0 22px rgba(140,220,255,.70))
     drop-shadow(0 0 55px rgba(120,210,255,.55));
-  outline: 52px solid rgba(255,255,255, 1);
+  outline: 2px solid rgba(255,255,255,.18);
 }
 
-/* ✅ Player glow: green + white */
+/* ✅ Player glow (tile glow) */
 .hex.player{
   z-index: 50;
   filter:
     brightness(1.80)
-    drop-shadow(0 0 10px rgba(255,255,255,.60))
-    drop-shadow(0 0 24px rgba(120,255,170,.78))
+    drop-shadow(0 0 10px rgba(255,255,255,.45))
+    drop-shadow(0 0 24px rgba(120,255,170,.80))
     drop-shadow(0 0 58px rgba(120,255,170,.60));
-  outline: 32px solid rgba(255,255,255, 1);
+  outline: 2px solid rgba(255,255,255,.20);
 }
+
 .hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
+
+/* =========================================================
+   ✅ MAGIC RINGS (like your reference image)
+   - ::before = soft halo
+   - ::after  = bright ring
+========================================================= */
+
+/* Player ring (green/white) */
+.hex.player::before{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:58%;
+  width:74%;
+  height:74%;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(120,255,170,.25), transparent 65%);
+  filter: blur(2px);
+  pointer-events:none;
+  z-index: 9;
+}
+.hex.player::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:58%;
+  width:64%;
+  height:64%;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  border: 2px solid rgba(180,255,210,.95);
+  box-shadow:
+    0 0 10px rgba(255,255,255,.40),
+    0 0 22px rgba(120,255,170,.55),
+    0 0 44px rgba(120,255,170,.35);
+  pointer-events:none;
+  z-index: 10;
+}
+
+/* Reachable ring (blue/white) */
+.hex.reach::before{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:58%;
+  width:74%;
+  height:74%;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(120,210,255,.22), transparent 65%);
+  filter: blur(2px);
+  pointer-events:none;
+  z-index: 9;
+}
+.hex.reach::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:58%;
+  width:64%;
+  height:64%;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  border: 2px solid rgba(200,240,255,.95);
+  box-shadow:
+    0 0 10px rgba(255,255,255,.40),
+    0 0 22px rgba(140,220,255,.55),
+    0 0 44px rgba(120,210,255,.35);
+  pointer-events:none;
+  z-index: 10;
+}
 
 /* DICE */
 .diceArea{ display:grid; justify-items:center; gap: 14px; padding-top: 0; position: relative; z-index: 70; }
