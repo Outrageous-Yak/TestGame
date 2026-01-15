@@ -1422,8 +1422,8 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .villainText{ font-weight: 1000; opacity: .96; }
 .villainSmall{ font-weight: 900; opacity: .8; font-size: 12px; }
 
-.shell{ position: relative; z-index: 2; padding: 22px; }
-.shellCard{ display: grid; place-items: center; min-height: 100vh; }
+.{ position: relative; z-index: 2; padding: 22px; }
+.Card{ display: grid; place-items: center; min-height: 100vh; }
 
 .card{
   width: min(980px, calc(100vw - 44px));
@@ -1474,7 +1474,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .selectTileDesc{ margin-top: 4px; opacity: .80; line-height: 1.25; }
 
 /* GAME */
-.shellGame{ min-height: 100vh; display: grid; place-items: start center; padding-top: 18px; }
+.Game{ min-height: 100vh; display: grid; place-items: start center; padding-top: 18px; }
 
 .scrollStage{
   width: calc(100vw - 44px);
@@ -1544,7 +1544,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   box-shadow:
     0 0 18px rgba(255,255,255,.70),
     0 0 44px rgba(255,255,255,.25);
-  z-index: 2;
+  z-index: 49;
     
 }
 .barRight .barSeg.isActive::after{
