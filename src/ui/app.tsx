@@ -1633,16 +1633,27 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 .hexBoardMain .hex{ cursor: pointer; }
 
-/* ✅ The shape + border + fill is a child (so glows can escape) */
 .hexClip{
   position:absolute;
   inset:0;
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  background: rgba(255,255,255,.26);
-  border: 1px solid rgba(0,0,0,.75);
-  box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 6px 16px rgba(0,0,0,.10);
   z-index: 0;
   pointer-events:none;
+
+  /* ✅ TILE TEXTURE */
+  background-image: var(--hexTileImg);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+
+  /* optional tint */
+  background-color: rgba(255,255,255,.08);
+  background-blend-mode: soft-light;
+
+  border: 1px solid rgba(0,0,0,.75);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.35) inset,
+    0 6px 16px rgba(0,0,0,.10);
 }
 
 /* Rim/label should still clip to the shape */
