@@ -1227,7 +1227,7 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number; segments
   const { side, currentLayer, segments } = props;
   return (
     <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")} aria-label={`Layer bar ${side}`}>
-      <div className="layerBar">
+      <div className="">
         {segments.map((layerVal) => {
           const active = layerVal === currentLayer;
           return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} title={`Layer ${layerVal}`} />;
