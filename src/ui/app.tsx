@@ -1718,7 +1718,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   width: 74px;
   height: 74px;
   border-radius: 999px;
-  z-index: 90; /* ✅ slightly above cube if overlap */
+  z-index: 40; /* ✅ slightly above cube if overlap */
   background:
     radial-gradient(circle at 30% 30%, rgba(255,255,255,.85), rgba(160,220,255,.50) 40%, rgba(40,120,255,.20) 70%, rgba(0,0,0,.10) 100%);
   box-shadow:
