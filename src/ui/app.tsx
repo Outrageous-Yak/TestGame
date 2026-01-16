@@ -27,16 +27,15 @@ type LayerPalette = { L1: string; L2: string; L3: string; L4: string; L5: string
 
 type ScenarioTheme = {
   palette: LayerPalette;
-  assets: {
-    backgroundGame: string;
-    diceFacesBase: string;
-    diceCornerBorder: string;
-    villainsBase: string;
-
-    // ✅ per-hex tile image (optional)
-    hexTile?: string;
-  };
+assets: {
+  backgroundGame?: string; // keep optional if you still want a fallback
+  backgroundLayers?: Partial<Record<`L${1|2|3|4|5|6|7}`, string>>; // ✅ NEW
+  diceFacesBase: string;
+  diceCornerBorder: string;
+  villainsBase: string;
+  hexTile?: string;
 };
+
 
 type Track = { id: string; name: string; scenarioJson: string };
 type ScenarioEntry = {
@@ -258,7 +257,10 @@ export default function App() {
   const activeTheme = scenarioEntry?.theme ?? null;
   const palette = activeTheme?.palette ?? null;
 
-  const GAME_BG_URL = activeTheme?.assets.backgroundGame ?? "";
+  const GAME_BG_URL =
+  (activeTheme?.assets.backgroundLayers as any)?.[`L${currentLayer}`] ??
+  activeTheme?.assets.backgroundGame ??
+  "";
   const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "";
   const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
   const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "";
