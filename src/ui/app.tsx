@@ -25,17 +25,32 @@ type LogEntry = { n: number; t: string; msg: string; kind?: "ok" | "bad" | "info
 ========================================================= */
 type LayerPalette = { L1: string; L2: string; L3: string; L4: string; L5: string; L6: string; L7: string };
 
+// ✅ FIXED: no template-literal types + proper braces/semicolons
 type ScenarioTheme = {
   palette: LayerPalette;
-assets: {
-  backgroundGame?: string; // keep optional if you still want a fallback
-  backgroundLayers?: Partial<Record<`L${1|2|3|4|5|6|7}`, string>>; // ✅ NEW
-  diceFacesBase: string;
-  diceCornerBorder: string;
-  villainsBase: string;
-  hexTile?: string;
-};
+  assets: {
+    // optional fallback (still supported)
+    backgroundGame?: string;
 
+    // ✅ NEW: per-layer backgrounds (safe TS)
+    backgroundLayers?: Partial<{
+      L1: string;
+      L2: string;
+      L3: string;
+      L4: string;
+      L5: string;
+      L6: string;
+      L7: string;
+    }>;
+
+    diceFacesBase: string;
+    diceCornerBorder: string;
+    villainsBase: string;
+
+    // optional board tile pattern
+    hexTile?: string;
+  };
+};
 
 type Track = { id: string; name: string; scenarioJson: string };
 type ScenarioEntry = {
@@ -257,10 +272,12 @@ export default function App() {
   const activeTheme = scenarioEntry?.theme ?? null;
   const palette = activeTheme?.palette ?? null;
 
+  // ✅ FIXED: backgroundLayers access (safe TS)
   const GAME_BG_URL =
-  (activeTheme?.assets.backgroundLayers as any)?.[`L${currentLayer}`] ??
-  activeTheme?.assets.backgroundGame ??
-  "";
+    activeTheme?.assets.backgroundLayers?.[`L${currentLayer}` as "L1"] ??
+    activeTheme?.assets.backgroundGame ??
+    "";
+
   const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "";
   const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
   const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "";
@@ -547,11 +564,11 @@ export default function App() {
 
     const st = newGame(s);
 
-    // ✅ ensure layer count
+    // ensure layer count
     const layerCount = Math.max(1, Number(s?.layers ?? 1));
     setScenarioLayerCount(layerCount);
 
-    // ✅ ensure player start exists
+    // ensure player start exists
     let pid = (st as any).playerHexId as string | null;
     let layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
     layer = Math.max(1, Math.min(layerCount, layer));
@@ -561,18 +578,18 @@ export default function App() {
       (st as any).playerHexId = pid;
     }
 
-    // ✅ clamp pid to valid layer
+    // clamp pid to valid layer
     const pidCoord = idToCoord(pid);
     if (pidCoord) layer = Math.max(1, Math.min(layerCount, pidCoord.layer));
 
     const gid = findGoalId(s, layer);
     setGoalId(gid);
 
-    // ✅ enter/reveal before reachability
+    // enter/reveal before reachability
     enterLayer(st, layer);
     revealWholeLayer(st, layer);
 
-    // ✅ compute reachability AFTER player start is guaranteed
+    // compute reachability AFTER player start is guaranteed
     const rm = getReachability(st) as any;
     setReachMap(rm);
 
@@ -745,13 +762,12 @@ export default function App() {
 
   const stepBgBlue = "linear-gradient(180deg, rgba(40,120,255,.95), rgba(10,40,120,.95))";
 
-  // ✅ push theme assets into CSS variables (tile + dice border)
+  // push theme assets into CSS variables (tile + dice border)
   const cssVars = useMemo(() => {
     const vars: any = {
       ["--diceBorderImg"]: DICE_BORDER_IMG ? `url("${toPublicUrl(DICE_BORDER_IMG)}")` : "none",
       ["--menuSolidBg"]: stepBgBlue,
 
-      // ✅ NEW: hex tile image for .hexClip
       ["--hexTileImg"]: HEX_TILE ? `url("${toPublicUrl(HEX_TILE)}")` : "none",
     };
     if (palette) {
@@ -983,11 +999,7 @@ export default function App() {
 
           {encounterActive ? (
             <div className="villainCenter">
-              <img
-                className={"villainImg" + (sixGlow && sixGlowVsVillain ? " glowSix" : "")}
-                src={villainImg(encounter!.villainKey)}
-                alt={encounter!.villainKey}
-              />
+              <img className={"villainImg" + (sixGlow && sixGlowVsVillain ? " glowSix" : "")} src={villainImg(encounter!.villainKey)} alt={encounter!.villainKey} />
               <div className="villainText">Roll a 6 to continue</div>
               <button className="btn primary" onClick={rollDice}>
                 🎲 Roll
@@ -1049,18 +1061,7 @@ export default function App() {
                             <div className="faceStripe" style={{ background: stripeAbove }} />
                             <div className="diceFaceInnerFixed">
                               <div className="miniFit">
-                                <HexBoard
-                                  kind="mini"
-                                  activeLayer={miniAboveLayer}
-                                  maxLayer={scenarioLayerCount}
-                                  state={state}
-                                  selectedId={null}
-                                  reachable={miniAboveReach.reachable}
-                                  reachMap={miniAboveReach.reachMap}
-                                  showCoords={false}
-                                  onCellClick={undefined}
-                                  showPlayerOnMini={true}
-                                />
+                                <HexBoard kind="mini" activeLayer={miniAboveLayer} maxLayer={scenarioLayerCount} state={state} selectedId={null} reachable={miniAboveReach.reachable} reachMap={miniAboveReach.reachMap} showCoords={false} onCellClick={undefined} showPlayerOnMini={true} />
                               </div>
                             </div>
                           </div>
@@ -1069,18 +1070,7 @@ export default function App() {
                             <div className="faceStripe" style={{ background: stripeCurr }} />
                             <div className="diceFaceInnerFixed">
                               <div className="miniFit">
-                                <HexBoard
-                                  kind="mini"
-                                  activeLayer={miniCurrLayer}
-                                  maxLayer={scenarioLayerCount}
-                                  state={state}
-                                  selectedId={null}
-                                  reachable={miniCurrReach.reachable}
-                                  reachMap={miniCurrReach.reachMap}
-                                  showCoords={false}
-                                  onCellClick={undefined}
-                                  showPlayerOnMini={true}
-                                />
+                                <HexBoard kind="mini" activeLayer={miniCurrLayer} maxLayer={scenarioLayerCount} state={state} selectedId={null} reachable={miniCurrReach.reachable} reachMap={miniCurrReach.reachMap} showCoords={false} onCellClick={undefined} showPlayerOnMini={true} />
                               </div>
                             </div>
                           </div>
@@ -1092,18 +1082,7 @@ export default function App() {
                                 <div className="miniInvalid">NO LAYER BELOW</div>
                               ) : (
                                 <div className="miniFit">
-                                  <HexBoard
-                                    kind="mini"
-                                    activeLayer={miniBelowLayer}
-                                    maxLayer={scenarioLayerCount}
-                                    state={state}
-                                    selectedId={null}
-                                    reachable={miniBelowReach.reachable}
-                                    reachMap={miniBelowReach.reachMap}
-                                    showCoords={false}
-                                    onCellClick={undefined}
-                                    showPlayerOnMini={true}
-                                  />
+                                  <HexBoard kind="mini" activeLayer={miniBelowLayer} maxLayer={scenarioLayerCount} state={state} selectedId={null} reachable={miniBelowReach.reachable} reachMap={miniBelowReach.reachMap} showCoords={false} onCellClick={undefined} showPlayerOnMini={true} />
                                 </div>
                               )}
                             </div>
@@ -1158,13 +1137,7 @@ export default function App() {
                               <div className="hudTitle">Power</div>
                               <div className="invGrid">
                                 {items.map((it) => (
-                                  <button
-                                    key={it.id}
-                                    className="invSlot"
-                                    onClick={() => useItem(it.id)}
-                                    disabled={it.charges <= 0}
-                                    title={`${it.name} (${it.charges})`}
-                                  >
+                                  <button key={it.id} className="invSlot" onClick={() => useItem(it.id)} disabled={it.charges <= 0} title={`${it.name} (${it.charges})`}>
                                     <div className="invIcon">{it.icon}</div>
                                     <div className="invMeta">
                                       <div className="invName">{it.name}</div>
@@ -1197,9 +1170,7 @@ export default function App() {
                     />
                   </div>
 
-                  <div className="diceControls">
-                    {encounterActive ? <div className="diceReadout">Roll = {rollValue}</div> : <div className="diceReadout subtle">Drag to rotate</div>}
-                  </div>
+                  <div className="diceControls">{encounterActive ? <div className="diceReadout">Roll = {rollValue}</div> : <div className="diceReadout subtle">Drag to rotate</div>}</div>
 
                   <div className="dragHint">{encounterActive ? "Encounter: roll a 6 to continue" : "Board Mode: Drag rotation only"}</div>
 
@@ -1400,6 +1371,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   color: var(--ink);
 }
 
+/* ===== Global background ===== */
 .globalBg{
   position: absolute;
   inset: 0;
@@ -1409,14 +1381,12 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   filter: saturate(1.08) contrast(1.02);
   z-index: 0;
 }
-
 .menuBg{
   position:absolute;
   inset:0;
   background: var(--menuSolidBg, linear-gradient(180deg, rgba(40,120,255,.95), rgba(10,40,120,.95)));
   z-index:0;
 }
-
 .globalBgOverlay{
   position: absolute;
   inset: 0;
@@ -1426,10 +1396,12 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   z-index: 0;
 }
 
+/* ===== Shell ===== */
 .shell{ position: relative; z-index: 2; padding: 22px; }
 .shellCard{ display: grid; place-items: center; min-height: 100vh; }
 .shellGame{ min-height: 100vh; display: grid; place-items: start center; padding-top: 18px; }
 
+/* ===== Encounter overlay ===== */
 .blackout{
   position: fixed;
   inset: 0;
@@ -1464,10 +1436,10 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
     drop-shadow(0 0 12px rgba(160,230,255,.95))
     drop-shadow(0 0 22px rgba(255,255,255,.75));
 }
-
 .villainText{ font-weight: 1000; opacity: .96; }
 .villainSmall{ font-weight: 900; opacity: .8; font-size: 12px; }
 
+/* ===== Cards / menu ===== */
 .card{
   width: min(980px, calc(100vw - 44px));
   border-radius: 22px;
@@ -1516,7 +1488,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .selectTileTitle{ font-weight: 1000; }
 .selectTileDesc{ margin-top: 4px; opacity: .80; line-height: 1.25; }
 
-/* GAME */
+/* ===== Game layout ===== */
 .scrollStage{
   width: calc(100vw - 44px);
   max-width: 100vw;
@@ -1524,6 +1496,8 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   overflow-y: hidden;
   padding-bottom: 16px;
   scrollbar-gutter: stable both-edges;
+  position: relative;
+  z-index: 10;
 }
 .scrollInner{ min-width: 1380px; }
 
@@ -1545,15 +1519,17 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   gap: 18px;
   align-items: start;
   justify-content: center;
+  position: relative;
+  z-index: 10;
 }
 
-/* allow glows to escape */
-.mainBoardWrap{ overflow: visible; }
+/* keep glows allowed */
+.mainBoardWrap{ overflow: visible; position: relative; z-index: 10; }
 .hexBoardMain{ overflow: visible; }
 .hexRow{ overflow: visible; }
 
-/* BARS */
-.barWrap{ display:flex; align-items: flex-start; justify-content: center; }
+/* ===== Bars ===== */
+.barWrap{ display:flex; align-items: flex-start; justify-content: center; position: relative; z-index: 12; }
 .layerBar{
   width: 18px;
   height: calc(var(--hexHMain) * var(--rows));
@@ -1589,7 +1565,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   pointer-events:none;
 }
 
-/* RIGHT bar active segment = layer + white glow */
+/* Right bar active segment: layer + white glow */
 .barRight .barSeg.isActive{
   outline: 1px solid rgba(255,255,255,.95);
   box-shadow:
@@ -1602,7 +1578,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   filter: blur(18px);
 }
 
-/* HEX BOARD */
+/* ===== Hex board ===== */
 .hexBoard{
   --hexW: 74px;
   --hexH: calc(var(--hexW) * 0.8660254);
@@ -1620,10 +1596,16 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hexBoardMain{ --hexW: var(--hexWMain); --hexH: var(--hexHMain); }
 .hexBoardMini{ --hexW: 24px; --hexGap: 2px; --hexOverlap: 0.0; }
 
-.hexRow{ display:flex; width: 100%; height: var(--hexH); align-items: center; justify-content: flex-start; overflow: visible; }
+.hexRow{
+  display:flex;
+  width: 100%;
+  height: var(--hexH);
+  align-items: center;
+  justify-content: flex-start;
+  overflow: visible;
+}
 .hexRow.even{ padding-left: calc(var(--hexPitch) / 2); }
 
-/* container is NOT clipped */
 .hex{
   width: var(--hexW);
   height: var(--hexH);
@@ -1637,7 +1619,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 
 /* =========================================================
    ✅ ONE PATTERN SHEET BEHIND THE WHOLE MAIN BOARD
-   Pattern aligns to the board grid, hexes sit on top.
+   Pattern aligns to board grid; hexes are windows on top.
 ========================================================= */
 .hexBoardMain{
   position: relative;
@@ -1652,15 +1634,15 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   background-image: var(--hexTileImg);
   background-repeat: repeat;
 
-  /* align pattern to board grid */
+  /* grid align */
   background-size: var(--hexPitch) var(--hexHMain);
   background-position: 0 0;
 }
 
-/* ensure hex contents are above the board pattern */
+/* keep all tiles above the sheet */
 .hexRow, .hex{ position: relative; z-index: 1; }
 
-/* shape window only */
+/* shape window */
 .hexClip{
   position:absolute;
   inset:0;
@@ -1672,7 +1654,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   pointer-events:none;
 }
 
-/* Rim/label should still clip to the shape */
+/* Rim/label etc still clip */
 .hexRim,
 .hexLabel,
 .miniNum,
@@ -1729,7 +1711,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   text-shadow: 0 0 6px rgba(255,255,255,.35);
 }
 
-/* Shade layer */
+/* shade */
 .hexShade{
   position: absolute;
   inset: 0;
@@ -1742,11 +1724,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hex.missing  .hexShade{ opacity: 1; background: rgba(0,0,0,.32); }
 .hexBoardMini .hexShade{ display:none; }
 
-/* =========================================================
-   BORDER-ALIGNED HEX GLOWS
-   Player = green/white
-   Reach  = blue/white
-========================================================= */
+/* ===== Glows ===== */
 .hex.reach{ z-index: 40; }
 .hex.player{ z-index: 50; }
 .hex.sel{ outline: 2px solid rgba(255,255,255,1); outline-offset: 2px; }
@@ -1771,7 +1749,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   mix-blend-mode: screen;
 }
 
-/* Reachable = blue */
+/* reachable = blue */
 .hex.reach .hexGlowOuter{ opacity: .95; background: rgba(120,210,255,.28); }
 .hex.reach .hexGlowRing{
   opacity: 1;
@@ -1782,7 +1760,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
     0 0 52px rgba(120,210,255,.55);
 }
 
-/* Player = green */
+/* player = green */
 .hex.player .hexGlowOuter{ opacity: .95; background: rgba(120,255,170,.30); }
 .hex.player .hexGlowRing{
   opacity: 1;
@@ -1793,8 +1771,15 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
     0 0 58px rgba(120,255,170,.60);
 }
 
-/* DICE / CUBE */
-.diceArea{ display:grid; justify-items:center; gap: 14px; padding-top: 0; position: relative; z-index: 70; }
+/* ===== Dice / cube ===== */
+.diceArea{
+  display:grid;
+  justify-items:center;
+  gap: 14px;
+  padding-top: 0;
+  position: relative;
+  z-index: 70;
+}
 
 .diceCubeWrap{
   width: 460px;
@@ -1834,32 +1819,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   overflow:hidden;
 }
 
-/* Stationary control */
-.orbit{
-  position: absolute;
-  right: 22px;
-  bottom: 18px;
-  width: 74px;
-  height: 74px;
-  border-radius: 999px;
-  z-index: 5;
-  background:
-    radial-gradient(circle at 30% 30%, rgba(255,255,255,.85), rgba(160,220,255,.50) 40%, rgba(40,120,255,.20) 70%, rgba(0,0,0,.10) 100%);
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,.22) inset,
-    0 18px 40px rgba(0,0,0,.22),
-    0 0 30px rgba(160,220,255,.28);
-  backdrop-filter: blur(6px);
-}
-.orbit:hover{ filter: brightness(1.05); }
-.orbit.isDragging{
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,.26) inset,
-    0 22px 50px rgba(0,0,0,.26),
-    0 0 44px rgba(180,235,255,.40);
-}
-
-/* FLAME BORDER CORNERS */
+/* corners */
 .diceCorner{
   position:absolute;
   width: 46%;
@@ -1921,6 +1881,32 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .faceTop   { transform: rotateX(90deg) translateZ(calc(var(--s) / 2)); }
 .faceBottom{ transform: rotateX(-90deg) translateZ(calc(var(--s) / 2)); }
 
+/* orbit control */
+.orbit{
+  position: absolute;
+  right: 22px;
+  bottom: 18px;
+  width: 74px;
+  height: 74px;
+  border-radius: 999px;
+  z-index: 5;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,.85), rgba(160,220,255,.50) 40%, rgba(40,120,255,.20) 70%, rgba(0,0,0,.10) 100%);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.22) inset,
+    0 18px 40px rgba(0,0,0,.22),
+    0 0 30px rgba(160,220,255,.28);
+  backdrop-filter: blur(6px);
+}
+.orbit:hover{ filter: brightness(1.05); }
+.orbit.isDragging{
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.26) inset,
+    0 22px 50px rgba(0,0,0,.26),
+    0 0 44px rgba(180,235,255,.40);
+}
+
+/* dice controls */
 .diceControls{
   display:flex;
   align-items:center;
@@ -1930,8 +1916,10 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   background: rgba(255,255,255,.10);
   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.14);
   backdrop-filter: blur(10px);
+  min-width: 240px;
+  justify-content: center;
 }
-.diceReadout{ font-weight: 1000; font-size: 16px; color: rgba(255,255,255,.92); }
+.diceReadout{ font-weight: 1000; font-size: 16px; color: rgba(255,255,255,.92); text-shadow: 0 10px 22px rgba(0,0,0,.22); }
 .diceReadout.subtle{ opacity: .85; }
 
 .miniInvalid{
@@ -1942,7 +1930,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   font-weight: 1000;
 }
 
-/* HUD faces */
+/* hud */
 .diceHud{
   position:absolute;
   inset: 14px;
@@ -1992,7 +1980,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .invName{ font-weight: 1000; font-size: 12px; }
 .invCharges{ font-weight: 1000; opacity: .80; font-size: 12px; }
 
-/* Dice images */
+/* dice image mode (encounter) */
 .diceImgWrap{
   position:absolute;
   inset: 16px;
@@ -2011,6 +1999,10 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   filter: drop-shadow(0 10px 20px rgba(0,0,0,.20));
 }
 
+/* small quality-of-life */
+button, .hex, .selectTile{ -webkit-tap-highlight-color: transparent; }
+
+/* ===== Responsive ===== */
 @media (max-width: 980px){
   .scrollInner{ min-width: 1200px; }
 }
