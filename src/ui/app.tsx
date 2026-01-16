@@ -1382,7 +1382,7 @@ const CSS = `
   --L6: #5C7CFF;
   --L7: #B66BFF;
 
-  /* ✅ set by App via style vars */
+  /* set by App via style vars */
   --hexTileImg: none;
 }
 
@@ -1562,43 +1562,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   grid-template-rows: repeat(7, 1fr);
 }
 
-.barSeg{ opacity: .95; position: relative; }
-.barSeg:first-child{ border-top-left-radius: 999px; border-top-right-radius: 999px; }
-.barSeg:last-child{ border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
-
-.barSeg[data-layer="1"]{ background: var(--L1); }
-.barSeg[data-layer="2"]{ background: var(--L2); }
-.barSeg[data-layer="3"]{ background: var(--L3); }
-.barSeg[data-layer="4"]{ background: var(--L4); }
-.barSeg[data-layer="5"]{ background: var(--L5); }
-.barSeg[data-layer="6"]{ background: var(--L6); }
-.barSeg[data-layer="7"]{ background: var(--L7); }
-
-.barSeg.isActive{ outline: 1px solid rgba(255,255,255,.30); z-index: 3; }
-.barSeg.isActive::after{
-  content: "";
-  position: absolute;
-  inset: -10px;
-  background: inherit;
-  filter: blur(14px);
-  opacity: .95;
-  border-radius: 999px;
-  pointer-events:none;
-}
-
-/* ✅ RIGHT bar active segment = layer + white glow */
-.barRight .barSeg.isActive{
-  outline: 1px solid rgba(255,255,255,.95);
-  box-shadow:
-    0 0 18px rgba(255,255,255,.70),
-    0 0 44px rgba(255,255,255,.25);
-  z-index: 49;
-}
-.barRight .barSeg.isActive::after{
-  opacity: 1;
-  filter: blur(18px);
-}
-
 /* HEX BOARD */
 .hexBoard{
   --hexW: 74px;
@@ -1632,22 +1595,42 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 .hexBoardMain .hex{ cursor: pointer; }
 
+/* =========================================================
+   ✅ NEW: ONE PATTERN SHEET BEHIND THE WHOLE MAIN BOARD
+   (so the pattern aligns as a grid across all hexes)
+========================================================= */
+.hexBoardMain{
+  position: relative;
+}
+.hexBoardMain::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+
+  background-image: var(--hexTileImg);
+  background-repeat: repeat;
+
+  /* ✅ align pattern to board grid */
+  background-size: var(--hexPitch) var(--hexHMain);
+  background-position: 0 0;
+}
+
 /* ✅ The shape + border + fill is a child (so glows can escape)
-   ✅ Here is where the tile image is applied
+   ✅ NOW: hexClip is a "window" only (no pattern per-hex)
 */
 .hexClip{
   position:absolute;
   inset:0;
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
 
-  background-image: var(--hexTileImg);
-  background-repeat: repeat;
-  background-size: auto;
-  background-position: center;
+  /* ✅ NO background-image here (pattern is on hexBoardMain::before) */
+  background: rgba(255,255,255,.08);
 
   border: 1px solid rgba(0,0,0,.75);
   box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 6px 16px rgba(0,0,0,.10);
-  z-index: 0;
+  z-index: 1; /* above board sheet */
   pointer-events:none;
 }
 
