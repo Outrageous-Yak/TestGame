@@ -32,6 +32,9 @@ type ScenarioTheme = {
     diceFacesBase: string;
     diceCornerBorder: string;
     villainsBase: string;
+
+    // ✅ NEW: per-hex tile image (optional)
+    hexTile?: string;
   };
 };
 
@@ -259,6 +262,9 @@ export default function App() {
   const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "";
   const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
   const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "";
+
+  // ✅ NEW: per-hex tile background (bg-tile.png)
+  const HEX_TILE = activeTheme?.assets.hexTile ?? "";
 
   // layer count from scenario JSON (loaded when starting)
   const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
@@ -603,21 +609,10 @@ export default function App() {
     }, 0);
 
     setScreen("game");
-  }, [
-    scenarioEntry,
-    trackEntry,
-    parseVillainsFromScenario,
-    revealWholeLayer,
-    computeOptimalFromReachMap,
-    pushLog,
-    clearSixTimers,
-    BASE_DICE_VIEW,
-  ]);
+  }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog, clearSixTimers, BASE_DICE_VIEW]);
 
   /* --------------------------
      Board click
-     - only successful moves increment movesTaken
-     - Triggers villain encounter if scenario.json says so
   -------------------------- */
   const tryMoveToId = useCallback(
     (id: string) => {
@@ -667,7 +662,7 @@ export default function App() {
         pushLog(`Move blocked`, "bad");
       }
     },
-    [state, currentLayer, pushLog, goalId, computeOptimalFromReachMap, encounterActive, villainTriggers, revealWholeLayer, BASE_DICE_VIEW]
+    [encounterActive, state, BASE_DICE_VIEW, pushLog, currentLayer, revealWholeLayer, computeOptimalFromReachMap, goalId]
   );
 
   /* --------------------------
@@ -748,10 +743,14 @@ export default function App() {
 
   const stepBgBlue = "linear-gradient(180deg, rgba(40,120,255,.95), rgba(10,40,120,.95))";
 
+  // ✅ push theme assets into CSS variables (tile + dice border)
   const cssVars = useMemo(() => {
     const vars: any = {
       ["--diceBorderImg"]: DICE_BORDER_IMG ? `url("${toPublicUrl(DICE_BORDER_IMG)}")` : "none",
       ["--menuSolidBg"]: stepBgBlue,
+
+      // ✅ NEW: hex tile image for .hexClip
+      ["--hexTileImg"]: HEX_TILE ? `url("${toPublicUrl(HEX_TILE)}")` : "none",
     };
     if (palette) {
       vars["--L1"] = palette.L1;
@@ -763,7 +762,7 @@ export default function App() {
       vars["--L7"] = palette.L7;
     }
     return vars;
-  }, [palette, DICE_BORDER_IMG]);
+  }, [palette, DICE_BORDER_IMG, HEX_TILE]);
 
   const playerId = (state as any)?.playerHexId ?? null;
   const playerCoord = playerId ? idToCoord(playerId) : null;
@@ -1385,6 +1384,9 @@ const CSS = `
   --L5: #3ED7FF;
   --L6: #5C7CFF;
   --L7: #B66BFF;
+
+  /* set by App via style vars */
+  --hexTileImg: none;
 }
 
 *{ box-sizing: border-box; }
@@ -1633,27 +1635,36 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 .hexBoardMain .hex{ cursor: pointer; }
 
+/* ✅ The shape + border + fill is a child (so glows can escape)
+   ✅ HERE is where bg-tile.png is applied
+*/
 .hexClip{
   position:absolute;
   inset:0;
-  
-  z-index: 60;
-  pointer-events:none;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
 
-  /* ✅ TILE TEXTURE */
+  /* Your pattern tile */
   background-image: var(--hexTileImg);
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
+  background-repeat: repeat;
+  background-size: auto;
   background-position: center;
 
-  /* optional tint */
-  background-color: rgba(255,255,255,.08);
-  background-blend-mode: soft-light;
+  /* If you want it a touch lighter, adjust this */
+  filter: saturate(1.05) contrast(1.02);
 
   border: 1px solid rgba(0,0,0,.75);
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,.35) inset,
-    0 6px 16px rgba(0,0,0,.10);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 6px 16px rgba(0,0,0,.10);
+  z-index: 0;
+  pointer-events:none;
+}
+
+/* Optional: subtle glaze so labels stay readable */
+.hexClip::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background: rgba(255,255,255,.10);
+  pointer-events:none;
 }
 
 /* Rim/label should still clip to the shape */
@@ -1733,7 +1744,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 ========================================================= */
 .hex.reach{ z-index: 40; }
 .hex.player{ z-index: 50; }
-.hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
+.hex.sel{ outline: 2px solid rgba(255,255,255,1); outline-offset: 2px; }
 
 /* Glow layers (unclipped, but shaped via clip-path) */
 .hexGlowOuter,
@@ -2001,4 +2012,3 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   .scrollInner{ min-width: 1200px; }
 }
 `;
-
