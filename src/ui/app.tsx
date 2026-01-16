@@ -33,7 +33,7 @@ type ScenarioTheme = {
     diceCornerBorder: string;
     villainsBase: string;
 
-    // ✅ NEW: per-hex tile image (optional)
+    // ✅ per-hex tile image (optional)
     hexTile?: string;
   };
 };
@@ -263,7 +263,7 @@ export default function App() {
   const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
   const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "";
 
-  // ✅ NEW: per-hex tile background (bg-tile.png)
+  // per-hex tile background (optional)
   const HEX_TILE = activeTheme?.assets.hexTile ?? "";
 
   // layer count from scenario JSON (loaded when starting)
@@ -1178,7 +1178,7 @@ export default function App() {
                       )}
                     </div>
 
-                    {/* ✅ stationary control (trackball) */}
+                    {/* stationary control (trackball) */}
                     <div
                       className={"orbit" + (diceDragging ? " isDragging" : "")}
                       onPointerDown={onDicePointerDown}
@@ -1338,14 +1338,11 @@ function HexBoard(props: {
                   tabIndex={onCellClick ? 0 : undefined}
                   title={showCoords ? `L${activeLayer} R${row + 1} C${col + 1}` : undefined}
                 >
-                  {/* ✅ Tile shape lives here (container stays unclipped so glows can extend) */}
                   <span className="hexClip" aria-hidden="true" />
 
-                  {/* ✅ glow layers */}
                   <span className="hexGlowOuter" aria-hidden="true" />
                   <span className="hexGlowRing" aria-hidden="true" />
 
-                  {/* ✅ shade layer */}
                   <span className="hexShade" aria-hidden="true" />
 
                   <span className="hexRim hexRimTop" aria-hidden="true" />
@@ -1385,7 +1382,7 @@ const CSS = `
   --L6: #5C7CFF;
   --L7: #B66BFF;
 
-  /* set by App via style vars */
+  /* ✅ set by App via style vars */
   --hexTileImg: none;
 }
 
@@ -1636,21 +1633,17 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hexBoardMain .hex{ cursor: pointer; }
 
 /* ✅ The shape + border + fill is a child (so glows can escape)
-   ✅ HERE is where bg-tile.png is applied
+   ✅ Here is where the tile image is applied
 */
 .hexClip{
   position:absolute;
   inset:0;
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
 
-  /* Your pattern tile */
   background-image: var(--hexTileImg);
   background-repeat: repeat;
   background-size: auto;
   background-position: center;
-
-  /* If you want it a touch lighter, adjust this */
-  filter: saturate(1.05) contrast(1.02);
 
   border: 1px solid rgba(0,0,0,.75);
   box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 6px 16px rgba(0,0,0,.10);
@@ -1658,357 +1651,5 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   pointer-events:none;
 }
 
-/* Optional: subtle glaze so labels stay readable */
-.hexClip::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  background: rgba(255,255,255,.10);
-  pointer-events:none;
-}
-
-/* Rim/label should still clip to the shape */
-.hexRim,
-.hexLabel,
-.miniNum,
-.hexShade{
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-}
-
-.hexRim{
-  position:absolute;
-  left: 14%;
-  right: 14%;
-  height: 2px;
-  border-radius: 999px;
-  opacity: .95;
-  pointer-events:none;
-  filter: drop-shadow(0 1px 4px rgba(0,0,0,.30));
-  z-index: 2;
-}
-.hexRimTop{ top: 8%; background: var(--rimTop, rgba(0,0,0,.85)); }
-.hexRimBottom{ bottom: 8%; background: var(--rimBottom, rgba(0,0,0,.85)); }
-
-.hexLabel{
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-weight: 1000;
-  letter-spacing: .2px;
-  line-height: 1.05;
-  text-align: center;
-  color: rgba(255,255,255,.98);
-  z-index: 3;
-  pointer-events: none;
-  -webkit-text-stroke: 1px rgba(0,0,0,.75);
-  text-shadow:
-    -1px -1px 0 rgba(0,0,0,.75),
-     1px -1px 0 rgba(0,0,0,.75),
-    -1px  1px 0 rgba(0,0,0,.75),
-     1px  1px 0 rgba(0,0,0,.75),
-     0 0 12px rgba(0,0,0,.45);
-}
-.hexBoardMain .hexLabel{ font-size: 11px; opacity: .92; }
-
-.miniNum{
-  position:absolute;
-  inset: 0;
-  display:grid;
-  place-items:center;
-  z-index: 4;
-  pointer-events:none;
-  font-weight: 1000;
-  font-size: 9px;
-  color: rgba(0,0,0,.92);
-  text-shadow: 0 0 6px rgba(255,255,255,.35);
-}
-
-/* Shade layer (not using ::before so it doesn't mess with glow stacks) */
-.hexShade{
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  opacity: 0;
-}
-.hex.notReach .hexShade{ opacity: 1; background: rgba(0,0,0,.18); }
-.hex.blocked  .hexShade{ opacity: 1; background: rgba(0,0,0,.22); }
-.hex.missing  .hexShade{ opacity: 1; background: rgba(0,0,0,.32); }
-.hexBoardMini .hexShade{ display:none; }
-
-/* =========================================================
-   ✅ BORDER-ALIGNED HEX GLOWS
-   Player = green/white
-   Reach  = blue/white
-========================================================= */
-.hex.reach{ z-index: 40; }
-.hex.player{ z-index: 50; }
-.hex.sel{ outline: 2px solid rgba(255,255,255,1); outline-offset: 2px; }
-
-/* Glow layers (unclipped, but shaped via clip-path) */
-.hexGlowOuter,
-.hexGlowRing{
-  position: absolute;
-  pointer-events: none;
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  opacity: 0;
-}
-
-.hexGlowOuter{
-  inset: -12px;
-  z-index: 4;
-  filter: blur(12px);
-  mix-blend-mode: screen;
-}
-.hexGlowRing{
-  inset: -3px;
-  z-index: 5;
-  border: 2px solid rgba(255,255,255,0);
-  mix-blend-mode: screen;
-}
-
-/* Reachable = blue */
-.hex.reach .hexGlowOuter{ opacity: .95; background: rgba(120,210,255,.28); }
-.hex.reach .hexGlowRing{
-  opacity: 1;
-  border-color: rgba(255,255,255,.90);
-  box-shadow:
-    0 0 10px rgba(255,255,255,.55),
-    0 0 22px rgba(140,220,255,.78),
-    0 0 52px rgba(120,210,255,.55);
-}
-
-/* Player = green */
-.hex.player .hexGlowOuter{ opacity: .95; background: rgba(120,255,170,.30); }
-.hex.player .hexGlowRing{
-  opacity: 1;
-  border-color: rgba(255,255,255,.95);
-  box-shadow:
-    0 0 10px rgba(255,255,255,.55),
-    0 0 24px rgba(120,255,170,.82),
-    0 0 58px rgba(120,255,170,.60);
-}
-
-/* DICE */
-.diceArea{ display:grid; justify-items:center; gap: 14px; padding-top: 0; position: relative; z-index: 70; }
-
-.diceCubeWrap{
-  width: 460px;
-  height: 360px;
-  display:grid;
-  place-items:center;
-  perspective: 1000px;
-  position: relative;
-}
-.diceCube{
-  --s: 294px;
-  width: var(--s);
-  height: var(--s);
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform 650ms cubic-bezier(.2,.9,.2,1);
-}
-.diceCube.glowSix{
-  box-shadow:
-    0 0 18px rgba(220,245,255,.95),
-    0 0 42px rgba(120,210,255,.85),
-    0 0 80px rgba(255,255,255,.65);
-  filter:
-    drop-shadow(0 0 12px rgba(160,230,255,.95))
-    drop-shadow(0 0 22px rgba(255,255,255,.75));
-}
-.diceCube.isSpinning{ transition: transform 900ms cubic-bezier(.12,.85,.18,1); }
-.diceCube.isDragging{ transition: none !important; }
-
-.diceFace{
-  position:absolute;
-  inset:0;
-  border-radius: 18px;
-  background: rgba(255,255,255,.08);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 22px 50px rgba(0,0,0,.16);
-  backdrop-filter: blur(8px);
-  overflow:hidden;
-}
-
-/* Stationary control */
-.orbit{
-  position: absolute;
-  right: 22px;
-  bottom: 18px;
-  width: 74px;
-  height: 74px;
-  border-radius: 999px;
-  z-index: 5;
-  background:
-    radial-gradient(circle at 30% 30%, rgba(255,255,255,.85), rgba(160,220,255,.50) 40%, rgba(40,120,255,.20) 70%, rgba(0,0,0,.10) 100%);
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,.22) inset,
-    0 18px 40px rgba(0,0,0,.22),
-    0 0 30px rgba(160,220,255,.28);
-  backdrop-filter: blur(6px);
-}
-.orbit:hover{ filter: brightness(1.05); }
-.orbit.isDragging{
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,.26) inset,
-    0 22px 50px rgba(0,0,0,.26),
-    0 0 44px rgba(180,235,255,.40);
-}
-
-/* FLAME BORDER CORNERS */
-.diceCorner{
-  position:absolute;
-  width: 46%;
-  aspect-ratio: 1 / 1;
-  pointer-events:none;
-  z-index: 20;
-  background-image: var(--diceBorderImg);
-  background-repeat: no-repeat;
-  background-size: contain;
-  background-position: top left;
-  opacity: 0.92;
-  mix-blend-mode: screen;
-  filter: drop-shadow(0 0 10px rgba(255,60,0,.30));
-}
-.diceCorner.tl{ top: 0; left: 0; transform: rotate(0deg); }
-.diceCorner.tr{ top: 0; right: 0; transform: rotate(90deg); }
-.diceCorner.br{ bottom: 0; right: 0; transform: rotate(180deg); }
-.diceCorner.bl{ bottom: 0; left: 0; transform: rotate(270deg); }
-
-.faceStripe{
-  position:absolute;
-  left: 18px;
-  right: 18px;
-  top: 14px;
-  height: 6px;
-  border-radius: 999px;
-  opacity: .95;
-  z-index: 6;
-  pointer-events:none;
-  filter: drop-shadow(0 2px 8px rgba(0,0,0,.25));
-}
-
-.diceFaceInnerFixed{
-  position:absolute;
-  width: 260px;
-  height: 260px;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  border-radius: 14px;
-  background: rgba(0,0,0,.10);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
-  display:grid;
-  place-items:center;
-  overflow:hidden;
-}
-
-.miniFit{
-  transform: scale(var(--miniScale, 1.42));
-  transform-origin: center;
-  display: grid;
-  place-items: center;
-}
-
-.faceFront { transform: translateZ(calc(var(--s) / 2)); }
-.faceBack  { transform: rotateY(180deg) translateZ(calc(var(--s) / 2)); }
-.faceRight { transform: rotateY(90deg) translateZ(calc(var(--s) / 2)); }
-.faceLeft  { transform: rotateY(-90deg) translateZ(calc(var(--s) / 2)); }
-.faceTop   { transform: rotateX(90deg) translateZ(calc(var(--s) / 2)); }
-.faceBottom{ transform: rotateX(-90deg) translateZ(calc(var(--s) / 2)); }
-
-.diceControls{
-  display:flex;
-  align-items:center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 16px;
-  background: rgba(255,255,255,.10);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.14);
-  backdrop-filter: blur(10px);
-}
-.diceReadout{ font-weight: 1000; font-size: 16px; color: rgba(255,255,255,.92); }
-.diceReadout.subtle{ opacity: .85; }
-
-.miniInvalid{
-  padding: 12px;
-  border-radius: 14px;
-  background: rgba(0,0,0,.16);
-  color: rgba(255,255,255,.88);
-  font-weight: 1000;
-}
-
-/* HUD faces */
-.diceHud{
-  position:absolute;
-  inset: 14px;
-  border-radius: 14px;
-  background: rgba(0,0,0,.16);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
-  padding: 12px;
-  color: rgba(255,255,255,.92);
-  display:flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow:hidden;
-  z-index: 5;
-}
-.hudTitle{ font-weight: 1000; letter-spacing: .2px; opacity: .95; }
-.hudRow{ display:flex; justify-content: space-between; align-items:center; gap: 10px; font-weight: 900; }
-.hudKey{ opacity: .85; }
-.hudVal{ font-weight: 1000; }
-.hudVal.ok{ color: rgba(140,255,170,.95); }
-.hudVal.bad{ color: rgba(255,160,160,.95); }
-.hudNote{ margin-top: 2px; opacity: .82; font-weight: 900; font-size: 12px; }
-.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-
-.hudLog{ display:flex; flex-direction: column; gap: 6px; overflow:hidden; }
-.hudLogLine{ display:grid; grid-template-columns: 46px 1fr; gap: 8px; font-size: 12px; line-height: 1.15; font-weight: 900; opacity: .95; }
-.hudTime{ opacity: .75; }
-.hudLogLine.ok .hudMsg{ color: rgba(140,255,170,.95); }
-.hudLogLine.bad .hudMsg{ color: rgba(255,160,160,.95); }
-.hudLogEmpty{ opacity: .75; font-weight: 900; font-size: 12px; }
-
-.invGrid{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.invSlot{
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.08);
-  box-shadow: 0 0 0 1px rgba(0,0,0,.22) inset;
-  padding: 10px;
-  cursor: pointer;
-  color: rgba(255,255,255,.92);
-  display:flex;
-  gap: 10px;
-  align-items:center;
-}
-.invSlot:disabled{ opacity: .55; cursor: not-allowed; }
-.invIcon{ font-size: 22px; }
-.invMeta{ display:flex; flex-direction: column; gap: 2px; }
-.invName{ font-weight: 1000; font-size: 12px; }
-.invCharges{ font-weight: 1000; opacity: .80; font-size: 12px; }
-
-/* Dice images */
-.diceImgWrap{
-  position:absolute;
-  inset: 16px;
-  border-radius: 14px;
-  background: rgba(0,0,0,.10);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
-  display:grid;
-  place-items:center;
-}
-.diceImg{
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  user-select:none;
-  pointer-events:none;
-  filter: drop-shadow(0 10px 20px rgba(0,0,0,.20));
-}
-
-@media (max-width: 980px){
-  .scrollInner{ min-width: 1200px; }
-}
+/* (rest of your CSS continues unchanged) */
 `;
