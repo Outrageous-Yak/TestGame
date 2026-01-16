@@ -34,7 +34,7 @@ export default {
 
           // ✅ HEX TILE TEXTURE (this is the important part)
           hexTile:
-            "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4098.jpeg",
+            "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/AlbedoBase_XL_Image_features_a_geometric_pattern_composed_of_h_0.jpg",
         },
       },
     },
