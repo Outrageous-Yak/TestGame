@@ -1697,7 +1697,15 @@ body{
   cursor: pointer;
   filter: drop-shadow(0 10px 16px rgba(0,0,0,.35));
   transition: transform 140ms ease, filter 140ms ease;
+  position: relative;
 }
+.hexInner{
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+
 .hex:hover{
   transform: translateY(-2px);
   filter: drop-shadow(0 14px 22px rgba(0,0,0,.45));
@@ -2012,4 +2020,12 @@ body{
 }
 *::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.18); }
 *::-webkit-scrollbar-corner{ background: transparent; }
+
+/* ===== Small responsive tweak ===== */
+@media (max-width: 980px){
+  .board{ min-width: 0; }
+  .boardScroll{ height: auto; }
+  .log{ max-height: 240px; }
+}
+`;
 
