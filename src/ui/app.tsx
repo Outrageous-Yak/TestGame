@@ -1448,6 +1448,41 @@ function FlipCardsRow() {
     </div>
   );
 }
+function HexDeckCardsDemo() {
+  return (
+    <div className="hexDeckStage" aria-label="Hex deck cards demo">
+      <div className="hexDeckRow">
+        <div className="hexDeckCard cosmic">
+          <div className="mark">
+            <div className="hex" />
+            <div className="sigil sigil-cosmic" />
+          </div>
+        </div>
+
+        <div className="hexDeckCard risk">
+          <div className="mark">
+            <div className="hex" />
+            <div className="sigil sigil-risk" />
+          </div>
+        </div>
+
+        <div className="hexDeckCard terrain">
+          <div className="mark">
+            <div className="hex" />
+            <div className="sigil sigil-terrain" />
+          </div>
+        </div>
+
+        <div className="hexDeckCard shadow">
+          <div className="mark">
+            <div className="hex" />
+            <div className="sigil sigil-shadow" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* =========================================================
    CSS
@@ -2221,5 +2256,161 @@ button, .hex, .selectTile{ -webkit-tap-highlight-color: transparent; }
 @media (max-width: 980px){
   .scrollInner{ min-width: 1200px; }
 }
+/* =========================
+   HEX DECK CARDS (namespaced)
+   Black background only applies inside demo container
+========================= */
+
+.hexDeckStage{
+  width: 100%;
+  display: grid;
+  place-items: center;
+  margin-top: 14px;
+}
+
+.hexDeckRow{
+  width: min(1100px, 100%);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+/* CARD BASE */
+.hexDeckCard{
+  aspect-ratio: 2 / 3;
+  width: 100%;
+  max-height: 240px;
+
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+
+  /* OUTER BORDER */
+  border: 1px solid rgba(255,255,255,.18);
+
+  background:
+    radial-gradient(120% 90% at 50% 30%, rgba(255,255,255,.10), transparent 55%),
+    linear-gradient(135deg, var(--a), var(--b));
+
+  box-shadow:
+    0 18px 48px rgba(0,0,0,.6),
+    0 0 0 1px rgba(255,255,255,.06) inset;
+}
+
+/* INNER BORDER */
+.hexDeckCard::after{
+  content:"";
+  position:absolute;
+  inset:10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.16);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.4) inset,
+    0 0 26px var(--glow);
+  pointer-events:none;
+}
+
+/* MARK */
+.hexDeckCard .mark{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  pointer-events:none;
+}
+
+/* Board-sized flat-top hex */
+.hexDeckCard .hex{
+  width:70%;
+  aspect-ratio: 1 / 0.866;
+  position:relative;
+  clip-path: polygon(
+    25% 0%,
+    75% 0%,
+    100% 50%,
+    75% 100%,
+    25% 100%,
+    0% 50%
+  );
+
+  background:
+    radial-gradient(70% 60% at 50% 35%, rgba(255,255,255,.12), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.35));
+
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.18) inset,
+    0 0 36px var(--glow);
+}
+
+/* SIGIL LAYER */
+.hexDeckCard .sigil{
+  position:absolute;
+  inset:22%;
+  clip-path: inherit;
+  opacity:.85;
+  filter: drop-shadow(0 0 14px var(--glow));
+  transition: transform .25s ease, opacity .25s ease;
+}
+
+/* COSMIC — prism star */
+.hexDeckCard .sigil-cosmic{
+  background:
+    conic-gradient(from 30deg,
+      transparent 0 12%,
+      rgba(255,255,255,.5) 12% 14%,
+      transparent 14% 36%,
+      rgba(255,255,255,.4) 36% 38%,
+      transparent 38% 62%,
+      rgba(255,255,255,.5) 62% 64%,
+      transparent 64% 100%
+    );
+}
+
+/* RISK — fracture glyph */
+.hexDeckCard .sigil-risk{
+  background:
+    linear-gradient(60deg, rgba(255,255,255,.45), transparent 65%),
+    linear-gradient(-60deg, rgba(255,255,255,.35), transparent 65%),
+    linear-gradient(180deg, transparent 44%, rgba(255,255,255,.45) 48% 52%, transparent 56%);
+}
+
+/* TERRAIN — layered strata */
+.hexDeckCard .sigil-terrain{
+  background:
+    linear-gradient(180deg,
+      transparent 0 18%,
+      rgba(255,255,255,.35) 18% 20%,
+      transparent 20% 40%,
+      rgba(255,255,255,.25) 40% 42%,
+      transparent 42% 62%,
+      rgba(255,255,255,.30) 62% 64%,
+      transparent 64% 100%
+    );
+}
+
+/* SHADOW — eclipse split */
+.hexDeckCard .sigil-shadow{
+  background:
+    radial-gradient(circle at 60% 50%, transparent 0 45%, rgba(255,255,255,.45) 46% 48%, transparent 49%),
+    linear-gradient(90deg, transparent 0 45%, rgba(255,255,255,.35) 50% 52%, transparent 57%);
+}
+
+/* Hover */
+.hexDeckCard:hover .sigil{
+  opacity:1;
+  transform:scale(1.05);
+}
+
+/* THEMES */
+.hexDeckCard.cosmic  { --a:#0C1026; --b:#1A1F4A; --glow: rgba(230,194,122,.55); }
+.hexDeckCard.risk    { --a:#12090A; --b:#6E0F1B; --glow: rgba(255,96,64,.55); }
+.hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; --glow: rgba(160,255,110,.45); }
+.hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; --glow: rgba(200,80,140,.55); }
+
+@media (max-width: 1100px){
+  .hexDeckRow{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hexDeckCard{ max-height: 220px; }
+}
+
 `;
 
