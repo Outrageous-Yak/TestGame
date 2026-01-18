@@ -249,6 +249,7 @@ export default function App() {
 
   // game state
   const [state, setState] = useState<GameState | null>(null);
+   const [, forceRender] = useState(0);
   const [currentLayer, setCurrentLayer] = useState<number>(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -699,50 +700,53 @@ export default function App() {
   /* --------------------------
      Inventory use (simple)
   -------------------------- */
-  const useItem = useCallback(
-    (id: "reroll" | "revealRing" | "peek") => {
-      const it = items.find((x) => x.id === id);
-      if (!it || it.charges <= 0) return;
+const useItem = useCallback(
+  (id: "reroll" | "revealRing" | "peek") => {
+    const it = items.find((x) => x.id === id);
+    if (!it || it.charges <= 0) return;
 
-      setItems((prev) => prev.map((x) => (x.id === id ? { ...x, charges: Math.max(0, x.charges - 1) } : x)));
+    setItems((prev) =>
+      prev.map((x) => (x.id === id ? { ...x, charges: Math.max(0, x.charges - 1) } : x))
+    );
 
-      if (id === "reroll") {
-        pushLog("Used: Reroll", "info");
-        rollDice();
-        return;
-      }
+    if (id === "reroll") {
+      pushLog("Used: Reroll", "info");
+      rollDice();
+      return;
+    }
 
-      if (!state) return;
+    if (!state) return;
 
-      const pid = (state as any).playerHexId ?? null;
-      if (!pid) return;
+    const pid = (state as any).playerHexId ?? null;
+    if (!pid) return;
 
-      if (id === "revealRing") {
-        revealRing(state, pid);
-        setReachMap(getReachability(state) as any);
-        setState({ ...(state as any) });
-        pushLog("Used: Reveal (ring)", "ok");
-        return;
-      }
+    if (id === "revealRing") {
+      revealRing(state, pid);
+      setReachMap(getReachability(state) as any);
+      forceRender((n) => n + 1);
+      pushLog("Used: Reveal (ring)", "ok");
+      return;
+    }
 
-      if (id === "peek") {
-        const up = Math.min(scenarioLayerCount, currentLayer + 1);
-        const dn = Math.max(1, currentLayer - 1);
+    if (id === "peek") {
+      const up = Math.min(scenarioLayerCount, currentLayer + 1);
+      const dn = Math.max(1, currentLayer - 1);
 
-        const upId = pid.replace(/^L\d+-/, `L${up}-`);
-        const dnId = pid.replace(/^L\d+-/, `L${dn}-`);
+      const upId = pid.replace(/^L\d+-/, `L${up}-`);
+      const dnId = pid.replace(/^L\d+-/, `L${dn}-`);
 
-        revealRing(state, upId);
-        revealRing(state, dnId);
+      revealRing(state, upId);
+      revealRing(state, dnId);
 
-        setReachMap(getReachability(state) as any);
-        setState({ ...(state as any) });
-        pushLog("Used: Peek (above/below ring)", "info");
-        return;
-      }
-    },
-    [items, state, currentLayer, scenarioLayerCount, rollDice, pushLog, revealRing]
-  );
+      setReachMap(getReachability(state) as any);
+      forceRender((n) => n + 1);
+      pushLog("Used: Peek (above/below ring)", "info");
+      return;
+    }
+  },
+  [items, state, currentLayer, scenarioLayerCount, rollDice, pushLog, revealRing]
+);
+
 
   const stripeBelow = belowLayer < 1 ? "rgba(0,0,0,.90)" : layerCssVar(belowLayer);
   const stripeCurr = layerCssVar(currentLayer);
@@ -1228,7 +1232,7 @@ export default function App() {
                   />
 
                   {/* ✅ 4 cards underneath the board */}
-                  <FlipCardsRow />
+                 <HexDeckCardsDemo />
                 </div>
 
                 <SideBar side="right" currentLayer={currentLayer} segments={barSegments} />
@@ -1395,7 +1399,8 @@ function HexBoard(props: {
    Flip Cards Row (4 cards under board)
 ========================================================= */
 function FlipCardsRow() {
-  const [flipped, setFlipped] = React.useState<boolean[]>([false, false, false, false]);
+ const [flipped, setFlipped] = useState<boolean[]>([false, false, false, false]);
+
 
   const cards = [
     {
@@ -1454,28 +1459,28 @@ function HexDeckCardsDemo() {
       <div className="hexDeckRow">
         <div className="hexDeckCard cosmic">
           <div className="mark">
-            <div className="hex" />
+        <div className="hexDeckHex" />
             <div className="sigil sigil-cosmic" />
           </div>
         </div>
 
         <div className="hexDeckCard risk">
           <div className="mark">
-            <div className="hex" />
+         <div className="hexDeckHex" />
             <div className="sigil sigil-risk" />
           </div>
         </div>
 
         <div className="hexDeckCard terrain">
           <div className="mark">
-            <div className="hex" />
+         <div className="hexDeckHex" />
             <div className="sigil sigil-terrain" />
           </div>
         </div>
 
         <div className="hexDeckCard shadow">
           <div className="mark">
-            <div className="hex" />
+           <div className="hexDeckHex" />
             <div className="sigil sigil-shadow" />
           </div>
         </div>
@@ -2319,8 +2324,9 @@ button, .hex, .selectTile{ -webkit-tap-highlight-color: transparent; }
   pointer-events:none;
 }
 
+
 /* Board-sized flat-top hex */
-.hexDeckCard .hex{
+.hexDeckCard .hexDeckHex{
   width:70%;
   aspect-ratio: 1 / 0.866;
   position:relative;
