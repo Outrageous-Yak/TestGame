@@ -1016,22 +1016,26 @@ export default function App() {
               <div className="gameLayout">
                 <SideBar side="left" currentLayer={currentLayer} segments={barSegments} />
 
-                <div className="mainBoardWrap">
-                  {/* ✅ NEW: per-layer board background (only behind the board) */}
-                  <div className="boardLayerBg" aria-hidden="true" />
-                  <HexBoard
-                    kind="main"
-                    activeLayer={currentLayer}
-                    maxLayer={scenarioLayerCount}
-                    state={state}
-                    selectedId={selectedId}
-                    reachable={reachable}
-                    reachMap={reachMap}
-                    onCellClick={tryMoveToId}
-                    showCoords
-                    showPlayerOnMini={false}
-                  />
-                </div>
+             <div className="mainBoardWrap">
+  <div className="boardLayerBg" aria-hidden="true" />
+
+  <HexBoard
+    kind="main"
+    activeLayer={currentLayer}
+    maxLayer={scenarioLayerCount}
+    state={state}
+    selectedId={selectedId}
+    reachable={reachable}
+    reachMap={reachMap}
+    onCellClick={tryMoveToId}
+    showCoords
+    showPlayerOnMini={false}
+  />
+
+  {/* ✅ 4 cards underneath the board */}
+  <FlipCardsRow />
+</div>
+
 
                 <SideBar side="right" currentLayer={currentLayer} segments={barSegments} />
 
@@ -1373,6 +1377,65 @@ function HexBoard(props: {
     </div>
   );
 }
+function FlipCardsRow() {
+  const [flipped, setFlipped] = React.useState<boolean[]>([false, false, false, false]);
+
+  const cards = [
+    {
+      id: "c1",
+      title: "Card 1",
+      frontImg: "https://upload.wikimedia.org/wikipedia/commons/7/7b/Jack_of_clubs2.svg",
+      backImg: "https://upload.wikimedia.org/wikipedia/commons/d/d4/Card_back_01.svg",
+    },
+    {
+      id: "c2",
+      title: "Card 2",
+      frontImg: "https://upload.wikimedia.org/wikipedia/commons/f/f6/Queen_of_hearts2.svg",
+      backImg: "https://upload.wikimedia.org/wikipedia/commons/d/d4/Card_back_01.svg",
+    },
+    {
+      id: "c3",
+      title: "Card 3",
+      frontImg: "https://upload.wikimedia.org/wikipedia/commons/2/22/King_of_spades2.svg",
+      backImg: "https://upload.wikimedia.org/wikipedia/commons/d/d4/Card_back_01.svg",
+    },
+    {
+      id: "c4",
+      title: "Card 4",
+      frontImg: "https://upload.wikimedia.org/wikipedia/commons/a/ab/Ace_of_spades.svg",
+      backImg: "https://upload.wikimedia.org/wikipedia/commons/d/d4/Card_back_01.svg",
+    },
+  ];
+
+  return (
+    <div className="cardsRow" aria-label="Cards">
+      {cards.map((c, idx) => {
+        const isFlipped = flipped[idx];
+        return (
+          <button
+            key={c.id}
+            type="button"
+            className={"cardSlot" + (isFlipped ? " flipped" : "")}
+            onClick={() =>
+              setFlipped((prev) => {
+                const next = [...prev];
+                next[idx] = !next[idx];
+                return next;
+              })
+            }
+            title="Click to flip"
+          >
+            <span className="card3d">
+              <span className="cardFace cardFront" style={{ backgroundImage: `url("${c.frontImg}")` }} />
+              <span className="cardFace cardBack" style={{ backgroundImage: `url("${c.backImg}")` }} />
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 
 /* =========================================================
    CSS
@@ -1817,4 +1880,131 @@ button, .hex, .selectTile{ -webkit-tap-highlight-color: transparent; }
 @media (max-width: 980px){
   .scrollInner{ min-width: 1200px; }
 }
+/* =========================
+   4 Cards under board (2:3)
+   No vertical scroll (cap height)
+========================= */
+
+.cardsRow{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+
+  width: 100%;
+  /* roughly the same width as the main board */
+  max-width: calc(var(--hexWMain) + (7 - 1) * (var(--hexWMain) + 10px));
+  margin: 14px auto 0;
+
+  position: relative;
+  z-index: 12;
+}
+
+/* Button wrapper = the card itself */
+.cardSlot{
+  aspect-ratio: 2 / 3;
+  width: 100%;
+
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.18);
+  box-shadow: 0 18px 40px rgba(0,0,0,.18);
+  backdrop-filter: blur(8px);
+
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+
+  /* prevents cards becoming too tall and forcing scroll */
+  max-height: 240px; /* tweak 210–260 if needed */
+
+  /* enable 3d */
+  perspective: 900px;
+  perspective-origin: 50% 50%;
+}
+
+.cardSlot:focus{
+  outline: 2px solid rgba(255,255,255,.85);
+  outline-offset: 3px;
+}
+
+/* inner 3d container */
+.card3d{
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform .35s cubic-bezier(0.13, 1.03, 0.39, 0.98);
+}
+
+/* faces */
+.cardFace{
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+
+  border-radius: 16px;
+
+  transition:
+    transform .35s cubic-bezier(0.13, 1.03, 0.39, 0.98),
+    box-shadow .35s cubic-bezier(0.13, 1.03, 0.39, 0.98),
+    border-width .35s cubic-bezier(0.13, 1.03, 0.39, 0.98);
+
+  box-shadow: 0px 14px 40px -18px rgba(0,0,0,.55);
+  border: 1px solid rgba(0,0,0,.28);
+}
+
+/* front/back initial */
+.cardFront{
+  transform: rotateX(0deg);
+}
+.cardBack{
+  transform: rotateX(180deg);
+}
+
+/* hover tilt vibe (like your SCSS) */
+.cardSlot:hover .cardFront{
+  transform: rotateX(20deg);
+  box-shadow: 0px 60px 60px -50px rgba(0, 0, 0, 0.45);
+  border-bottom: 1px solid rgba(255,255,255,.70);
+  border-top: 1px solid rgba(0,0,0,.75);
+}
+.cardSlot:hover .cardBack{
+  transform: rotateX(200deg);
+  box-shadow:
+    0px -18px 34px -18px rgba(35, 2, 2, 0.55),
+    inset 0px -60px 90px -60px rgba(0,0,0,.26);
+  border-top: 1px solid rgba(255,255,255,.70);
+  border-bottom: 1px solid rgba(0,0,0,.75);
+}
+
+/* flipped state */
+.cardSlot.flipped .card3d{
+  transform: rotateX(180deg);
+}
+
+/* flipped + hover tilt */
+.cardSlot.flipped:hover .card3d{
+  transform: rotateX(180deg);
+}
+.cardSlot.flipped:hover .cardFront{
+  transform: rotateX(200deg);
+}
+.cardSlot.flipped:hover .cardBack{
+  transform: rotateX(160deg);
+}
+
+/* Responsive: if tight width, go 2x2 so you still don’t scroll */
+@media (max-width: 1100px){
+  .cardsRow{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cardSlot{
+    max-height: 220px;
+  }
+}
+
 `;
