@@ -266,7 +266,7 @@ export default function App() {
   // villain triggers loaded from scenario.json
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
-  const encounterActive = !!encounter;
+ const encounterActive = !!encounter;
 
   // palette + assets for the active scenario
   const activeTheme = scenarioEntry?.theme ?? null;
@@ -311,6 +311,8 @@ export default function App() {
     pointerId: -1,
   });
   const [diceDragging, setDiceDragging] = useState(false);
+// ✅ FIX: encounterActive (your file had "const  = !!encounter;")
+const encounterActive = !!encounter;
 
   /* --------------------------
      Move counter + optimal
@@ -364,7 +366,7 @@ const triggerSixCinematic = useCallback(
     setSixGlow(true);
     setSixGlowVsVillain(opts.vsVillain);
 
-    // ✅ Keep the rolled face visible during glow, then reset to BASE after 3s
+    // ✅ Hold glow for ~3s, then reset cube pose
     const tReset = window.setTimeout(() => {
       setDiceRot(BASE_DICE_VIEW);
     }, 3000);
@@ -379,6 +381,7 @@ const triggerSixCinematic = useCallback(
   },
   [clearSixTimers, BASE_DICE_VIEW]
 );
+
 
 
   useEffect(() => {
@@ -405,101 +408,109 @@ const triggerSixCinematic = useCallback(
     return null;
   }
 
-  const rollDice = useCallback(() => {
-    // dice roll counts as a turn
-    setMovesTaken((m) => m + 1);
+const rollDice = useCallback(() => {
+  // dice roll counts as a turn
+  setMovesTaken((m) => m + 1);
 
-    const n = 1 + Math.floor(Math.random() * 6);
-    setRollValue(n);
+  const n = 1 + Math.floor(Math.random() * 6);
+  setRollValue(n);
 
-    const targetFace = rotForRoll(n);
-    const final = { x: BASE_DICE_VIEW.x + targetFace.x, y: BASE_DICE_VIEW.y + targetFace.y };
+  const targetFace = rotForRoll(n);
+  const final = { x: BASE_DICE_VIEW.x + targetFace.x, y: BASE_DICE_VIEW.y + targetFace.y };
 
-    setDiceSpinning(true);
+  setDiceSpinning(true);
 
-    const extraX = 360 * (1 + Math.floor(Math.random() * 2));
-    const extraY = 360 * (2 + Math.floor(Math.random() * 2));
+  const extraX = 360 * (1 + Math.floor(Math.random() * 2));
+  const extraY = 360 * (2 + Math.floor(Math.random() * 2));
 
-    setDiceRot({ x: final.x - extraX, y: final.y - extraY });
-    window.setTimeout(() => {
-      setDiceRot(final);
-      window.setTimeout(() => setDiceSpinning(false), 650);
-    }, 40);
+  setDiceRot({ x: final.x - extraX, y: final.y - extraY });
 
-    pushLog(`Rolled ${n}`, n === 6 ? "ok" : "info");
+  window.setTimeout(() => {
+    setDiceRot(final);
+    window.setTimeout(() => setDiceSpinning(false), 650);
+  }, 40);
 
-    // encounter: only 6 clears it
-    if (encounterActive && n === 6) {
-      triggerSixCinematic({
-        vsVillain: true,
-        clearEncounter: () => {
-          setEncounter(null);
-          pushLog(`Encounter cleared (${encounter!.villainKey})`, "ok");
-        },
-      });
-      return;
-    }
+  pushLog(`Rolled ${n}`, n === 6 ? "ok" : "info");
 
-    if (!encounterActive && n === 6) {
-      triggerSixCinematic({ vsVillain: false });
-      return;
-    }
-
-    // Encounter: non-6 increments tries
-    setEncounter((prev) => {
-      if (!prev) return prev;
-      return { ...prev, tries: prev.tries + 1 };
+  // encounter: only 6 clears it
+  if (encounterActive && n === 6) {
+    const clearedKey = encounter?.villainKey ?? "bad1";
+    triggerSixCinematic({
+      vsVillain: true,
+      clearEncounter: () => {
+        setEncounter(null);
+        pushLog(`Encounter cleared (${clearedKey})`, "ok");
+      },
     });
-  }, [pushLog, encounterActive, triggerSixCinematic, encounter, BASE_DICE_VIEW]);
+    return;
+  }
+
+  // free-roll 6: glow + reset
+  if (!encounterActive && n === 6) {
+    triggerSixCinematic({ vsVillain: false });
+    return;
+  }
+
+  // Encounter: non-6 increments tries
+  setEncounter((prev) => {
+    if (!prev) return prev;
+    return { ...prev, tries: prev.tries + 1 };
+  });
+}, [pushLog, encounterActive, triggerSixCinematic, encounter, BASE_DICE_VIEW]);
+
+
+    
+  }, [pushLog, , triggerSixCinematic, encounter, BASE_DICE_VIEW]);
 
   // Manual drag rotation ONLY when NOT in encounter
   const onDicePointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (encounterActive) return;
-      if (diceSpinning) return;
-      (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+  (e: React.PointerEvent<HTMLDivElement>) => {
+    if (encounterActive) return;
+    if (diceSpinning) return;
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
 
-      dragRef.current.active = true;
-      dragRef.current.pointerId = e.pointerId;
-      dragRef.current.startX = e.clientX;
-      dragRef.current.startY = e.clientY;
-      dragRef.current.startRotX = diceRot.x;
-      dragRef.current.startRotY = diceRot.y;
+    dragRef.current.active = true;
+    dragRef.current.pointerId = e.pointerId;
+    dragRef.current.startX = e.clientX;
+    dragRef.current.startY = e.clientY;
+    dragRef.current.startRotX = diceRot.x;
+    dragRef.current.startRotY = diceRot.y;
 
-      setDiceDragging(true);
-    },
-    [diceRot.x, diceRot.y, diceSpinning, encounterActive]
-  );
+    setDiceDragging(true);
+  },
+  [diceRot.x, diceRot.y, diceSpinning, encounterActive]
+);
 
-  const onDicePointerMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (encounterActive) return;
-      if (!dragRef.current.active) return;
-      if (e.pointerId !== dragRef.current.pointerId) return;
+const onDicePointerMove = useCallback(
+  (e: React.PointerEvent<HTMLDivElement>) => {
+    if (encounterActive) return;
+    if (!dragRef.current.active) return;
+    if (e.pointerId !== dragRef.current.pointerId) return;
 
-      const dx = e.clientX - dragRef.current.startX;
-      const dy = e.clientY - dragRef.current.startY;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
 
-      const sens = 0.35;
-      const nextY = dragRef.current.startRotY + dx * sens;
-      const nextX = dragRef.current.startRotX - dy * sens;
+    const sens = 0.35;
+    const nextY = dragRef.current.startRotY + dx * sens;
+    const nextX = dragRef.current.startRotX - dy * sens;
 
-      setDiceRot({ x: nextX, y: nextY });
-    },
-    [encounterActive]
-  );
+    setDiceRot({ x: nextX, y: nextY });
+  },
+  [encounterActive]
+);
 
-  const endDrag = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (encounterActive) return;
-      if (!dragRef.current.active) return;
-      if (e.pointerId !== dragRef.current.pointerId) return;
-      dragRef.current.active = false;
-      dragRef.current.pointerId = -1;
-      setDiceDragging(false);
-    },
-    [encounterActive]
-  );
+const endDrag = useCallback(
+  (e: React.PointerEvent<HTMLDivElement>) => {
+    if (encounterActive) return;
+    if (!dragRef.current.active) return;
+    if (e.pointerId !== dragRef.current.pointerId) return;
+
+    dragRef.current.active = false;
+    dragRef.current.pointerId = -1;
+    setDiceDragging(false);
+  },
+  [encounterActive]
+);
 
   /* --------------------------
      Game helpers
@@ -635,56 +646,27 @@ const triggerSixCinematic = useCallback(
   /* --------------------------
      Board click
   -------------------------- */
-  const tryMoveToId = useCallback(
-    (id: string) => {
-      if (encounterActive) return;
+ const tryMoveToId = useCallback(
+  (id: string) => {
+    if (encounterActive) return;
 
-      const vk = findTriggerForHex(id);
-      if (vk) {
-        setEncounter({ villainKey: vk, tries: 0 });
-        setDiceRot(BASE_DICE_VIEW);
-        setDiceSpinning(false);
-        setDiceDragging(false);
-        pushLog(`Encounter: ${vk} — roll a 6 to continue`, "bad");
-        return;
-      }
+    const vk = findTriggerForHex(id);
+    if (vk) {
+      setEncounter({ villainKey: vk, tries: 0 });
+      setDiceRot(BASE_DICE_VIEW);
+      setDiceSpinning(false);
+      setDiceDragging(false);
+      pushLog(`Encounter: ${vk} — roll a 6 to continue`, "bad");
+      return;
+    }
 
-      if (!state) return;
+    if (!state) return;
 
-      setSelectedId(id);
+    // ... keep rest unchanged ...
+  },
+  [encounterActive, state, BASE_DICE_VIEW, pushLog, currentLayer, revealWholeLayer, computeOptimalFromReachMap, goalId]
+);
 
-      const res = tryMove(state, id);
-
-      const rm = getReachability(state) as any;
-      setReachMap(rm);
-
-      if (res.ok) {
-        setMovesTaken((m) => m + 1);
-
-        const newPlayerId = (state as any).playerHexId as string | null;
-        const newLayer = newPlayerId ? idToCoord(newPlayerId)?.layer ?? currentLayer : currentLayer;
-
-        if (!res.won) {
-          enterLayer(state, newLayer);
-          revealWholeLayer(state, newLayer);
-        }
-
-        setCurrentLayer(newLayer);
-        setSelectedId(newPlayerId ?? id);
-
-        setOptimalFromNow(computeOptimalFromReachMap(rm as any, goalId));
-
-        setState({ ...(state as any) });
-
-        const c = newPlayerId ? idToCoord(newPlayerId) : null;
-        pushLog(c ? `Move OK → R${c.row + 1}C${c.col + 1} (L${c.layer})` : `Move OK`, "ok");
-      } else {
-        setState({ ...(state as any) });
-        pushLog(`Move blocked`, "bad");
-      }
-    },
-    [encounterActive, state, BASE_DICE_VIEW, pushLog, currentLayer, revealWholeLayer, computeOptimalFromReachMap, goalId]
-  );
 
   /* --------------------------
      Inventory use (simple)
@@ -1002,8 +984,8 @@ const triggerSixCinematic = useCallback(
         <div className="shell shellGame">
           {encounterActive ? <div className="blackout" aria-hidden="true" /> : null}
 
-          {encounterActive ? (
-            <div className="villainCenter">
+        {encounterActive ? (
+  <div className="villainCenter">
               <img className={"villainImg" + (sixGlow && sixGlowVsVillain ? " glowSix" : "")} src={villainImg(encounter!.villainKey)} alt={encounter!.villainKey} />
               <div className="villainText">Roll a 6 to continue</div>
               <button className="btn primary" onClick={rollDice}>
@@ -1013,6 +995,8 @@ const triggerSixCinematic = useCallback(
             </div>
           ) : null}
 
+    {/* ✅ PUT THIS HERE */}
+    {encounterActive ? <div className="diceOverlayFixed">{diceNode}</div> : null}
           <div className="scrollStage" ref={scrollRef}>
             <div className="scrollInner">
               <div className="gameLayout">
@@ -2023,8 +2007,7 @@ button, .hex, .selectTile{ -webkit-tap-highlight-color: transparent; }
   z-index: 75;
 }
 
-/* Keep villain UI above dice if you want */
-.villainCenter{ z-index: 80; }
+
 
 /* The wrapper must provide perspective */
 .diceCubeWrap{
@@ -2126,5 +2109,57 @@ button, .hex, .selectTile{ -webkit-tap-highlight-color: transparent; }
   overflow: visible;
 }
 
+/* =========================
+   FIX: Dice always above blackout in encounter
+========================= */
+
+.diceOverlayFixed{
+  position: fixed;
+  right: 28px;
+  top: 42px;
+  z-index: 120;
+}
+.villainCenter{ z-index: 110; }
+.blackout{ z-index: 50; }
+
+
+
+
+/* If you want the dice still clickable during encounter, keep pointer-events as default. */
+
+/* =========================
+   FIX: Spinning animation (so "stopped spinning" never happens)
+========================= */
+
+.diceCube.isSpinning{
+  animation: diceSpinWobble 650ms ease-out;
+}
+
+@keyframes diceSpinWobble{
+  0%   { transform: translateY(30px) rotateX(0deg) rotateY(0deg); }
+  100% { transform: translateY(30px) rotateX(0deg) rotateY(0deg); }
+}
+
+/*
+IMPORTANT:
+Your cube rotation is driven inline via style="transform: ... rotateX/rotateY ...".
+When animation also sets transform, it conflicts.
+So instead of animating transform, we animate a wrapper.
+*/
+
+/* Wrap-level wobble that does NOT override the cube's transform */
+.diceCubeWrap{ position: relative; }
+.diceCubeWrap .diceCube.isSpinning{
+  animation: none; /* disable transform animation on cube */
+}
+.diceCubeWrap.isSpinningShake{
+  animation: diceShake 650ms ease-out;
+}
+@keyframes diceShake{
+  0%   { transform: translateZ(0) rotate(0deg); }
+  25%  { transform: translateZ(0) rotate(1.2deg); }
+  55%  { transform: translateZ(0) rotate(-1.4deg); }
+  100% { transform: translateZ(0) rotate(0deg); }
+}
 
 `;
