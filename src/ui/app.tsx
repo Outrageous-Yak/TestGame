@@ -110,8 +110,9 @@ function idToCoord(id: string): Coord | null {
 /** GitHub Pages-safe public URL helper (respects Vite BASE_URL). */
 function toPublicUrl(p: string) {
   const base = (import.meta as any).env?.BASE_URL ?? "/";
-  const clean = String(p).replace(/^\/+/, "");
-  return base + clean;
+  const cleanBase = String(base).endsWith("/") ? String(base) : `${base}/`;
+  const cleanPath = String(p).replace(/^\/+/, "");
+  return cleanBase + cleanPath;
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
@@ -276,25 +277,28 @@ export default function App() {
     for (const [k, v] of Object.entries(reachMap as any)) if ((v as any)?.reachable) set.add(k);
     return set;
   }, [reachMap]);
-function spriteSheetUrl() {
-  return toPublicUrl("images/players/sprite_sheet_20.png");
-}
 
-// sprite_sheet_20 => commonly 20 frames arranged 5 columns x 4 rows
-// rows: down, left, right, up (you can swap if your sheet is different)
-function facingRow(f: "down" | "up" | "left" | "right") {
-  switch (f) {
-    case "down":
-      return 0;
-    case "left":
-      return 1;
-    case "right":
-      return 2;
-    case "up":
-      return 3;
+  function spriteSheetUrl() {
+    return toPublicUrl("images/players/sprite_sheet_20.png");
   }
-}
-const [isWalking, setIsWalking] = useState(false); const walkTimer = useRef<number | null>(null); 
+
+  // sprite_sheet_20 => commonly 20 frames arranged 5 columns x 4 rows
+  // rows: down, left, right, up (swap if your sheet differs)
+  function facingRow(f: "down" | "up" | "left" | "right") {
+    switch (f) {
+      case "down":
+        return 0;
+      case "left":
+        return 1;
+      case "right":
+        return 2;
+      case "up":
+        return 3;
+    }
+  }
+
+  const [isWalking, setIsWalking] = useState(false);
+  const walkTimer = useRef<number | null>(null);
 
   // villain triggers loaded from scenario.json
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
@@ -352,6 +356,15 @@ const [isWalking, setIsWalking] = useState(false); const walkTimer = useRef<numb
 
   useEffect(() => {
     setWorlds(loadWorlds());
+  }, []);
+
+  /* --------------------------
+     Cleanup timers
+  -------------------------- */
+  useEffect(() => {
+    return () => {
+      if (walkTimer.current) window.clearTimeout(walkTimer.current);
+    };
   }, []);
 
   /* --------------------------
@@ -640,7 +653,15 @@ const [isWalking, setIsWalking] = useState(false); const walkTimer = useRef<numb
         return;
       }
 
-      // villain encounter tile
+      const pidBefore = (state as any).playerHexId as string | null;
+
+      // Enforce reachability (but allow clicking the current tile)
+      if (pidBefore && id !== pidBefore && !reachable.has(id)) {
+        pushLog("Not reachable.", "bad");
+        return;
+      }
+
+      // villain encounter tile (on click)
       const vk = findTriggerForHex(id);
       if (vk) {
         setEncounter({ villainKey: vk, tries: 0 });
@@ -648,27 +669,20 @@ const [isWalking, setIsWalking] = useState(false); const walkTimer = useRef<numb
         return;
       }
 
-      const pidBefore = (state as any).playerHexId as string | null;
-
-      // allow clicking current tile even if not in reachable set
-      if (pidBefore && pidAfter && pidAfter !== pidBefore) {
-  setMovesTaken((n) => n + 1);
-
-  // trigger walk animation for a short burst
-  setIsWalking(true);
-  if (walkTimer.current) window.clearTimeout(walkTimer.current);
-  walkTimer.current = window.setTimeout(() => setIsWalking(false), 450);
-}
-
-
       const res: any = tryMove(state as any, id);
       const nextState: any = res?.state ?? res ?? null;
       if (!nextState) return;
 
       const pidAfter = (nextState as any).playerHexId as string | null;
 
-      if (pidBefore && pidAfter && pidAfter !== pidBefore) {
+      const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
+      if (moved) {
         setMovesTaken((n) => n + 1);
+
+        // trigger walk animation for a short burst
+        setIsWalking(true);
+        if (walkTimer.current) window.clearTimeout(walkTimer.current);
+        walkTimer.current = window.setTimeout(() => setIsWalking(false), 450);
       }
 
       setPlayerFacing(facingFromMove(pidBefore, pidAfter));
@@ -909,7 +923,9 @@ const [isWalking, setIsWalking] = useState(false); const walkTimer = useRef<numb
                 <input
                   className="inp"
                   value={chosenPlayer.name}
-                  onChange={(e) => setChosenPlayer((prev) => (prev && prev.kind === "custom" ? { ...prev, name: e.target.value } : prev))}
+                  onChange={(e) =>
+                    setChosenPlayer((prev) => (prev && prev.kind === "custom" ? { ...prev, name: e.target.value } : prev))
+                  }
                 />
                 <label className="lbl">Portrait (optional)</label>
                 <input
@@ -1101,7 +1117,11 @@ const [isWalking, setIsWalking] = useState(false); const walkTimer = useRef<numb
           {/* HUD */}
           <div className="hud">
             <div className="hudLeft">
-              <button className="btn primary" disabled={!state || diceRolling} onClick={() => rollDice({ reason: encounterActive ? "encounter" : "normal" })}>
+              <button
+                className="btn primary"
+                disabled={!state || diceRolling}
+                onClick={() => rollDice({ reason: encounterActive ? "encounter" : "normal" })}
+              >
                 {diceRolling ? "Rolling…" : encounterActive ? "Roll (Need 6)" : "Roll"}
               </button>
 
@@ -1142,8 +1162,7 @@ const [isWalking, setIsWalking] = useState(false); const walkTimer = useRef<numb
               <div className="hudStat">
                 <div className="k">Optimal</div>
                 <div className="v">
-                  {optimalFromNow ?? "—"}{" "}
-                  <span className="mutedSmall">{optimalAtStart != null ? `(start ${optimalAtStart})` : ""}</span>
+                  {optimalFromNow ?? "—"} <span className="mutedSmall">{optimalAtStart != null ? `(start ${optimalAtStart})` : ""}</span>
                 </div>
               </div>
             </div>
@@ -1215,20 +1234,21 @@ const [isWalking, setIsWalking] = useState(false); const walkTimer = useRef<numb
                           title={id}
                         >
                           <div className="hexInner">
-                            <div className="hexId">{r},{c}</div>
+                            <div className="hexId">
+                              {r},{c}
+                            </div>
                             <div className="hexMarks">
-{isPlayer ? (
-  <span
-    className={`playerSpriteSheet ${isWalking ? "walking" : ""}`}
-    style={
-      {
-        ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
-        ["--frameY" as any]: facingRow(playerFacing),
-      } as any
-    }
-  />
-) : null}
-
+                              {isPlayer ? (
+                                <span
+                                  className={`playerSpriteSheet ${isWalking ? "walking" : ""}`}
+                                  style={
+                                    {
+                                      ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
+                                      ["--frameY" as any]: facingRow(playerFacing),
+                                    } as any
+                                  }
+                                />
+                              ) : null}
 
                               {isGoal ? <span className="mark g">G</span> : null}
                               {isTrigger ? <span className="mark t">!</span> : null}
@@ -1314,7 +1334,6 @@ const [isWalking, setIsWalking] = useState(false); const walkTimer = useRef<numb
               <button
                 className="btn"
                 onClick={() => {
-                  // Optional: allow user to close (or keep locked if you want)
                   pushLog("You cannot flee. Roll a 6.", "bad");
                 }}
               >
@@ -1559,8 +1578,6 @@ body{
   background: rgba(0,0,0,.22);
   min-width: 86px;
 }
-/* CONTINUE baseCss FROM:  .hudStat .k{ font-size: 11px ... } */
-
 .hudStat .k{
   font-size: 11px;
   color: var(--muted);
@@ -1735,13 +1752,6 @@ body{
   transition: transform 140ms ease, filter 140ms ease;
   position: relative;
 }
-.hexInner{
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-
 .hex:hover{
   transform: translateY(-2px);
   filter: drop-shadow(0 14px 22px rgba(0,0,0,.45));
@@ -1794,24 +1804,6 @@ body{
   pointer-events:none;
 }
 
-/* Layer glow ring */
-.hex::after{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  border-radius: 12px;
-  clip-path: polygon(
-    25% 6%,
-    75% 6%,
-    98% 50%,
-    75% 94%,
-    25% 94%,
-    2% 50%
-  );
-  box-shadow: 0 0 0 0 rgba(0,0,0,0);
-  pointer-events:none;
-}
-
 /* reachable pulse */
 .hex.reach .hexInner{
   border-color: rgba(70,249,180,.48);
@@ -1832,13 +1824,6 @@ body{
   box-shadow:
     inset 0 0 0 1px rgba(255,221,121,.20),
     0 0 0 3px rgba(255,221,121,.10);
-}
-.hex.sel .hexInner::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  background: radial-gradient(circle at 50% 50%, rgba(255,221,121,.18), transparent 60%);
-  pointer-events:none;
 }
 
 /* blocked */
@@ -1893,6 +1878,7 @@ body{
   bottom: 9px;
   display:flex;
   gap: 6px;
+  align-items: flex-end;
 }
 .mark{
   width: 22px;
@@ -1905,11 +1891,6 @@ body{
   border: 1px solid rgba(255,255,255,.12);
   background: rgba(0,0,0,.25);
 }
-.mark.p{
-  border-color: rgba(120,255,210,.35);
-  color: rgba(120,255,210,.95);
-  background: rgba(120,255,210,.10);
-}
 .mark.g{
   border-color: rgba(255,211,106,.35);
   color: rgba(255,211,106,.95);
@@ -1920,13 +1901,13 @@ body{
   color: rgba(255,122,209,.95);
   background: rgba(255,122,209,.10);
 }
+
 /* === Player sprite from sprite sheet === */
 .playerSpriteSheet{
   width: 42px;
   height: 42px;
   border-radius: 10px;
 
-  /* sprite sheet */
   background-image: var(--spriteImg);
   background-repeat: no-repeat;
 
@@ -1937,13 +1918,28 @@ body{
   --rows: 4;
 
   background-size: calc(var(--frameW) * var(--cols)) calc(var(--frameH) * var(--rows));
-  background-position: calc(var(--frameW) * -1 * var(--frameX)) calc(var(--frameH) * -1 * var(--frameY));
 
-  image-rendering: pixelated; /* nice for pixel art; remove if not needed */
+  /* idle frame: col 0 */
+  background-position: 0px calc(var(--frameH) * -1 * var(--frameY));
+
+  image-rendering: pixelated;
 
   border: 1px solid rgba(255,255,255,.18);
   box-shadow: 0 10px 18px rgba(0,0,0,.35);
   background-color: rgba(0,0,0,.20);
+}
+
+/* When walking: step through columns 0..4 */
+.playerSpriteSheet.walking{
+  animation: walkFrames 450ms steps(5) infinite;
+}
+@keyframes walkFrames{
+  from {
+    background-position: 0px calc(var(--frameH) * -1 * var(--frameY));
+  }
+  to {
+    background-position: calc(var(--frameW) * -5) calc(var(--frameH) * -1 * var(--frameY));
+  }
 }
 
 /* ===== Sidebar ===== */
@@ -2088,44 +2084,4 @@ body{
   .boardScroll{ height: auto; }
   .log{ max-height: 240px; }
 }
-.playerSpriteSheet{
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-
-  background-image: var(--spriteImg);
-  background-repeat: no-repeat;
-
-  --frameW: 64px;
-  --frameH: 64px;
-  --cols: 5;
-  --rows: 4;
-
-  background-size: calc(var(--frameW) * var(--cols)) calc(var(--frameH) * var(--rows));
-
-  /* default idle frame (col 0) */
-  background-position: 0px calc(var(--frameH) * -1 * var(--frameY));
-
-  image-rendering: pixelated;
-
-  border: 1px solid rgba(255,255,255,.18);
-  box-shadow: 0 10px 18px rgba(0,0,0,.35);
-  background-color: rgba(0,0,0,.20);
-}
-
-/* When walking: step through columns 0..4 */
-.playerSpriteSheet.walking{
-  animation: walkFrames 450ms steps(5) infinite;
-}
-
-@keyframes walkFrames{
-  from {
-    background-position: 0px calc(var(--frameH) * -1 * var(--frameY));
-  }
-  to {
-    background-position: calc(var(--frameW) * -5) calc(var(--frameH) * -1 * var(--frameY));
-  }
-}
-
-
 `;
