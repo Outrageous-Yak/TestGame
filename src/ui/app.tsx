@@ -1942,8 +1942,8 @@ body{
   background-repeat: no-repeat;
 
   /* set these to match your sheet */
-  --frameW: 64px;
-  --frameH: 64px;
+  --frameW: 32px;
+  --frameH: 32px;
   --cols: 5;
   --rows: 4;
 
