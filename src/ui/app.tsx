@@ -25,14 +25,11 @@ type LogEntry = { n: number; t: string; msg: string; kind?: "ok" | "bad" | "info
 ========================================================= */
 type LayerPalette = { L1: string; L2: string; L3: string; L4: string; L5: string; L6: string; L7: string };
 
-// ✅ FIXED: no template-literal types + proper braces/semicolons
 type ScenarioTheme = {
   palette: LayerPalette;
   assets: {
-    // optional fallback (still supported)
     backgroundGame?: string;
 
-    // ✅ NEW: per-layer backgrounds (safe TS)
     backgroundLayers?: Partial<{
       L1: string;
       L2: string;
@@ -47,7 +44,6 @@ type ScenarioTheme = {
     diceCornerBorder: string;
     villainsBase: string;
 
-    // optional board tile pattern
     hexTile?: string;
   };
 };
@@ -266,17 +262,17 @@ export default function App() {
   // villain triggers loaded from scenario.json
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
- const encounterActive = !!encounter;
+  const encounterActive = !!encounter;
 
   // palette + assets for the active scenario
   const activeTheme = scenarioEntry?.theme ?? null;
   const palette = activeTheme?.palette ?? null;
 
-  // ✅ CHANGE #1: global background is ONLY backgroundGame (not per-layer)
+  // global background is ONLY backgroundGame (not per-layer)
   const GAME_BG_URL = activeTheme?.assets.backgroundGame ?? "";
 
-  // ✅ CHANGE #2: board-only per-layer background
-  const BOARD_LAYER_BG = activeTheme?.assets.backgroundLayers?.[`L${currentLayer}` as "L1"] ?? "";
+  // board-only per-layer background
+  const BOARD_LAYER_BG = (activeTheme?.assets.backgroundLayers as any)?.[`L${currentLayer}`] ?? "";
 
   const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "";
   const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
@@ -292,7 +288,7 @@ export default function App() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   /* --------------------------
-     Dice state (define BASE before any callbacks use it)
+     Dice state
   -------------------------- */
   const [rollValue, setRollValue] = useState<number>(1);
 
@@ -311,8 +307,6 @@ export default function App() {
     pointerId: -1,
   });
   const [diceDragging, setDiceDragging] = useState(false);
-// ✅ FIX: encounterActive (your file had "const  = !!encounter;")
-const encounterActive = !!encounter;
 
   /* --------------------------
      Move counter + optimal
@@ -351,7 +345,9 @@ const encounterActive = !!encounter;
     setWorlds(loadWorlds());
   }, []);
 
-  // ✅ 6-glow + quick reset to BASE pose
+  /* --------------------------
+     6-glow + cinematic reset
+  -------------------------- */
   const [sixGlow, setSixGlow] = useState(false);
   const [sixGlowVsVillain, setSixGlowVsVillain] = useState(false);
   const sixTimersRef = useRef<number[]>([]);
@@ -359,30 +355,29 @@ const encounterActive = !!encounter;
     for (const t of sixTimersRef.current) window.clearTimeout(t);
     sixTimersRef.current = [];
   }, []);
-const triggerSixCinematic = useCallback(
-  (opts: { vsVillain: boolean; clearEncounter?: () => void }) => {
-    clearSixTimers();
 
-    setSixGlow(true);
-    setSixGlowVsVillain(opts.vsVillain);
+  const triggerSixCinematic = useCallback(
+    (opts: { vsVillain: boolean; clearEncounter?: () => void }) => {
+      clearSixTimers();
 
-    // ✅ Hold glow for ~3s, then reset cube pose
-    const tReset = window.setTimeout(() => {
-      setDiceRot(BASE_DICE_VIEW);
-    }, 3000);
+      setSixGlow(true);
+      setSixGlowVsVillain(opts.vsVillain);
 
-    const tEnd = window.setTimeout(() => {
-      setSixGlow(false);
-      setSixGlowVsVillain(false);
-      opts.clearEncounter?.();
-    }, 3200);
+      // hold glow for ~3s, then reset cube pose
+      const tReset = window.setTimeout(() => {
+        setDiceRot(BASE_DICE_VIEW);
+      }, 3000);
 
-    sixTimersRef.current.push(tReset, tEnd);
-  },
-  [clearSixTimers, BASE_DICE_VIEW]
-);
+      const tEnd = window.setTimeout(() => {
+        setSixGlow(false);
+        setSixGlowVsVillain(false);
+        opts.clearEncounter?.();
+      }, 3200);
 
-
+      sixTimersRef.current.push(tReset, tEnd);
+    },
+    [clearSixTimers, BASE_DICE_VIEW]
+  );
 
   useEffect(() => {
     return () => clearSixTimers();
@@ -408,109 +403,112 @@ const triggerSixCinematic = useCallback(
     return null;
   }
 
-const rollDice = useCallback(() => {
-  // dice roll counts as a turn
-  setMovesTaken((m) => m + 1);
+  /* --------------------------
+     Roll dice
+  -------------------------- */
+  const rollDice = useCallback(() => {
+    setMovesTaken((m) => m + 1);
 
-  const n = 1 + Math.floor(Math.random() * 6);
-  setRollValue(n);
+    const n = 1 + Math.floor(Math.random() * 6);
+    setRollValue(n);
 
-  const targetFace = rotForRoll(n);
-  const final = { x: BASE_DICE_VIEW.x + targetFace.x, y: BASE_DICE_VIEW.y + targetFace.y };
+    const targetFace = rotForRoll(n);
+    const final = { x: BASE_DICE_VIEW.x + targetFace.x, y: BASE_DICE_VIEW.y + targetFace.y };
 
-  setDiceSpinning(true);
+    setDiceSpinning(true);
 
-  const extraX = 360 * (1 + Math.floor(Math.random() * 2));
-  const extraY = 360 * (2 + Math.floor(Math.random() * 2));
+    const extraX = 360 * (1 + Math.floor(Math.random() * 2));
+    const extraY = 360 * (2 + Math.floor(Math.random() * 2));
 
-  setDiceRot({ x: final.x - extraX, y: final.y - extraY });
+    setDiceRot({ x: final.x - extraX, y: final.y - extraY });
 
-  window.setTimeout(() => {
-    setDiceRot(final);
-    window.setTimeout(() => setDiceSpinning(false), 650);
-  }, 40);
+    window.setTimeout(() => {
+      setDiceRot(final);
+      window.setTimeout(() => setDiceSpinning(false), 650);
+    }, 40);
 
-  pushLog(`Rolled ${n}`, n === 6 ? "ok" : "info");
+    pushLog(`Rolled ${n}`, n === 6 ? "ok" : "info");
 
-  // encounter: only 6 clears it
-  if (encounterActive && n === 6) {
-    const clearedKey = encounter?.villainKey ?? "bad1";
-    triggerSixCinematic({
-      vsVillain: true,
-      clearEncounter: () => {
-        setEncounter(null);
-        pushLog(`Encounter cleared (${clearedKey})`, "ok");
-      },
-    });
-    return;
-  }
+    // encounter: only 6 clears it
+    if (encounterActive && n === 6) {
+      const clearedKey = encounter?.villainKey ?? "bad1";
+      triggerSixCinematic({
+        vsVillain: true,
+        clearEncounter: () => {
+          setEncounter(null);
+          pushLog(`Encounter cleared (${clearedKey})`, "ok");
+        },
+      });
+      return;
+    }
 
-  // free-roll 6: glow + reset
-  if (!encounterActive && n === 6) {
-    triggerSixCinematic({ vsVillain: false });
-    return;
-  }
+    // free-roll 6: glow + reset
+    if (!encounterActive && n === 6) {
+      triggerSixCinematic({ vsVillain: false });
+      return;
+    }
 
-  // Encounter: non-6 increments tries
-  setEncounter((prev) => {
-    if (!prev) return prev;
-    return { ...prev, tries: prev.tries + 1 };
-  });
-}, [pushLog, encounterActive, triggerSixCinematic, encounter, BASE_DICE_VIEW]);
+    // Encounter: non-6 increments tries
+    if (encounterActive) {
+      setEncounter((prev) => {
+        if (!prev) return prev;
+        return { ...prev, tries: prev.tries + 1 };
+      });
+    }
+  }, [BASE_DICE_VIEW, encounter, encounterActive, pushLog, triggerSixCinematic]);
 
-
-    
-  }, [pushLog, , triggerSixCinematic, encounter, BASE_DICE_VIEW]);
-
-  // Manual drag rotation ONLY when NOT in encounter
+  /* --------------------------
+     Manual drag rotation ONLY when NOT in encounter
+  -------------------------- */
   const onDicePointerDown = useCallback(
-  (e: React.PointerEvent<HTMLDivElement>) => {
-    if (encounterActive) return;
-    if (diceSpinning) return;
-    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (encounterActive) return;
+      if (diceSpinning) return;
 
-    dragRef.current.active = true;
-    dragRef.current.pointerId = e.pointerId;
-    dragRef.current.startX = e.clientX;
-    dragRef.current.startY = e.clientY;
-    dragRef.current.startRotX = diceRot.x;
-    dragRef.current.startRotY = diceRot.y;
+      (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
 
-    setDiceDragging(true);
-  },
-  [diceRot.x, diceRot.y, diceSpinning, encounterActive]
-);
+      dragRef.current.active = true;
+      dragRef.current.pointerId = e.pointerId;
+      dragRef.current.startX = e.clientX;
+      dragRef.current.startY = e.clientY;
+      dragRef.current.startRotX = diceRot.x;
+      dragRef.current.startRotY = diceRot.y;
 
-const onDicePointerMove = useCallback(
-  (e: React.PointerEvent<HTMLDivElement>) => {
-    if (encounterActive) return;
-    if (!dragRef.current.active) return;
-    if (e.pointerId !== dragRef.current.pointerId) return;
+      setDiceDragging(true);
+    },
+    [diceRot.x, diceRot.y, diceSpinning, encounterActive]
+  );
 
-    const dx = e.clientX - dragRef.current.startX;
-    const dy = e.clientY - dragRef.current.startY;
+  const onDicePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (encounterActive) return;
+      if (!dragRef.current.active) return;
+      if (e.pointerId !== dragRef.current.pointerId) return;
 
-    const sens = 0.35;
-    const nextY = dragRef.current.startRotY + dx * sens;
-    const nextX = dragRef.current.startRotX - dy * sens;
+      const dx = e.clientX - dragRef.current.startX;
+      const dy = e.clientY - dragRef.current.startY;
 
-    setDiceRot({ x: nextX, y: nextY });
-  },
-  [encounterActive]
-);
+      const sens = 0.35;
+      const nextY = dragRef.current.startRotY + dx * sens;
+      const nextX = dragRef.current.startRotX - dy * sens;
 
-const endDrag = useCallback(
-  (e: React.PointerEvent<HTMLDivElement>) => {
-    if (encounterActive) return;
-    if (!dragRef.current.active) return;
-    if (e.pointerId !== dragRef.current.pointerId) return;
+      setDiceRot({ x: nextX, y: nextY });
+    },
+    [encounterActive]
+  );
 
-    dragRef.current.active = false;
-    dragRef.current.pointerId = -1;
-    setDiceDragging(false);
-  },
-  [encounterActive]
-);
+  const endDrag = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (encounterActive) return;
+      if (!dragRef.current.active) return;
+      if (e.pointerId !== dragRef.current.pointerId) return;
+
+      dragRef.current.active = false;
+      dragRef.current.pointerId = -1;
+      setDiceDragging(false);
+    },
+    [encounterActive]
+  );
 
   /* --------------------------
      Game helpers
@@ -644,29 +642,59 @@ const endDrag = useCallback(
   }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog, clearSixTimers, BASE_DICE_VIEW]);
 
   /* --------------------------
-     Board click
+     Board click / move
   -------------------------- */
- const tryMoveToId = useCallback(
-  (id: string) => {
-    if (encounterActive) return;
+  const tryMoveToId = useCallback(
+    (id: string) => {
+      if (!state) return;
 
-    const vk = findTriggerForHex(id);
-    if (vk) {
-      setEncounter({ villainKey: vk, tries: 0 });
-      setDiceRot(BASE_DICE_VIEW);
-      setDiceSpinning(false);
-      setDiceDragging(false);
-      pushLog(`Encounter: ${vk} — roll a 6 to continue`, "bad");
-      return;
-    }
+      // During encounter, lock board
+      if (encounterActive) return;
 
-    if (!state) return;
+      // If tile triggers villain -> start encounter
+      const vk = findTriggerForHex(id);
+      if (vk) {
+        setEncounter({ villainKey: vk, tries: 0 });
+        setDiceRot(BASE_DICE_VIEW);
+        setDiceSpinning(false);
+        setDiceDragging(false);
+        pushLog(`Encounter: ${vk} — roll a 6 to continue`, "bad");
+        return;
+      }
 
-    // ... keep rest unchanged ...
-  },
-  [encounterActive, state, BASE_DICE_VIEW, pushLog, currentLayer, revealWholeLayer, computeOptimalFromReachMap, goalId]
-);
+      // Only allow reachable tiles (or player tile)
+      const pid = (state as any).playerHexId as string | null;
+      if (pid !== id && !reachable.has(id)) {
+        pushLog("Not reachable.", "bad");
+        return;
+      }
 
+      // Try move
+      const res: any = tryMove(state as any, id);
+      const nextState: any = res?.state ?? res ?? null;
+      if (!nextState) return;
+
+      setState(nextState);
+      setSelectedId((nextState as any).playerHexId ?? id);
+
+      const p2 = (nextState as any).playerHexId as string | null;
+      const c2 = p2 ? idToCoord(p2) : null;
+      const nextLayer = c2?.layer ?? currentLayer;
+
+      if (nextLayer !== currentLayer) {
+        setCurrentLayer(nextLayer);
+        enterLayer(nextState, nextLayer);
+        revealWholeLayer(nextState, nextLayer);
+      }
+
+      const rm = getReachability(nextState) as any;
+      setReachMap(rm);
+      setOptimalFromNow(computeOptimalFromReachMap(rm as any, goalId));
+
+      pushLog(`Moved to ${p2 ?? id}`, "ok");
+    },
+    [state, encounterActive, findTriggerForHex, BASE_DICE_VIEW, pushLog, reachable, currentLayer, revealWholeLayer, computeOptimalFromReachMap, goalId]
+  );
 
   /* --------------------------
      Inventory use (simple)
@@ -746,15 +774,12 @@ const endDrag = useCallback(
 
   const stepBgBlue = "linear-gradient(180deg, rgba(40,120,255,.95), rgba(10,40,120,.95))";
 
-  // ✅ push theme assets into CSS variables (tile + dice border + board layer bg)
+  // theme assets into CSS variables
   const cssVars = useMemo(() => {
     const vars: any = {
       ["--diceBorderImg"]: DICE_BORDER_IMG ? `url("${toPublicUrl(DICE_BORDER_IMG)}")` : "none",
       ["--menuSolidBg"]: stepBgBlue,
-
       ["--hexTileImg"]: HEX_TILE ? `url("${toPublicUrl(HEX_TILE)}")` : "none",
-
-      // ✅ NEW: board-only per-layer background
       ["--boardLayerBg"]: BOARD_LAYER_BG ? `url("${toPublicUrl(BOARD_LAYER_BG)}")` : "none",
     };
     if (palette) {
@@ -772,6 +797,195 @@ const endDrag = useCallback(
   const playerId = (state as any)?.playerHexId ?? null;
   const playerCoord = playerId ? idToCoord(playerId) : null;
   const playerPosText = playerCoord ? `R${playerCoord.row + 1} C${playerCoord.col + 1} (L${playerCoord.layer})` : "—";
+
+  // ✅ dice UI reused (normal + overlay)
+  const diceNode = (
+    <div className={"diceArea" + (encounterActive ? " encounterOn" : "")}>
+      <div className={"diceCubeWrap" + (diceSpinning ? " isSpinningShake" : "")} aria-label="Layer dice">
+        <div
+          className={"diceCube" + (diceDragging ? " isDragging" : "") + (sixGlow ? " glowSix" : "")}
+          onPointerDown={onDicePointerDown}
+          onPointerMove={onDicePointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          style={{
+            transform: `translateY(30px) rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
+            touchAction: encounterActive ? "auto" : "none",
+            cursor: encounterActive ? "default" : diceDragging ? "grabbing" : "grab",
+          }}
+        >
+          {encounterActive ? (
+            <>
+              <FaceImage cls="diceFace faceTop" src={diceImg(1)} alt="Dice 1" />
+              <FaceImage cls="diceFace faceFront" src={diceImg(2)} alt="Dice 2" />
+              <FaceImage cls="diceFace faceRight" src={diceImg(3)} alt="Dice 3" />
+              <FaceImage cls="diceFace faceLeft" src={diceImg(4)} alt="Dice 4" />
+              <FaceImage cls="diceFace faceBack" src={diceImg(5)} alt="Dice 5" />
+              <FaceImage cls="diceFace faceBottom" src={diceImg(6)} alt="Dice 6" />
+            </>
+          ) : (
+            <>
+              <div className="diceFace faceTop">
+                <div className="faceStripe" style={{ background: stripeAbove }} />
+                <div className="diceFaceInnerFixed">
+                  <div className="miniFit">
+                    <HexBoard
+                      kind="mini"
+                      activeLayer={miniAboveLayer}
+                      maxLayer={scenarioLayerCount}
+                      state={state}
+                      selectedId={null}
+                      reachable={miniAboveReach.reachable}
+                      reachMap={miniAboveReach.reachMap}
+                      showCoords={false}
+                      onCellClick={undefined}
+                      showPlayerOnMini={true}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="diceFace faceFront">
+                <div className="faceStripe" style={{ background: stripeCurr }} />
+                <div className="diceFaceInnerFixed">
+                  <div className="miniFit">
+                    <HexBoard
+                      kind="mini"
+                      activeLayer={miniCurrLayer}
+                      maxLayer={scenarioLayerCount}
+                      state={state}
+                      selectedId={null}
+                      reachable={miniCurrReach.reachable}
+                      reachMap={miniCurrReach.reachMap}
+                      showCoords={false}
+                      onCellClick={undefined}
+                      showPlayerOnMini={true}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="diceFace faceRight">
+                <div className="faceStripe" style={{ background: stripeBelow }} />
+                <div className="diceFaceInnerFixed">
+                  {belowLayer < 1 ? (
+                    <div className="miniInvalid">NO LAYER BELOW</div>
+                  ) : (
+                    <div className="miniFit">
+                      <HexBoard
+                        kind="mini"
+                        activeLayer={miniBelowLayer}
+                        maxLayer={scenarioLayerCount}
+                        state={state}
+                        selectedId={null}
+                        reachable={miniBelowReach.reachable}
+                        reachMap={miniBelowReach.reachMap}
+                        showCoords={false}
+                        onCellClick={undefined}
+                        showPlayerOnMini={true}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="diceFace faceBack">
+                <div className="diceHud">
+                  <div className="hudTitle">Moves</div>
+                  <div className="hudRow">
+                    <span className="hudKey">Taken</span>
+                    <span className="hudVal">{movesTaken}</span>
+                  </div>
+                  <div className="hudRow">
+                    <span className="hudKey">Optimal start</span>
+                    <span className="hudVal">{optimalAtStart == null ? "—" : optimalAtStart}</span>
+                  </div>
+                  <div className="hudRow">
+                    <span className="hudKey">Optimal now</span>
+                    <span className="hudVal">{optimalFromNow == null ? "—" : optimalFromNow}</span>
+                  </div>
+                  <div className="hudRow">
+                    <span className="hudKey">Δ</span>
+                    <span className={"hudVal " + (delta == null ? "" : delta <= 0 ? "ok" : "bad")}>{delta == null ? "—" : delta}</span>
+                  </div>
+                  <div className="hudNote">
+                    Pos: <span className="mono">{playerPosText}</span>
+                  </div>
+                  <div className="hudNote">
+                    Goal: <span className="mono">{goalId ?? "not set"}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="diceFace faceLeft">
+                <div className="diceHud">
+                  <div className="hudTitle">Story</div>
+                  <div className="hudLog">
+                    {log.slice(0, 7).map((e) => (
+                      <div key={e.n} className={"hudLogLine " + (e.kind ?? "info")}>
+                        <span className="hudTime">{e.t}</span>
+                        <span className="hudMsg">{e.msg}</span>
+                      </div>
+                    ))}
+                    {!log.length ? <div className="hudLogEmpty">No events yet…</div> : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="diceFace faceBottom">
+                <div className="diceHud">
+                  <div className="hudTitle">Power</div>
+                  <div className="invGrid">
+                    {items.map((it) => (
+                      <button key={it.id} className="invSlot" onClick={() => useItem(it.id)} disabled={it.charges <= 0} title={`${it.name} (${it.charges})`}>
+                        <div className="invIcon">{it.icon}</div>
+                        <div className="invMeta">
+                          <div className="invName">{it.name}</div>
+                          <div className="invCharges">{it.charges}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="hudNote">Drag cube or • Tap items to use</div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div
+          className={"orbit" + (diceDragging ? " isDragging" : "")}
+          onPointerDown={onDicePointerDown}
+          onPointerMove={onDicePointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          title="Drag to rotate cube"
+          role="button"
+          tabIndex={0}
+          style={{
+            cursor: encounterActive ? "default" : diceDragging ? "grabbing" : "grab",
+            touchAction: encounterActive ? "auto" : "none",
+          }}
+        />
+      </div>
+
+      <div className="diceControls">{encounterActive ? <div className="diceReadout">Roll = {rollValue}</div> : <div className="diceReadout subtle">Drag to rotate</div>}</div>
+      <div className="dragHint">{encounterActive ? "Encounter: roll a 6 to continue" : "Board Mode: Drag rotation only"}</div>
+
+      <div className="row rowBetween" style={{ marginTop: 12 }}>
+        <button
+          className="btn"
+          onClick={() => {
+            setScreen("scenario");
+            setState(null);
+            setEncounter(null);
+          }}
+        >
+          Back to Scenarios
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="appRoot" style={cssVars}>
@@ -952,13 +1166,7 @@ const endDrag = useCallback(
               {(scenarioEntry?.tracks ?? []).map((t) => {
                 const selected = t.id === trackId;
                 return (
-                  <div
-                    key={t.id}
-                    className={"selectTile" + (selected ? " selected" : "")}
-                    onClick={() => setTrackId(t.id)}
-                    role="button"
-                    tabIndex={0}
-                  >
+                  <div key={t.id} className={"selectTile" + (selected ? " selected" : "")} onClick={() => setTrackId(t.id)} role="button" tabIndex={0}>
                     <div className="selectTileTitle">{t.name}</div>
                     <div className="selectTileDesc">Track: {t.id}</div>
                   </div>
@@ -984,8 +1192,8 @@ const endDrag = useCallback(
         <div className="shell shellGame">
           {encounterActive ? <div className="blackout" aria-hidden="true" /> : null}
 
-        {encounterActive ? (
-  <div className="villainCenter">
+          {encounterActive ? (
+            <div className="villainCenter">
               <img className={"villainImg" + (sixGlow && sixGlowVsVillain ? " glowSix" : "")} src={villainImg(encounter!.villainKey)} alt={encounter!.villainKey} />
               <div className="villainText">Roll a 6 to continue</div>
               <button className="btn primary" onClick={rollDice}>
@@ -995,223 +1203,38 @@ const endDrag = useCallback(
             </div>
           ) : null}
 
-    {/* ✅ PUT THIS HERE */}
-    {encounterActive ? <div className="diceOverlayFixed">{diceNode}</div> : null}
+          {/* ✅ Dice overlay (always above blackout) */}
+          {encounterActive ? <div className="diceOverlayFixed">{diceNode}</div> : null}
+
           <div className="scrollStage" ref={scrollRef}>
             <div className="scrollInner">
               <div className="gameLayout">
                 <SideBar side="left" currentLayer={currentLayer} segments={barSegments} />
 
-             <div className="mainBoardWrap">
-  <div className="boardLayerBg" aria-hidden="true" />
+                <div className="mainBoardWrap">
+                  <div className="boardLayerBg" aria-hidden="true" />
 
-  <HexBoard
-    kind="main"
-    activeLayer={currentLayer}
-    maxLayer={scenarioLayerCount}
-    state={state}
-    selectedId={selectedId}
-    reachable={reachable}
-    reachMap={reachMap}
-    onCellClick={tryMoveToId}
-    showCoords
-    showPlayerOnMini={false}
-  />
+                  <HexBoard
+                    kind="main"
+                    activeLayer={currentLayer}
+                    maxLayer={scenarioLayerCount}
+                    state={state}
+                    selectedId={selectedId}
+                    reachable={reachable}
+                    reachMap={reachMap}
+                    onCellClick={tryMoveToId}
+                    showCoords
+                    showPlayerOnMini={false}
+                  />
 
-  {/* ✅ 4 cards underneath the board */}
-  <FlipCardsRow />
-</div>
-
+                  {/* ✅ 4 cards underneath the board */}
+                  <FlipCardsRow />
+                </div>
 
                 <SideBar side="right" currentLayer={currentLayer} segments={barSegments} />
 
-                {/* Cube / Dice */}
-               <div className={"diceArea" + (encounterActive ? " encounterOn" : "")}>
-                  <div className="diceCubeWrap" aria-label="Layer dice">
-                    <div
-                      className={"diceCube" + (diceSpinning ? " isSpinning" : "") + (diceDragging ? " isDragging" : "") + (sixGlow ? " glowSix" : "")}
-                      onPointerDown={onDicePointerDown}
-                      onPointerMove={onDicePointerMove}
-                      onPointerUp={endDrag}
-                      onPointerCancel={endDrag}
-                      style={{
-                        transform: `translateY(30px) rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
-                        touchAction: encounterActive ? "auto" : "none",
-                        cursor: encounterActive ? "default" : diceDragging ? "grabbing" : "grab",
-                      }}
-                    >
-                      {encounterActive ? (
-                        <>
-                          <FaceImage cls="diceFace faceTop" src={diceImg(1)} alt="Dice 1" />
-                          <FaceImage cls="diceFace faceFront" src={diceImg(2)} alt="Dice 2" />
-                          <FaceImage cls="diceFace faceRight" src={diceImg(3)} alt="Dice 3" />
-                          <FaceImage cls="diceFace faceLeft" src={diceImg(4)} alt="Dice 4" />
-                          <FaceImage cls="diceFace faceBack" src={diceImg(5)} alt="Dice 5" />
-                          <FaceImage cls="diceFace faceBottom" src={diceImg(6)} alt="Dice 6" />
-                        </>
-                      ) : (
-                        <>
-                          <div className="diceFace faceTop">
-                            <div className="faceStripe" style={{ background: stripeAbove }} />
-                            <div className="diceFaceInnerFixed">
-                              <div className="miniFit">
-                                <HexBoard
-                                  kind="mini"
-                                  activeLayer={miniAboveLayer}
-                                  maxLayer={scenarioLayerCount}
-                                  state={state}
-                                  selectedId={null}
-                                  reachable={miniAboveReach.reachable}
-                                  reachMap={miniAboveReach.reachMap}
-                                  showCoords={false}
-                                  onCellClick={undefined}
-                                  showPlayerOnMini={true}
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="diceFace faceFront">
-                            <div className="faceStripe" style={{ background: stripeCurr }} />
-                            <div className="diceFaceInnerFixed">
-                              <div className="miniFit">
-                                <HexBoard
-                                  kind="mini"
-                                  activeLayer={miniCurrLayer}
-                                  maxLayer={scenarioLayerCount}
-                                  state={state}
-                                  selectedId={null}
-                                  reachable={miniCurrReach.reachable}
-                                  reachMap={miniCurrReach.reachMap}
-                                  showCoords={false}
-                                  onCellClick={undefined}
-                                  showPlayerOnMini={true}
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="diceFace faceRight">
-                            <div className="faceStripe" style={{ background: stripeBelow }} />
-                            <div className="diceFaceInnerFixed">
-                              {belowLayer < 1 ? (
-                                <div className="miniInvalid">NO LAYER BELOW</div>
-                              ) : (
-                                <div className="miniFit">
-                                  <HexBoard
-                                    kind="mini"
-                                    activeLayer={miniBelowLayer}
-                                    maxLayer={scenarioLayerCount}
-                                    state={state}
-                                    selectedId={null}
-                                    reachable={miniBelowReach.reachable}
-                                    reachMap={miniBelowReach.reachMap}
-                                    showCoords={false}
-                                    onCellClick={undefined}
-                                    showPlayerOnMini={true}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="diceFace faceBack">
-                            <div className="diceHud">
-                              <div className="hudTitle">Moves</div>
-                              <div className="hudRow">
-                                <span className="hudKey">Taken</span>
-                                <span className="hudVal">{movesTaken}</span>
-                              </div>
-                              <div className="hudRow">
-                                <span className="hudKey">Optimal start</span>
-                                <span className="hudVal">{optimalAtStart == null ? "—" : optimalAtStart}</span>
-                              </div>
-                              <div className="hudRow">
-                                <span className="hudKey">Optimal now</span>
-                                <span className="hudVal">{optimalFromNow == null ? "—" : optimalFromNow}</span>
-                              </div>
-                              <div className="hudRow">
-                                <span className="hudKey">Δ</span>
-                                <span className={"hudVal " + (delta == null ? "" : delta <= 0 ? "ok" : "bad")}>{delta == null ? "—" : delta}</span>
-                              </div>
-                              <div className="hudNote">
-                                Pos: <span className="mono">{playerPosText}</span>
-                              </div>
-                              <div className="hudNote">
-                                Goal: <span className="mono">{goalId ?? "not set"}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="diceFace faceLeft">
-                            <div className="diceHud">
-                              <div className="hudTitle">Story</div>
-                              <div className="hudLog">
-                                {log.slice(0, 7).map((e) => (
-                                  <div key={e.n} className={"hudLogLine " + (e.kind ?? "info")}>
-                                    <span className="hudTime">{e.t}</span>
-                                    <span className="hudMsg">{e.msg}</span>
-                                  </div>
-                                ))}
-                                {!log.length ? <div className="hudLogEmpty">No events yet…</div> : null}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="diceFace faceBottom">
-                            <div className="diceHud">
-                              <div className="hudTitle">Power</div>
-                              <div className="invGrid">
-                                {items.map((it) => (
-                                  <button key={it.id} className="invSlot" onClick={() => useItem(it.id)} disabled={it.charges <= 0} title={`${it.name} (${it.charges})`}>
-                                    <div className="invIcon">{it.icon}</div>
-                                    <div className="invMeta">
-                                      <div className="invName">{it.name}</div>
-                                      <div className="invCharges">{it.charges}</div>
-                                    </div>
-                                  </button>
-                                ))}
-                              </div>
-                              <div className="hudNote">Drag cube or • Tap items to use</div>
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    <div
-                      className={"orbit" + (diceDragging ? " isDragging" : "")}
-                      onPointerDown={onDicePointerDown}
-                      onPointerMove={onDicePointerMove}
-                      onPointerUp={endDrag}
-                      onPointerCancel={endDrag}
-                      title="Drag to rotate cube"
-                      role="button"
-                      tabIndex={0}
-                      style={{
-                        cursor: encounterActive ? "default" : diceDragging ? "grabbing" : "grab",
-                        touchAction: encounterActive ? "auto" : "none",
-                      }}
-                    />
-                  </div>
-
-                  <div className="diceControls">{encounterActive ? <div className="diceReadout">Roll = {rollValue}</div> : <div className="diceReadout subtle">Drag to rotate</div>}</div>
-
-                  <div className="dragHint">{encounterActive ? "Encounter: roll a 6 to continue" : "Board Mode: Drag rotation only"}</div>
-
-                  <div className="row rowBetween" style={{ marginTop: 12 }}>
-                    <button
-                      className="btn"
-                      onClick={() => {
-                        setScreen("scenario");
-                        setState(null);
-                        setEncounter(null);
-                      }}
-                    >
-                      Back to Scenarios
-                    </button>
-                  </div>
-                </div>
+                {/* ✅ Normal dice only when NOT in encounter */}
+                {!encounterActive ? diceNode : null}
               </div>
             </div>
           </div>
@@ -1259,7 +1282,14 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number; segments
       <div className="layerBar">
         {segments.map((layerVal) => {
           const active = layerVal === currentLayer;
-          return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} title={`Layer ${layerVal}`} />;
+          return (
+            <div
+              key={layerVal}
+              className={"barSeg" + (active ? " isActive" : "")}
+              data-layer={layerVal}
+              title={`Layer ${layerVal}`}
+            />
+          );
         })}
       </div>
     </div>
@@ -1337,12 +1367,9 @@ function HexBoard(props: {
                   title={showCoords ? `L${activeLayer} R${row + 1} C${col + 1}` : undefined}
                 >
                   <span className="hexClip" aria-hidden="true" />
-
                   <span className="hexGlowOuter" aria-hidden="true" />
                   <span className="hexGlowRing" aria-hidden="true" />
-
                   <span className="hexShade" aria-hidden="true" />
-
                   <span className="hexRim hexRimTop" aria-hidden="true" />
                   <span className="hexRim hexRimBottom" aria-hidden="true" />
 
@@ -1363,31 +1390,31 @@ function HexBoard(props: {
     </div>
   );
 }
+
+/* =========================================================
+   Flip Cards Row (4 cards under board)
+========================================================= */
 function FlipCardsRow() {
   const [flipped, setFlipped] = React.useState<boolean[]>([false, false, false, false]);
 
   const cards = [
     {
       id: "c1",
-      title: "Card 1",
       frontImg: "https://upload.wikimedia.org/wikipedia/commons/7/7b/Jack_of_clubs2.svg",
       backImg: "https://upload.wikimedia.org/wikipedia/commons/d/d4/Card_back_01.svg",
     },
     {
       id: "c2",
-      title: "Card 2",
       frontImg: "https://upload.wikimedia.org/wikipedia/commons/f/f6/Queen_of_hearts2.svg",
       backImg: "https://upload.wikimedia.org/wikipedia/commons/d/d4/Card_back_01.svg",
     },
     {
       id: "c3",
-      title: "Card 3",
       frontImg: "https://upload.wikimedia.org/wikipedia/commons/2/22/King_of_spades2.svg",
       backImg: "https://upload.wikimedia.org/wikipedia/commons/d/d4/Card_back_01.svg",
     },
     {
       id: "c4",
-      title: "Card 4",
       frontImg: "https://upload.wikimedia.org/wikipedia/commons/a/ab/Ace_of_spades.svg",
       backImg: "https://upload.wikimedia.org/wikipedia/commons/d/d4/Card_back_01.svg",
     },
@@ -1422,7 +1449,6 @@ function FlipCardsRow() {
   );
 }
 
-
 /* =========================================================
    CSS
 ========================================================= */
@@ -1443,13 +1469,15 @@ const CSS = `
   --hexTileImg: none;
   --diceBorderImg: none;
 
-  /* ✅ NEW: set by App */
+  /* set by App */
   --boardLayerBg: none;
 }
 
 *{ box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
 body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+
+button, .hex, .selectTile{ -webkit-tap-highlight-color: transparent; }
 
 .appRoot{
   min-height: 100vh;
@@ -1494,6 +1522,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   inset: 0;
   background: rgba(0,0,0,.85);
   z-index: 50;
+  pointer-events: none; /* allow dice overlay to stay clickable */
 }
 
 .villainCenter{
@@ -1501,7 +1530,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   left: 38%;
   top: 50%;
   transform: translate(-50%, -50%);
-  z-index: 60;
+  z-index: 110;
   display: grid;
   gap: 12px;
   justify-items: center;
@@ -1525,6 +1554,15 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 .villainText{ font-weight: 1000; opacity: .96; }
 .villainSmall{ font-weight: 900; opacity: .8; font-size: 12px; }
+
+/* Dice overlay above blackout */
+.diceOverlayFixed{
+  position: fixed;
+  right: 28px;
+  top: 42px;
+  z-index: 120;
+  pointer-events: auto;
+}
 
 /* ===== Cards / menu ===== */
 .card{
@@ -1615,7 +1653,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 .hexBoardMain{ overflow: visible; }
 .hexRow{ overflow: visible; }
 
-/* ✅ NEW: board-only background behind the board */
+/* board-only background behind the board */
 .boardLayerBg{
   position: absolute;
   inset: 0;
@@ -1627,7 +1665,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   background-repeat: no-repeat;
 }
 
-/* bars remain above */
+/* bars */
 .barWrap{ display:flex; align-items: flex-start; justify-content: center; position: relative; z-index: 12; }
 .layerBar{
   width: 18px;
@@ -1639,11 +1677,9 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   display: grid;
   grid-template-rows: repeat(7, 1fr);
 }
-
 .barSeg{ opacity: .95; position: relative; }
 .barSeg:first-child{ border-top-left-radius: 999px; border-top-right-radius: 999px; }
 .barSeg:last-child{ border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
-
 .barSeg[data-layer="1"]{ background: var(--L1); }
 .barSeg[data-layer="2"]{ background: var(--L2); }
 .barSeg[data-layer="3"]{ background: var(--L3); }
@@ -1663,7 +1699,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   border-radius: 999px;
   pointer-events:none;
 }
-
 .barRight .barSeg.isActive{
   outline: 1px solid rgba(255,255,255,.95);
   box-shadow:
@@ -1691,7 +1726,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   user-select: none;
   overflow: visible;
   position: relative;
-  z-index: 2; /* ✅ above boardLayerBg */
+  z-index: 2;
 }
 .hexBoardMain{ --hexW: var(--hexWMain); --hexH: var(--hexHMain); }
 .hexBoardMini{ --hexW: 24px; --hexGap: 2px; --hexOverlap: 0.0; }
@@ -1717,7 +1752,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
 }
 .hexBoardMain .hex{ cursor: pointer; }
 
-/* ✅ ONE PATTERN SHEET BEHIND THE WHOLE MAIN BOARD */
+/* one pattern sheet behind whole main board */
 .hexBoardMain{
   position: relative;
 }
@@ -1733,7 +1768,6 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   background-size: var(--hexPitch) var(--hexHMain);
   background-position: 0 0;
 }
-
 .hexRow, .hex{ position: relative; z-index: 1; }
 
 .hexClip{
@@ -1746,14 +1780,12 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   z-index: 0;
   pointer-events:none;
 }
-
 .hexRim,
 .hexLabel,
 .miniNum,
 .hexShade{
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
 }
-
 .hexRim{
   position:absolute;
   left: 14%;
@@ -1839,6 +1871,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
   mix-blend-mode: screen;
 }
 
+/* reachable glow (blue/white) */
 .hex.reach .hexGlowOuter{ opacity: .95; background: rgba(120,210,255,.28); }
 .hex.reach .hexGlowRing{
   opacity: 1;
@@ -1849,6 +1882,7 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
     0 0 52px rgba(120,210,255,.55);
 }
 
+/* player glow (green/white) */
 .hex.player .hexGlowOuter{ opacity: .95; background: rgba(120,255,170,.30); }
 .hex.player .hexGlowRing{
   opacity: 1;
@@ -1859,25 +1893,242 @@ body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, H
     0 0 58px rgba(120,255,170,.60);
 }
 
-/* Dice / cube etc remain unchanged below (your original CSS continues) */
-
-button, .hex, .selectTile{ -webkit-tap-highlight-color: transparent; }
-
-@media (max-width: 980px){
-  .scrollInner{ min-width: 1200px; }
+/* ===== Dice HUD styling ===== */
+.faceStripe{
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  height: 10px;
+  opacity: .95;
+  z-index: 2;
 }
-/* =========================
-   4 Cards under board (2:3)
-   No vertical scroll (cap height)
-========================= */
 
+.diceHud{
+  position:absolute;
+  inset: 0;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  background: rgba(0,0,0,.22);
+}
+.hudTitle{
+  font-weight: 1100;
+  letter-spacing: .2px;
+  text-transform: uppercase;
+  font-size: 12px;
+  opacity: .92;
+}
+.hudRow{
+  display:flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 950;
+  font-size: 13px;
+}
+.hudKey{ opacity: .82; font-weight: 1000; }
+.hudVal{ opacity: .96; }
+.hudVal.ok{ color: rgba(170,255,210,.98); }
+.hudVal.bad{ color: rgba(255,170,190,.98); }
+.hudNote{
+  opacity: .86;
+  font-weight: 900;
+  font-size: 12px;
+}
+.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+
+.hudLog{
+  display:grid;
+  gap: 6px;
+}
+.hudLogLine{
+  display:flex;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 12px;
+  line-height: 1.25;
+}
+.hudTime{
+  opacity: .70;
+  font-weight: 1000;
+  min-width: 44px;
+}
+.hudMsg{
+  opacity: .92;
+  font-weight: 900;
+}
+.hudLogLine.ok .hudMsg{ color: rgba(170,255,210,.98); }
+.hudLogLine.bad .hudMsg{ color: rgba(255,170,190,.98); }
+.hudLogEmpty{ opacity: .70; font-weight: 900; font-size: 12px; }
+
+.invGrid{
+  display:grid;
+  gap: 10px;
+}
+.invSlot{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.16);
+  padding: 10px;
+  cursor:pointer;
+}
+.invSlot:disabled{ opacity: .55; cursor: not-allowed; }
+.invIcon{ font-size: 18px; }
+.invMeta{ display:flex; justify-content: space-between; gap: 12px; width: 100%; }
+.invName{ font-weight: 1000; opacity: .95; }
+.invCharges{ font-weight: 1100; opacity: .85; }
+
+/* ===== Dice / Cube (real 3D cube) ===== */
+.diceArea{
+  position: relative;
+  z-index: 40;
+}
+
+.diceCubeWrap{
+  --cubeSize: 320px;
+  --cubeZ: calc(var(--cubeSize) / 2);
+
+  width: var(--cubeSize);
+  height: var(--cubeSize);
+  position: relative;
+
+  perspective: 1200px;
+  perspective-origin: 50% 45%;
+  overflow: visible;
+}
+
+.diceCubeWrap.isSpinningShake{
+  animation: diceShake 650ms ease-out;
+}
+
+@keyframes diceShake{
+  0%   { transform: translateZ(0) rotate(0deg); }
+  25%  { transform: translateZ(0) rotate(1.2deg); }
+  55%  { transform: translateZ(0) rotate(-1.4deg); }
+  100% { transform: translateZ(0) rotate(0deg); }
+}
+
+.diceCube{
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.diceFace{
+  position: absolute;
+  inset: 0;
+  border-radius: 22px;
+  overflow: hidden;
+
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+
+  background: rgba(255,255,255,.08);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.10) inset,
+    0 22px 55px rgba(0,0,0,.35);
+}
+
+/* correct face transforms */
+.faceFront  { transform: rotateY(  0deg) translateZ(var(--cubeZ)); }
+.faceBack   { transform: rotateY(180deg) translateZ(var(--cubeZ)); }
+.faceRight  { transform: rotateY( 90deg) translateZ(var(--cubeZ)); }
+.faceLeft   { transform: rotateY(-90deg) translateZ(var(--cubeZ)); }
+.faceTop    { transform: rotateX( 90deg) translateZ(var(--cubeZ)); }
+.faceBottom { transform: rotateX(-90deg) translateZ(var(--cubeZ)); }
+
+.diceFaceInnerFixed{
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.miniFit{
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.miniInvalid{
+  font-weight: 1100;
+  opacity: .80;
+  text-align: center;
+}
+
+.diceImgWrap{
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.diceImg{
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* dice corners */
+.diceCorner{
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  background-image: var(--diceBorderImg);
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: .95;
+  pointer-events: none;
+}
+.diceCorner.tl{ top: 10px; left: 10px; }
+.diceCorner.tr{ top: 10px; right: 10px; transform: scaleX(-1); }
+.diceCorner.bl{ bottom: 10px; left: 10px; transform: scaleY(-1); }
+.diceCorner.br{ bottom: 10px; right: 10px; transform: scale(-1); }
+
+/* orbit drag handle */
+.orbit{
+  position: absolute;
+  inset: -16px;
+  border-radius: 999px;
+  z-index: 5;
+}
+
+/* dice controls */
+.diceControls{
+  margin-top: 10px;
+  display: grid;
+  place-items: center;
+}
+.diceReadout{
+  font-weight: 1100;
+  letter-spacing: .2px;
+}
+.diceReadout.subtle{ opacity: .78; }
+
+/* 6 glow on cube */
+.diceCube.glowSix{
+  filter:
+    drop-shadow(0 0 12px rgba(160,230,255,.95))
+    drop-shadow(0 0 22px rgba(255,255,255,.75))
+    drop-shadow(0 0 42px rgba(120,210,255,.65));
+}
+
+/* ===== 4 Cards under board (2:3) ===== */
 .cardsRow{
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
 
   width: 100%;
-  /* roughly the same width as the main board */
   max-width: calc(var(--hexWMain) + (7 - 1) * (var(--hexWMain) + 10px));
   margin: 14px auto 0;
 
@@ -1885,7 +2136,6 @@ button, .hex, .selectTile{ -webkit-tap-highlight-color: transparent; }
   z-index: 12;
 }
 
-/* Button wrapper = the card itself */
 .cardSlot{
   aspect-ratio: 2 / 3;
   width: 100%;
@@ -1900,10 +2150,8 @@ button, .hex, .selectTile{ -webkit-tap-highlight-color: transparent; }
   overflow: hidden;
   cursor: pointer;
 
-  /* prevents cards becoming too tall and forcing scroll */
-  max-height: 240px; /* tweak 210–260 if needed */
+  max-height: 240px;
 
-  /* enable 3d */
   perspective: 900px;
   perspective-origin: 50% 50%;
 }
@@ -1913,7 +2161,6 @@ button, .hex, .selectTile{ -webkit-tap-highlight-color: transparent; }
   outline-offset: 3px;
 }
 
-/* inner 3d container */
 .card3d{
   position: relative;
   width: 100%;
@@ -1922,7 +2169,6 @@ button, .hex, .selectTile{ -webkit-tap-highlight-color: transparent; }
   transition: transform .35s cubic-bezier(0.13, 1.03, 0.39, 0.98);
 }
 
-/* faces */
 .cardFace{
   position: absolute;
   inset: 0;
@@ -1943,15 +2189,9 @@ button, .hex, .selectTile{ -webkit-tap-highlight-color: transparent; }
   border: 1px solid rgba(0,0,0,.28);
 }
 
-/* front/back initial */
-.cardFront{
-  transform: rotateX(0deg);
-}
-.cardBack{
-  transform: rotateX(180deg);
-}
+.cardFront{ transform: rotateX(0deg); }
+.cardBack{ transform: rotateX(180deg); }
 
-/* hover tilt vibe (like your SCSS) */
 .cardSlot:hover .cardFront{
   transform: rotateX(20deg);
   box-shadow: 0px 60px 60px -50px rgba(0, 0, 0, 0.45);
@@ -1967,199 +2207,19 @@ button, .hex, .selectTile{ -webkit-tap-highlight-color: transparent; }
   border-bottom: 1px solid rgba(0,0,0,.75);
 }
 
-/* flipped state */
 .cardSlot.flipped .card3d{
   transform: rotateX(180deg);
 }
+.cardSlot.flipped:hover .cardFront{ transform: rotateX(200deg); }
+.cardSlot.flipped:hover .cardBack{ transform: rotateX(160deg); }
 
-/* flipped + hover tilt */
-.cardSlot.flipped:hover .card3d{
-  transform: rotateX(180deg);
-}
-.cardSlot.flipped:hover .cardFront{
-  transform: rotateX(200deg);
-}
-.cardSlot.flipped:hover .cardBack{
-  transform: rotateX(160deg);
-}
-
-/* Responsive: if tight width, go 2x2 so you still don’t scroll */
 @media (max-width: 1100px){
-  .cardsRow{
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .cardSlot{
-    max-height: 220px;
-  }
-}
-/* =========================
-   FIX: Real 3D cube + correct stacking
-========================= */
-
-/* blackout is z=50; villainCenter z=60 in your CSS */
-.diceArea{
-  position: relative;
-  z-index: 40;
+  .cardsRow{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cardSlot{ max-height: 220px; }
 }
 
-/* ✅ when encounter is active, force dice above blackout */
-.diceArea.encounterOn{
-  z-index: 75;
+@media (max-width: 980px){
+  .scrollInner{ min-width: 1200px; }
 }
-
-
-
-/* The wrapper must provide perspective */
-.diceCubeWrap{
-  --cubeSize: 320px;
-  --cubeZ: calc(var(--cubeSize) / 2);
-
-  width: var(--cubeSize);
-  height: var(--cubeSize);
-  position: relative;
-
-  perspective: 1200px;
-  perspective-origin: 50% 45%;
-}
-
-/* The cube itself */
-.diceCube{
-  width: 100%;
-  height: 100%;
-  position: relative;
-  transform-style: preserve-3d;
-  will-change: transform;
-}
-
-/* Each face: absolutely positioned plane */
-.diceFace{
-  position: absolute;
-  inset: 0;
-  border-radius: 22px;
-  overflow: hidden;
-
-  transform-style: preserve-3d;
-  backface-visibility: hidden;
-
-  /* optional: helps it look “solid” */
-  background: rgba(255,255,255,.08);
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,.10) inset,
-    0 22px 55px rgba(0,0,0,.35);
-}
-
-/* ✅ Correct face transforms (a real cube) */
-.faceFront  { transform: rotateY(  0deg) translateZ(var(--cubeZ)); }
-.faceBack   { transform: rotateY(180deg) translateZ(var(--cubeZ)); }
-.faceRight  { transform: rotateY( 90deg) translateZ(var(--cubeZ)); }
-.faceLeft   { transform: rotateY(-90deg) translateZ(var(--cubeZ)); }
-.faceTop    { transform: rotateX( 90deg) translateZ(var(--cubeZ)); }
-.faceBottom { transform: rotateX(-90deg) translateZ(var(--cubeZ)); }
-
-/* Your mini-board content should fit nicely */
-.diceFaceInnerFixed{
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-}
-
-/* image faces (encounter mode) */
-.diceImgWrap{
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-}
-.diceImg{
-  width: 88%;
-  height: 88%;
-  object-fit: contain;
-  user-select: none;
-  -webkit-user-drag: none;
-}
-
-/* corners if you use them */
-.diceCorner{
-  position: absolute;
-  width: 22px;
-  height: 22px;
-  background-image: var(--diceBorderImg);
-  background-size: contain;
-  background-repeat: no-repeat;
-  opacity: .95;
-  pointer-events: none;
-}
-.diceCorner.tl{ top: 10px; left: 10px; }
-.diceCorner.tr{ top: 10px; right: 10px; transform: scaleX(-1); }
-.diceCorner.bl{ bottom: 10px; left: 10px; transform: scaleY(-1); }
-.diceCorner.br{ bottom: 10px; right: 10px; transform: scale(-1); }
-
-/* Keep the orbit “handle” above */
-.orbit{
-  position: absolute;
-  inset: -16px;
-  border-radius: 999px;
-  z-index: 5;
-}
-
-/* ✅ Make sure no parent is flattening/clipping the cube */
-.diceCubeWrap, .diceArea{
-  overflow: visible;
-}
-
-/* =========================
-   FIX: Dice always above blackout in encounter
-========================= */
-
-.diceOverlayFixed{
-  position: fixed;
-  right: 28px;
-  top: 42px;
-  z-index: 120;
-}
-.villainCenter{ z-index: 110; }
-.blackout{ z-index: 50; }
-
-
-
-
-/* If you want the dice still clickable during encounter, keep pointer-events as default. */
-
-/* =========================
-   FIX: Spinning animation (so "stopped spinning" never happens)
-========================= */
-
-.diceCube.isSpinning{
-  animation: diceSpinWobble 650ms ease-out;
-}
-
-@keyframes diceSpinWobble{
-  0%   { transform: translateY(30px) rotateX(0deg) rotateY(0deg); }
-  100% { transform: translateY(30px) rotateX(0deg) rotateY(0deg); }
-}
-
-/*
-IMPORTANT:
-Your cube rotation is driven inline via style="transform: ... rotateX/rotateY ...".
-When animation also sets transform, it conflicts.
-So instead of animating transform, we animate a wrapper.
-*/
-
-/* Wrap-level wobble that does NOT override the cube's transform */
-.diceCubeWrap{ position: relative; }
-.diceCubeWrap .diceCube.isSpinning{
-  animation: none; /* disable transform animation on cube */
-}
-.diceCubeWrap.isSpinningShake{
-  animation: diceShake 650ms ease-out;
-}
-@keyframes diceShake{
-  0%   { transform: translateZ(0) rotate(0deg); }
-  25%  { transform: translateZ(0) rotate(1.2deg); }
-  55%  { transform: translateZ(0) rotate(-1.4deg); }
-  100% { transform: translateZ(0) rotate(0deg); }
-}
-
 `;
+
