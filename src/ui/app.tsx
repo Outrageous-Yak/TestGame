@@ -276,6 +276,25 @@ export default function App() {
     for (const [k, v] of Object.entries(reachMap as any)) if ((v as any)?.reachable) set.add(k);
     return set;
   }, [reachMap]);
+function spriteSheetUrl() {
+  return toPublicUrl("images/players/sprite_sheet_20.png");
+}
+
+// sprite_sheet_20 => commonly 20 frames arranged 5 columns x 4 rows
+// rows: down, left, right, up (you can swap if your sheet is different)
+function facingRow(f: "down" | "up" | "left" | "right") {
+  switch (f) {
+    case "down":
+      return 0;
+    case "left":
+      return 1;
+    case "right":
+      return 2;
+    case "up":
+      return 3;
+  }
+}
+
 
   // villain triggers loaded from scenario.json
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
@@ -1193,7 +1212,20 @@ export default function App() {
                           <div className="hexInner">
                             <div className="hexId">{r},{c}</div>
                             <div className="hexMarks">
-                              {isPlayer ? <span className="mark p">P</span> : null}
+{isPlayer ? (
+  <span
+    className="playerSpriteSheet"
+    style={
+      {
+        ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
+        ["--frameX" as any]: 0, // column 0 (idle frame)
+        ["--frameY" as any]: facingRow(playerFacing),
+      } as any
+    }
+    aria-label="player"
+  />
+) : null}
+
                               {isGoal ? <span className="mark g">G</span> : null}
                               {isTrigger ? <span className="mark t">!</span> : null}
                             </div>
@@ -1883,6 +1915,31 @@ body{
   border-color: rgba(255,122,209,.35);
   color: rgba(255,122,209,.95);
   background: rgba(255,122,209,.10);
+}
+/* === Player sprite from sprite sheet === */
+.playerSpriteSheet{
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+
+  /* sprite sheet */
+  background-image: var(--spriteImg);
+  background-repeat: no-repeat;
+
+  /* IMPORTANT: tune these if your frame size differs */
+  --frameW: 64px;
+  --frameH: 64px;
+  --cols: 5;
+  --rows: 4;
+
+  background-size: calc(var(--frameW) * var(--cols)) calc(var(--frameH) * var(--rows));
+  background-position: calc(var(--frameW) * -1 * var(--frameX)) calc(var(--frameH) * -1 * var(--frameY));
+
+  image-rendering: pixelated; /* nice for pixel art; remove if not needed */
+
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow: 0 10px 18px rgba(0,0,0,.35);
+  background-color: rgba(0,0,0,.20);
 }
 
 /* ===== Sidebar ===== */
