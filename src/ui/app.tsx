@@ -294,7 +294,7 @@ function facingRow(f: "down" | "up" | "left" | "right") {
       return 3;
   }
 }
-
+const [isWalking, setIsWalking] = useState(false); const walkTimer = useRef<number | null>(null); 
 
   // villain triggers loaded from scenario.json
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
@@ -651,10 +651,15 @@ function facingRow(f: "down" | "up" | "left" | "right") {
       const pidBefore = (state as any).playerHexId as string | null;
 
       // allow clicking current tile even if not in reachable set
-      if (pidBefore !== id && !reachable.has(id)) {
-        pushLog("Not reachable.", "bad");
-        return;
-      }
+      if (pidBefore && pidAfter && pidAfter !== pidBefore) {
+  setMovesTaken((n) => n + 1);
+
+  // trigger walk animation for a short burst
+  setIsWalking(true);
+  if (walkTimer.current) window.clearTimeout(walkTimer.current);
+  walkTimer.current = window.setTimeout(() => setIsWalking(false), 450);
+}
+
 
       const res: any = tryMove(state as any, id);
       const nextState: any = res?.state ?? res ?? null;
@@ -1214,17 +1219,16 @@ function facingRow(f: "down" | "up" | "left" | "right") {
                             <div className="hexMarks">
 {isPlayer ? (
   <span
-    className="playerSpriteSheet"
+    className={`playerSpriteSheet ${isWalking ? "walking" : ""}`}
     style={
       {
         ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
-        ["--frameX" as any]: 0, // column 0 (idle frame)
         ["--frameY" as any]: facingRow(playerFacing),
       } as any
     }
-    aria-label="player"
   />
 ) : null}
+
 
                               {isGoal ? <span className="mark g">G</span> : null}
                               {isTrigger ? <span className="mark t">!</span> : null}
@@ -2084,4 +2088,44 @@ body{
   .boardScroll{ height: auto; }
   .log{ max-height: 240px; }
 }
+.playerSpriteSheet{
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+
+  background-image: var(--spriteImg);
+  background-repeat: no-repeat;
+
+  --frameW: 64px;
+  --frameH: 64px;
+  --cols: 5;
+  --rows: 4;
+
+  background-size: calc(var(--frameW) * var(--cols)) calc(var(--frameH) * var(--rows));
+
+  /* default idle frame (col 0) */
+  background-position: 0px calc(var(--frameH) * -1 * var(--frameY));
+
+  image-rendering: pixelated;
+
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow: 0 10px 18px rgba(0,0,0,.35);
+  background-color: rgba(0,0,0,.20);
+}
+
+/* When walking: step through columns 0..4 */
+.playerSpriteSheet.walking{
+  animation: walkFrames 450ms steps(5) infinite;
+}
+
+@keyframes walkFrames{
+  from {
+    background-position: 0px calc(var(--frameH) * -1 * var(--frameY));
+  }
+  to {
+    background-position: calc(var(--frameW) * -5) calc(var(--frameH) * -1 * var(--frameY));
+  }
+}
+
+
 `;
