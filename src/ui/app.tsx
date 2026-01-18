@@ -357,27 +357,29 @@ export default function App() {
     for (const t of sixTimersRef.current) window.clearTimeout(t);
     sixTimersRef.current = [];
   }, []);
-  const triggerSixCinematic = useCallback(
-    (opts: { vsVillain: boolean; clearEncounter?: () => void }) => {
-      clearSixTimers();
+const triggerSixCinematic = useCallback(
+  (opts: { vsVillain: boolean; clearEncounter?: () => void }) => {
+    clearSixTimers();
 
-      setSixGlow(true);
-      setSixGlowVsVillain(opts.vsVillain);
+    setSixGlow(true);
+    setSixGlowVsVillain(opts.vsVillain);
 
-      const t1 = window.setTimeout(() => {
-        setDiceRot(BASE_DICE_VIEW);
-      }, 900);
+    // ✅ Keep the rolled face visible during glow, then reset to BASE after 3s
+    const tReset = window.setTimeout(() => {
+      setDiceRot(BASE_DICE_VIEW);
+    }, 3000);
 
-      const t2 = window.setTimeout(() => {
-        setSixGlow(false);
-        setSixGlowVsVillain(false);
-        opts.clearEncounter?.();
-      }, 1200);
+    const tEnd = window.setTimeout(() => {
+      setSixGlow(false);
+      setSixGlowVsVillain(false);
+      opts.clearEncounter?.();
+    }, 3200);
 
-      sixTimersRef.current.push(t1, t2);
-    },
-    [clearSixTimers, BASE_DICE_VIEW]
-  );
+    sixTimersRef.current.push(tReset, tEnd);
+  },
+  [clearSixTimers, BASE_DICE_VIEW]
+);
+
 
   useEffect(() => {
     return () => clearSixTimers();
@@ -1040,7 +1042,7 @@ export default function App() {
                 <SideBar side="right" currentLayer={currentLayer} segments={barSegments} />
 
                 {/* Cube / Dice */}
-                <div className="diceArea">
+               <div className={"diceArea" + (encounterActive ? " encounterOn" : "")}>
                   <div className="diceCubeWrap" aria-label="Layer dice">
                     <div
                       className={"diceCube" + (diceSpinning ? " isSpinning" : "") + (diceDragging ? " isDragging" : "") + (sixGlow ? " glowSix" : "")}
@@ -2006,5 +2008,123 @@ button, .hex, .selectTile{ -webkit-tap-highlight-color: transparent; }
     max-height: 220px;
   }
 }
+/* =========================
+   FIX: Real 3D cube + correct stacking
+========================= */
+
+/* blackout is z=50; villainCenter z=60 in your CSS */
+.diceArea{
+  position: relative;
+  z-index: 40;
+}
+
+/* ✅ when encounter is active, force dice above blackout */
+.diceArea.encounterOn{
+  z-index: 75;
+}
+
+/* Keep villain UI above dice if you want */
+.villainCenter{ z-index: 80; }
+
+/* The wrapper must provide perspective */
+.diceCubeWrap{
+  --cubeSize: 320px;
+  --cubeZ: calc(var(--cubeSize) / 2);
+
+  width: var(--cubeSize);
+  height: var(--cubeSize);
+  position: relative;
+
+  perspective: 1200px;
+  perspective-origin: 50% 45%;
+}
+
+/* The cube itself */
+.diceCube{
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+/* Each face: absolutely positioned plane */
+.diceFace{
+  position: absolute;
+  inset: 0;
+  border-radius: 22px;
+  overflow: hidden;
+
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+
+  /* optional: helps it look “solid” */
+  background: rgba(255,255,255,.08);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.10) inset,
+    0 22px 55px rgba(0,0,0,.35);
+}
+
+/* ✅ Correct face transforms (a real cube) */
+.faceFront  { transform: rotateY(  0deg) translateZ(var(--cubeZ)); }
+.faceBack   { transform: rotateY(180deg) translateZ(var(--cubeZ)); }
+.faceRight  { transform: rotateY( 90deg) translateZ(var(--cubeZ)); }
+.faceLeft   { transform: rotateY(-90deg) translateZ(var(--cubeZ)); }
+.faceTop    { transform: rotateX( 90deg) translateZ(var(--cubeZ)); }
+.faceBottom { transform: rotateX(-90deg) translateZ(var(--cubeZ)); }
+
+/* Your mini-board content should fit nicely */
+.diceFaceInnerFixed{
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+/* image faces (encounter mode) */
+.diceImgWrap{
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.diceImg{
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* corners if you use them */
+.diceCorner{
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  background-image: var(--diceBorderImg);
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: .95;
+  pointer-events: none;
+}
+.diceCorner.tl{ top: 10px; left: 10px; }
+.diceCorner.tr{ top: 10px; right: 10px; transform: scaleX(-1); }
+.diceCorner.bl{ bottom: 10px; left: 10px; transform: scaleY(-1); }
+.diceCorner.br{ bottom: 10px; right: 10px; transform: scale(-1); }
+
+/* Keep the orbit “handle” above */
+.orbit{
+  position: absolute;
+  inset: -16px;
+  border-radius: 999px;
+  z-index: 5;
+}
+
+/* ✅ Make sure no parent is flattening/clipping the cube */
+.diceCubeWrap, .diceArea{
+  overflow: visible;
+}
+
 
 `;
