@@ -1930,17 +1930,49 @@ body{
 }
 
 /* When walking: step through columns 0..4 */
-.playerSpriteSheet.walking{
-  animation: walkFrames 450ms steps(5) infinite;
+/* === Player sprite from sprite sheet === */
+.playerSpriteSheet{
+  display: inline-block; /* IMPORTANT: spans are inline by default */
+
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+
+  background-image: var(--spriteImg);
+  background-repeat: no-repeat;
+
+  /* set these to match your sheet */
+  --frameW: 64px;
+  --frameH: 64px;
+  --cols: 5;
+  --rows: 4;
+
+  background-size: calc(var(--frameW) * var(--cols)) calc(var(--frameH) * var(--rows));
+
+  /* idle frame: col 0, row = --frameY */
+  background-position: 0px calc(var(--frameH) * -1 * var(--frameY));
+
+  image-rendering: pixelated;
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow: 0 10px 18px rgba(0,0,0,.35);
+  background-color: rgba(0,0,0,.20);
 }
+
+/* When walking: step through columns 0..(cols-1) */
+.playerSpriteSheet.walking{
+  animation: walkFrames 450ms steps(var(--cols)) infinite;
+}
+
+/* Go to the LAST frame (-(cols-1)*frameW), not -(cols*frameW) */
 @keyframes walkFrames{
   from {
     background-position: 0px calc(var(--frameH) * -1 * var(--frameY));
   }
   to {
-    background-position: calc(var(--frameW) * -5) calc(var(--frameH) * -1 * var(--frameY));
+    background-position: calc(var(--frameW) * -1 * (var(--cols) - 1)) calc(var(--frameH) * -1 * var(--frameY));
   }
 }
+
 
 /* ===== Sidebar ===== */
 .side{
