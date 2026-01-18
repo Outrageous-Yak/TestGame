@@ -1,476 +1,840 @@
-/* src/ui/appBase.css
-   BASE UI STYLES ONLY (the “yesterday look”)
-   - layout
-   - board
-   - cube
-   - menus
-   DO NOT put the cinematic 6/glow/fade styles here.
-*/
+/* src/ui/app.css */
 
+/* ========== Reset / Base ========== */
 :root {
-  --L1: #ff4d7d;
-  --L2: #ff9a3d;
-  --L3: #ffd35a;
-  --L4: #4bee9c;
-  --L5: #3ed7ff;
-  --L6: #5c7cff;
-  --L7: #b66bff;
+  --bg0: #070a10;
+  --bg1: #0b1324;
+  --panel: rgba(10, 14, 24, 0.72);
+  --panel2: rgba(10, 14, 24, 0.9);
+  --stroke: rgba(255, 255, 255, 0.10);
+  --stroke2: rgba(255, 255, 255, 0.18);
+  --text: rgba(255, 255, 255, 0.92);
+  --muted: rgba(255, 255, 255, 0.62);
+  --good: #46f9b4;
+  --bad: #ff5d7a;
+  --info: #77a8ff;
+  --gold: #ffdd79;
 
-  --diceBorderImg: none;
-  --menuSolidBg: linear-gradient(180deg, rgba(40,120,255,.95), rgba(10,40,120,.95));
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  --shadow2: 0 10px 25px rgba(0, 0, 0, 0.35);
+
+  --r: 14px;
+  --r2: 18px;
+
+  --hex: 66px; /* hex visual size */
+  --gapY: 14px;
+  --gapX: 12px;
+
+  --btn: rgba(255, 255, 255, 0.10);
+  --btnH: rgba(255, 255, 255, 0.16);
+  --btnA: rgba(255, 255, 255, 0.22);
+
+  --primary: rgba(120, 220, 255, 0.22);
+  --primaryH: rgba(120, 220, 255, 0.28);
+  --primaryA: rgba(120, 220, 255, 0.36);
 }
 
-/* ---------- reset ---------- */
-* { box-sizing: border-box; }
-html, body { height: 100%; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
 body {
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-  color: rgba(255,255,255,.92);
-  background: #070812;
-}
-button { font-family: inherit; }
-
-/* ---------- root / background ---------- */
-.appRoot {
-  min-height: 100vh;
-  position: relative;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji",
+    "Segoe UI Emoji";
+  color: var(--text);
+  background: radial-gradient(1200px 800px at 20% 10%, rgba(125, 255, 220, 0.10), transparent 55%),
+    radial-gradient(900px 700px at 80% 20%, rgba(120, 150, 255, 0.12), transparent 55%),
+    radial-gradient(900px 700px at 50% 90%, rgba(255, 220, 120, 0.08), transparent 60%),
+    linear-gradient(180deg, var(--bg0), var(--bg1));
   overflow: hidden;
 }
 
-.menuBg {
-  position: fixed;
-  inset: 0;
-  background: var(--menuSolidBg);
+button,
+input {
+  font: inherit;
 }
 
-.globalBg {
-  position: fixed;
-  inset: 0;
-  background-size: cover;
-  background-position: center;
-  transform: scale(1.02);
+input {
+  width: 100%;
+  padding: 12px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: rgba(0, 0, 0, 0.24);
+  color: var(--text);
+  outline: none;
+}
+input:focus {
+  border-color: rgba(120, 220, 255, 0.45);
+  box-shadow: 0 0 0 3px rgba(120, 220, 255, 0.10);
 }
 
-.globalBgOverlay {
-  position: fixed;
-  inset: 0;
-  background:
-    radial-gradient(900px 520px at 30% 20%, rgba(90,140,255,0.22), transparent),
-    radial-gradient(820px 520px at 70% 40%, rgba(170,90,255,0.18), transparent),
-    rgba(7, 8, 18, 0.58);
+/* ========== Layout Shell ========== */
+.app {
+  height: 100%;
+  width: 100%;
 }
 
-/* ---------- shells / cards ---------- */
 .shell {
-  position: relative;
-  z-index: 2;
-  min-height: 100vh;
-  padding: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.shellCard .card {
-  width: min(860px, 92vw);
-}
-
-.card {
-  border-radius: 22px;
-  background: rgba(10,12,18,0.62);
-  border: 1px solid rgba(255,255,255,0.14);
-  box-shadow: 0 22px 60px rgba(0,0,0,0.42);
-  padding: 18px 18px 16px;
-  backdrop-filter: blur(10px);
-}
-
-.cardTitleBig { font-size: 26px; font-weight: 900; letter-spacing: .2px; }
-.cardTitle { font-size: 18px; font-weight: 850; letter-spacing: .2px; }
-.cardMeta { margin-top: 8px; opacity: .72; font-size: 13px; }
-
-.row { display: flex; gap: 10px; margin-top: 14px; }
-.rowBetween { justify-content: space-between; align-items: center; }
-
-.btn {
-  border-radius: 14px;
-  padding: 10px 14px;
-  border: 1px solid rgba(255,255,255,0.18);
-  background: rgba(255,255,255,0.08);
-  color: #fff;
-  font-weight: 780;
-  cursor: pointer;
-  transition: transform 120ms ease, background 140ms ease, border-color 140ms ease, opacity 140ms ease;
-}
-.btn:hover { transform: translateY(-1px); background: rgba(255,255,255,0.12); }
-.btn:active { transform: translateY(0); }
-.btn:disabled { opacity: .45; cursor: default; transform: none; }
-
-.btn.primary {
-  background: rgba(80,150,255,0.22);
-  border-color: rgba(120,180,255,0.36);
-}
-.btn.primary:hover {
-  background: rgba(80,150,255,0.28);
-  border-color: rgba(160,210,255,0.46);
-}
-
-.selectList { margin-top: 12px; display: grid; gap: 10px; }
-.selectTile {
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.06);
-  padding: 12px;
-  cursor: pointer;
-  transition: transform 120ms ease, background 140ms ease, border-color 140ms ease;
-}
-.selectTile:hover { transform: translateY(-1px); background: rgba(255,255,255,0.08); }
-.selectTile.selected {
-  border-color: rgba(140,210,255,0.55);
-  box-shadow: 0 0 0 2px rgba(80,170,255,0.18) inset;
-}
-.selectTileTitle { font-weight: 850; }
-.selectTileDesc { margin-top: 6px; opacity: .72; font-size: 13px; line-height: 1.25; }
-
-/* ---------- game layout ---------- */
-.shellGame {
-  position: relative;
-  z-index: 2;
+  height: 100%;
   width: 100%;
-  min-height: 100vh;
-  padding: 14px;
-  display: flex;
-  justify-content: center;
-}
-
-.scrollStage {
-  width: 100%;
-  overflow: auto;
-  padding-bottom: 16px;
-}
-
-.scrollInner {
-  min-width: 1100px;
-  margin: 0 auto;
-  padding: 6px;
-}
-
-.gameLayout {
-  display: grid;
-  grid-template-columns: 64px 1fr 64px 420px;
-  gap: 12px;
-  align-items: start;
-}
-
-/* ---------- side bars ---------- */
-.barWrap { display: flex; justify-content: center; align-items: center; }
-
-.layerBar {
-  width: 22px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 0;
-  border-radius: 16px;
-  background: rgba(10,12,18,0.55);
-  border: 1px solid rgba(255,255,255,0.14);
-  box-shadow: 0 18px 45px rgba(0,0,0,0.35);
 }
 
-.barSeg {
-  height: 22px;
-  width: 100%;
-  border-radius: 12px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.10);
-}
-.barSeg.isActive {
-  background: rgba(120,210,255,0.25);
-  border-color: rgba(140,220,255,0.42);
-  box-shadow: 0 0 18px rgba(120,210,255,0.18);
-}
-
-/* ---------- main board wrap ---------- */
-.mainBoardWrap {
-  border-radius: 20px;
-  background: rgba(10,12,18,0.55);
-  border: 1px solid rgba(255,255,255,0.14);
-  box-shadow: 0 18px 50px rgba(0,0,0,0.35);
-  padding: 14px;
-}
-
-/* ---------- hex board ---------- */
-.hexRow { display: flex; gap: 10px; margin: 6px 0; }
-.hexRow.even { padding-left: 18px; }
-
-.hex {
-  width: 58px;
-  height: 46px;
-  position: relative;
-  border-radius: 10px;
-  clip-path: polygon(8% 50%, 26% 8%, 74% 8%, 92% 50%, 74% 92%, 26% 92%);
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.12);
-  cursor: pointer;
-  transition: transform 110ms ease, background 140ms ease, border-color 140ms ease, filter 140ms ease, opacity 140ms ease;
-  user-select: none;
-}
-.hex:hover { transform: translateY(-1px); background: rgba(255,255,255,0.10); }
-
-.hex.missing { opacity: .18; pointer-events: none; }
-.hex.blocked { opacity: .38; }
-.hex.sel { border-color: rgba(255,255,255,0.30); box-shadow: 0 0 0 2px rgba(255,255,255,0.10) inset; }
-.hex.reach { border-color: rgba(140,220,255,0.52); box-shadow: 0 0 18px rgba(120,210,255,0.18); }
-.hex.notReach { filter: grayscale(.35); opacity: .60; }
-.hex.player { border-color: rgba(255,255,255,0.45); box-shadow: 0 0 0 2px rgba(255,255,255,0.16) inset, 0 0 18px rgba(255,255,255,0.12); }
-
-.hexRim {
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  height: 4px;
-  border-radius: 999px;
-  opacity: .9;
-}
-.hexRimTop { top: 6px; background: var(--rimTop); }
-.hexRimBottom { bottom: 6px; background: var(--rimBottom); }
-
-.hexLabel {
-  position: absolute;
-  left: 8px;
-  top: 8px;
-  font-size: 10px;
-  line-height: 1.05;
-  opacity: .92;
-  text-shadow: 0 2px 10px rgba(0,0,0,0.45);
-}
-
-.miniNum {
-  position: absolute;
-  right: 8px;
-  bottom: 6px;
-  font-size: 10px;
-  opacity: .70;
-}
-
-/* ---------- encounter overlay ---------- */
-.blackout {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.78);
-  z-index: 40;
-  opacity: 1;
-}
-
-.villainCenter {
-  position: fixed;
-  left: 50%;
-  top: 48%;
-  transform: translate(-50%, -50%);
-  z-index: 45;
-  display: grid;
+.topbar {
+  height: 64px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
   gap: 10px;
-  place-items: center;
-  padding: 18px;
-  border-radius: 20px;
-  background: rgba(10,12,18,0.72);
-  border: 1px solid rgba(255,255,255,0.16);
-  box-shadow: 0 22px 60px rgba(0,0,0,0.42);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.08));
   backdrop-filter: blur(10px);
 }
 
-.villainImg {
-  width: 160px;
-  height: 160px;
-  object-fit: contain;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,0.18);
-  background: rgba(255,255,255,0.06);
+.topbar .left,
+.topbar .right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.villainText { font-weight: 850; }
-.villainSmall { opacity: .80; font-size: 12px; }
-
-/* ---------- dice panel ---------- */
-.diceArea {
-  border-radius: 20px;
-  background: rgba(10,12,18,0.55);
-  border: 1px solid rgba(255,255,255,0.14);
-  box-shadow: 0 18px 50px rgba(0,0,0,0.35);
-  padding: 14px;
-  min-height: 560px;
-    z-index: 60;
+.topbar .mid {
+  flex: 1;
+  display: flex;
+  justify-content: center;
 }
 
-.diceCubeWrap {
-  position: relative;
-  height: 320px;
+.topbarSpacer {
+  flex: 1;
+}
+
+.center {
+  flex: 1;
   display: grid;
   place-items: center;
-  perspective: 950px;
+  padding: 18px;
 }
 
-.diceCube {
-  width: 240px;
-  height: 240px;
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform 650ms ease;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.diceCube.isDragging { transition: none; }
-
-.diceFace {
-  position: absolute;
-  inset: 0;
-  border-radius: 18px;
-  overflow: hidden;
-  background: rgba(10,12,18,0.60);
-  border: 1px solid rgba(255,255,255,0.14);
-  backface-visibility: hidden;
+.brandMark {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 30% 30%, rgba(120, 255, 210, 0.85), rgba(120, 150, 255, 0.55));
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.16);
 }
 
-.faceFront  { transform: rotateY(0deg) translateZ(120px); }
-.faceBack   { transform: rotateY(180deg) translateZ(120px); }
-.faceRight  { transform: rotateY(90deg) translateZ(120px); }
-.faceLeft   { transform: rotateY(-90deg) translateZ(120px); }
-.faceTop    { transform: rotateX(90deg) translateZ(120px); }
-.faceBottom { transform: rotateX(-90deg) translateZ(120px); }
-
-.diceCorner {
-  position: absolute;
-  width: 22px;
-  height: 22px;
-  background-image: var(--diceBorderImg);
-  background-size: contain;
-  background-repeat: no-repeat;
-  opacity: .85;
-  pointer-events: none;
+.brandText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
 }
-.diceCorner.tl { left: 8px; top: 8px; }
-.diceCorner.tr { right: 8px; top: 8px; transform: scaleX(-1); }
-.diceCorner.bl { left: 8px; bottom: 8px; transform: scaleY(-1); }
-.diceCorner.br { right: 8px; bottom: 8px; transform: scale(-1); }
+.brandTitle {
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+.brandSub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
 
-.faceStripe { height: 10px; width: 100%; opacity: .95; }
-.diceFaceInnerFixed { width: 100%; height: calc(100% - 10px); padding: 10px; }
+.gameMain {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 14px;
+  padding: 14px;
+  min-height: 0;
+}
 
-.miniFit { transform: scale(.86); transform-origin: top left; }
-.miniInvalid { display: grid; place-items: center; height: 100%; opacity: .65; font-weight: 850; }
+@media (max-width: 980px) {
+  body {
+    overflow: auto;
+  }
+  .gameMain {
+    grid-template-columns: 1fr;
+  }
+}
 
-.diceImgWrap { width: 100%; height: 100%; display: grid; place-items: center; }
-.diceImg { width: 92%; height: 92%; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+/* ========== Panel / UI blocks ========== */
+.panel {
+  width: min(920px, 92vw);
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r2);
+  box-shadow: var(--shadow);
+  padding: 18px;
+  backdrop-filter: blur(12px);
+}
 
-.diceHud { padding: 12px; height: 100%; display: grid; align-content: start; gap: 10px; }
-.hudTitle { font-weight: 900; letter-spacing: .2px; }
+.panel.tight {
+  width: 100%;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--panel2);
+  box-shadow: var(--shadow2);
+}
 
-.hudRow { display: flex; justify-content: space-between; font-size: 13px; opacity: .92; }
-.hudKey { opacity: .70; }
-.hudVal { font-weight: 850; }
-.hudVal.ok { color: rgba(140,255,190,.95); }
-.hudVal.bad { color: rgba(255,160,170,.95); }
+.panelTitle {
+  margin: 0 0 14px;
+  font-size: 20px;
+  letter-spacing: 0.2px;
+}
 
-.hudNote { margin-top: 6px; font-size: 12px; opacity: .75; }
+.panelTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
 
-.hudLog { display: grid; gap: 6px; }
-.hudLogLine { display: grid; grid-template-columns: 44px 1fr; gap: 8px; font-size: 12px; line-height: 1.15; }
-.hudLogLine.ok { color: rgba(140,255,190,.95); }
-.hudLogLine.bad { color: rgba(255,160,170,.95); }
-.hudLogLine.info { color: rgba(255,255,255,.86); }
-.hudTime { opacity: .72; }
-.hudLogEmpty { opacity: .60; font-size: 12px; }
+.panelTitleSm {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.80);
+}
 
-.invGrid { display: grid; grid-template-columns: 1fr; gap: 8px; }
-.invSlot {
+.field {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+.field label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ========== Buttons ========== */
+.btn {
+  border: 1px solid var(--stroke);
+  background: var(--btn);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+.btn:hover {
+  background: var(--btnH);
+  border-color: var(--stroke2);
+  transform: translateY(-1px);
+}
+.btn:active {
+  background: var(--btnA);
+  transform: translateY(0px);
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn.ghost {
+  background: transparent;
+}
+
+.btn.primary {
+  background: var(--primary);
+  border-color: rgba(120, 220, 255, 0.35);
+}
+.btn.primary:hover {
+  background: var(--primaryH);
+  border-color: rgba(120, 220, 255, 0.50);
+}
+.btn.primary:active {
+  background: var(--primaryA);
+}
+
+/* ========== Picks / Cards ========== */
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 10px 0 6px;
+}
+@media (max-width: 620px) {
+  .cardGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cardPick {
+  text-align: left;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--stroke);
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+.cardPick:hover {
+  transform: translateY(-1px);
+  border-color: rgba(120, 220, 255, 0.35);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.32);
+  background: rgba(0, 0, 0, 0.30);
+}
+.cardPick.active {
+  border-color: rgba(120, 255, 210, 0.45);
+  box-shadow: 0 0 0 3px rgba(120, 255, 210, 0.12), 0 16px 45px rgba(0, 0, 0, 0.42);
+}
+
+.cardPickTitle {
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cardPickSub {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.emoji {
+  font-size: 18px;
+}
+
+.actions {
   display: flex;
   gap: 10px;
-  align-items: center;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+/* ========== Tabs / Segmented ========== */
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0 12px;
+}
+.tab {
+  flex: 1;
+  padding: 10px 12px;
   border-radius: 14px;
-  padding: 10px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.06);
-  color: #fff;
+  border: 1px solid var(--stroke);
+  background: rgba(0, 0, 0, 0.20);
+  color: var(--text);
   cursor: pointer;
 }
-.invSlot:disabled { opacity: .45; cursor: default; }
-.invIcon { font-size: 18px; width: 24px; text-align: center; }
-.invMeta { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-.invName { font-weight: 850; font-size: 13px; opacity: .92; }
-.invCharges { font-weight: 900; opacity: .78; }
-
-.diceControls { margin-top: 10px; }
-.diceReadout { font-weight: 850; }
-.diceReadout.subtle { opacity: .65; }
-
-.dragHint { margin-top: 8px; font-size: 12px; opacity: .72; }
-/* src/ui/app.css
-   ONLY cinematic add-ons (non-destructive).
-*/
-
-/* 1) Fade the blackout (z-layer) out over 3 seconds */
-.blackout.fadeOut {
-  opacity: 0 !important;
-  transition: opacity 3000ms ease !important;
+.tab.active {
+  border-color: rgba(120, 220, 255, 0.45);
+  background: rgba(120, 220, 255, 0.12);
 }
 
-/* 2) Glow ALL faces of the dice cube (applied to the cube root) */
-.diceCube.glowCube {
-  box-shadow:
-    0 0 18px rgba(220, 245, 255, 0.95),
-    0 0 42px rgba(120, 210, 255, 0.85),
-    0 0 80px rgba(255, 255, 255, 0.65) !important;
-  filter:
-    drop-shadow(0 0 12px rgba(160, 230, 255, 0.95))
-    drop-shadow(0 0 22px rgba(255, 255, 255, 0.75)) !important;
+.segmented {
+  display: flex;
+  gap: 10px;
+  margin: 12px 0;
+}
+.seg {
+  flex: 1;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--stroke);
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--text);
+  cursor: pointer;
+  text-transform: capitalize;
+}
+.seg.active {
+  border-color: rgba(120, 255, 210, 0.45);
+  box-shadow: 0 0 0 3px rgba(120, 255, 210, 0.12);
 }
 
-/* 3) Villain inward glow (applied to villain image) */
-.villainImg.glowIn {
-  box-shadow:
-    inset 0 0 22px rgba(220, 245, 255, 0.95),
-    inset 0 0 52px rgba(120, 210, 255, 0.85) !important;
-  filter:
-    drop-shadow(0 0 14px rgba(160, 230, 255, 0.95))
-    drop-shadow(0 0 24px rgba(255, 255, 255, 0.75)) !important;
+/* ========== Summary / KV ========== */
+.summary {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+.summaryRow .k {
+  color: var(--muted);
+  font-size: 12px;
+}
+.summaryRow .v {
+  font-weight: 700;
 }
 
-/* 4) Big “6” overlay (no layout changes) */
-.diceSixOverlay {
+.kv {
+  display: grid;
+  gap: 8px;
+}
+.kvRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+}
+.kvRow:last-child {
+  border-bottom: none;
+}
+.kvRow .k {
+  color: var(--muted);
+  font-size: 12px;
+}
+.kvRow .v {
+  font-weight: 800;
+}
+
+/* ========== Pill / Status ========== */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.25);
+}
+.pill .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(120, 255, 210, 0.95), rgba(120, 150, 255, 0.65));
+  box-shadow: 0 0 0 3px rgba(120, 255, 210, 0.10);
+}
+.pillText {
+  font-weight: 700;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+/* ========== Game Layout Pieces ========== */
+.boardWrap {
+  position: relative;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  min-height: 0;
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: var(--shadow2);
+}
+
+.boardBg {
+  position: absolute;
+  inset: 0;
+  background-size: 260px 260px; /* tiled size */
+  background-repeat: repeat;
+  opacity: 0.16; /* keep subtle */
+  filter: saturate(1.05) contrast(1.05);
+  transform: scale(1.03);
+}
+
+.boardHud {
+  position: relative;
+  z-index: 2;
+  padding: 12px 12px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.08));
+}
+
+.hudRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.hudRow.small {
+  margin-top: 8px;
+  gap: 10px;
+  font-size: 13px;
+}
+.hudSpacer {
+  flex: 1;
+}
+.mini {
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.22);
+}
+.mini.muted {
+  color: var(--muted);
+}
+
+.layerNum {
+  min-width: 46px;
+  text-align: center;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+/* ========== Side / Log ========== */
+.side {
+  display: grid;
+  grid-auto-rows: min-content;
+  gap: 14px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.actionsCol {
+  display: grid;
+  gap: 10px;
+}
+
+.log {
+  max-height: 280px;
+  overflow: auto;
+  padding-right: 6px;
+}
+.logEmpty {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 8px 2px;
+}
+.logRow {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 10px;
+  padding: 8px 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.logRow:last-child {
+  border-bottom: none;
+}
+.logT {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.logM {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.88);
+}
+.logRow.ok .logM {
+  color: rgba(70, 249, 180, 0.92);
+}
+.logRow.bad .logM {
+  color: rgba(255, 93, 122, 0.92);
+}
+.logRow.info .logM {
+  color: rgba(119, 168, 255, 0.92);
+}
+
+/* ========== Board Grid / Hexes ========== */
+.board {
+  position: relative;
+  z-index: 2;
+  padding: 18px 14px 20px;
+  overflow: auto;
+  height: calc(100% - 86px); /* subtract hud height-ish */
+}
+
+.hexRow {
+  display: flex;
+  gap: var(--gapX);
+  margin-bottom: var(--gapY);
+  justify-content: center;
+}
+
+/* offset every other row for a honeycomb look */
+.hexRow:nth-child(even) {
+  transform: translateX(calc(var(--hex) * 0.45));
+}
+
+.hex {
+  width: calc(var(--hex) * 1.02);
+  height: calc(var(--hex) * 1.02);
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.35));
+  transition: transform 140ms ease, filter 140ms ease;
+}
+.hex:hover {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.45));
+}
+
+.hexInner {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  position: relative;
+
+  /* HEX SHAPE */
+  clip-path: polygon(
+    25% 6%,
+    75% 6%,
+    98% 50%,
+    75% 94%,
+    25% 94%,
+    2% 50%
+  );
+
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: radial-gradient(circle at 30% 25%, rgba(120, 255, 210, 0.12), transparent 55%),
+    radial-gradient(circle at 70% 70%, rgba(120, 150, 255, 0.12), transparent 55%),
+    rgba(0, 0, 0, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.hexInner::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  opacity: 0.18;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.35), transparent 55%),
+    radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.25), transparent 55%);
+  pointer-events: none;
+}
+
+/* Fog / blocked variations */
+.hex.fog .hexInner {
+  background: rgba(0, 0, 0, 0.44);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.hex.blk .hexInner,
+.hex.blk .hexInner {
+  background: rgba(0, 0, 0, 0.55);
+  border-color: rgba(255, 93, 122, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(255, 93, 122, 0.10);
+}
+
+/* Selected */
+.hex.sel .hexInner {
+  border-color: rgba(255, 221, 121, 0.50);
+  box-shadow: inset 0 0 0 1px rgba(255, 221, 121, 0.20), 0 0 0 3px rgba(255, 221, 121, 0.10);
+}
+.hex.sel .hexInner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 221, 121, 0.16), transparent 60%);
+  pointer-events: none;
+}
+
+/* Reachable */
+.hex.reach .hexInner {
+  border-color: rgba(70, 249, 180, 0.48);
+  box-shadow: inset 0 0 0 1px rgba(70, 249, 180, 0.18), 0 0 0 3px rgba(70, 249, 180, 0.08);
+  animation: reachPulse 1.4s ease-in-out infinite;
+}
+@keyframes reachPulse {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.15); }
+  100% { filter: brightness(1); }
+}
+
+/* Hex content */
+.hexTop,
+.hexBot {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+}
+
+.hexTop {
+  top: 10px;
+}
+.hexBot {
+  bottom: 10px;
+}
+
+.hexMid {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
   pointer-events: none;
-  z-index: 9999;
 }
 
-.diceSixOverlay.glow .diceSixCard {
-  box-shadow:
-    0 0 18px rgba(220, 245, 255, 0.95),
-    0 0 42px rgba(120, 210, 255, 0.85),
-    0 0 80px rgba(255, 255, 255, 0.65);
-  filter:
-    drop-shadow(0 0 12px rgba(160, 230, 255, 0.95))
-    drop-shadow(0 0 22px rgba(255, 255, 255, 0.75));
+.hexTag {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.70);
+  font-variant-numeric: tabular-nums;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.20);
 }
 
-.diceSixCard {
-  width: 190px;
-  height: 190px;
-  border-radius: 18px;
-  overflow: hidden;
-  background: rgba(10, 12, 18, 0.70);
-  border: 1px solid rgba(255, 255, 255, 0.20);
-  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.45);
+.hexKind {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  color: rgba(255, 255, 255, 0.75);
+  text-transform: uppercase;
+}
+
+/* Badges */
+.badge {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.35px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(255, 255, 255, 0.78);
+}
+.badge.ok {
+  border-color: rgba(70, 249, 180, 0.30);
+  background: rgba(70, 249, 180, 0.10);
+  color: rgba(70, 249, 180, 0.95);
+}
+
+/* ========== Dice ========== */
+.dice {
+  width: 48px;
+  height: 48px;
   display: grid;
   place-items: center;
+  perspective: 600px;
 }
 
-.diceSixImg {
-  width: 92%;
-  height: 92%;
-  object-fit: contain;
-  user-select: none;
-  -webkit-user-drag: none;
+.die {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(0, 0, 0, 0.18));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 10px 22px rgba(0, 0, 0, 0.35);
+  position: relative;
+  transform: translateZ(0);
+  transition: transform 160ms ease;
 }
 
+.dice.rolling .die {
+  animation: diceWobble 0.35s ease-in-out infinite;
+}
+@keyframes diceWobble {
+  0% { transform: rotateX(0deg) rotateY(0deg); }
+  25% { transform: rotateX(10deg) rotateY(-10deg); }
+  50% { transform: rotateX(-10deg) rotateY(12deg); }
+  75% { transform: rotateX(8deg) rotateY(10deg); }
+  100% { transform: rotateX(0deg) rotateY(0deg); }
+}
+
+/* pips */
+.pip {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+  opacity: 0; /* default hidden; per-face enables */
+}
+
+/* 3x3 pip positions (1..9) */
+.p1 { top: 9px; left: 9px; }
+.p2 { top: 9px; left: 18px; }
+.p3 { top: 9px; right: 9px; }
+
+.p4 { top: 18px; left: 9px; }
+.p5 { top: 18px; left: 18px; }
+.p6 { top: 18px; right: 9px; }
+
+.p7 { bottom: 9px; left: 9px; }
+.p8 { bottom: 9px; left: 18px; }
+.p9 { bottom: 9px; right: 9px; }
+
+/* Face mapping (standard dice layout) */
+.face-1 .p5 { opacity: 1; }
+
+.face-2 .p1,
+.face-2 .p9 { opacity: 1; }
+
+.face-3 .p1,
+.face-3 .p5,
+.face-3 .p9 { opacity: 1; }
+
+.face-4 .p1,
+.face-4 .p3,
+.face-4 .p7,
+.face-4 .p9 { opacity: 1; }
+
+.face-5 .p1,
+.face-5 .p3,
+.face-5 .p5,
+.face-5 .p7,
+.face-5 .p9 { opacity: 1; }
+
+.face-6 .p1,
+.face-6 .p3,
+.face-6 .p4,
+.face-6 .p6,
+.face-6 .p7,
+.face-6 .p9 { opacity: 1; }
+
+/* ========== Portrait preview ========== */
+.customBox {
+  display: grid;
+  gap: 12px;
+}
+
+.portraitPreview {
+  width: 120px;
+  height: 120px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
+}
+.portraitPreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ========== Scrollbars (nice but subtle) ========== */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  border: 2px solid rgba(0, 0, 0, 0.25);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
