@@ -1487,7 +1487,7 @@ const baseCss = `
   --shadow2: 0 10px 25px rgba(0,0,0,.35);
 
   /* === OLD VERSION BOARD GEOMETRY === */
-  --hexWMain: 82px;
+  --hexWMain: clamp(82px, 6.6vw, 120px);
   --hexHMain: calc(var(--hexWMain) * 0.8660254);
 
   --hexGap: 10px;
@@ -1677,11 +1677,15 @@ body{
   position: relative;
   border-radius: 18px;
   border: 1px solid rgba(255,255,255,.08);
-  overflow: visible;
+  overflow: hidden;            /* change from visible */
   min-height: 0;
   background: rgba(0,0,0,.22);
   box-shadow: var(--shadow2);
+
+  display: grid;               /* ✅ add */
+  grid-template-rows: auto 1fr auto;  /* ✅ add */
 }
+
 .boardLayerBg{
   position:absolute; inset:0;
   background-size: cover;
@@ -1844,11 +1848,13 @@ body{
 .boardScroll{
   position: relative;
   z-index: 2;
-  height: calc(100% - 88px); /* HUD height-ish */
+  min-height: 0;          /* ✅ important for grid children */
   overflow-x: auto;
-  overflow-y: visible; 
+  overflow-y: auto;
   padding: 16px 10px 18px;
+  height: auto;           /* ✅ remove calc(100% - 88px) */
 }
+
 
 
   .board{
@@ -1867,7 +1873,7 @@ body{
   margin-bottom: 0; /* old version uses hex height rather than gap rows */
 }
 .hexRow.offset{
-  transform: translateX(--hexPitch) / 2));
+ transform: translateX(calc(var(--hexPitch) / 2));
 }
 
 /* ===== Hex slots ===== */
