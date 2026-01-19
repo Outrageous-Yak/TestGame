@@ -1129,11 +1129,11 @@ useEffect(() => {
    /* =========================================================
      GAME SCREEN
   ========================================================= */
- 
 
   const canGoDown = belowLayer >= 1;
   const canGoUp = aboveLayer <= scenarioLayerCount;
-const pid = (state as any)?.playerHexId as string | null;
+  const pid = (state as any)?.playerHexId as string | null;
+
   return (
     <div className="appRoot game" style={themeVars}>
       {/* Background */}
@@ -1144,77 +1144,136 @@ const pid = (state as any)?.playerHexId as string | null;
         }}
       />
 
-<div className="topbar">
-  {/* Left controls */}
-  <button className="btn" onClick={() => setScreen("scenario")}>↺ Setup</button>
-  <button className="btn" onClick={resetAll}>Reset</button>
+      {/* TOP BAR (now includes HUD groups) */}
+      <div className="topbar">
+        {/* Left controls */}
+        <button className="btn" onClick={() => setScreen("scenario")}>
+          ↺ Setup
+        </button>
+        <button className="btn" onClick={resetAll}>
+          Reset
+        </button>
 
-  {/* HUD LEFT GROUP */}
-  <div className="hudGroup hudGroupLeft">
-    <button
-      className="btn primary"
-      disabled={!state || diceRolling}
-      onClick={() => rollDice({ reason: encounterActive ? "encounter" : "normal" })}
-    >
-      {diceRolling ? "Rolling…" : encounterActive ? "Roll (Need 6)" : "Roll"}
-    </button>
+        {/* HUD LEFT GROUP */}
+        <div className="hudGroup hudGroupLeft">
+          <button
+            className="btn primary"
+            disabled={!state || diceRolling}
+            onClick={() => rollDice({ reason: encounterActive ? "encounter" : "normal" })}
+          >
+            {diceRolling ? "Rolling…" : encounterActive ? "Roll (Need 6)" : "Roll"}
+          </button>
 
-    <div className="dice3d">
-      <div
-        className="cube"
-        style={{ transform: `rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)` }}
-      >
-        <div className="face face-front" style={{ backgroundImage: `url(${diceImg(2)})` }} />
-        <div className="face face-back" style={{ backgroundImage: `url(${diceImg(5)})` }} />
-        <div className="face face-right" style={{ backgroundImage: `url(${diceImg(3)})` }} />
-        <div className="face face-left" style={{ backgroundImage: `url(${diceImg(4)})` }} />
-        <div className="face face-top" style={{ backgroundImage: `url(${diceImg(1)})` }} />
-        <div className="face face-bottom" style={{ backgroundImage: `url(${diceImg(6)})` }} />
+          <div className={`dice3d ${diceRolling ? "rolling" : ""}`}>
+            <div
+              className="cube"
+              style={{
+                transform: `rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
+              }}
+            >
+              <div className="face face-front" style={{ backgroundImage: `url(${diceImg(2)})` }} />
+              <div className="face face-back" style={{ backgroundImage: `url(${diceImg(5)})` }} />
+              <div className="face face-right" style={{ backgroundImage: `url(${diceImg(3)})` }} />
+              <div className="face face-left" style={{ backgroundImage: `url(${diceImg(4)})` }} />
+              <div className="face face-top" style={{ backgroundImage: `url(${diceImg(1)})` }} />
+              <div className="face face-bottom" style={{ backgroundImage: `url(${diceImg(6)})` }} />
+            </div>
+
+            {DICE_BORDER_IMG ? (
+              <div className="diceBorder" style={{ backgroundImage: `url(${toPublicUrl(DICE_BORDER_IMG)})` }} />
+            ) : null}
+          </div>
+
+          <div className="hudStat">
+            <div className="k">Dice</div>
+            <div className="v">{diceValue}</div>
+          </div>
+
+          <div className="hudStat">
+            <div className="k">Facing</div>
+            <div className="v">{playerFacing}</div>
+          </div>
+
+          <div className="hudStat">
+            <div className="k">Goal</div>
+            <div className="v">{goalId ?? "—"}</div>
+          </div>
+
+          <div className="hudStat">
+            <div className="k">Optimal</div>
+            <div className="v">
+              {optimalFromNow ?? "—"}{" "}
+              <span className="mutedSmall">{optimalAtStart != null ? `(start ${optimalAtStart})` : ""}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="spacer" />
+
+        {/* HUD RIGHT GROUP */}
+        <div className="hudGroup hudGroupRight">
+          <div className="items">
+            {items.map((it) => (
+              <button
+                key={it.id}
+                className={`itemBtn ${it.charges <= 0 ? "off" : ""}`}
+                disabled={it.charges <= 0 || !state || (encounterActive && it.id !== "reroll")}
+                onClick={() => useItem(it.id)}
+                title={`${it.name} (${it.charges})`}
+              >
+                <span className="itemIcon">{it.icon}</span>
+                <span className="itemName">{it.name}</span>
+                <span className="itemCharges">{it.charges}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="spacer" />
+
+        {/* Scenario pill */}
+        <div className="pill">
+          <span className="dot" />
+          <span className="pillText">
+            {world?.name ?? "World"} • {scenarioEntry?.name ?? "Scenario"} • L{currentLayer} • Moves {movesTaken}
+          </span>
+        </div>
+
+        {/* Layer buttons */}
+        <button
+          className="btn"
+          disabled={!state || !canGoDown || encounterActive}
+          onClick={() => {
+            if (!state) return;
+            const next = Math.max(1, currentLayer - 1);
+            setCurrentLayer(next);
+            enterLayer(state, next);
+            revealWholeLayer(state, next);
+            setReachMap(getReachability(state) as any);
+            pushLog(`Layer ${next}`, "info");
+          }}
+        >
+          − Layer
+        </button>
+
+        <button
+          className="btn"
+          disabled={!state || !canGoUp || encounterActive}
+          onClick={() => {
+            if (!state) return;
+            const next = Math.min(scenarioLayerCount, currentLayer + 1);
+            setCurrentLayer(next);
+            enterLayer(state, next);
+            revealWholeLayer(state, next);
+            setReachMap(getReachability(state) as any);
+            pushLog(`Layer ${next}`, "info");
+          }}
+        >
+          + Layer
+        </button>
       </div>
-    </div>
 
-    <div className="hudStat"><div className="k">Dice</div><div className="v">{diceValue}</div></div>
-    <div className="hudStat"><div className="k">Facing</div><div className="v">{playerFacing}</div></div>
-    <div className="hudStat"><div className="k">Goal</div><div className="v">{goalId ?? "—"}</div></div>
-    <div className="hudStat">
-      <div className="k">Optimal</div>
-      <div className="v">{optimalFromNow ?? "—"}</div>
-    </div>
-  </div>
-
-  <div className="spacer" />
-
-  {/* HUD RIGHT GROUP */}
-  <div className="hudGroup hudGroupRight">
-    {items.map((it) => (
-      <button
-        key={it.id}
-        className="itemBtn"
-        disabled={it.charges <= 0}
-        onClick={() => useItem(it.id)}
-      >
-        <span className="itemIcon">{it.icon}</span>
-        <span className="itemName">{it.name}</span>
-        <span className="itemCharges">{it.charges}</span>
-      </button>
-    ))}
-  </div>
-
-  <div className="spacer" />
-
-  {/* Scenario pill */}
-  <div className="pill">
-    <span className="dot" />
-    <span className="pillText">
-      {world?.name} • {scenarioEntry?.name} • L{currentLayer} • Moves {movesTaken}
-    </span>
-  </div>
-
-  {/* Layer buttons */}
-  <button className="btn">− Layer</button>
-  <button className="btn">+ Layer</button>
-</div>
-
+      {/* MAIN LAYOUT */}
       <div className="gameLayout">
         {/* Left color bar */}
         <SideBar side="left" currentLayer={currentLayer} />
@@ -1227,56 +1286,6 @@ const pid = (state as any)?.playerHexId as string | null;
               backgroundImage: BOARD_LAYER_BG ? `url(${toPublicUrl(BOARD_LAYER_BG)})` : undefined,
             }}
           />
-
-          {/* HUD */}
-      <div className="hudStat">
-        <div className="k">Dice</div>
-        <div className="v">{diceValue}</div>
-      </div>
-
-      <div className="hudStat">
-        <div className="k">Facing</div>
-        <div className="v">{playerFacing}</div>
-      </div>
-
-      <div className="hudStat">
-        <div className="k">Goal</div>
-        <div className="v">{goalId ? goalId : "—"}</div>
-      </div>
-
-      <div className="hudStat">
-        <div className="k">Optimal</div>
-        <div className="v">
-          {optimalFromNow ?? "—"}{" "}
-          <span className="mutedSmall">{optimalAtStart != null ? `(start ${optimalAtStart})` : ""}</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div className="hudGap" />
-
-  <div className="hudGroup hudGroupRight">
-    <div className="hudRight">
-      <div className="items">
-        {items.map((it) => (
-          <button
-            key={it.id}
-            className={`itemBtn ${it.charges <= 0 ? "off" : ""}`}
-            disabled={it.charges <= 0 || !state || (encounterActive && it.id !== "reroll")}
-            onClick={() => useItem(it.id)}
-            title={`${it.name} (${it.charges})`}
-          >
-            <span className="itemIcon">{it.icon}</span>
-            <span className="itemName">{it.name}</span>
-            <span className="itemCharges">{it.charges}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  </div>
-</div>
-
 
           {/* Grid */}
           <div className="boardScroll" ref={scrollRef}>
@@ -1346,11 +1355,7 @@ const pid = (state as any)?.playerHexId as string | null;
                                     ["--frameH" as any]: FRAME_H,
                                     ["--cols" as any]: SPRITE_COLS,
                                     ["--rows" as any]: SPRITE_ROWS,
-
-                                    // cols = walk frames
                                     ["--frameX" as any]: walkFrame,
-
-                                    // rows = direction
                                     ["--frameY" as any]:
                                       playerFacing === "down"
                                         ? 0
@@ -1373,11 +1378,11 @@ const pid = (state as any)?.playerHexId as string | null;
             </div>
           </div>
 
-          {/* ✅ 4 cards underneath */}
+          {/* 4 cards underneath */}
           <HexDeckCardsDemo />
         </div>
 
-        {/* Right color bar (IMPORTANT: sibling of boardWrap) */}
+        {/* Right color bar (sibling of boardWrap) */}
         <SideBar side="right" currentLayer={currentLayer} />
 
         {/* Sidebar */}
@@ -1465,11 +1470,11 @@ const pid = (state as any)?.playerHexId as string | null;
   );
 }
 
-
 /* =========================================================
    Inline CSS for this TSX (single-file friendly)
    You can move this into app.css later.
 ========================================================= */
+
 const baseCss = `
 :root{
   --bg0:#070a10; --bg1:#0b1324;
@@ -1525,17 +1530,11 @@ body{
   position:relative;
   z-index:5;
 
-  flex-wrap: nowrap;          /* ✅ keep everything on one row */
-  overflow: hidden;           /* ✅ prevents spilling */
+  flex-wrap: nowrap;
+  overflow-x: auto;     /* ✅ recommended so nothing disappears */
+  overflow-y: hidden;
 }
-{
-  height:64px; display:flex; align-items:center; gap:10px;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(255,255,255,.06);
-  background: linear-gradient(180deg, rgba(0,0,0,.28), rgba(0,0,0,.08));
-  backdrop-filter: blur(10px);
-  position:relative; z-index:5;
-}
+
 .spacer{ flex:1; }
 
 .panel{
