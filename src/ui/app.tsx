@@ -774,6 +774,70 @@ useEffect(() => {
         pushLog("Not reachable.", "bad");
         return;
       }
+        // === Encounter resolution (only count tries when a roll finishes) ===
+  const prevRollingRef = useRef(false);
+
+  useEffect(() => {
+    const wasRolling = prevRollingRef.current;
+    prevRollingRef.current = diceRolling;
+
+    if (!encounter) return;
+    if (diceRolling) return;
+    if (!wasRolling) return; // only when roll just finished
+
+    // count a completed attempt
+    setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
+
+    // only succeed on 6
+    if (diceValue !== 6) return;
+
+    const targetId = pendingEncounterMoveIdRef.current;
+    pendingEncounterMoveIdRef.current = null;
+
+    // close the overlay
+    setEncounter(null);
+
+    if (!state || !targetId) return;
+
+    // complete the move to the tile that triggered the encounter
+    const res: any = tryMove(state as any, targetId);
+    const nextState: any = res?.state ?? res ?? null;
+    if (!nextState) return;
+
+    const pidAfter = (nextState as any).playerHexId as string | null;
+
+    // commit next state
+    setState(nextState);
+    setSelectedId(pidAfter ?? targetId);
+
+    // handle layer change safely
+    const c2 = pidAfter ? idToCoord(pidAfter) : null;
+    const nextLayer = c2?.layer ?? currentLayer;
+
+    if (nextLayer !== currentLayer) {
+      setCurrentLayer(nextLayer);
+      enterLayer(nextState, nextLayer);
+      revealWholeLayer(nextState, nextLayer);
+    }
+
+    const rm = getReachability(nextState) as any;
+    setReachMap(rm);
+    setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+
+    pushLog(`Encounter cleared — moved to ${pidAfter ?? targetId}`, "ok");
+    if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
+  }, [
+    encounter,
+    diceRolling,
+    diceValue,
+    state,
+    currentLayer,
+    goalId,
+    revealWholeLayer,
+    computeOptimalFromReachMap,
+    pushLog,
+  ]);
+ 
  const [encounter, setEncounter] = useState<Encounter>(null);
   const vk = findTriggerForHex(id);
 if (vk) {
