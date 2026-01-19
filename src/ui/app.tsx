@@ -1973,8 +1973,7 @@ body{
 /* When walking: step through columns 0..4 */
 /* === Player sprite from sprite sheet === */
 .playerSpriteSheet{
-  display: inline-block; /* IMPORTANT: spans are inline by default */
-
+  display:inline-block;
   width: 42px;
   height: 42px;
   border-radius: 10px;
@@ -1982,16 +1981,13 @@ body{
   background-image: var(--spriteImg);
   background-repeat: no-repeat;
 
-  /* set these to match your sheet */
-  --frameW: 32px;
-  --frameH: 32px;
-  --cols: 5;
-  --rows: 4;
+  background-size:
+    calc(var(--frameW) * var(--cols) * 1px)
+    calc(var(--frameH) * 4 * 1px); /* 4 rows */
 
-  background-size: calc(var(--frameW) * var(--cols)) calc(var(--frameH) * var(--rows));
-
-  /* idle frame: col 0, row = --frameY */
-  background-position: 0px calc(var(--frameH) * -1 * var(--frameY));
+  background-position:
+    calc(var(--frameW) * -1px * var(--frameX))
+    calc(var(--frameH) * -1px * var(--frameY));
 
   image-rendering: pixelated;
   border: 1px solid rgba(255,255,255,.18);
@@ -1999,26 +1995,7 @@ body{
   background-color: rgba(0,0,0,.20);
 }
 
-<div className="hexMarks">
-  {isPlayer ? (
-    <span
-      className="playerSpriteSheet"
-      style={
-        {
-          ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
-          ["--frameW" as any]: 32,
-          ["--frameH" as any]: 32,
-          ["--cols" as any]: 5,
-          ["--frameX" as any]: spriteFrame % 5,
-          ["--frameY" as any]: Math.floor(spriteFrame / 5),
-        } as any
-      }
-    />
-  ) : null}
 
-  {isGoal ? <span className="mark g">G</span> : null}
-  {isTrigger ? <span className="mark t">!</span> : null}
-</div>
 
 
 
