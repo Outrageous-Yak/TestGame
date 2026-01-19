@@ -1267,22 +1267,20 @@ useEffect(() => {
                           }}
                           title={id}
                         >
-                          <div className="hexInner">
-                            <div className="hexId">
-                              {r},{c}
-                            </div>
-<div className="hexInner">
+        <div className="hexInner">
   <div className="hexId">{r},{c}</div>
 
-  {/* ✅ PUT PLAYER SPRITE HERE (new position, centered/anchored) */}
   {isPlayer ? (
     <span
       className="playerSpriteSheet"
       style={
         {
           ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
-          ["--frameW" as any]: 32,
-          ["--frameH" as any]: 32,
+
+          // IMPORTANT: set these to the REAL frame size of the PNG
+          ["--frameW" as any]: 64,
+          ["--frameH" as any]: 64,
+
           ["--cols" as any]: 5,
           ["--frameX" as any]: spriteFrame % 5,
           ["--frameY" as any]: Math.floor(spriteFrame / 5),
@@ -1291,12 +1289,12 @@ useEffect(() => {
     />
   ) : null}
 
-  {/* ✅ keep marks separate */}
   <div className="hexMarks">
     {isGoal ? <span className="mark g">G</span> : null}
     {isTrigger ? <span className="mark t">!</span> : null}
   </div>
 </div>
+
 
 
 
@@ -1957,31 +1955,37 @@ body{
 .playerSpriteSheet{
   position: absolute;
 
-  /* ✅ anchor: bottom point center of the hex */
+  /* === Anchor to hex bottom point (center) === */
   left: 50%;
-  bottom: 4px;                 /* tweak: 0–10px usually */
+  bottom: 2px;
   transform: translateX(-50%);
 
-  /* ✅ size: taller than the hex, so top reaches into the space above */
-  width: 54px;                 /* tweak */
-  height: 74px;                /* tweak (taller = head goes higher) */
+  /* === Display size (how big the sprite looks on the board) === */
+  width: 40px;
+  height: 56px;
 
-  border-radius: 10px;
+  /* === Sprite sheet rendering === */
   background-image: var(--spriteImg);
   background-repeat: no-repeat;
 
+  /* sheet total pixel size = frameW*cols by frameH*rows (rows=4 here) */
   background-size:
     calc(var(--frameW) * var(--cols) * 1px)
     calc(var(--frameH) * 4 * 1px);
 
+  /* show the correct frame (Option A) */
   background-position:
     calc(var(--frameW) * -1px * var(--frameX))
     calc(var(--frameH) * -1px * var(--frameY));
 
   image-rendering: pixelated;
   pointer-events: none;
+
+  /* optional styling */
+  border-radius: 10px;
   filter: drop-shadow(0 10px 18px rgba(0,0,0,.45));
 }
+
 
 
 
