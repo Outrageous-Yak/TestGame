@@ -281,6 +281,59 @@ export default function App() {
   function spriteSheetUrl() {
     return toPublicUrl("images/players/sprite_sheet_20.png");
   }
+function facingCol(f: "down" | "up" | "left" | "right") {
+  switch (f) {
+    case "down":
+      return 0;
+    case "left":
+      return 1;
+    case "right":
+      return 2;
+    case "up":
+      return 3;
+  }
+}
+
+const [isWalking, setIsWalking] = useState(false);
+const walkTimer = useRef<number | null>(null);
+
+const [walkFrame, setWalkFrame] = useState(0);
+const walkRafRef = useRef<number | null>(null);
+const lastRef = useRef(0);
+
+// sprite_sheet_20.png is 4 cols x 5 rows, 128px per frame
+const SPRITE_FPS = 10;
+const FRAME_DURATION = 1000 / SPRITE_FPS;
+const SPRITE_COLS = 4;
+const SPRITE_ROWS = 5;
+const FRAME_W = 128;
+const FRAME_H = 128;
+
+useEffect(() => {
+  if (!isWalking) {
+    if (walkRafRef.current) cancelAnimationFrame(walkRafRef.current);
+    walkRafRef.current = null;
+    setWalkFrame(0);
+    return;
+  }
+
+  lastRef.current = performance.now();
+
+  const tick = (t: number) => {
+    if (t - lastRef.current >= FRAME_DURATION) {
+      setWalkFrame((f) => (f + 1) % SPRITE_ROWS); // 0..4
+      lastRef.current = t;
+    }
+    walkRafRef.current = requestAnimationFrame(tick);
+  };
+
+  walkRafRef.current = requestAnimationFrame(tick);
+
+  return () => {
+    if (walkRafRef.current) cancelAnimationFrame(walkRafRef.current);
+    walkRafRef.current = null;
+  };
+}, [isWalking]);
 
   // sprite_sheet_20 => commonly 20 frames arranged 5 columns x 4 rows
   // rows: down, left, right, up (swap if your sheet differs)
@@ -309,7 +362,6 @@ function facingCol(f: "down" | "up" | "left" | "right") {
   }
 }
 
-const [isWalking, setIsWalking] = useState(false);
 const walkTimer = useRef<number | null>(null);
 
 const [walkFrame, setWalkFrame] = useState(0);
@@ -352,39 +404,6 @@ useEffect(() => {
 }, [isWalking]);
 
 
-// ✅ Option A Step 1 goes here
-const [spriteFrame, setSpriteFrame] = useState(0);
-const lastFrameTimeRef = useRef(0);
-const rafRef = useRef<number | null>(null);
-
-const SPRITE_FPS = 10;
-const FRAME_DURATION = 1000 / SPRITE_FPS;
-const SPRITE_COLS = 5;
-const TOTAL_FRAMES = 20;
-
-useEffect(() => {
-  if (!isWalking) {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
-    setSpriteFrame(0);
-    return;
-  }
-
-  const tick = (t: number) => {
-    if (t - lastFrameTimeRef.current >= FRAME_DURATION) {
-      setSpriteFrame((f) => (f + 1) % TOTAL_FRAMES);
-      lastFrameTimeRef.current = t;
-    }
-    rafRef.current = requestAnimationFrame(tick);
-  };
-
-  rafRef.current = requestAnimationFrame(tick);
-
-  return () => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
-  };
-}, [isWalking]);
 
   // villain triggers loaded from scenario.json
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
@@ -1339,8 +1358,8 @@ useEffect(() => {
         ["--frameH" as any]: FRAME_H,
         ["--cols" as any]: SPRITE_COLS,
         ["--rows" as any]: SPRITE_ROWS,
-        ["--frameX" as any]: facingCol(playerFacing), // 0..3
-        ["--frameY" as any]: walkFrame,               // 0..4
+        ["--frameX" as any]: facingCol(playerFacing),
+        ["--frameY" as any]: walkFrame,
       } as any
     }
   />
