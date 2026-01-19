@@ -1978,7 +1978,7 @@ body{
   position: absolute;
   left: 50%;
   top: 100%;
-  transform: translate(-50%, -78%); /* tweak this */
+  transform: translate(-56%, -86%);
 
   z-index: 20;
   pointer-events: none;
