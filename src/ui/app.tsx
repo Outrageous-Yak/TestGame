@@ -1271,7 +1271,10 @@ useEffect(() => {
                             <div className="hexId">
                               {r},{c}
                             </div>
-  <div className="hexMarks">
+<div className="hexInner">
+  <div className="hexId">{r},{c}</div>
+
+  {/* ✅ PUT PLAYER SPRITE HERE (new position, centered/anchored) */}
   {isPlayer ? (
     <span
       className="playerSpriteSheet"
@@ -1288,9 +1291,13 @@ useEffect(() => {
     />
   ) : null}
 
-  {isGoal ? <span className="mark g">G</span> : null}
-  {isTrigger ? <span className="mark t">!</span> : null}
+  {/* ✅ keep marks separate */}
+  <div className="hexMarks">
+    {isGoal ? <span className="mark g">G</span> : null}
+    {isTrigger ? <span className="mark t">!</span> : null}
+  </div>
 </div>
+
 
 
                             
@@ -1584,7 +1591,7 @@ body{
   position: relative;
   border-radius: 18px;
   border: 1px solid rgba(255,255,255,.08);
-  overflow: hidden;
+  overflow: visible;
   min-height: 0;
   background: rgba(0,0,0,.22);
   box-shadow: var(--shadow2);
@@ -1830,7 +1837,7 @@ body{
   background-size: cover;
   background-position: center;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
-  overflow:hidden;
+  overflow:visible;
 }
 
 /* subtle sheen */
@@ -1943,56 +1950,37 @@ body{
   background: rgba(255,122,209,.10);
 }
 
+
+
+
 /* === Player sprite from sprite sheet === */
 .playerSpriteSheet{
-  width: 42px;
-  height: 42px;
+  position: absolute;
+
+  /* ✅ anchor: bottom point center of the hex */
+  left: 50%;
+  bottom: 4px;                 /* tweak: 0–10px usually */
+  transform: translateX(-50%);
+
+  /* ✅ size: taller than the hex, so top reaches into the space above */
+  width: 54px;                 /* tweak */
+  height: 74px;                /* tweak (taller = head goes higher) */
+
   border-radius: 10px;
-
-  background-image: var(--spriteImg);
-  background-repeat: no-repeat;
-
-  /* IMPORTANT: tune these if your frame size differs */
-  --frameW: 64px;
-  --frameH: 64px;
-  --cols: 5;
-  --rows: 4;
-
-  background-size: calc(var(--frameW) * var(--cols)) calc(var(--frameH) * var(--rows));
-
-  /* idle frame: col 0 */
-  background-position: 0px calc(var(--frameH) * -1 * var(--frameY));
-
-  image-rendering: pixelated;
-
-  border: 1px solid rgba(255,255,255,.18);
-  box-shadow: 0 10px 18px rgba(0,0,0,.35);
-  background-color: rgba(0,0,0,.20);
-}
-
-/* When walking: step through columns 0..4 */
-/* === Player sprite from sprite sheet === */
-.playerSpriteSheet{
-  display:inline-block;
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-
   background-image: var(--spriteImg);
   background-repeat: no-repeat;
 
   background-size:
     calc(var(--frameW) * var(--cols) * 1px)
-    calc(var(--frameH) * 4 * 1px); /* 4 rows */
+    calc(var(--frameH) * 4 * 1px);
 
   background-position:
     calc(var(--frameW) * -1px * var(--frameX))
     calc(var(--frameH) * -1px * var(--frameY));
 
   image-rendering: pixelated;
-  border: 1px solid rgba(255,255,255,.18);
-  box-shadow: 0 10px 18px rgba(0,0,0,.35);
-  background-color: rgba(0,0,0,.20);
+  pointer-events: none;
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,.45));
 }
 
 
