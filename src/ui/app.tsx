@@ -1144,56 +1144,76 @@ const pid = (state as any)?.playerHexId as string | null;
         }}
       />
 
-      <div className="topbar">
-        <button className="btn" onClick={() => setScreen("scenario")}>
-          ↺ Setup
-        </button>
-        <button className="btn" onClick={resetAll}>
-          Reset
-        </button>
+<div className="topbar">
+  {/* Left controls */}
+  <button className="btn" onClick={() => setScreen("scenario")}>↺ Setup</button>
+  <button className="btn" onClick={resetAll}>Reset</button>
 
-        <div className="spacer" />
+  {/* HUD LEFT GROUP */}
+  <div className="hudGroup hudGroupLeft">
+    <button
+      className="btn primary"
+      disabled={!state || diceRolling}
+      onClick={() => rollDice({ reason: encounterActive ? "encounter" : "normal" })}
+    >
+      {diceRolling ? "Rolling…" : encounterActive ? "Roll (Need 6)" : "Roll"}
+    </button>
 
-        <div className="pill">
-          <span className="dot" />
-          <span className="pillText">
-            {world?.name ?? "World"} • {scenarioEntry?.name ?? "Scenario"} • L{currentLayer} • Moves {movesTaken}
-          </span>
-        </div>
-
-        <div className="spacer" />
-
-        <button
-          className="btn"
-          disabled={!state || !canGoDown || encounterActive}
-          onClick={() => {
-            if (!state) return;
-            const next = Math.max(1, currentLayer - 1);
-            setCurrentLayer(next);
-            enterLayer(state, next);
-            revealWholeLayer(state, next);
-            setReachMap(getReachability(state) as any);
-            pushLog(`Layer ${next}`, "info");
-          }}
-        >
-          − Layer
-        </button>
-        <button
-          className="btn"
-          disabled={!state || !canGoUp || encounterActive}
-          onClick={() => {
-            if (!state) return;
-            const next = Math.min(scenarioLayerCount, currentLayer + 1);
-            setCurrentLayer(next);
-            enterLayer(state, next);
-            revealWholeLayer(state, next);
-            setReachMap(getReachability(state) as any);
-            pushLog(`Layer ${next}`, "info");
-          }}
-        >
-          + Layer
-        </button>
+    <div className="dice3d">
+      <div
+        className="cube"
+        style={{ transform: `rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)` }}
+      >
+        <div className="face face-front" style={{ backgroundImage: `url(${diceImg(2)})` }} />
+        <div className="face face-back" style={{ backgroundImage: `url(${diceImg(5)})` }} />
+        <div className="face face-right" style={{ backgroundImage: `url(${diceImg(3)})` }} />
+        <div className="face face-left" style={{ backgroundImage: `url(${diceImg(4)})` }} />
+        <div className="face face-top" style={{ backgroundImage: `url(${diceImg(1)})` }} />
+        <div className="face face-bottom" style={{ backgroundImage: `url(${diceImg(6)})` }} />
       </div>
+    </div>
+
+    <div className="hudStat"><div className="k">Dice</div><div className="v">{diceValue}</div></div>
+    <div className="hudStat"><div className="k">Facing</div><div className="v">{playerFacing}</div></div>
+    <div className="hudStat"><div className="k">Goal</div><div className="v">{goalId ?? "—"}</div></div>
+    <div className="hudStat">
+      <div className="k">Optimal</div>
+      <div className="v">{optimalFromNow ?? "—"}</div>
+    </div>
+  </div>
+
+  <div className="spacer" />
+
+  {/* HUD RIGHT GROUP */}
+  <div className="hudGroup hudGroupRight">
+    {items.map((it) => (
+      <button
+        key={it.id}
+        className="itemBtn"
+        disabled={it.charges <= 0}
+        onClick={() => useItem(it.id)}
+      >
+        <span className="itemIcon">{it.icon}</span>
+        <span className="itemName">{it.name}</span>
+        <span className="itemCharges">{it.charges}</span>
+      </button>
+    ))}
+  </div>
+
+  <div className="spacer" />
+
+  {/* Scenario pill */}
+  <div className="pill">
+    <span className="dot" />
+    <span className="pillText">
+      {world?.name} • {scenarioEntry?.name} • L{currentLayer} • Moves {movesTaken}
+    </span>
+  </div>
+
+  {/* Layer buttons */}
+  <button className="btn">− Layer</button>
+  <button className="btn">+ Layer</button>
+</div>
 
       <div className="gameLayout">
         {/* Left color bar */}
@@ -1209,37 +1229,6 @@ const pid = (state as any)?.playerHexId as string | null;
           />
 
           {/* HUD */}
-      <div className="hud">
-  <div className="hudGroup hudGroupLeft">
-    <div className="hudLeft">
-      <button
-        className="btn primary"
-        disabled={!state || diceRolling}
-        onClick={() => rollDice({ reason: encounterActive ? "encounter" : "normal" })}
-      >
-        {diceRolling ? "Rolling…" : encounterActive ? "Roll (Need 6)" : "Roll"}
-      </button>
-
-      <div className={`dice3d ${diceRolling ? "rolling" : ""}`}>
-        <div
-          className="cube"
-          style={{
-            transform: `rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
-          }}
-        >
-          <div className="face face-front" style={{ backgroundImage: `url(${diceImg(2)})` }} />
-          <div className="face face-back" style={{ backgroundImage: `url(${diceImg(5)})` }} />
-          <div className="face face-right" style={{ backgroundImage: `url(${diceImg(3)})` }} />
-          <div className="face face-left" style={{ backgroundImage: `url(${diceImg(4)})` }} />
-          <div className="face face-top" style={{ backgroundImage: `url(${diceImg(1)})` }} />
-          <div className="face face-bottom" style={{ backgroundImage: `url(${diceImg(6)})` }} />
-        </div>
-
-        {DICE_BORDER_IMG ? (
-          <div className="diceBorder" style={{ backgroundImage: `url(${toPublicUrl(DICE_BORDER_IMG)})` }} />
-        ) : null}
-      </div>
-
       <div className="hudStat">
         <div className="k">Dice</div>
         <div className="v">{diceValue}</div>
@@ -1525,6 +1514,21 @@ body{
 
 .screen.center{ height: calc(100vh - 64px); display:grid; place-items:center; padding:18px; }
 .topbar{
+  height:64px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  background: linear-gradient(180deg, rgba(0,0,0,.28), rgba(0,0,0,.08));
+  backdrop-filter: blur(10px);
+  position:relative;
+  z-index:5;
+
+  flex-wrap: nowrap;          /* ✅ keep everything on one row */
+  overflow: hidden;           /* ✅ prevents spilling */
+}
+{
   height:64px; display:flex; align-items:center; gap:10px;
   padding: 10px 14px;
   border-bottom: 1px solid rgba(255,255,255,.06);
