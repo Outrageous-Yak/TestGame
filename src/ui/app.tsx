@@ -20,6 +20,7 @@ import { neighborIdsSameLayer } from "../engine/neighbors";
 // ✅ GitHub-safe world list (manual registry)
 import { worlds as registeredWorlds } from "../worlds/index";
 
+
 /* =========================================================
    2) Core Types
 ========================================================= */
@@ -85,24 +86,99 @@ type WorldEntry = {
 };
 
 /* =======================================================
-   3) World loader (GitHub-safe)
-   - Uses src/worlds/index.ts registry
+   3) World loader (GitHub-safe + registry tolerant)
+   - Handles: {worlds: [...]}, default exports, modules, missing fields
 ======================================================= */
 
+function normalizeWorldEntry(raw: any): WorldEntry | null {
+  if (!raw) return null;
+
+  // support modules like: { default: {...} }
+  const w = raw.default ?? raw;
+
+  const id = String(w.id ?? w.slug ?? w.key ?? "world");
+  const name = String(w.name ?? w.title ?? id);
+
+  // ensure scenarios is always an array
+  const scenarios = Array.isArray(w.scenarios) ? w.scenarios : [];
+
+  // normalize scenarios (must have id/name/scenarioJson/theme minimally)
+  const normScenarios: ScenarioEntry[] = scenarios
+    .map((s: any, idx: number) => {
+      if (!s) return null;
+
+      const sid = String(s.id ?? s.slug ?? `scenario-${idx}`);
+      const sname = String(s.name ?? s.title ?? sid);
+
+      const scenarioJson = String(s.scenarioJson ?? s.json ?? "");
+      if (!scenarioJson) return null; // without json it will break startScenario
+
+      // theme can be missing in some worlds; give a safe default
+      const theme: ScenarioTheme =
+        s.theme ??
+        ({
+          palette: {
+            L1: "#19ffb4",
+            L2: "#67a5ff",
+            L3: "#ffd36a",
+            L4: "#ff7ad1",
+            L5: "#a1ff5a",
+            L6: "#a58bff",
+            L7: "#ff5d7a",
+          },
+          assets: {
+            diceFacesBase: "images/dice",
+            diceCornerBorder: "",
+            villainsBase: "images/villains",
+          },
+        } as ScenarioTheme);
+
+      const tracks: Track[] | undefined = Array.isArray(s.tracks)
+        ? s.tracks
+            .map((t: any, tIdx: number) => {
+              if (!t) return null;
+              const tid = String(t.id ?? `track-${tIdx}`);
+              const tname = String(t.name ?? tid);
+              const tjson = String(t.scenarioJson ?? t.json ?? "");
+              if (!tjson) return null;
+              return { id: tid, name: tname, scenarioJson: tjson } as Track;
+            })
+            .filter(Boolean) as Track[]
+        : undefined;
+
+      return {
+        id: sid,
+        name: sname,
+        desc: s.desc,
+        scenarioJson,
+        theme,
+        tracks: tracks && tracks.length ? tracks : undefined,
+      } as ScenarioEntry;
+    })
+    .filter(Boolean) as ScenarioEntry[];
+
+  return {
+    id,
+    name,
+    desc: w.desc,
+    menu: w.menu ?? {},
+    scenarios: normScenarios,
+  } as WorldEntry;
+}
+
 function loadWorlds(): WorldEntry[] {
+  // tolerate: registeredWorlds being array OR {worlds: array}
+  const rawList = Array.isArray(registeredWorlds)
+    ? registeredWorlds
+    : Array.isArray((registeredWorlds as any)?.worlds)
+    ? (registeredWorlds as any).worlds
+    : [];
+
   const list: WorldEntry[] = [];
 
-  for (const w of registeredWorlds as any[]) {
-    if (!w) continue;
-
-    const id = w.id ?? "world";
-    const name = w.name ?? id;
-
-    list.push({
-      id,
-      name,
-      ...w,
-    } as WorldEntry);
+  for (const raw of rawList as any[]) {
+    const norm = normalizeWorldEntry(raw);
+    if (norm) list.push(norm);
   }
 
   list.sort((a, b) => a.name.localeCompare(b.name));
