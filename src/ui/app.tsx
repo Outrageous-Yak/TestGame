@@ -1295,11 +1295,6 @@ useEffect(() => {
   </div>
 </div>
 
-
-
-
-                            
-                          </div>
                         </button>
                       );
                     })}
