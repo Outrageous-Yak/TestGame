@@ -845,38 +845,14 @@ function HexDeckCardsOverlay() {
   return (
     <div className="hexDeckOverlay" aria-label="Hex deck overlay">
       <div className="hexDeckSides">
-        {/* LEFT COLUMN (top + bottom) */}
         <div className="hexDeckCol left">
-          <div className="hexDeckCard cosmic">
-            <div className="mark">
-              <div className="hexDeckHex" />
-              <div className="sigil sigil-cosmic" />
-            </div>
-          </div>
-
-          <div className="hexDeckCard risk">
-            <div className="mark">
-              <div className="hexDeckHex" />
-              <div className="sigil sigil-risk" />
-            </div>
-          </div>
+          <div className="hexDeckCard cosmic" />
+          <div className="hexDeckCard risk" />
         </div>
 
-        {/* RIGHT COLUMN (top + bottom) */}
         <div className="hexDeckCol right">
-          <div className="hexDeckCard terrain">
-            <div className="mark">
-              <div className="hexDeckHex" />
-              <div className="sigil sigil-terrain" />
-            </div>
-          </div>
-
-          <div className="hexDeckCard shadow">
-            <div className="mark">
-              <div className="hexDeckHex" />
-              <div className="sigil sigil-shadow" />
-            </div>
-          </div>
+          <div className="hexDeckCard terrain" />
+          <div className="hexDeckCard shadow" />
         </div>
       </div>
     </div>
@@ -1684,7 +1660,48 @@ body{
 }
 @media (max-width: 980px){
   .gameLayout{ grid-template-columns: 1fr; height:auto; }
-  .barWrap{ display:none; } /* optional: hide bars on narrow screens */
+ 
+}
+/* ===== Layer Bars (left/right) ===== */
+.barWrap{
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 6;              /* above background */
+}
+
+.barLeft{ justify-content: flex-start; }
+.barRight{ justify-content: flex-end; }
+
+.layerBar{
+  height: 86%;
+  width: 18px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.18);
+  box-shadow: 0 18px 40px rgba(0,0,0,.35);
+}
+
+.barSeg{
+  height: calc(100% / 7);
+  width: 100%;
+  opacity: .95;
+}
+
+/* segment colors from your theme vars */
+.barSeg[data-layer="7"]{ background: var(--L7); }
+.barSeg[data-layer="6"]{ background: var(--L6); }
+.barSeg[data-layer="5"]{ background: var(--L5); }
+.barSeg[data-layer="4"]{ background: var(--L4); }
+.barSeg[data-layer="3"]{ background: var(--L3); }
+.barSeg[data-layer="2"]{ background: var(--L2); }
+.barSeg[data-layer="1"]{ background: var(--L1); }
+
+.barSeg.isActive{
+  filter: brightness(1.15);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.35);
 }
 
 
@@ -2265,147 +2282,75 @@ body{
   .log{ max-height: 240px; }
 }
 /* =========================
-   HEX DECK CARDS (SIDE DEAD-ZONES INSIDE BOARD)
+   HEX DECK CARDS (SIDE DEAD-ZONES INSIDE BOARD) — CARD STYLE
 ========================= */
 .hexDeckOverlay{
   position: absolute;
   inset: 0;
-  z-index: 4;                /* above board background + hexes */
-  pointer-events: none;      /* overlay doesn’t block the board */
+  z-index: 4;
+  pointer-events: none;
 }
 
-/* Two side columns that sit in the “dead zones” */
 .hexDeckSides{
   position: absolute;
-  inset: 12px;               /* inner padding from board border */
+  inset: 12px;
   display: flex;
-  justify-content: space-between; /* left column + right column */
-  align-items: stretch;           /* full height */
+  justify-content: space-between;
+  align-items: stretch;
 }
 
-/* Each side column holds 2 cards spaced top/bottom */
 .hexDeckCol{
   height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: space-between; /* ✅ equal distance top/bottom + equal gap */
-  gap: 16px;
-
-  pointer-events: none; /* only cards enable pointer events */
+  justify-content: space-between; /* top + bottom evenly */
+  gap: 18px;
+  pointer-events: none;
 }
 
-/* Card sizing: tall portrait cards like your reference */
+/* “Regular card” shape */
 .hexDeckCol .hexDeckCard{
-  pointer-events: auto; /* cards are clickable */
-  width: min(240px, 18vw);
-  height: min(240px, 28vh);
+  pointer-events: auto;
+
+  width: min(230px, 16vw);
+  aspect-ratio: 3 / 4;          /* portrait card */
   max-width: 260px;
-  max-height: 280px;
 
-  position: relative;
-  border-radius: 16px;
-  overflow: hidden;
+  border-radius: 22px;
   border: 1px solid rgba(255,255,255,.18);
-
-  background:
-    radial-gradient(120% 90% at 50% 30%, rgba(255,255,255,.10), transparent 55%),
-    linear-gradient(135deg, var(--a), var(--b));
-
+  background: linear-gradient(135deg, var(--a), var(--b));
   box-shadow:
-    0 18px 48px rgba(0,0,0,.6),
+    0 18px 48px rgba(0,0,0,.55),
     0 0 0 1px rgba(255,255,255,.06) inset;
 
-  transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.hexDeckCol .hexDeckCard::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(120% 90% at 40% 20%, rgba(255,255,255,.12), transparent 55%),
+    radial-gradient(90% 70% at 70% 80%, rgba(255,255,255,.08), transparent 60%);
+  opacity: .9;
+  pointer-events:none;
+}
+
+.hexDeckCol .hexDeckCard::after{
+  content:"";
+  position:absolute;
+  inset:10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 0 26px var(--glow);
+  pointer-events:none;
 }
 
 .hexDeckCol .hexDeckCard:hover{
   transform: translateY(-2px);
-  box-shadow:
-    0 22px 58px rgba(0,0,0,.65),
-    0 0 0 1px rgba(255,255,255,.08) inset;
-}
-
-.hexDeckCard::after{
-  content:"";
-  position:absolute;
-  inset:10px;
-  border-radius:12px;
-  border:1px solid rgba(255,255,255,.16);
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,.4) inset,
-    0 0 26px var(--glow);
-  pointer-events:none;
-}
-
-.hexDeckCard .mark{
-  position:absolute;
-  inset:0;
-  display:grid;
-  place-items:center;
-  pointer-events:none;
-}
-
-.hexDeckCard .hexDeckHex{
-  width:70%;
-  aspect-ratio: 1 / 0.866;
-  position:relative;
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  background:
-    radial-gradient(70% 60% at 50% 35%, rgba(255,255,255,.12), transparent 60%),
-    linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.35));
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,.18) inset,
-    0 0 36px var(--glow);
-}
-
-.hexDeckCard .sigil{
-  position:absolute;
-  inset:22%;
-  clip-path: inherit;
-  opacity:.85;
-  filter: drop-shadow(0 0 14px var(--glow));
-  transition: transform .25s ease, opacity .25s ease;
-}
-
-.hexDeckCard:hover .sigil{
-  opacity:1;
-  transform:scale(1.05);
-}
-
-.hexDeckCard .sigil-cosmic{
-  background:
-    conic-gradient(from 30deg,
-      transparent 0 12%,
-      rgba(255,255,255,.5) 12% 14%,
-      transparent 14% 36%,
-      rgba(255,255,255,.4) 36% 38%,
-      transparent 38% 62%,
-      rgba(255,255,255,.5) 62% 64%,
-      transparent 64% 100%
-    );
-}
-.hexDeckCard .sigil-risk{
-  background:
-    linear-gradient(60deg, rgba(255,255,255,.45), transparent 65%),
-    linear-gradient(-60deg, rgba(255,255,255,.35), transparent 65%),
-    linear-gradient(180deg, transparent 44%, rgba(255,255,255,.45) 48% 52%, transparent 56%);
-}
-.hexDeckCard .sigil-terrain{
-  background:
-    linear-gradient(180deg,
-      transparent 0 18%,
-      rgba(255,255,255,.35) 18% 20%,
-      transparent 20% 40%,
-      rgba(255,255,255,.25) 40% 42%,
-      transparent 42% 62%,
-      rgba(255,255,255,.30) 62% 64%,
-      transparent 64% 100%
-    );
-}
-.hexDeckCard .sigil-shadow{
-  background:
-    radial-gradient(circle at 60% 50%, transparent 0 45%, rgba(255,255,255,.45) 46% 48%, transparent 49%),
-    linear-gradient(90deg, transparent 0 45%, rgba(255,255,255,.35) 50% 52%, transparent 57%);
+  transition: transform 140ms ease;
 }
 
 .hexDeckCard.cosmic  { --a:#0C1026; --b:#1A1F4A; --glow: rgba(230,194,122,.55); }
