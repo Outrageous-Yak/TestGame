@@ -77,66 +77,31 @@ type WorldEntry = {
    3) Auto-load all world modules under src/worlds/**/world.ts
 ======================================================= */
 
-export type WorldEntry = {
-  id: string;
-  name: string;
-  // add whatever else your worlds expose
-  // description?: string;
-  // start?: () => void;
-};
-
-type WorldModule =
-  | { default?: Partial<WorldEntry> }
-  | { world?: Partial<WorldEntry> }
-  | Partial<WorldEntry>
-  | unknown;
-
-// Vite: auto-import every matching module under /src/worlds/**/world.ts
-// (keys will look like "./worlds/foo/world.ts" relative to this file if it's in /src)
-const worldModules = import.meta.glob<WorldModule>("./worlds/**/world.ts", {
-  eager: true,
-});
+// Vite: auto-import every matching module
+const worldModules = import.meta.glob("../worlds/**/world.ts", { eager: true });
 
 function deriveWorldIdFromPath(path: string): string {
-  // normalize Windows paths just in case
-  const norm = path.replace(/\\/g, "/");
-
-  // Get folder name immediately before "world.ts" (works for any nesting depth)
-  // e.g. "./worlds/biomes/desert/world.ts" -> "desert"
+  const norm = path.replace(/\\/g, "/"); // windows-safe
   const parts = norm.split("/");
-  const idx = parts.lastIndexOf("world.ts");
-  if (idx > 0) return parts[idx - 1] || "world";
-
-  // Fallback: try regex
-  const m = /\/worlds\/(.+)\/world\.ts$/.exec(norm);
-  if (!m) return "world";
-  const segs = m[1].split("/");
-  return segs[segs.length - 1] || "world";
+  // folder right before world.ts (works with any nesting depth)
+  return parts[parts.length - 2] ?? "world";
 }
 
-export function loadWorlds(): WorldEntry[] {
+function loadWorlds(): WorldEntry[] {
   const list: WorldEntry[] = [];
 
-  for (const [path, mod] of Object.entries(worldModules)) {
-    // Vite eager glob returns the module object directly
-    const candidate =
-      (mod as any)?.default ??
-      (mod as any)?.world ??
-      (mod as any) ??
-      null;
-
-    if (!candidate) continue;
+  for (const [path, mod] of Object.entries(worldModules as any)) {
+    const w = (mod as any)?.default ?? (mod as any)?.world ?? null;
+    if (!w) continue;
 
     const derivedId = deriveWorldIdFromPath(path);
 
-    // Avoid mutating imported objects: build a clean WorldEntry
-    const w: WorldEntry = {
-      id: (candidate as any).id ?? derivedId,
-      name: (candidate as any).name ?? derivedId,
-      ...(candidate as any),
-    };
-
-    list.push(w);
+    // avoid mutating module exports
+    list.push({
+      id: w.id ?? derivedId,
+      name: w.name ?? derivedId,
+      ...w,
+    } as WorldEntry);
   }
 
   list.sort((a, b) => a.name.localeCompare(b.name));
