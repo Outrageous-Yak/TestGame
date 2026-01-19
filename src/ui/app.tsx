@@ -1450,7 +1450,7 @@ export default function App() {
    FINAL + FIXED
 ========================================================= */
 
-const baseCss = `
+
 const baseCss = `
 :root{
   --bg0:#070a10; --bg1:#0b1324;
