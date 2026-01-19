@@ -1,4 +1,14 @@
 // src/ui/app.tsx
+/* =========================================================
+   app.tsx — PART 1 / 5
+   Sections in this part:
+   1) Imports
+   2) Types (template flow, theme, world/scenario)
+   3) Auto-discovery: load worlds
+   4) Villain trigger types
+   5) Core helpers (id parsing, public url, JSON loader, goal finder)
+========================================================= */
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { GameState, Scenario, Hex } from "../engine/types";
@@ -8,9 +18,9 @@ import { ROW_LENS, enterLayer, revealHex } from "../engine/board";
 import { neighborIdsSameLayer } from "../engine/neighbors";
 
 /* =========================================================
-   Template Flow
-   Start -> World -> Character -> Scenario -> Game
+   2) Template Flow / Core Types
 ========================================================= */
+
 type Screen = "start" | "world" | "character" | "scenario" | "game";
 
 type PlayerChoice =
@@ -21,15 +31,15 @@ type Coord = { layer: number; row: number; col: number };
 type LogEntry = { n: number; t: string; msg: string; kind?: "ok" | "bad" | "info" };
 
 /* =========================================================
-   World / Scenario auto-discovery
+   2b) World / Scenario auto-discovery types
 ========================================================= */
+
 type LayerPalette = { L1: string; L2: string; L3: string; L4: string; L5: string; L6: string; L7: string };
 
 type ScenarioTheme = {
   palette: LayerPalette;
   assets: {
     backgroundGame?: string;
-
     backgroundLayers?: Partial<{
       L1: string;
       L2: string;
@@ -66,7 +76,10 @@ type WorldEntry = {
   scenarios: ScenarioEntry[];
 };
 
-// Auto-load all world modules under src/worlds/**/world.ts
+/* =========================================================
+   3) Auto-load all world modules under src/worlds/**/world.ts
+========================================================= */
+
 const worldModules = import.meta.glob("../worlds/**/world.ts", { eager: true });
 
 function loadWorlds(): WorldEntry[] {
@@ -74,6 +87,7 @@ function loadWorlds(): WorldEntry[] {
   for (const [path, mod] of Object.entries(worldModules as any)) {
     const w = (mod as any)?.default ?? (mod as any)?.world ?? null;
     if (!w) continue;
+
     if (!w.id) {
       const m = /..\/worlds\/([^/]+)\/world\.ts$/.exec(path);
       w.id = m?.[1] ?? "world";
@@ -85,8 +99,9 @@ function loadWorlds(): WorldEntry[] {
 }
 
 /* =========================================================
-   Villain triggers (loaded from scenario.json, NOT hardcoded)
+   4) Villain triggers (loaded from scenario.json, NOT hardcoded)
 ========================================================= */
+
 type VillainKey = "bad1" | "bad2" | "bad3" | "bad4";
 
 type VillainTrigger = {
@@ -99,8 +114,9 @@ type VillainTrigger = {
 type Encounter = null | { villainKey: VillainKey; tries: number };
 
 /* =========================================================
-   Helpers
+   5) Helpers
 ========================================================= */
+
 function idToCoord(id: string): Coord | null {
   const m = /^L(\d+)-R(\d+)-C(\d+)$/.exec(id);
   if (!m) return null;
@@ -207,48 +223,30 @@ function facingFromMove(fromId: string | null, toId: string | null): "down" | "u
 }
 
 /* =========================================================
-   Minimal players (template)
+   PART 1 END
+   Next: PART 2 / 5 (App component state, sprite, dice, sidebar bars)
 ========================================================= */
-const PLAYER_PRESETS: Array<{ id: string; name: string }> = [
-  { id: "p1", name: "Aeris" },
-  { id: "p2", name: "Devlan" },
-];
-
 /* =========================================================
-   Dice mapping
+   app.tsx — PART 2 / 5
+   Sections in this part:
+   6) App component shell + core state
+   7) Player / sprite animation state (larger sprite)
+   8) Dice state + roll logic
+   9) Side bar component (layer bars with active glow)
 ========================================================= */
-function rotForRoll(n: number) {
-  // Convention: 1=top, 6=bottom, 2=front, 5=back, 3=right, 4=left
-  switch (n) {
-    case 1:
-      return { x: -90, y: 0 };
-    case 2:
-      return { x: 0, y: 0 };
-    case 3:
-      return { x: 0, y: -90 };
-    case 4:
-      return { x: 0, y: 90 };
-    case 5:
-      return { x: 0, y: 180 };
-    case 6:
-      return { x: 90, y: 0 };
-    default:
-      return { x: 0, y: 0 };
-  }
-}
 
-/* =========================================================
-   App
-========================================================= */
 export default function App() {
+  /* =======================================================
+     6) App shell + navigation state
+  ======================================================= */
   const [screen, setScreen] = useState<Screen>("start");
 
-  // auto worlds
+  // worlds
   const [worlds, setWorlds] = useState<WorldEntry[]>([]);
   const [worldId, setWorldId] = useState<string | null>(null);
   const world = useMemo(() => worlds.find((w) => w.id === worldId) ?? null, [worlds, worldId]);
 
-  // scenario / track selection
+  // scenario / track
   const [scenarioId, setScenarioId] = useState<string | null>(null);
   const scenarioEntry = useMemo(() => world?.scenarios.find((s) => s.id === scenarioId) ?? null, [world, scenarioId]);
 
@@ -268,9 +266,7 @@ export default function App() {
   const [currentLayer, setCurrentLayer] = useState<number>(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // sprite facing
-  const [playerFacing, setPlayerFacing] = useState<"down" | "up" | "left" | "right">("down");
-
+  // reachability
   const [reachMap, setReachMap] = useState<ReachMap>({} as ReachMap);
   const reachable = useMemo(() => {
     const set = new Set<string>();
@@ -278,67 +274,168 @@ export default function App() {
     return set;
   }, [reachMap]);
 
-function spriteSheetUrl() {
-  return toPublicUrl("images/players/sprite_sheet_20.png");
-}
+  // misc refs
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
-const [isWalking, setIsWalking] = useState(false); // ✅ ADD THIS
+  useEffect(() => {
+    setWorlds(loadWorlds());
+  }, []);
 
-function facingCol(f: "down" | "up" | "left" | "right") {
-  switch (f) {
-    case "down":
-      return 0;
-    case "left":
-      return 1;
-    case "right":
-      return 2;
-    case "up":
-      return 3;
-  }
-}
+  /* =======================================================
+     7) Player sprite animation (larger + stable)
+  ======================================================= */
 
-const walkTimer = useRef<number | null>(null);
-const [walkFrame, setWalkFrame] = useState(0);
-const rafRef = useRef<number | null>(null);
-const lastRef = useRef(0);
+  const [playerFacing, setPlayerFacing] = useState<"down" | "up" | "left" | "right">("down");
+  const [isWalking, setIsWalking] = useState(false);
 
-const SPRITE_FPS = 10;
-const FRAME_DURATION = 1000 / SPRITE_FPS;
-const SPRITE_COLS = 4; // walk frames
-const SPRITE_ROWS = 5; // directions
-const FRAME_W = 128;    // <- set to real frame size
-const FRAME_H = 128;
+  // sprite sheet config
+  const SPRITE_COLS = 4; // walk frames
+  const SPRITE_ROWS = 4; // directions
+  const FRAME_W = 128;
+  const FRAME_H = 128;
 
-useEffect(() => {
-  if (!isWalking) {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
-    setWalkFrame(0);
-    return;
+  function spriteSheetUrl() {
+    return toPublicUrl("images/players/sprite_sheet_20.png");
   }
 
-  lastRef.current = performance.now();
+  const walkTimer = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const lastRef = useRef(0);
+  const [walkFrame, setWalkFrame] = useState(0);
 
-  const tick = (t: number) => {
-    if (t - lastRef.current >= FRAME_DURATION) {
-     setWalkFrame((f) => (f + 1) % SPRITE_COLS); // 0..4
-      lastRef.current = t;
+  const SPRITE_FPS = 10;
+  const FRAME_DURATION = 1000 / SPRITE_FPS;
+
+  useEffect(() => {
+    if (!isWalking) {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+      setWalkFrame(0);
+      return;
     }
+
+    lastRef.current = performance.now();
+
+    const tick = (t: number) => {
+      if (t - lastRef.current >= FRAME_DURATION) {
+        setWalkFrame((f) => (f + 1) % SPRITE_COLS);
+        lastRef.current = t;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
     rafRef.current = requestAnimationFrame(tick);
-  };
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [isWalking]);
 
-  rafRef.current = requestAnimationFrame(tick);
+  /* =======================================================
+     8) Dice state + roll logic
+  ======================================================= */
 
-  return () => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
-  };
-}, [isWalking]);
+  const [diceValue, setDiceValue] = useState<number>(2);
+  const [diceRolling, setDiceRolling] = useState(false);
+  const [diceRot, setDiceRot] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const diceTimer = useRef<number | null>(null);
 
+  useEffect(() => {
+    return () => {
+      if (diceTimer.current) window.clearTimeout(diceTimer.current);
+    };
+  }, []);
 
+  function rotForRoll(n: number) {
+    switch (n) {
+      case 1: return { x: -90, y: 0 };
+      case 2: return { x: 0, y: 0 };
+      case 3: return { x: 0, y: -90 };
+      case 4: return { x: 0, y: 90 };
+      case 5: return { x: 0, y: 180 };
+      case 6: return { x: 90, y: 0 };
+      default: return { x: 0, y: 0 };
+    }
+  }
 
+  const rollDice = useCallback((opts?: { reason?: "normal" | "encounter" | "reroll" }) => {
+    if (diceRolling) return;
+    setDiceRolling(true);
+
+    const start = performance.now();
+    const duration = 650;
+
+    const tick = () => {
+      const elapsed = performance.now() - start;
+      const flicker = 1 + Math.floor(Math.random() * 6);
+      setDiceValue(flicker);
+      setDiceRot(rotForRoll(flicker));
+
+      if (elapsed < duration) {
+        diceTimer.current = window.setTimeout(tick, 55);
+      } else {
+        const final = 1 + Math.floor(Math.random() * 6);
+        setDiceValue(final);
+        setDiceRot(rotForRoll(final));
+        setDiceRolling(false);
+      }
+    };
+
+    tick();
+  }, [diceRolling]);
+
+  /* =======================================================
+     9) Side bar (layer bar) component
+     - same height as hex field
+     - active segment glows
+  ======================================================= */
+
+  function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
+    const segments = [7, 6, 5, 4, 3, 2, 1];
+    const { side, currentLayer } = props;
+
+    return (
+      <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")}>
+        <div className="layerBar">
+          {segments.map((layerVal) => {
+            const active = layerVal === currentLayer;
+            return (
+              <div
+                key={layerVal}
+                className={"barSeg" + (active ? " isActive" : "")}
+                data-layer={layerVal}
+              />
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+/* =========================================================
+   PART 2 END
+   Next: PART 3 / 5 (villains, items, movement, board logic)
+========================================================= */
+/* =========================================================
+   app.tsx — PART 3 / 5
+   Sections in this part:
+   10) Theme assets + CSS vars
+   11) Villain triggers + encounter state
+   12) Move counters + log
+   13) Inventory + reveal helpers
+   14) Start scenario (newGame) + safe init
+   15) Movement / clicking + layer switching (fix “board disappears”)
+========================================================= */
+
+  /* =======================================================
+     10) Theme assets + CSS vars
+  ======================================================= */
 
   // villain triggers loaded from scenario.json
+  type VillainKey = "bad1" | "bad2" | "bad3" | "bad4";
+  type VillainTrigger = { key: VillainKey; layer: number; row: number; cols?: "any" | number[] };
+  type Encounter = null | { villainKey: VillainKey; tries: number };
+
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
   const encounterActive = !!encounter;
@@ -357,75 +454,24 @@ useEffect(() => {
   // layer count from scenario JSON (loaded when starting)
   const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
 
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-   function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
-  const segments = [7, 6, 5, 4, 3, 2, 1];
-  const { side, currentLayer } = props;
+  const themeVars = useMemo(() => {
+    const p = palette;
+    return {
+      ["--L1" as any]: p?.L1 ?? "#19ffb4",
+      ["--L2" as any]: p?.L2 ?? "#67a5ff",
+      ["--L3" as any]: p?.L3 ?? "#ffd36a",
+      ["--L4" as any]: p?.L4 ?? "#ff7ad1",
+      ["--L5" as any]: p?.L5 ?? "#a1ff5a",
+      ["--L6" as any]: p?.L6 ?? "#a58bff",
+      ["--L7" as any]: p?.L7 ?? "#ff5d7a",
+    } as React.CSSProperties;
+  }, [palette]);
 
-  return (
-    <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")} aria-label={`Layer bar ${side}`}>
-      <div className="layerBar">
-        {segments.map((layerVal) => {
-          const active = layerVal === currentLayer;
-          return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} />;
-        })}
-      </div>
-    </div>
-  );
-}
+  /* =======================================================
+     11) Helpers (assets + villain trigger lookup)
+  ======================================================= */
 
-
-  /* --------------------------
-     Move counter + optimal
-  -------------------------- */
-  const [movesTaken, setMovesTaken] = useState(0);
-  const [goalId, setGoalId] = useState<string | null>(null);
-  const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
-  const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
-
-  /* --------------------------
-     Story log
-  -------------------------- */
-  const [log, setLog] = useState<LogEntry[]>([]);
-  const logNRef = useRef(0);
-  const pushLog = useCallback((msg: string, kind: LogEntry["kind"] = "info") => {
-    logNRef.current += 1;
-    const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
-    setLog((prev) => [e, ...prev].slice(0, 24));
-  }, []);
-
-  /* --------------------------
-     Inventory / power ups (simple)
-  -------------------------- */
-  type ItemId = "reroll" | "revealRing" | "peek";
-  type Item = { id: ItemId; name: string; icon: string; charges: number };
-  const [items, setItems] = useState<Item[]>([
-    { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
-    { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
-    { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
-  ]);
-
-  const belowLayer = currentLayer - 1;
-  const aboveLayer = currentLayer + 1;
-
-  useEffect(() => {
-    setWorlds(loadWorlds());
-  }, []);
-
-  /* --------------------------
-     Cleanup timers
-  -------------------------- */
-  useEffect(() => {
-    return () => {
-      if (walkTimer.current) window.clearTimeout(walkTimer.current);
-    };
-  }, []);
-
-  /* --------------------------
-     Helpers that use theme assets
-  -------------------------- */
   function diceImg(n: number) {
-    // Your assets look like: `${diceFacesBase}/D20_1.png` etc
     return toPublicUrl(`${DICE_FACES_BASE}/D20_${n}.png`);
   }
 
@@ -444,43 +490,6 @@ useEffect(() => {
     }
     return null;
   }
-   
-
-  /* --------------------------
-     Game helpers (reveal / optimal / parse villains)
-  -------------------------- */
-  const revealWholeLayer = useCallback((st: GameState, layer: number) => {
-    for (let r = 0; r < ROW_LENS.length; r++) {
-      const len = ROW_LENS[r] ?? 7;
-      for (let c = 0; c < len; c++) {
-        revealHex(st, `L${layer}-R${r}-C${c}`);
-      }
-    }
-  }, []);
-
-  const revealRing = useCallback((st: GameState, centerId: string) => {
-    revealHex(st, centerId);
-
-    // NOTE: your engine may be neighborIdsSameLayer(centerId) or neighborIdsSameLayer(st, centerId)
-    // We try both to be safe.
-    let nbs: string[] = [];
-    try {
-      nbs = (neighborIdsSameLayer as any)(st, centerId) as string[];
-    } catch {
-      try {
-        nbs = (neighborIdsSameLayer as any)(centerId) as string[];
-      } catch {
-        nbs = [];
-      }
-    }
-    for (const nbId of nbs) revealHex(st, nbId);
-  }, []);
-
-  const computeOptimalFromReachMap = useCallback((rm: ReachMap, gid: string | null) => {
-    if (!gid) return null;
-    const info: any = (rm as any)[gid];
-    return info?.reachable ? (info.distance as number) : null;
-  }, []);
 
   const parseVillainsFromScenario = useCallback((s: any): VillainTrigger[] => {
     if (Array.isArray(s?.villainTriggers)) {
@@ -508,146 +517,71 @@ useEffect(() => {
     return [];
   }, []);
 
-  /* --------------------------
-     Start scenario
-  -------------------------- */
-  const startScenario = useCallback(async () => {
-    if (!scenarioEntry) return;
+  /* =======================================================
+     12) Move counter + optimal + story log
+  ======================================================= */
 
-    const tracks = scenarioEntry.tracks ?? [];
-    const hasTracks = tracks.length > 1;
-    const chosenJson = hasTracks ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson : scenarioEntry.scenarioJson;
+  const [movesTaken, setMovesTaken] = useState(0);
 
-    const s = (await loadScenario(chosenJson)) as any;
+  const [goalId, setGoalId] = useState<string | null>(null);
+  const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
+  const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
 
-    setVillainTriggers(parseVillainsFromScenario(s));
-    setEncounter(null);
-
-    const st = newGame(s);
-
-    // ensure layer count
-    const layerCount = Math.max(1, Number(s?.layers ?? 1));
-    setScenarioLayerCount(layerCount);
-
-    // ensure player start exists
-    let pid = (st as any).playerHexId as string | null;
-    let layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
-    layer = Math.max(1, Math.min(layerCount, layer));
-
-    if (!pid || !/^L\d+-R\d+-C\d+$/.test(pid)) {
-      pid = findFirstPlayableHexId(st, layer);
-      (st as any).playerHexId = pid;
-    }
-
-    // clamp pid to valid layer
-    const pidCoord = idToCoord(pid);
-    if (pidCoord) layer = Math.max(1, Math.min(layerCount, pidCoord.layer));
-
-    const gid = findGoalId(s, layer);
-    setGoalId(gid);
-
-    // enter/reveal before reachability
-    enterLayer(st, layer);
-    revealWholeLayer(st, layer);
-
-    // compute reachability AFTER player start is guaranteed
-    const rm = getReachability(st) as any;
-    setReachMap(rm);
-
-    setState(st);
-    setSelectedId(pid);
-    setCurrentLayer(layer);
-    setPlayerFacing("down");
-
-    setMovesTaken(0);
-    setOptimalAtStart(computeOptimalFromReachMap(rm as any, gid));
-    setOptimalFromNow(computeOptimalFromReachMap(rm as any, gid));
-
-    logNRef.current = 0;
-    setLog([]);
-    pushLog(`Started: ${scenarioEntry.name}`, "ok");
-    if (pid) pushLog(`Start: ${pid}`, "info");
-    if (gid) pushLog(`Goal: ${gid}`, "info");
-    else pushLog(`Goal: (not set in scenario JSON)`, "bad");
-
-    setItems([
-      { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
-      { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
-      { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
-    ]);
-
-    window.setTimeout(() => {
-      if (scrollRef.current) scrollRef.current.scrollLeft = 0;
-    }, 0);
-
-    setScreen("game");
-  }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog]);
-
-  /* --------------------------
-     Dice state
-  -------------------------- */
-  const [diceValue, setDiceValue] = useState<number>(2);
-  const [diceRolling, setDiceRolling] = useState(false);
-  const [diceRot, setDiceRot] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const diceTimer = useRef<number | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (diceTimer.current) window.clearTimeout(diceTimer.current);
-    };
+  const computeOptimalFromReachMap = useCallback((rm: ReachMap, gid: string | null) => {
+    if (!gid) return null;
+    const info: any = (rm as any)[gid];
+    return info?.reachable ? (info.distance as number) : null;
   }, []);
 
-  const rollDice = useCallback(
-    (opts?: { reason?: "normal" | "encounter" | "reroll" }) => {
-      if (diceRolling) return;
-      setDiceRolling(true);
+  const [log, setLog] = useState<LogEntry[]>([]);
+  const logNRef = useRef(0);
 
-      const reason = opts?.reason ?? "normal";
-      if (reason === "reroll") pushLog("Reroll used — rolling…", "info");
-      else if (reason === "encounter") pushLog("Encounter roll…", "bad");
-      else pushLog("Rolling…", "info");
+  const pushLog = useCallback((msg: string, kind: LogEntry["kind"] = "info") => {
+    logNRef.current += 1;
+    const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
+    setLog((prev) => [e, ...prev].slice(0, 24));
+  }, []);
 
-      const start = performance.now();
-      const duration = 650;
+  /* =======================================================
+     13) Inventory + reveal helpers
+  ======================================================= */
 
-      const tick = () => {
-        const elapsed = performance.now() - start;
-        const flicker = 1 + Math.floor(Math.random() * 6);
-        setDiceValue(flicker);
-        setDiceRot(rotForRoll(flicker));
+  type ItemId = "reroll" | "revealRing" | "peek";
+  type Item = { id: ItemId; name: string; icon: string; charges: number };
 
-        if (elapsed < duration) {
-          diceTimer.current = window.setTimeout(tick, 55);
-        } else {
-          const final = 1 + Math.floor(Math.random() * 6);
-          setDiceValue(final);
-          setDiceRot(rotForRoll(final));
-          setDiceRolling(false);
-          pushLog(`Dice: ${final}`, "ok");
+  const [items, setItems] = useState<Item[]>([
+    { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
+    { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
+    { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
+  ]);
 
-          // resolve encounter if active
-          if (encounterActive) {
-            if (final === 6) {
-              pushLog(`Success — you may continue.`, "ok");
-              setEncounter(null);
-            } else {
-              setEncounter((prev) => (prev ? { ...prev, tries: prev.tries + 1 } : prev));
-              pushLog(`Need a 6. Try again.`, "bad");
-            }
-          }
-        }
-      };
+  const revealWholeLayer = useCallback((st: GameState, layer: number) => {
+    for (let r = 0; r < ROW_LENS.length; r++) {
+      const len = ROW_LENS[r] ?? 7;
+      for (let c = 0; c < len; c++) {
+        revealHex(st, `L${layer}-R${r}-C${c}`);
+      }
+    }
+  }, []);
 
-      tick();
-    },
-    [diceRolling, pushLog, encounterActive]
-  );
+  const revealRing = useCallback((st: GameState, centerId: string) => {
+    revealHex(st, centerId);
 
-  /* --------------------------
-     Inventory use (simple)
-  -------------------------- */
+    let nbs: string[] = [];
+    try {
+      nbs = (neighborIdsSameLayer as any)(st, centerId) as string[];
+    } catch {
+      try {
+        nbs = (neighborIdsSameLayer as any)(centerId) as string[];
+      } catch {
+        nbs = [];
+      }
+    }
+    for (const nbId of nbs) revealHex(st, nbId);
+  }, []);
+
   const useItem = useCallback(
-    (id: "reroll" | "revealRing" | "peek") => {
+    (id: ItemId) => {
       const it = items.find((x) => x.id === id);
       if (!it || it.charges <= 0) return;
 
@@ -655,6 +589,7 @@ useEffect(() => {
 
       if (id === "reroll") {
         rollDice({ reason: "reroll" });
+        pushLog("Reroll used — rolling…", "info");
         return;
       }
 
@@ -686,12 +621,106 @@ useEffect(() => {
         return;
       }
     },
-    [items, state, currentLayer, scenarioLayerCount, pushLog, revealRing, rollDice]
+    [items, state, currentLayer, scenarioLayerCount, revealRing, rollDice, pushLog]
   );
 
-  /* --------------------------
-     Board click / move
-  -------------------------- */
+  /* =======================================================
+     14) Start scenario (newGame) + safe init
+  ======================================================= */
+
+  const startScenario = useCallback(async () => {
+    if (!scenarioEntry) return;
+
+    const tracks = scenarioEntry.tracks ?? [];
+    const hasTracks = tracks.length > 1;
+    const chosenJson = hasTracks ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson : scenarioEntry.scenarioJson;
+
+    const s = (await loadScenario(chosenJson)) as any;
+
+    // villains
+    setVillainTriggers(parseVillainsFromScenario(s));
+    setEncounter(null);
+
+    // game state
+    const st = newGame(s);
+
+    // layer count
+    const layerCount = Math.max(1, Number(s?.layers ?? 1));
+    setScenarioLayerCount(layerCount);
+
+    // ensure a valid player start exists
+    let pid = (st as any).playerHexId as string | null;
+    let layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
+    layer = Math.max(1, Math.min(layerCount, layer));
+
+    if (!pid || !/^L\d+-R\d+-C\d+$/.test(pid)) {
+      pid = findFirstPlayableHexId(st, layer);
+      (st as any).playerHexId = pid;
+    }
+
+    const pidCoord = idToCoord(pid);
+    if (pidCoord) layer = Math.max(1, Math.min(layerCount, pidCoord.layer));
+
+    const gid = findGoalId(s, layer);
+    setGoalId(gid);
+
+    // IMPORTANT: enter + reveal before reachability so the board doesn't "blink out"
+    enterLayer(st, layer);
+    revealWholeLayer(st, layer);
+
+    const rm = getReachability(st) as any;
+
+    setState(st);
+    setSelectedId(pid);
+    setCurrentLayer(layer);
+    setPlayerFacing("down");
+
+    setReachMap(rm);
+    setMovesTaken(0);
+    setOptimalAtStart(computeOptimalFromReachMap(rm, gid));
+    setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
+
+    // reset log + items
+    logNRef.current = 0;
+    setLog([]);
+    pushLog(`Started: ${scenarioEntry.name}`, "ok");
+    if (pid) pushLog(`Start: ${pid}`, "info");
+    if (gid) pushLog(`Goal: ${gid}`, "info");
+
+    setItems([
+      { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
+      { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
+      { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
+    ]);
+
+    window.setTimeout(() => {
+      if (scrollRef.current) scrollRef.current.scrollLeft = 0;
+    }, 0);
+
+    setScreen("game");
+  }, [
+    scenarioEntry,
+    trackEntry,
+    parseVillainsFromScenario,
+    revealWholeLayer,
+    computeOptimalFromReachMap,
+    pushLog,
+  ]);
+
+  /* =======================================================
+     15) Movement / clicking + layer switching
+     Fix: “board disappears when I move”
+     - Keep state stable
+     - Use nextState from tryMove
+     - Always call enterLayer + revealWholeLayer when layer changes
+  ======================================================= */
+
+  useEffect(() => {
+    return () => {
+      if (walkTimer.current) window.clearTimeout(walkTimer.current);
+    };
+  }, []);
+
   const tryMoveToId = useCallback(
     (id: string) => {
       if (!state) return;
@@ -710,13 +739,13 @@ useEffect(() => {
 
       const pidBefore = (state as any).playerHexId as string | null;
 
-      // Enforce reachability (but allow clicking the current tile)
+      // enforce reachability (allow clicking current)
       if (pidBefore && id !== pidBefore && !reachable.has(id)) {
         pushLog("Not reachable.", "bad");
         return;
       }
 
-      // villain encounter tile (on click)
+      // villain trigger (encounter gate)
       const vk = findTriggerForHex(id);
       if (vk) {
         setEncounter({ villainKey: vk, tries: 0 });
@@ -724,6 +753,7 @@ useEffect(() => {
         return;
       }
 
+      // engine move
       const res: any = tryMove(state as any, id);
       const nextState: any = res?.state ?? res ?? null;
       if (!nextState) return;
@@ -734,17 +764,18 @@ useEffect(() => {
       if (moved) {
         setMovesTaken((n) => n + 1);
 
-        // trigger walk animation for a short burst
         setIsWalking(true);
         if (walkTimer.current) window.clearTimeout(walkTimer.current);
-        walkTimer.current = window.setTimeout(() => setIsWalking(false), 450);
+        walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+
+        setPlayerFacing(facingFromMove(pidBefore, pidAfter));
       }
 
-      setPlayerFacing(facingFromMove(pidBefore, pidAfter));
-
+      // commit next state FIRST (prevents UI “dropout”)
       setState(nextState);
       setSelectedId(pidAfter ?? id);
 
+      // if moved to a different layer, enter + reveal that layer
       const c2 = pidAfter ? idToCoord(pidAfter) : null;
       const nextLayer = c2?.layer ?? currentLayer;
 
@@ -756,11 +787,10 @@ useEffect(() => {
 
       const rm = getReachability(nextState) as any;
       setReachMap(rm);
-      setOptimalFromNow(computeOptimalFromReachMap(rm as any, goalId));
+      setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
 
       pushLog(`Moved to ${pidAfter ?? id}`, "ok");
 
-      // win check (best effort)
       if (goalId && pidAfter && pidAfter === goalId) {
         pushLog("Goal reached!", "ok");
       }
@@ -768,19 +798,78 @@ useEffect(() => {
     [
       state,
       encounterActive,
-      pushLog,
-      findTriggerForHex,
       reachable,
       currentLayer,
+      goalId,
+      pushLog,
+      findTriggerForHex,
       revealWholeLayer,
       computeOptimalFromReachMap,
-      goalId,
     ]
   );
 
-  /* --------------------------
-     Navigation / reset
-  -------------------------- */
+  const belowLayer = currentLayer - 1;
+  const aboveLayer = currentLayer + 1;
+  const canGoDown = belowLayer >= 1;
+  const canGoUp = aboveLayer <= scenarioLayerCount;
+
+/* =========================================================
+   PART 3 END
+   Next: PART 4 / 5 (render helpers + ALL screens + GAME screen JSX)
+========================================================= */
+/* =========================================================
+   app.tsx — PART 4 / 5
+   Sections in this part:
+   16) Render helpers (rows, hex id, player checks)
+   17) Deck cards overlay (regular cards + glow var)
+   18) Reset helper
+   19) Screens: start / world / character / scenario
+   20) GAME screen JSX (topbar + bars + board + cards + sidebar + encounter)
+========================================================= */
+
+/* =========================================================
+   16) Render helpers
+========================================================= */
+
+  const layerRows = useMemo(() => ROW_LENS.length, []);
+  const rows = useMemo(() => Array.from({ length: layerRows }, (_, i) => i), [layerRows]);
+
+  function hexId(layer: number, r: number, c: number) {
+    return `L${layer}-R${r}-C${c}`;
+  }
+
+  function isPlayerHere(id: string) {
+    const pid = (state as any)?.playerHexId as string | null;
+    return !!pid && pid === id;
+  }
+
+/* =========================================================
+   17) Deck cards overlay (regular cards + traveling border glow)
+   - glow color follows current layer via --cardGlow
+   - left: counter-clockwise (ccw) with different speeds
+   - right: clockwise (cw) mirrored with different speeds
+========================================================= */
+
+  function HexDeckCardsOverlay(props: { glowVar: string }) {
+    return (
+      <div className="hexDeckOverlay" style={{ ["--cardGlow" as any]: props.glowVar } as any}>
+        <div className="hexDeckCol left">
+          <div className="hexDeckCard cosmic ccw slow" />
+          <div className="hexDeckCard risk ccw fast" />
+        </div>
+
+        <div className="hexDeckCol right">
+          <div className="hexDeckCard terrain cw slow" />
+          <div className="hexDeckCard shadow cw fast" />
+        </div>
+      </div>
+    );
+  }
+
+/* =========================================================
+   18) Reset helper
+========================================================= */
+
   const resetAll = useCallback(() => {
     setScreen("start");
     setWorldId(null);
@@ -811,56 +900,19 @@ useEffect(() => {
     ]);
   }, []);
 
-  /* --------------------------
-     CSS vars from theme palette
-  -------------------------- */
-  const themeVars = useMemo(() => {
-    const p = palette;
-    return {
-      ["--L1" as any]: p?.L1 ?? "#19ffb4",
-      ["--L2" as any]: p?.L2 ?? "#67a5ff",
-      ["--L3" as any]: p?.L3 ?? "#ffd36a",
-      ["--L4" as any]: p?.L4 ?? "#ff7ad1",
-      ["--L5" as any]: p?.L5 ?? "#a1ff5a",
-      ["--L6" as any]: p?.L6 ?? "#a58bff",
-      ["--L7" as any]: p?.L7 ?? "#ff5d7a",
-    } as React.CSSProperties;
-  }, [palette]);
+/* =========================================================
+   19) Minimal players (template)
+========================================================= */
 
-  /* =========================================================
-     RENDER HELPERS
-  ========================================================= */
-  const layerRows = useMemo(() => ROW_LENS.length, []);
-  const rows = useMemo(() => Array.from({ length: layerRows }, (_, i) => i), [layerRows]);
+  const PLAYER_PRESETS: Array<{ id: string; name: string }> = [
+    { id: "p1", name: "Aeris" },
+    { id: "p2", name: "Devlan" },
+  ];
 
-  function hexId(layer: number, r: number, c: number) {
-    return `L${layer}-R${r}-C${c}`;
-  }
+/* =========================================================
+   19b) Screens: start
+========================================================= */
 
-  function isPlayerHere(id: string) {
-    const pid = (state as any)?.playerHexId as string | null;
-    return !!pid && pid === id;
-  }
-function HexDeckCardsOverlay() {
-  return (
-    <div className="hexDeckOverlay">
-      <div className="hexDeckCol left">
-        <div className="hexDeckCard cosmic" />
-        <div className="hexDeckCard risk" />
-      </div>
-
-      <div className="hexDeckCol right">
-        <div className="hexDeckCard terrain" />
-        <div className="hexDeckCard shadow" />
-      </div>
-    </div>
-  );
-}
-
-
-  /* =========================================================
-     Screens
-  ========================================================= */
   if (screen === "start") {
     return (
       <div className="appRoot" style={themeVars}>
@@ -870,12 +922,7 @@ function HexDeckCardsOverlay() {
             <div className="sub">Start → World → Character → Scenario → Game</div>
 
             <div className="row">
-              <button
-                className="btn primary"
-                onClick={() => {
-                  setScreen("world");
-                }}
-              >
+              <button className="btn primary" onClick={() => setScreen("world")}>
                 Start
               </button>
               <button className="btn" onClick={resetAll}>
@@ -894,6 +941,10 @@ function HexDeckCardsOverlay() {
     );
   }
 
+/* =========================================================
+   19c) Screens: world
+========================================================= */
+
   if (screen === "world") {
     return (
       <div className="appRoot" style={themeVars}>
@@ -910,6 +961,7 @@ function HexDeckCardsOverlay() {
         <div className="screen center">
           <div className="panel wide">
             <div className="title">Choose World</div>
+
             <div className="grid">
               {worlds.map((w) => {
                 const active = w.id === worldId;
@@ -946,6 +998,10 @@ function HexDeckCardsOverlay() {
       </div>
     );
   }
+
+/* =========================================================
+   19d) Screens: character
+========================================================= */
 
   if (screen === "character") {
     return (
@@ -1034,6 +1090,10 @@ function HexDeckCardsOverlay() {
     );
   }
 
+/* =========================================================
+   19e) Screens: scenario
+========================================================= */
+
   if (screen === "scenario") {
     const scenarios = world?.scenarios ?? [];
     const tracks = scenarioEntry?.tracks ?? [];
@@ -1106,12 +1166,10 @@ function HexDeckCardsOverlay() {
     );
   }
 
-   /* =========================================================
-     GAME SCREEN
-  ========================================================= */
+/* =========================================================
+   20) GAME SCREEN JSX
+========================================================= */
 
-  const canGoDown = belowLayer >= 1;
-  const canGoUp = aboveLayer <= scenarioLayerCount;
   const pid = (state as any)?.playerHexId as string | null;
 
   return (
@@ -1124,9 +1182,8 @@ function HexDeckCardsOverlay() {
         }}
       />
 
-      {/* TOP BAR (now includes HUD groups) */}
+      {/* TOP BAR */}
       <div className="topbar">
-        {/* Left controls */}
         <button className="btn" onClick={() => setScreen("scenario")}>
           ↺ Setup
         </button>
@@ -1134,7 +1191,6 @@ function HexDeckCardsOverlay() {
           Reset
         </button>
 
-        {/* HUD LEFT GROUP */}
         <div className="hudGroup hudGroupLeft">
           <button
             className="btn primary"
@@ -1145,12 +1201,7 @@ function HexDeckCardsOverlay() {
           </button>
 
           <div className={`dice3d ${diceRolling ? "rolling" : ""}`}>
-            <div
-              className="cube"
-              style={{
-                transform: `rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
-              }}
-            >
+            <div className="cube" style={{ transform: `rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)` }}>
               <div className="face face-front" style={{ backgroundImage: `url(${diceImg(2)})` }} />
               <div className="face face-back" style={{ backgroundImage: `url(${diceImg(5)})` }} />
               <div className="face face-right" style={{ backgroundImage: `url(${diceImg(3)})` }} />
@@ -1182,15 +1233,13 @@ function HexDeckCardsOverlay() {
           <div className="hudStat">
             <div className="k">Optimal</div>
             <div className="v">
-              {optimalFromNow ?? "—"}{" "}
-              <span className="mutedSmall">{optimalAtStart != null ? `(start ${optimalAtStart})` : ""}</span>
+              {optimalFromNow ?? "—"} <span className="mutedSmall">{optimalAtStart != null ? `(start ${optimalAtStart})` : ""}</span>
             </div>
           </div>
         </div>
 
         <div className="spacer" />
 
-        {/* HUD RIGHT GROUP */}
         <div className="hudGroup hudGroupRight">
           <div className="items">
             {items.map((it) => (
@@ -1211,7 +1260,6 @@ function HexDeckCardsOverlay() {
 
         <div className="spacer" />
 
-        {/* Scenario pill */}
         <div className="pill">
           <span className="dot" />
           <span className="pillText">
@@ -1219,7 +1267,6 @@ function HexDeckCardsOverlay() {
           </span>
         </div>
 
-        {/* Layer buttons */}
         <button
           className="btn"
           disabled={!state || !canGoDown || encounterActive}
@@ -1255,19 +1302,11 @@ function HexDeckCardsOverlay() {
 
       {/* MAIN LAYOUT */}
       <div className="gameLayout">
-        {/* Left color bar */}
         <SideBar side="left" currentLayer={currentLayer} />
 
-        {/* Board */}
         <div className="boardWrap">
-          <div
-            className="boardLayerBg"
-            style={{
-              backgroundImage: BOARD_LAYER_BG ? `url(${toPublicUrl(BOARD_LAYER_BG)})` : undefined,
-            }}
-          />
+          <div className="boardLayerBg" style={{ backgroundImage: BOARD_LAYER_BG ? `url(${toPublicUrl(BOARD_LAYER_BG)})` : undefined }} />
 
-          {/* Grid */}
           <div className="boardScroll" ref={scrollRef}>
             <div className="board">
               {rows.map((r) => {
@@ -1317,14 +1356,12 @@ function HexDeckCardsOverlay() {
                               <div className="hexId">
                                 {r},{c}
                               </div>
-
                               <div className="hexMarks">
                                 {isGoal ? <span className="mark g">G</span> : null}
                                 {isTrigger ? <span className="mark t">!</span> : null}
                               </div>
                             </div>
 
-                            {/* sprite OUTSIDE hexInner so clip-path doesn't cut it */}
                             {isPlayer ? (
                               <span
                                 className={`playerSpriteSheet ${isWalking ? "walking" : ""}`}
@@ -1358,20 +1395,17 @@ function HexDeckCardsOverlay() {
             </div>
           </div>
 
-          {/* 4 cards underneath */}
-          <HexDeckCardsOverlay />
+          <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
         </div>
 
-        {/* Right color bar (sibling of boardWrap) */}
         <SideBar side="right" currentLayer={currentLayer} />
 
-        {/* Sidebar */}
         <div className="side">
           <div className="panelMini">
             <div className="miniTitle">Status</div>
             <div className="miniRow">
               <span className="k">Player</span>
-              <span className="v">{chosenPlayer?.name ?? "—"}</span>
+              <span className="v">{chosenPlayer?.kind === "preset" ? chosenPlayer.name : chosenPlayer?.name ?? "—"}</span>
             </div>
             <div className="miniRow">
               <span className="k">Tile</span>
@@ -1432,12 +1466,7 @@ function HexDeckCardsOverlay() {
               <button className="btn primary" disabled={diceRolling} onClick={() => rollDice({ reason: "encounter" })}>
                 {diceRolling ? "Rolling…" : "Roll"}
               </button>
-              <button
-                className="btn"
-                onClick={() => {
-                  pushLog("You cannot flee. Roll a 6.", "bad");
-                }}
-              >
+              <button className="btn" onClick={() => pushLog("You cannot flee. Roll a 6.", "bad")}>
                 Flee
               </button>
             </div>
@@ -1451,6 +1480,11 @@ function HexDeckCardsOverlay() {
 }
 
 /* =========================================================
+   PART 4 END
+   Next: PART 5 / 5 (baseCss: ALL CSS, including bars alignment + card glow + sprite scale)
+========================================================= */
+/* =========================================================
+   app.tsx — PART 5 / 5
    Inline CSS for this TSX (single-file friendly)
    You can move this into app.css later.
 ========================================================= */
@@ -1466,7 +1500,7 @@ const baseCss = `
   --shadow: 0 18px 50px rgba(0,0,0,.45);
   --shadow2: 0 10px 25px rgba(0,0,0,.35);
 
-  /* === OLD VERSION BOARD GEOMETRY === */
+  /* === OLD-CORRECT BOARD GEOMETRY (7676767) === */
   --hexWMain: clamp(82px, 6.6vw, 120px);
   --hexHMain: calc(var(--hexWMain) * 0.8660254);
 
@@ -1474,12 +1508,20 @@ const baseCss = `
   --hexOverlap: 0.0;
   --hexPitch: calc(var(--hexWMain) * (1 - var(--hexOverlap)) + var(--hexGap));
 
- 
-
   --maxCols: 7;
+  --hexRows: 7;
+
+  /* These two MUST match between board + bars */
+  --boardPadTop: 10px;
+  --boardPadBottom: 18px;
+
+  --barColW: 62px;
+  --sideColW: 340px;
+  --barW: 18px;
+
+  --boardW: calc(var(--hexWMain) + (var(--maxCols) - 1) * var(--hexPitch));
+  --hexFieldH: calc(var(--hexRows) * var(--hexHMain));
 }
- .layerBar{ height: 100%; }
-.barWrap{ height: 100%; align-items: center; }
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
@@ -1497,7 +1539,9 @@ body{
 
 .appRoot{ height:100vh; width:100vw; position:relative; }
 
-.screen.center{ height: calc(100vh - 64px); display:grid; place-items:center; padding:18px; }
+/* =========================================================
+   1) TOPBAR
+========================================================= */
 .topbar{
   height:64px;
   display:flex;
@@ -1511,12 +1555,15 @@ body{
   z-index:5;
 
   flex-wrap: nowrap;
-  overflow-x: auto;     /* ✅ recommended so nothing disappears */
+  overflow-x: auto;
   overflow-y: hidden;
 }
-
 .spacer{ flex:1; }
 
+/* =========================================================
+   2) PANELS / COMMON UI
+========================================================= */
+.screen.center{ height: calc(100vh - 64px); display:grid; place-items:center; padding:18px; }
 .panel{
   width: min(980px, 92vw);
   background: var(--panel);
@@ -1623,6 +1670,77 @@ body{
   box-shadow: 0 0 0 3px rgba(120,255,210,.12);
 }
 
+/* =========================================================
+   3) TOPBAR HUD GROUPS + ITEMS
+========================================================= */
+.hudGroup{
+  display:flex;
+  align-items:center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.22);
+  box-shadow: 0 12px 30px rgba(0,0,0,.22);
+}
+.hudStat{
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.22);
+  min-width: 86px;
+}
+.hudStat .k{
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: .35px;
+  text-transform: uppercase;
+}
+.hudStat .v{
+  margin-top: 4px;
+  font-weight: 900;
+  font-size: 13px;
+}
+.mutedSmall{
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+.items{ display:flex; gap: 10px; flex-wrap: nowrap; }
+.itemBtn{
+  display:grid;
+  grid-template-columns: 20px auto 18px;
+  align-items:center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(0,0,0,.22);
+  color: var(--text);
+  cursor:pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.itemBtn:hover{ background: rgba(0,0,0,.30); border-color: var(--stroke2); transform: translateY(-1px); }
+.itemBtn:active{ transform: translateY(0); }
+.itemBtn:disabled{ opacity: .55; cursor: not-allowed; transform:none; }
+.itemBtn.off{ opacity: .5; filter: grayscale(.2); }
+.itemIcon{ font-size: 16px; line-height: 1; }
+.itemName{ font-size: 12px; font-weight: 900; letter-spacing: .25px; }
+.itemCharges{
+  font-size: 12px;
+  font-weight: 900;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.08);
+  text-align:center;
+}
+
+/* =========================================================
+   4) PILL
+========================================================= */
 .pill{
   display:inline-flex; align-items:center; gap:10px;
   padding: 9px 12px;
@@ -1638,119 +1756,81 @@ body{
 }
 .pillText{ font-weight: 800; font-size: 13px; color: rgba(255,255,255,.88); }
 
-.gameBg{
+/* =========================================================
+   5) DICE 3D
+========================================================= */
+.dice3d{
+  width: 58px; height: 58px;
+  position: relative;
+  display:grid;
+  place-items:center;
+  perspective: 700px;
+}
+.dice3d .cube{
+  width: 46px; height: 46px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 180ms ease;
+}
+.dice3d.rolling .cube{ animation: cubeWobble .35s ease-in-out infinite; }
+@keyframes cubeWobble{
+  0%{ transform: rotateX(0deg) rotateY(0deg); }
+  25%{ transform: rotateX(18deg) rotateY(-16deg); }
+  50%{ transform: rotateX(-16deg) rotateY(22deg); }
+  75%{ transform: rotateX(14deg) rotateY(16deg); }
+  100%{ transform: rotateX(0deg) rotateY(0deg); }
+}
+.dice3d .face{
   position:absolute; inset:0;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.14);
   background-size: cover;
   background-position: center;
-  opacity: .18;
-  filter: saturate(1.05) contrast(1.05);
+  background-repeat: no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), 0 10px 22px rgba(0,0,0,.35);
+  backface-visibility: hidden;
+}
+.dice3d .face-front{  transform: rotateY(  0deg) translateZ(23px); }
+.dice3d .face-back{   transform: rotateY(180deg) translateZ(23px); }
+.dice3d .face-right{  transform: rotateY( 90deg) translateZ(23px); }
+.dice3d .face-left{   transform: rotateY(-90deg) translateZ(23px); }
+.dice3d .face-top{    transform: rotateX( 90deg) translateZ(23px); }
+.dice3d .face-bottom{ transform: rotateX(-90deg) translateZ(23px); }
+.diceBorder{
+  position:absolute; inset: 0;
+  pointer-events:none;
+  background-size: cover;
+  background-position: center;
+  opacity: .95;
+  filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
 }
 
+/* =========================================================
+   6) GAME LAYOUT GRID
+========================================================= */
 .gameLayout{
   position: relative;
   z-index: 3;
   height: calc(100vh - 64px);
   display:grid;
-  grid-template-columns: 62px 1fr 62px 340px; /* left bar, board, right bar, sidebar */
+  grid-template-columns: var(--barColW) 1fr var(--barColW) var(--sideColW);
   gap: 14px;
   padding: 14px;
   min-height: 0;
 }
-@media (max-width: 980px){
-  .gameLayout{ grid-template-columns: 1fr; height:auto; }
- 
-}
-/* ===== Layer Bars (left/right) — match board height + match row bands ===== */
-:root{
-  --barColW: 62px;          /* must match gameLayout column */
-  --barW: 18px;
 
-  /* keep these in sync with board/scroll paddings */
-  --boardPadTop: 10px;      /* matches .board padding-top */
-  --boardPadBottom: 18px;   /* matches .board padding-bottom */
-
-  --rows: 7;
-  --rowBand: var(--hexHMain); /* each band = one hex row height */
-}
-
-.barWrap{
-  height: 100%;
-  display: flex;
-  align-items: stretch;     /* stretch to boardWrap height */
-  justify-content: center;
-  z-index: 6;
-}
-
-.barLeft{ justify-content: flex-start; }
-.barRight{ justify-content: flex-end; }
-
-.layerBar{
-  /* IMPORTANT: match the grid band area inside board */
-  margin-top: var(--boardPadTop);
-  margin-bottom: var(--boardPadBottom);
-
-  width: var(--barW);
-  height: calc(var(--rows) * var(--rowBand));
-  border-radius: 999px;
-  overflow: hidden;
-
-  border: 1px solid rgba(255,255,255,.16);
-  background: rgba(0,0,0,.18);
-  box-shadow: 0 18px 40px rgba(0,0,0,.35);
-
-  display: flex;
-  flex-direction: column;
-}
-
-.barSeg{
-  height: var(--rowBand);   /* ✅ each segment = exactly one hex row height */
-  width: 100%;
-  opacity: .95;
-}
-
-/* segment colors from theme vars */
-.barSeg[data-layer="7"]{ background: var(--L7); }
-.barSeg[data-layer="6"]{ background: var(--L6); }
-.barSeg[data-layer="5"]{ background: var(--L5); }
-.barSeg[data-layer="4"]{ background: var(--L4); }
-.barSeg[data-layer="3"]{ background: var(--L3); }
-.barSeg[data-layer="2"]{ background: var(--L2); }
-.barSeg[data-layer="1"]{ background: var(--L1); }
-
-.barSeg.isActive{
-  filter: brightness(1.15);
-  box-shadow: inset 0 0 0 2px rgba(255,255,255,.35);
-}
-
-
-/* segment colors from your theme vars */
-.barSeg[data-layer="7"]{ background: var(--L7); }
-.barSeg[data-layer="6"]{ background: var(--L6); }
-.barSeg[data-layer="5"]{ background: var(--L5); }
-.barSeg[data-layer="4"]{ background: var(--L4); }
-.barSeg[data-layer="3"]{ background: var(--L3); }
-.barSeg[data-layer="2"]{ background: var(--L2); }
-.barSeg[data-layer="1"]{ background: var(--L1); }
-
-.barSeg.isActive{
-  filter: brightness(1.15);
-  box-shadow: inset 0 0 0 2px rgba(255,255,255,.35);
-}
-
-
+/* =========================================================
+   7) BOARD WRAP (CRITICAL: prevents “disappearing board”)
+========================================================= */
 .boardWrap{
   position: relative;
   border-radius: 18px;
   border: 1px solid rgba(255,255,255,.08);
- overflow: visible;            /* change from visible */
-  min-height: 0;
   background: rgba(0,0,0,.22);
   box-shadow: var(--shadow2);
-
-  display: grid;               /* ✅ add */
-  grid-template-rows: auto 1fr auto;  /* ✅ add */
+  overflow: visible;   /* allow cards to sit in dead-zones */
+  min-height: 0;
 }
-
 .boardLayerBg{
   position:absolute; inset:0;
   background-size: cover;
@@ -1759,182 +1839,25 @@ body{
   transform: scale(1.02);
 }
 
-.hud{
-  position: relative;
-  z-index: 2;
-  padding: 12px;
-  border-bottom: 1px solid rgba(255,255,255,.08);
-  backdrop-filter: blur(10px);
-  background: linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.08));
-
-  display: grid;                 /* ✅ key change */
-  grid-template-columns: auto 1fr auto; /* left group | gap | right group */
-  /* CHANGE THIS */
-  align-items: start;            /* was: center */
-  align-content: start;          /* helps when hud has extra height */
-  padding-top: 6px;              /* optional: tighter to the top */
-  padding-bottom: 10px;          /* optional */
-}
-
-.hudGroup{
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.22);
-  box-shadow: 0 12px 30px rgba(0,0,0,.22);
-  align-self: start; 
-}
-
-.hudGap{
-  width: 100%;     /* doesn’t matter, it’s just the grid spacer */
-}
-
-.hudLeft{
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: nowrap;             /* ✅ keep it one cluster */
-}
-
-.hudRight{
-  display: flex;
-  align-items: center;
-}
-
-.items{
-  display: flex;
-  gap: 10px;
-  flex-wrap: nowrap;             /* ✅ keep in one row like your image */
-}
-
-.itemBtn{
-  display:grid;
-  grid-template-columns: 20px auto 18px;
-  align-items:center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.22);
-  color: var(--text);
-  cursor:pointer;
-  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
-}
-.itemBtn:hover{
-  background: rgba(0,0,0,.30);
-  border-color: var(--stroke2);
-  transform: translateY(-1px);
-}
-.itemBtn:active{ transform: translateY(0); }
-.itemBtn:disabled{
-  opacity: .55;
-  cursor: not-allowed;
-  transform:none;
-}
-.itemBtn.off{
-  opacity: .5;
-  filter: grayscale(.2);
-}
-.itemIcon{ font-size: 16px; line-height: 1; }
-.itemName{
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: .25px;
-}
-.itemCharges{
-  font-size: 12px;
-  font-weight: 900;
-  padding: 2px 7px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.08);
-  text-align:center;
-}
-
-/* ===== Dice 3D ===== */
-.dice3d{
-  width: 58px;
-  height: 58px;
-  position: relative;
-  display:grid;
-  place-items:center;
-  perspective: 700px;
-}
-.dice3d .cube{
-  width: 46px;
-  height: 46px;
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform 180ms ease;
-}
-.dice3d.rolling .cube{
-  animation: cubeWobble .35s ease-in-out infinite;
-}
-@keyframes cubeWobble{
-  0%{ transform: rotateX(0deg) rotateY(0deg); }
-  25%{ transform: rotateX(18deg) rotateY(-16deg); }
-  50%{ transform: rotateX(-16deg) rotateY(22deg); }
-  75%{ transform: rotateX(14deg) rotateY(16deg); }
-  100%{ transform: rotateX(0deg) rotateY(0deg); }
-}
-
-.dice3d .face{
-  position:absolute;
-  inset:0;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.14);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,.35),
-    0 10px 22px rgba(0,0,0,.35);
-  backface-visibility: hidden;
-}
-
-/* Cube geometry: size/2 = 23px (because 46px cube) */
-.dice3d .face-front{  transform: rotateY(  0deg) translateZ(23px); }
-.dice3d .face-back{   transform: rotateY(180deg) translateZ(23px); }
-.dice3d .face-right{  transform: rotateY( 90deg) translateZ(23px); }
-.dice3d .face-left{   transform: rotateY(-90deg) translateZ(23px); }
-.dice3d .face-top{    transform: rotateX( 90deg) translateZ(23px); }
-.dice3d .face-bottom{ transform: rotateX(-90deg) translateZ(23px); }
-
-.diceBorder{
-  position:absolute;
-  inset: 0;
-  pointer-events:none;
-  background-size: cover;
-  background-position: center;
-  opacity: .95;
-  transform: translateZ(0);
-  filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
-}
-
-/* ===== Board scroll ===== */
+/* =========================================================
+   8) BOARD SCROLL + BOARD (aligned to bar bands)
+========================================================= */
 .boardScroll{
   position: relative;
   z-index: 2;
   min-height: 0;
-  overflow-x: auto;
-  overflow-y: auto;
-
-  /* MUST match bar margins above/below */
+  overflow: auto;
   padding: 0 10px;
 }
-
 .board{
-  width: calc(var(--hexWMain) + (var(--maxCols) - 1) * var(--hexPitch));
+  width: var(--boardW);
   margin: 0 auto;
-
-  /* MUST match bar margins above/below */
   padding: var(--boardPadTop) 0 var(--boardPadBottom);
 }
 
-/* ===== Hex rows ===== */
+/* =========================================================
+   9) HEX ROWS (7676767)
+========================================================= */
 .hexRow{
   display:flex;
   width: 100%;
@@ -1942,23 +1865,21 @@ body{
   align-items: center;
   justify-content: center;
   overflow: visible;
-  margin-bottom: 0; /* old version uses hex height rather than gap rows */
 }
 .hexRow.offset{
- transform: translateX(calc(var(--hexPitch) / 2));
+  transform: translateX(calc(var(--hexPitch) / 2));
 }
 
-/* ===== Hex slots ===== */
+/* =========================================================
+   10) HEX SLOTS + HEX BUTTON
+========================================================= */
 .hexSlot{
   width: var(--hexWMain);
   height: var(--hexHMain);
   margin-right: calc(var(--hexPitch) - var(--hexWMain));
 }
-.hexSlot.empty{
-  opacity: 0;
-}
+.hexSlot.empty{ opacity: 0; }
 
-/* ===== Hex button ===== */
 .hex{
   width: var(--hexWMain);
   height: var(--hexHMain);
@@ -1983,36 +1904,25 @@ body{
   filter: drop-shadow(0 10px 16px rgba(0,0,0,.25));
 }
 
-/* Inner tile */
+/* =========================================================
+   11) HEX INNER TILE + STATES
+========================================================= */
 .hexInner{
   width: 100%;
   height: 100%;
   position: relative;
   border-radius: 10px;
-
-  /* flat-topped hex */
-  clip-path: polygon(
-    25% 6%,
-    75% 6%,
-    98% 50%,
-    75% 94%,
-    25% 94%,
-    2% 50%
-  );
-
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
   border: 1px solid rgba(255,255,255,.12);
   background:
     radial-gradient(circle at 30% 25%, rgba(120,255,210,.12), transparent 55%),
     radial-gradient(circle at 70% 70%, rgba(120,150,255,.12), transparent 55%),
     rgba(0,0,0,.34);
-
   background-size: cover;
   background-position: center;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
   overflow:hidden;
 }
-
-/* subtle sheen */
 .hexInner::before{
   content:"";
   position:absolute;
@@ -2023,13 +1933,9 @@ body{
     radial-gradient(circle at 80% 80%, rgba(255,255,255,.25), transparent 55%);
   pointer-events:none;
 }
-
-/* reachable pulse */
 .hex.reach .hexInner{
   border-color: rgba(70,249,180,.48);
-  box-shadow:
-    inset 0 0 0 1px rgba(70,249,180,.18),
-    0 0 0 3px rgba(70,249,180,.08);
+  box-shadow: inset 0 0 0 1px rgba(70,249,180,.18), 0 0 0 3px rgba(70,249,180,.08);
   animation: reachPulse 1.4s ease-in-out infinite;
 }
 @keyframes reachPulse{
@@ -2037,47 +1943,31 @@ body{
   50%{ filter: brightness(1.15); }
   100%{ filter: brightness(1); }
 }
-
-/* selected */
 .hex.sel .hexInner{
   border-color: rgba(255,221,121,.55);
-  box-shadow:
-    inset 0 0 0 1px rgba(255,221,121,.20),
-    0 0 0 3px rgba(255,221,121,.10);
+  box-shadow: inset 0 0 0 1px rgba(255,221,121,.20), 0 0 0 3px rgba(255,221,121,.10);
 }
-
-/* blocked */
 .hex.blocked .hexInner{
   border-color: rgba(255,93,122,.22);
   background: rgba(0,0,0,.55);
   filter: grayscale(.15) brightness(.9);
 }
-
-/* player marker glow */
 .hex.player .hexInner{
   border-color: rgba(120,255,210,.55);
-  box-shadow:
-    inset 0 0 0 1px rgba(120,255,210,.20),
-    0 0 0 3px rgba(120,255,210,.10);
+  box-shadow: inset 0 0 0 1px rgba(120,255,210,.20), 0 0 0 3px rgba(120,255,210,.10);
 }
-
-/* goal glow */
 .hex.goal .hexInner{
   border-color: rgba(255,211,106,.55);
-  box-shadow:
-    inset 0 0 0 1px rgba(255,211,106,.20),
-    0 0 0 3px rgba(255,211,106,.10);
+  box-shadow: inset 0 0 0 1px rgba(255,211,106,.20), 0 0 0 3px rgba(255,211,106,.10);
 }
-
-/* trigger warning */
 .hex.trigger .hexInner{
   border-color: rgba(255,122,209,.40);
-  box-shadow:
-    inset 0 0 0 1px rgba(255,122,209,.18),
-    0 0 0 3px rgba(255,122,209,.08);
+  box-shadow: inset 0 0 0 1px rgba(255,122,209,.18), 0 0 0 3px rgba(255,122,209,.08);
 }
 
-/* text on hex */
+/* =========================================================
+   12) HEX TEXT / MARKS
+========================================================= */
 .hexId{
   position:absolute;
   top: 9px;
@@ -2090,8 +1980,6 @@ body{
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(0,0,0,.20);
 }
-
-/* marks */
 .hexMarks{
   position:absolute;
   right: 9px;
@@ -2122,34 +2010,23 @@ body{
   background: rgba(255,122,209,.10);
 }
 
-
-
-
-/* === Player sprite from sprite sheet === */
-.hexAnchor{
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
+/* =========================================================
+   13) SPRITE (LARGER)
+========================================================= */
+.hexAnchor{ position: relative; width: 100%; height: 100%; overflow: visible; }
 
 .playerSpriteSheet{
   position: absolute;
-
-  /* anchor to hex bottom point center */
   left: 50%;
   top: 100%;
-
-  /* IMPORTANT: draw at native frame size so we don't crop */
   width: calc(var(--frameW) * 1px);
   height: calc(var(--frameH) * 1px);
 
-  /* tweak knobs */
- --spriteScale: 0.45;
+  /* Larger sprite */
+  --spriteScale: 0.62;     /* ✅ bigger than before */
   --footX: -10px;
   --footY: 6px;
 
-  /* translate to center, lift so feet sit on point, then scale from feet */
   transform:
     translate(calc(-50% + var(--footX)), calc(-100% + var(--footY)))
     scale(var(--spriteScale));
@@ -2161,11 +2038,9 @@ body{
 
   background-image: var(--spriteImg);
   background-repeat: no-repeat;
-
   background-size:
     calc(var(--frameW) * var(--cols) * 1px)
     calc(var(--frameH) * var(--rows) * 1px);
-
   background-position:
     calc(var(--frameW) * -1px * var(--frameX))
     calc(var(--frameH) * -1px * var(--frameY));
@@ -2173,8 +2048,59 @@ body{
   filter: drop-shadow(0 10px 18px rgba(0,0,0,.45));
 }
 
+/* =========================================================
+   14) LAYER BARS (HEIGHT MATCHES HEX FIELD + ACTIVE GLOW)
+========================================================= */
+.barWrap{
+  height: 100%;
+  display: flex;
+  align-items: center;      /* ✅ centers the bar against the boardWrap height */
+  justify-content: center;
+  z-index: 6;
+}
+.barLeft{ justify-content: flex-start; }
+.barRight{ justify-content: flex-end; }
 
-/* ===== Sidebar ===== */
+.layerBar{
+  width: var(--barW);
+  height: var(--hexFieldH); /* ✅ EXACT height of 7 hex rows */
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.18);
+  box-shadow: 0 18px 40px rgba(0,0,0,.35);
+  display: flex;
+  flex-direction: column;
+}
+.barSeg{ height: var(--hexHMain); width: 100%; opacity: .95; }
+
+.barSeg[data-layer="7"]{ background: var(--L7); }
+.barSeg[data-layer="6"]{ background: var(--L6); }
+.barSeg[data-layer="5"]{ background: var(--L5); }
+.barSeg[data-layer="4"]{ background: var(--L4); }
+.barSeg[data-layer="3"]{ background: var(--L3); }
+.barSeg[data-layer="2"]{ background: var(--L2); }
+.barSeg[data-layer="1"]{ background: var(--L1); }
+
+.barSeg.isActive{
+  filter: brightness(1.15);
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,.42),
+    0 0 18px 6px rgba(255,255,255,.10);
+  position: relative;
+}
+.barSeg.isActive::after{
+  content:"";
+  position:absolute;
+  inset: -6px;
+  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.35), transparent 60%);
+  opacity: .55;
+  pointer-events:none;
+}
+
+/* =========================================================
+   15) SIDEBAR (STATUS + LOG)
+========================================================= */
 .side{
   display:grid;
   grid-auto-rows: min-content;
@@ -2182,7 +2108,6 @@ body{
   min-height: 0;
   overflow: hidden;
 }
-
 .panelMini{
   width: 100%;
   padding: 14px;
@@ -2208,21 +2133,10 @@ body{
   border-bottom: 1px dashed rgba(255,255,255,.08);
 }
 .miniRow:last-child{ border-bottom: none; }
-.miniRow .k{
-  color: var(--muted);
-  font-size: 12px;
-}
-.miniRow .v{
-  font-weight: 900;
-  font-size: 12px;
-}
+.miniRow .k{ color: var(--muted); font-size: 12px; }
+.miniRow .v{ font-weight: 900; font-size: 12px; }
 
-/* log */
-.log{
-  max-height: 340px;
-  overflow:auto;
-  padding-right: 6px;
-}
+.log{ max-height: 340px; overflow:auto; padding-right: 6px; }
 .logRow{
   display:grid;
   grid-template-columns: 58px 1fr;
@@ -2231,20 +2145,130 @@ body{
   border-bottom: 1px solid rgba(255,255,255,.06);
 }
 .logRow:last-child{ border-bottom:none; }
-.lt{
-  color: rgba(255,255,255,.55);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-.lm{
-  font-size: 13px;
-  color: rgba(255,255,255,.88);
-}
+.lt{ color: rgba(255,255,255,.55); font-size: 12px; font-variant-numeric: tabular-nums; }
+.lm{ font-size: 13px; color: rgba(255,255,255,.88); }
 .logRow.ok .lm{ color: rgba(70,249,180,.92); }
 .logRow.bad .lm{ color: rgba(255,93,122,.92); }
 .logRow.info .lm{ color: rgba(119,168,255,.92); }
 
-/* ===== Overlay / Encounter ===== */
+/* =========================================================
+   16) DECK CARDS (HALFWAY BETWEEN HEX EDGE AND BARS + TWINKLE BORDER)
+========================================================= */
+.hexDeckOverlay{
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+
+  /* default if TSX doesn't set it */
+  --cardGlow: rgba(120,255,210,.65);
+}
+
+/* Positioning:
+   Cards sit in the “dead zones” inside boardWrap,
+   then pushed half-way toward the outer bar columns. */
+.hexDeckCol{
+  position: absolute;
+  top: var(--boardPadTop);
+  bottom: var(--boardPadBottom);
+  display:flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+}
+.hexDeckCol.left{
+  left: calc((100% - var(--boardW)) / 2);
+  transform: translateX(calc(-50% - (var(--barColW) / 2)));
+}
+.hexDeckCol.right{
+  right: calc((100% - var(--boardW)) / 2);
+  transform: translateX(calc(50% + (var(--barColW) / 2)));
+}
+
+.hexDeckCard{
+  width: min(230px, 16vw);
+  max-width: 260px;
+  aspect-ratio: 3 / 4;
+  border-radius: 22px;
+  position: relative;
+  overflow: hidden;
+
+  border: 1px solid rgba(255,255,255,.18);
+  background: linear-gradient(135deg, var(--a), var(--b));
+  box-shadow:
+    0 18px 48px rgba(0,0,0,.55),
+    0 0 0 1px rgba(255,255,255,.06) inset;
+}
+
+/* inner sheen */
+.hexDeckCard::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(120% 90% at 40% 20%, rgba(255,255,255,.12), transparent 55%),
+    radial-gradient(90% 70% at 70% 80%, rgba(255,255,255,.08), transparent 60%);
+  opacity: .9;
+  pointer-events:none;
+}
+
+/* traveling border glow */
+.hexDeckCard::after{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  border-radius: 24px;
+  padding: 2px;
+
+  /* the “snake” */
+  background:
+    conic-gradient(
+      from var(--spin),
+      transparent 0 80%,
+      rgba(255,255,255,.22) 82% 84%,
+      var(--cardGlow) 86% 90%,
+      rgba(255,255,255,.18) 92% 94%,
+      transparent 96% 100%
+    );
+
+  /* cutout to border only */
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+
+  filter: blur(.2px) drop-shadow(0 0 10px var(--cardGlow));
+  opacity: .95;
+  pointer-events:none;
+}
+
+@keyframes spinCW { from{ --spin: 0turn; } to{ --spin: 1turn; } }
+@keyframes spinCCW{ from{ --spin: 1turn; } to{ --spin: 0turn; } }
+
+.hexDeckCard.cw.slow{ animation: spinCW 3.6s linear infinite; }
+.hexDeckCard.cw.fast{ animation: spinCW 2.4s linear infinite; }
+.hexDeckCard.ccw.slow{ animation: spinCCW 3.8s linear infinite; }
+.hexDeckCard.ccw.fast{ animation: spinCCW 2.2s linear infinite; }
+
+/* subtle twinkle (random-ish shimmer) */
+@keyframes twinkle {
+  0%,100%{ filter: drop-shadow(0 0 10px var(--cardGlow)); opacity:.92; }
+  50%{ filter: drop-shadow(0 0 16px var(--cardGlow)); opacity:1; }
+}
+.hexDeckCard.slow::after{ animation-timing-function: linear; }
+.hexDeckCard.fast::after{ animation-timing-function: linear; }
+.hexDeckCard::after{ animation-name: inherit, twinkle; animation-duration: inherit, 1.3s; animation-iteration-count: inherit, infinite; }
+
+/* card color themes */
+.hexDeckCard.cosmic  { --a:#0C1026; --b:#1A1F4A; }
+.hexDeckCard.risk    { --a:#12090A; --b:#6E0F1B; }
+.hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; }
+.hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; }
+
+/* =========================================================
+   OVERLAY / ENCOUNTER
+========================================================= */
 .overlay{
   position:absolute;
   inset:0;
@@ -2274,7 +2298,6 @@ body{
   font-size: 13px;
   line-height: 1.35;
 }
-
 .villainBox{
   margin-top: 14px;
   display:grid;
@@ -2295,12 +2318,11 @@ body{
   box-shadow: 0 14px 40px rgba(0,0,0,.35);
   background: rgba(0,0,0,.25);
 }
-.villainMeta{
-  display:grid;
-  gap: 10px;
-}
+.villainMeta{ display:grid; gap: 10px; }
 
-/* ===== Scrollbars ===== */
+/* =========================================================
+   SCROLLBARS
+========================================================= */
 *::-webkit-scrollbar{ width: 10px; height: 10px; }
 *::-webkit-scrollbar-thumb{
   background: rgba(255,255,255,.12);
@@ -2310,100 +2332,9 @@ body{
 *::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.18); }
 *::-webkit-scrollbar-corner{ background: transparent; }
 
-/* ===== Small responsive tweak ===== */
 @media (max-width: 980px){
-  .board{ min-width: 0; }
-  .boardScroll{ height: auto; }
-  .log{ max-height: 240px; }
+  .gameLayout{ grid-template-columns: 1fr; height:auto; }
+  .barWrap{ display:none; }
+  .side{ order: 10; }
 }
-/* =========================
-   Deck cards — positioned in dead-zones, halfway to bars
-========================= */
-.hexDeckOverlay{
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  pointer-events: none;
-}
-
-/* (board width is the same calc you already use) */
-:root{
-  --boardW: calc(var(--hexWMain) + (var(--maxCols) - 1) * var(--hexPitch));
-  --cardW: min(230px, 16vw);
-  --cardShift: calc(var(--barColW) / 2); /* push halfway into bar column */
-}
-
-.hexDeckCol{
-  position: absolute;
-  top: var(--boardPadTop);
-  bottom: var(--boardPadBottom);
-
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between; /* equal spacing top/bottom */
-  gap: 18px;
-
-  pointer-events: none;
-}
-
-/* LEFT column:
-   Start from board edge dead-zone mid, then shift halfway toward left bar */
-.hexDeckCol.left{
-  left: calc((100% - var(--boardW)) / 4);
-  transform: translateX(calc(-1 * var(--cardShift)));
-}
-
-/* RIGHT column:
-   Start from board edge dead-zone mid, then shift halfway toward right bar */
-.hexDeckCol.right{
-  right: calc((100% - var(--boardW)) / 4);
-  transform: translateX(var(--cardShift));
-}
-
-/* Regular “portrait card” */
-.hexDeckCard{
-  pointer-events: auto;
-
-  width: var(--cardW);
-  aspect-ratio: 3 / 4;
-  max-width: 260px;
-
-  border-radius: 22px;
-  border: 1px solid rgba(255,255,255,.18);
-  background: linear-gradient(135deg, var(--a), var(--b));
-  box-shadow:
-    0 18px 48px rgba(0,0,0,.55),
-    0 0 0 1px rgba(255,255,255,.06) inset;
-
-  position: relative;
-  overflow: hidden;
-}
-
-.hexDeckCard::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  background:
-    radial-gradient(120% 90% at 40% 20%, rgba(255,255,255,.12), transparent 55%),
-    radial-gradient(90% 70% at 70% 80%, rgba(255,255,255,.08), transparent 60%);
-  opacity: .9;
-  pointer-events:none;
-}
-
-.hexDeckCard::after{
-  content:"";
-  position:absolute;
-  inset:10px;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,.14);
-  box-shadow: 0 0 26px var(--glow);
-  pointer-events:none;
-}
-
-/* colors */
-.hexDeckCard.cosmic  { --a:#0C1026; --b:#1A1F4A; --glow: rgba(230,194,122,.55); }
-.hexDeckCard.risk    { --a:#12090A; --b:#6E0F1B; --glow: rgba(255,96,64,.55); }
-.hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; --glow: rgba(160,255,110,.45); }
-.hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; --glow: rgba(200,80,140,.55); }
-
 `;
