@@ -73,9 +73,6 @@ type WorldEntry = {
   scenarios: ScenarioEntry[];
 };
 
-/* =========================================================
-   3) Auto-load all world modules under src/worlds/**/world
-========================================================= */
 
 const worldModules = import.meta.glob("../worlds/**/world.ts", { eager: true });
 
