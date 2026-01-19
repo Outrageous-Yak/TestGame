@@ -278,24 +278,12 @@ export default function App() {
     return set;
   }, [reachMap]);
 
-  function spriteSheetUrl() {
-    return toPublicUrl("images/players/sprite_sheet_20.png");
-  }
+function spriteSheetUrl() {
+  return toPublicUrl("images/players/sprite_sheet_20.png");
+}
 
-  // sprite_sheet_20 => commonly 20 frames arranged 5 columns x 4 rows
-  // rows: down, left, right, up (swap if your sheet differs)
-  function facingRow(f: "down" | "up" | "left" | "right") {
-    switch (f) {
-      case "down":
-        return 0;
-      case "left":
-        return 1;
-      case "right":
-        return 2;
-      case "up":
-        return 3;
-    }
-  }
+const [isWalking, setIsWalking] = useState(false); // ✅ ADD THIS
+
 function facingCol(f: "down" | "up" | "left" | "right") {
   switch (f) {
     case "down":
@@ -310,12 +298,10 @@ function facingCol(f: "down" | "up" | "left" | "right") {
 }
 
 const walkTimer = useRef<number | null>(null);
-
 const [walkFrame, setWalkFrame] = useState(0);
 const rafRef = useRef<number | null>(null);
 const lastRef = useRef(0);
 
-// ✅ sprite_sheet_20.png is 4 cols x 5 rows, 128px per frame
 const SPRITE_FPS = 10;
 const FRAME_DURATION = 1000 / SPRITE_FPS;
 const SPRITE_COLS = 4;
@@ -331,12 +317,11 @@ useEffect(() => {
     return;
   }
 
-  // ✅ reset timing each time we start walking
   lastRef.current = performance.now();
 
   const tick = (t: number) => {
     if (t - lastRef.current >= FRAME_DURATION) {
-      setWalkFrame((f) => (f + 1) % SPRITE_ROWS); // 0..4
+      setWalkFrame((f) => (f + 1) % SPRITE_ROWS);
       lastRef.current = t;
     }
     rafRef.current = requestAnimationFrame(tick);
@@ -349,6 +334,7 @@ useEffect(() => {
     rafRef.current = null;
   };
 }, [isWalking]);
+
 
 
 
