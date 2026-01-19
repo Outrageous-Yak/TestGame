@@ -358,6 +358,22 @@ useEffect(() => {
   const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
+   function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
+  const segments = [7, 6, 5, 4, 3, 2, 1];
+  const { side, currentLayer } = props;
+
+  return (
+    <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")} aria-label={`Layer bar ${side}`}>
+      <div className="layerBar">
+        {segments.map((layerVal) => {
+          const active = layerVal === currentLayer;
+          return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} />;
+        })}
+      </div>
+    </div>
+  );
+}
+
 
   /* --------------------------
      Move counter + optimal
@@ -428,6 +444,7 @@ useEffect(() => {
     }
     return null;
   }
+   
 
   /* --------------------------
      Game helpers (reveal / optimal / parse villains)
@@ -824,6 +841,42 @@ useEffect(() => {
     const pid = (state as any)?.playerHexId as string | null;
     return !!pid && pid === id;
   }
+   function HexDeckCardsDemo() {
+  return (
+    <div className="hexDeckStage" aria-label="Hex deck cards demo">
+      <div className="hexDeckRow">
+        <div className="hexDeckCard cosmic">
+          <div className="mark">
+            <div className="hexDeckHex" />
+            <div className="sigil sigil-cosmic" />
+          </div>
+        </div>
+
+        <div className="hexDeckCard risk">
+          <div className="mark">
+            <div className="hexDeckHex" />
+            <div className="sigil sigil-risk" />
+          </div>
+        </div>
+
+        <div className="hexDeckCard terrain">
+          <div className="mark">
+            <div className="hexDeckHex" />
+            <div className="sigil sigil-terrain" />
+          </div>
+        </div>
+
+        <div className="hexDeckCard shadow">
+          <div className="mark">
+            <div className="hexDeckHex" />
+            <div className="sigil sigil-shadow" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
   /* =========================================================
      Screens
@@ -1073,14 +1126,14 @@ useEffect(() => {
     );
   }
 
-  /* =========================================================
+   /* =========================================================
      GAME SCREEN
   ========================================================= */
-  const pid = (state as any)?.playerHexId as string | null;
+ 
 
   const canGoDown = belowLayer >= 1;
   const canGoUp = aboveLayer <= scenarioLayerCount;
-
+const pid = (state as any)?.playerHexId as string | null;
   return (
     <div className="appRoot game" style={themeVars}>
       {/* Background */}
@@ -1143,6 +1196,9 @@ useEffect(() => {
       </div>
 
       <div className="gameLayout">
+        {/* Left color bar */}
+        <SideBar side="left" currentLayer={currentLayer} />
+
         {/* Board */}
         <div className="boardWrap">
           <div
@@ -1179,7 +1235,9 @@ useEffect(() => {
                 </div>
 
                 {/* optional border overlay */}
-                {DICE_BORDER_IMG ? <div className="diceBorder" style={{ backgroundImage: `url(${toPublicUrl(DICE_BORDER_IMG)})` }} /> : null}
+                {DICE_BORDER_IMG ? (
+                  <div className="diceBorder" style={{ backgroundImage: `url(${toPublicUrl(DICE_BORDER_IMG)})` }} />
+                ) : null}
               </div>
 
               <div className="hudStat">
@@ -1200,7 +1258,8 @@ useEffect(() => {
               <div className="hudStat">
                 <div className="k">Optimal</div>
                 <div className="v">
-                  {optimalFromNow ?? "—"} <span className="mutedSmall">{optimalAtStart != null ? `(start ${optimalAtStart})` : ""}</span>
+                  {optimalFromNow ?? "—"}{" "}
+                  <span className="mutedSmall">{optimalAtStart != null ? `(start ${optimalAtStart})` : ""}</span>
                 </div>
               </div>
             </div>
@@ -1236,9 +1295,7 @@ useEffect(() => {
                       const hex = getHexFromState(state, id) as any;
                       const { blocked, missing } = isBlockedOrMissing(hex);
 
-                      if (missing) {
-                        return <div key={id} className="hexSlot empty" />;
-                      }
+                      if (missing) return <div key={id} className="hexSlot empty" />;
 
                       const isSel = selectedId === id;
                       const isReach = reachable.has(id);
@@ -1250,70 +1307,69 @@ useEffect(() => {
 
                       return (
                         <button
-  key={id}
-  className={[
-    "hex",
-    isSel ? "sel" : "",
-    isReach ? "reach" : "",
-    blocked ? "blocked" : "",
-    isPlayer ? "player" : "",
-    isGoal ? "goal" : "",
-    isTrigger ? "trigger" : "",
-  ].join(" ")}
-  onClick={() => {
-    setSelectedId(id);
-    tryMoveToId(id);
-  }}
-  disabled={!state || blocked || encounterActive}
-  style={{
-    ["--hexGlow" as any]: layerCssVar(currentLayer),
-    backgroundImage: tileBg || undefined,
-  }}
-  title={id}
->
-  <div className="hexAnchor">
-    <div className="hexInner">
-      <div className="hexId">
-        {r},{c}
-      </div>
+                          key={id}
+                          className={[
+                            "hex",
+                            isSel ? "sel" : "",
+                            isReach ? "reach" : "",
+                            blocked ? "blocked" : "",
+                            isPlayer ? "player" : "",
+                            isGoal ? "goal" : "",
+                            isTrigger ? "trigger" : "",
+                          ].join(" ")}
+                          onClick={() => {
+                            setSelectedId(id);
+                            tryMoveToId(id);
+                          }}
+                          disabled={!state || blocked || encounterActive}
+                          style={{
+                            ["--hexGlow" as any]: layerCssVar(currentLayer),
+                            backgroundImage: tileBg || undefined,
+                          }}
+                          title={id}
+                        >
+                          <div className="hexAnchor">
+                            <div className="hexInner">
+                              <div className="hexId">
+                                {r},{c}
+                              </div>
 
-      <div className="hexMarks">
-        {isGoal ? <span className="mark g">G</span> : null}
-        {isTrigger ? <span className="mark t">!</span> : null}
-      </div>
-    </div>
+                              <div className="hexMarks">
+                                {isGoal ? <span className="mark g">G</span> : null}
+                                {isTrigger ? <span className="mark t">!</span> : null}
+                              </div>
+                            </div>
 
-    {/* sprite OUTSIDE hexInner so clip-path doesn't cut it */}
-    {isPlayer ? (
-      <span
-        className={`playerSpriteSheet ${isWalking ? "walking" : ""}`}
-        style={
-          {
-            ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
-            ["--frameW" as any]: FRAME_W,
-            ["--frameH" as any]: FRAME_H,
-            ["--cols" as any]: SPRITE_COLS,
-            ["--rows" as any]: SPRITE_ROWS,
+                            {/* sprite OUTSIDE hexInner so clip-path doesn't cut it */}
+                            {isPlayer ? (
+                              <span
+                                className={`playerSpriteSheet ${isWalking ? "walking" : ""}`}
+                                style={
+                                  {
+                                    ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
+                                    ["--frameW" as any]: FRAME_W,
+                                    ["--frameH" as any]: FRAME_H,
+                                    ["--cols" as any]: SPRITE_COLS,
+                                    ["--rows" as any]: SPRITE_ROWS,
 
-            // cols = walk frames (0..4)
-            ["--frameX" as any]: walkFrame,
+                                    // cols = walk frames
+                                    ["--frameX" as any]: walkFrame,
 
-            // rows = direction (0..3)
-            ["--frameY" as any]:
-              playerFacing === "down"
-                ? 0
-                : playerFacing === "left"
-                ? 1
-                : playerFacing === "right"
-                ? 2
-                : 3,
-          } as any
-        }
-      />
-    ) : null}
-  </div>
-</button>
-
+                                    // rows = direction
+                                    ["--frameY" as any]:
+                                      playerFacing === "down"
+                                        ? 0
+                                        : playerFacing === "left"
+                                        ? 1
+                                        : playerFacing === "right"
+                                        ? 2
+                                        : 3,
+                                  } as any
+                                }
+                              />
+                            ) : null}
+                          </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -1321,7 +1377,13 @@ useEffect(() => {
               })}
             </div>
           </div>
+
+          {/* ✅ 4 cards underneath */}
+          <HexDeckCardsDemo />
         </div>
+
+        {/* Right color bar (IMPORTANT: sibling of boardWrap) */}
+        <SideBar side="right" currentLayer={currentLayer} />
 
         {/* Sidebar */}
         <div className="side">
@@ -1408,6 +1470,7 @@ useEffect(() => {
   );
 }
 
+
 /* =========================================================
    Inline CSS for this TSX (single-file friendly)
    You can move this into app.css later.
@@ -1423,10 +1486,20 @@ const baseCss = `
   --shadow: 0 18px 50px rgba(0,0,0,.45);
   --shadow2: 0 10px 25px rgba(0,0,0,.35);
 
-  --hex: 66px;
-  --gapX: 12px;
-  --gapY: 14px;
+  /* === OLD VERSION BOARD GEOMETRY === */
+  --hexWMain: 82px;
+  --hexHMain: calc(var(--hexWMain) * 0.8660254);
+
+  --hexGap: 10px;
+  --hexOverlap: 0.0;
+  --hexPitch: calc(var(--hexWMain) * (1 - var(--hexOverlap)) + var(--hexGap));
+
+ 
+
+  --maxCols: 7;
 }
+ .layerBar{ height: 100%; }
+.barWrap{ height: 100%; align-items: center; }
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
@@ -1589,14 +1662,16 @@ body{
   z-index: 3;
   height: calc(100vh - 64px);
   display:grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: 62px 1fr 62px 340px; /* left bar, board, right bar, sidebar */
   gap: 14px;
   padding: 14px;
   min-height: 0;
 }
 @media (max-width: 980px){
   .gameLayout{ grid-template-columns: 1fr; height:auto; }
+  .barWrap{ display:none; } /* optional: hide bars on narrow screens */
 }
+
 
 .boardWrap{
   position: relative;
@@ -1775,26 +1850,31 @@ body{
   padding: 16px 10px 18px;
 }
 
-.board{
-  min-width: max(860px, 100%);
-  padding: 10px 4px 18px;
-}
 
+  .board{
+  width: calc(var(--hexWMain) + (var(--maxCols) - 1) * var(--hexPitch));
+  margin: 0 auto;
+  padding: 10px 0 18px;
+}
 /* ===== Hex rows ===== */
 .hexRow{
   display:flex;
-  gap: var(--gapX);
-  margin-bottom: var(--gapY);
+  width: 100%;
+  height: var(--hexHMain);
+  align-items: center;
   justify-content: center;
+  overflow: visible;
+  margin-bottom: 0; /* old version uses hex height rather than gap rows */
 }
 .hexRow.offset{
-  transform: translateX(calc(var(--hex) * 0.45));
+  transform: translateX(--hexPitch) / 2));
 }
 
 /* ===== Hex slots ===== */
 .hexSlot{
-  width: calc(var(--hex) * 1.02);
-  height: calc(var(--hex) * 1.02);
+  width: var(--hexWMain);
+  height: var(--hexHMain);
+  margin-right: calc(var(--hexPitch) - var(--hexWMain));
 }
 .hexSlot.empty{
   opacity: 0;
@@ -1802,8 +1882,9 @@ body{
 
 /* ===== Hex button ===== */
 .hex{
-  width: calc(var(--hex) * 1.02);
-  height: calc(var(--hex) * 1.02);
+  width: var(--hexWMain);
+  height: var(--hexHMain);
+  margin-right: calc(var(--hexPitch) - var(--hexWMain));
   padding: 0;
   border: none;
   background: rgba(0,0,0,.0);
@@ -1811,7 +1892,7 @@ body{
   filter: drop-shadow(0 10px 16px rgba(0,0,0,.35));
   transition: transform 140ms ease, filter 140ms ease;
   position: relative;
-  overflow: visible; 
+  overflow: visible;
 }
 .hex:hover{
   transform: translateY(-2px);
@@ -2157,4 +2238,179 @@ body{
   .boardScroll{ height: auto; }
   .log{ max-height: 240px; }
 }
+/* =========================
+   HEX DECK CARDS (under board)
+========================= */
+.hexDeckStage{
+  width: 100%;
+  display: grid;
+  place-items: center;
+  margin-top: 14px;
+}
+
+.hexDeckRow{
+  width: calc(var(--hexWMain) + (var(--maxCols) - 1) * var(--hexPitch));
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.hexDeckCard{
+  aspect-ratio: 2 / 3;
+  width: 100%;
+  max-height: 240px;
+
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.18);
+
+  background:
+    radial-gradient(120% 90% at 50% 30%, rgba(255,255,255,.10), transparent 55%),
+    linear-gradient(135deg, var(--a), var(--b));
+
+  box-shadow:
+    0 18px 48px rgba(0,0,0,.6),
+    0 0 0 1px rgba(255,255,255,.06) inset;
+}
+
+.hexDeckCard::after{
+  content:"";
+  position:absolute;
+  inset:10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.16);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.4) inset,
+    0 0 26px var(--glow);
+  pointer-events:none;
+}
+
+.hexDeckCard .mark{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  pointer-events:none;
+}
+
+.hexDeckCard .hexDeckHex{
+  width:70%;
+  aspect-ratio: 1 / 0.866;
+  position:relative;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  background:
+    radial-gradient(70% 60% at 50% 35%, rgba(255,255,255,.12), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.35));
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.18) inset,
+    0 0 36px var(--glow);
+}
+
+.hexDeckCard .sigil{
+  position:absolute;
+  inset:22%;
+  clip-path: inherit;
+  opacity:.85;
+  filter: drop-shadow(0 0 14px var(--glow));
+  transition: transform .25s ease, opacity .25s ease;
+}
+
+.hexDeckCard .sigil-cosmic{
+  background:
+    conic-gradient(from 30deg,
+      transparent 0 12%,
+      rgba(255,255,255,.5) 12% 14%,
+      transparent 14% 36%,
+      rgba(255,255,255,.4) 36% 38%,
+      transparent 38% 62%,
+      rgba(255,255,255,.5) 62% 64%,
+      transparent 64% 100%
+    );
+}
+.hexDeckCard .sigil-risk{
+  background:
+    linear-gradient(60deg, rgba(255,255,255,.45), transparent 65%),
+    linear-gradient(-60deg, rgba(255,255,255,.35), transparent 65%),
+    linear-gradient(180deg, transparent 44%, rgba(255,255,255,.45) 48% 52%, transparent 56%);
+}
+.hexDeckCard .sigil-terrain{
+  background:
+    linear-gradient(180deg,
+      transparent 0 18%,
+      rgba(255,255,255,.35) 18% 20%,
+      transparent 20% 40%,
+      rgba(255,255,255,.25) 40% 42%,
+      transparent 42% 62%,
+      rgba(255,255,255,.30) 62% 64%,
+      transparent 64% 100%
+    );
+}
+.hexDeckCard .sigil-shadow{
+  background:
+    radial-gradient(circle at 60% 50%, transparent 0 45%, rgba(255,255,255,.45) 46% 48%, transparent 49%),
+    linear-gradient(90deg, transparent 0 45%, rgba(255,255,255,.35) 50% 52%, transparent 57%);
+}
+
+.hexDeckCard:hover .sigil{
+  opacity:1;
+  transform:scale(1.05);
+}
+
+.hexDeckCard.cosmic  { --a:#0C1026; --b:#1A1F4A; --glow: rgba(230,194,122,.55); }
+.hexDeckCard.risk    { --a:#12090A; --b:#6E0F1B; --glow: rgba(255,96,64,.55); }
+.hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; --glow: rgba(160,255,110,.45); }
+.hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; --glow: rgba(200,80,140,.55); }
+
+@media (max-width: 1100px){
+  .hexDeckRow{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hexDeckCard{ max-height: 220px; }
+}
+/* ===== Layer Bars (left/right) ===== */
+.barWrap{ display:flex; align-items: flex-start; justify-content: center; position: relative; z-index: 12; }
+.layerBar{
+  width: 18px;
+  height: calc(var(--hexHMain) * 7);
+  border-radius: 999px;
+  overflow: visible;
+  background: rgba(0,0,0,.22);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.18);
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+}
+
+.barSeg{ opacity: .95; position: relative; }
+.barSeg:first-child{ border-top-left-radius: 999px; border-top-right-radius: 999px; }
+.barSeg:last-child{ border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
+
+.barSeg[data-layer="1"]{ background: var(--L1); }
+.barSeg[data-layer="2"]{ background: var(--L2); }
+.barSeg[data-layer="3"]{ background: var(--L3); }
+.barSeg[data-layer="4"]{ background: var(--L4); }
+.barSeg[data-layer="5"]{ background: var(--L5); }
+.barSeg[data-layer="6"]{ background: var(--L6); }
+.barSeg[data-layer="7"]{ background: var(--L7); }
+
+.barSeg.isActive{ outline: 1px solid rgba(255,255,255,.30); z-index: 3; }
+.barSeg.isActive::after{
+  content: "";
+  position: absolute;
+  inset: -10px;
+  background: inherit;
+  filter: blur(14px);
+  opacity: .95;
+  border-radius: 999px;
+  pointer-events:none;
+}
+.barRight .barSeg.isActive{
+  outline: 1px solid rgba(255,255,255,.95);
+  box-shadow: 0 0 18px rgba(255,255,255,.70), 0 0 44px rgba(255,255,255,.25);
+  z-index: 49;
+}
+.barRight .barSeg.isActive::after{
+  opacity: 1;
+  filter: blur(18px);
+}
+
+
 `;
