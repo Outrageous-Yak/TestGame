@@ -273,12 +273,12 @@ export default function App() {
 
   // misc refs
   const scrollRef = useRef<HTMLDivElement | null>(null);
+const pendingEncounterMoveIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     setWorlds(loadWorlds());
   }, []);
 // ✅ ADD this near your other refs (e.g. under scrollRef / walkTimer refs)
-const pendingEncounterMoveIdRef = useRef<string | null>(null);
 
   /* =======================================================
      7) Sprite animation (bigger + stable)
@@ -487,7 +487,7 @@ useEffect(() => {
   ======================================================= */
 
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
-  const [encounter, setEncounter] = useState<Encounter>(null);
+ 
   const encounterActive = !!encounter;
 
   const activeTheme = scenarioEntry?.theme ?? null;
@@ -774,7 +774,7 @@ useEffect(() => {
         pushLog("Not reachable.", "bad");
         return;
       }
-
+ const [encounter, setEncounter] = useState<Encounter>(null);
   const vk = findTriggerForHex(id);
 if (vk) {
   // remember where we tried to go so we can complete the move after rolling a 6
