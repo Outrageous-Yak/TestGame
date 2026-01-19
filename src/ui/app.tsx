@@ -843,17 +843,15 @@ useEffect(() => {
   }
 function HexDeckCardsOverlay() {
   return (
-    <div className="hexDeckOverlay" aria-label="Hex deck overlay">
-      <div className="hexDeckSides">
-        <div className="hexDeckCol left">
-          <div className="hexDeckCard cosmic" />
-          <div className="hexDeckCard risk" />
-        </div>
+    <div className="hexDeckOverlay">
+      <div className="hexDeckCol left">
+        <div className="hexDeckCard cosmic" />
+        <div className="hexDeckCard risk" />
+      </div>
 
-        <div className="hexDeckCol right">
-          <div className="hexDeckCard terrain" />
-          <div className="hexDeckCard shadow" />
-        </div>
+      <div className="hexDeckCol right">
+        <div className="hexDeckCard terrain" />
+        <div className="hexDeckCard shadow" />
       </div>
     </div>
   );
@@ -1662,33 +1660,68 @@ body{
   .gameLayout{ grid-template-columns: 1fr; height:auto; }
  
 }
-/* ===== Layer Bars (left/right) ===== */
+/* ===== Layer Bars (left/right) — match board height + match row bands ===== */
+:root{
+  --barColW: 62px;          /* must match gameLayout column */
+  --barW: 18px;
+
+  /* keep these in sync with board/scroll paddings */
+  --boardPadTop: 10px;      /* matches .board padding-top */
+  --boardPadBottom: 18px;   /* matches .board padding-bottom */
+
+  --rows: 7;
+  --rowBand: var(--hexHMain); /* each band = one hex row height */
+}
+
 .barWrap{
   height: 100%;
   display: flex;
-  align-items: center;
+  align-items: stretch;     /* stretch to boardWrap height */
   justify-content: center;
-  z-index: 6;              /* above background */
+  z-index: 6;
 }
 
 .barLeft{ justify-content: flex-start; }
 .barRight{ justify-content: flex-end; }
 
 .layerBar{
-  height: 86%;
-  width: 18px;
+  /* IMPORTANT: match the grid band area inside board */
+  margin-top: var(--boardPadTop);
+  margin-bottom: var(--boardPadBottom);
+
+  width: var(--barW);
+  height: calc(var(--rows) * var(--rowBand));
   border-radius: 999px;
   overflow: hidden;
+
   border: 1px solid rgba(255,255,255,.16);
   background: rgba(0,0,0,.18);
   box-shadow: 0 18px 40px rgba(0,0,0,.35);
+
+  display: flex;
+  flex-direction: column;
 }
 
 .barSeg{
-  height: calc(100% / 7);
+  height: var(--rowBand);   /* ✅ each segment = exactly one hex row height */
   width: 100%;
   opacity: .95;
 }
+
+/* segment colors from theme vars */
+.barSeg[data-layer="7"]{ background: var(--L7); }
+.barSeg[data-layer="6"]{ background: var(--L6); }
+.barSeg[data-layer="5"]{ background: var(--L5); }
+.barSeg[data-layer="4"]{ background: var(--L4); }
+.barSeg[data-layer="3"]{ background: var(--L3); }
+.barSeg[data-layer="2"]{ background: var(--L2); }
+.barSeg[data-layer="1"]{ background: var(--L1); }
+
+.barSeg.isActive{
+  filter: brightness(1.15);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.35);
+}
+
 
 /* segment colors from your theme vars */
 .barSeg[data-layer="7"]{ background: var(--L7); }
@@ -1885,20 +1918,22 @@ body{
 .boardScroll{
   position: relative;
   z-index: 2;
-  min-height: 0;          /* ✅ important for grid children */
+  min-height: 0;
   overflow-x: auto;
   overflow-y: auto;
-  padding: 16px 10px 18px;
-  height: auto;           /* ✅ remove calc(100% - 88px) */
+
+  /* MUST match bar margins above/below */
+  padding: 0 10px;
 }
 
-
-
-  .board{
+.board{
   width: calc(var(--hexWMain) + (var(--maxCols) - 1) * var(--hexPitch));
   margin: 0 auto;
-  padding: 10px 0 18px;
+
+  /* MUST match bar margins above/below */
+  padding: var(--boardPadTop) 0 var(--boardPadBottom);
 }
+
 /* ===== Hex rows ===== */
 .hexRow{
   display:flex;
@@ -2282,7 +2317,7 @@ body{
   .log{ max-height: 240px; }
 }
 /* =========================
-   HEX DECK CARDS (SIDE DEAD-ZONES INSIDE BOARD) — CARD STYLE
+   Deck cards — positioned in dead-zones, halfway to bars
 ========================= */
 .hexDeckOverlay{
   position: absolute;
@@ -2291,29 +2326,46 @@ body{
   pointer-events: none;
 }
 
-.hexDeckSides{
-  position: absolute;
-  inset: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: stretch;
+/* (board width is the same calc you already use) */
+:root{
+  --boardW: calc(var(--hexWMain) + (var(--maxCols) - 1) * var(--hexPitch));
+  --cardW: min(230px, 16vw);
+  --cardShift: calc(var(--barColW) / 2); /* push halfway into bar column */
 }
 
 .hexDeckCol{
-  height: 100%;
+  position: absolute;
+  top: var(--boardPadTop);
+  bottom: var(--boardPadBottom);
+
   display: flex;
   flex-direction: column;
-  justify-content: space-between; /* top + bottom evenly */
+  justify-content: space-between; /* equal spacing top/bottom */
   gap: 18px;
+
   pointer-events: none;
 }
 
-/* “Regular card” shape */
-.hexDeckCol .hexDeckCard{
+/* LEFT column:
+   Start from board edge dead-zone mid, then shift halfway toward left bar */
+.hexDeckCol.left{
+  left: calc((100% - var(--boardW)) / 4);
+  transform: translateX(calc(-1 * var(--cardShift)));
+}
+
+/* RIGHT column:
+   Start from board edge dead-zone mid, then shift halfway toward right bar */
+.hexDeckCol.right{
+  right: calc((100% - var(--boardW)) / 4);
+  transform: translateX(var(--cardShift));
+}
+
+/* Regular “portrait card” */
+.hexDeckCard{
   pointer-events: auto;
 
-  width: min(230px, 16vw);
-  aspect-ratio: 3 / 4;          /* portrait card */
+  width: var(--cardW);
+  aspect-ratio: 3 / 4;
   max-width: 260px;
 
   border-radius: 22px;
@@ -2327,7 +2379,7 @@ body{
   overflow: hidden;
 }
 
-.hexDeckCol .hexDeckCard::before{
+.hexDeckCard::before{
   content:"";
   position:absolute;
   inset:0;
@@ -2338,7 +2390,7 @@ body{
   pointer-events:none;
 }
 
-.hexDeckCol .hexDeckCard::after{
+.hexDeckCard::after{
   content:"";
   position:absolute;
   inset:10px;
@@ -2348,15 +2400,10 @@ body{
   pointer-events:none;
 }
 
-.hexDeckCol .hexDeckCard:hover{
-  transform: translateY(-2px);
-  transition: transform 140ms ease;
-}
-
+/* colors */
 .hexDeckCard.cosmic  { --a:#0C1026; --b:#1A1F4A; --glow: rgba(230,194,122,.55); }
 .hexDeckCard.risk    { --a:#12090A; --b:#6E0F1B; --glow: rgba(255,96,64,.55); }
 .hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; --glow: rgba(160,255,110,.45); }
 .hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; --glow: rgba(200,80,140,.55); }
-
 
 `;
