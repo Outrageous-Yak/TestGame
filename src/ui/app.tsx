@@ -18,7 +18,7 @@ import { ROW_LENS, enterLayer, revealHex } from "../engine/board";
 import { neighborIdsSameLayer } from "../engine/neighbors";
 
 // ✅ GitHub-safe world list (manual registry)
-import { worlds as registeredWorlds } from "../worlds";
+import { worlds as registeredWorlds } from "../worlds/index";
 
 /* =========================================================
    2) Core Types
