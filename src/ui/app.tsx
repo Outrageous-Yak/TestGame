@@ -1209,79 +1209,85 @@ const pid = (state as any)?.playerHexId as string | null;
           />
 
           {/* HUD */}
-          <div className="hud">
-            <div className="hudLeft">
-              <button
-                className="btn primary"
-                disabled={!state || diceRolling}
-                onClick={() => rollDice({ reason: encounterActive ? "encounter" : "normal" })}
-              >
-                {diceRolling ? "Rolling…" : encounterActive ? "Roll (Need 6)" : "Roll"}
-              </button>
+      <div className="hud">
+  <div className="hudGroup hudGroupLeft">
+    <div className="hudLeft">
+      <button
+        className="btn primary"
+        disabled={!state || diceRolling}
+        onClick={() => rollDice({ reason: encounterActive ? "encounter" : "normal" })}
+      >
+        {diceRolling ? "Rolling…" : encounterActive ? "Roll (Need 6)" : "Roll"}
+      </button>
 
-              <div className={`dice3d ${diceRolling ? "rolling" : ""}`}>
-                <div
-                  className="cube"
-                  style={{
-                    transform: `rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
-                  }}
-                >
-                  <div className="face face-front" style={{ backgroundImage: `url(${diceImg(2)})` }} />
-                  <div className="face face-back" style={{ backgroundImage: `url(${diceImg(5)})` }} />
-                  <div className="face face-right" style={{ backgroundImage: `url(${diceImg(3)})` }} />
-                  <div className="face face-left" style={{ backgroundImage: `url(${diceImg(4)})` }} />
-                  <div className="face face-top" style={{ backgroundImage: `url(${diceImg(1)})` }} />
-                  <div className="face face-bottom" style={{ backgroundImage: `url(${diceImg(6)})` }} />
-                </div>
+      <div className={`dice3d ${diceRolling ? "rolling" : ""}`}>
+        <div
+          className="cube"
+          style={{
+            transform: `rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
+          }}
+        >
+          <div className="face face-front" style={{ backgroundImage: `url(${diceImg(2)})` }} />
+          <div className="face face-back" style={{ backgroundImage: `url(${diceImg(5)})` }} />
+          <div className="face face-right" style={{ backgroundImage: `url(${diceImg(3)})` }} />
+          <div className="face face-left" style={{ backgroundImage: `url(${diceImg(4)})` }} />
+          <div className="face face-top" style={{ backgroundImage: `url(${diceImg(1)})` }} />
+          <div className="face face-bottom" style={{ backgroundImage: `url(${diceImg(6)})` }} />
+        </div>
 
-                {/* optional border overlay */}
-                {DICE_BORDER_IMG ? (
-                  <div className="diceBorder" style={{ backgroundImage: `url(${toPublicUrl(DICE_BORDER_IMG)})` }} />
-                ) : null}
-              </div>
+        {DICE_BORDER_IMG ? (
+          <div className="diceBorder" style={{ backgroundImage: `url(${toPublicUrl(DICE_BORDER_IMG)})` }} />
+        ) : null}
+      </div>
 
-              <div className="hudStat">
-                <div className="k">Dice</div>
-                <div className="v">{diceValue}</div>
-              </div>
+      <div className="hudStat">
+        <div className="k">Dice</div>
+        <div className="v">{diceValue}</div>
+      </div>
 
-              <div className="hudStat">
-                <div className="k">Facing</div>
-                <div className="v">{playerFacing}</div>
-              </div>
+      <div className="hudStat">
+        <div className="k">Facing</div>
+        <div className="v">{playerFacing}</div>
+      </div>
 
-              <div className="hudStat">
-                <div className="k">Goal</div>
-                <div className="v">{goalId ? goalId : "—"}</div>
-              </div>
+      <div className="hudStat">
+        <div className="k">Goal</div>
+        <div className="v">{goalId ? goalId : "—"}</div>
+      </div>
 
-              <div className="hudStat">
-                <div className="k">Optimal</div>
-                <div className="v">
-                  {optimalFromNow ?? "—"}{" "}
-                  <span className="mutedSmall">{optimalAtStart != null ? `(start ${optimalAtStart})` : ""}</span>
-                </div>
-              </div>
-            </div>
+      <div className="hudStat">
+        <div className="k">Optimal</div>
+        <div className="v">
+          {optimalFromNow ?? "—"}{" "}
+          <span className="mutedSmall">{optimalAtStart != null ? `(start ${optimalAtStart})` : ""}</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
-            <div className="hudRight">
-              <div className="items">
-                {items.map((it) => (
-                  <button
-                    key={it.id}
-                    className={`itemBtn ${it.charges <= 0 ? "off" : ""}`}
-                    disabled={it.charges <= 0 || !state || (encounterActive && it.id !== "reroll")}
-                    onClick={() => useItem(it.id)}
-                    title={`${it.name} (${it.charges})`}
-                  >
-                    <span className="itemIcon">{it.icon}</span>
-                    <span className="itemName">{it.name}</span>
-                    <span className="itemCharges">{it.charges}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+  <div className="hudGap" />
+
+  <div className="hudGroup hudGroupRight">
+    <div className="hudRight">
+      <div className="items">
+        {items.map((it) => (
+          <button
+            key={it.id}
+            className={`itemBtn ${it.charges <= 0 ? "off" : ""}`}
+            disabled={it.charges <= 0 || !state || (encounterActive && it.id !== "reroll")}
+            onClick={() => useItem(it.id)}
+            title={`${it.name} (${it.charges})`}
+          >
+            <span className="itemIcon">{it.icon}</span>
+            <span className="itemName">{it.name}</span>
+            <span className="itemCharges">{it.charges}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+</div>
+
 
           {/* Grid */}
           <div className="boardScroll" ref={scrollRef}>
@@ -1701,45 +1707,46 @@ body{
   border-bottom: 1px solid rgba(255,255,255,.08);
   backdrop-filter: blur(10px);
   background: linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.08));
-  display:flex;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.hudLeft{ display:flex; align-items:center; gap: 12px; flex-wrap: wrap; }
-.hudRight{ display:flex; align-items:center; gap: 10px; }
 
-.hudStat{
-  padding: 8px 10px;
-  border-radius: 12px;
+  display: grid;                 /* ✅ key change */
+  grid-template-columns: auto 1fr auto; /* left group | gap | right group */
+  align-items: center;
+  gap: 12px;
+}
+
+.hudGroup{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 18px;
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(0,0,0,.22);
-  min-width: 86px;
-}
-.hudStat .k{
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: .35px;
-  text-transform: uppercase;
-}
-.hudStat .v{
-  margin-top: 4px;
-  font-weight: 900;
-  font-size: 13px;
-}
-.mutedSmall{
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  margin-left: 6px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.22);
 }
 
-/* ===== Items ===== */
-.items{
-  display:flex;
-  gap: 10px;
-  flex-wrap: wrap;
+.hudGap{
+  height: 1px;     /* doesn’t matter, it’s just the grid spacer */
 }
+
+.hudLeft{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;             /* ✅ keep it one cluster */
+}
+
+.hudRight{
+  display: flex;
+  align-items: center;
+}
+
+.items{
+  display: flex;
+  gap: 10px;
+  flex-wrap: nowrap;             /* ✅ keep in one row like your image */
+}
+
 .itemBtn{
   display:grid;
   grid-template-columns: 20px auto 18px;
