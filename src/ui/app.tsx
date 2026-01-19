@@ -432,9 +432,7 @@ export default function App() {
   ======================================================= */
 
   // villain triggers loaded from scenario.json
-  type VillainKey = "bad1" | "bad2" | "bad3" | "bad4";
-  type VillainTrigger = { key: VillainKey; layer: number; row: number; cols?: "any" | number[] };
-  type Encounter = null | { villainKey: VillainKey; tries: number };
+
 
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
