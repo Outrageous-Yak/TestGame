@@ -1683,7 +1683,7 @@ body{
   position: relative;
   border-radius: 18px;
   border: 1px solid rgba(255,255,255,.08);
-  overflow: hidden;            /* change from visible */
+ overflow: visible;            /* change from visible */
   min-height: 0;
   background: rgba(0,0,0,.22);
   box-shadow: var(--shadow2);
@@ -1726,7 +1726,7 @@ body{
 }
 
 .hudGap{
-  height: 1px;     /* doesn’t matter, it’s just the grid spacer */
+  width: 100%;     /* doesn’t matter, it’s just the grid spacer */
 }
 
 .hudLeft{
