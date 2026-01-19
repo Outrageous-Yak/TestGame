@@ -1987,10 +1987,6 @@ body{
 }
 
 
-
-
-
-
 /* ===== Sidebar ===== */
 .side{
   display:grid;
