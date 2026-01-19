@@ -306,8 +306,8 @@ const SPRITE_FPS = 10;
 const FRAME_DURATION = 1000 / SPRITE_FPS;
 const SPRITE_COLS = 5; // walk frames
 const SPRITE_ROWS = 4; // directions
-const FRAME_W = 64;    // <- set to real frame size
-const FRAME_H = 64;
+const FRAME_W = 128;    // <- set to real frame size
+const FRAME_H = 128;
 
 useEffect(() => {
   if (!isWalking) {
