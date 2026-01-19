@@ -1986,9 +1986,9 @@ body{
   height: calc(var(--frameH) * 1px);
 
   /* tweak knobs */
-  --spriteScale: 0.45;   /* size of character */
-  --footX: -6px;         /* move left/right */
-  --footY: -6px;         /* move up/down */
+ --spriteScale: 0.45;
+  --footX: -10px;
+  --footY: 6px;
 
   /* translate to center, lift so feet sit on point, then scale from feet */
   transform:
