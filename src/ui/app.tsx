@@ -1250,62 +1250,70 @@ useEffect(() => {
 
                       return (
                         <button
-                          key={id}
-                          className={[
-                            "hex",
-                            isSel ? "sel" : "",
-                            isReach ? "reach" : "",
-                            blocked ? "blocked" : "",
-                            isPlayer ? "player" : "",
-                            isGoal ? "goal" : "",
-                            isTrigger ? "trigger" : "",
-                          ].join(" ")}
-                          onClick={() => {
-                            setSelectedId(id);
-                            tryMoveToId(id);
-                          }}
-                          disabled={!state || blocked || encounterActive}
-                          style={{
-                            ["--hexGlow" as any]: layerCssVar(currentLayer),
-                            backgroundImage: tileBg || undefined,
-                          }}
-                          title={id}
-                        >
-      <div className="hexInner">
-    <div className="hexId">{r},{c}</div>
+  key={id}
+  className={[
+    "hex",
+    isSel ? "sel" : "",
+    isReach ? "reach" : "",
+    blocked ? "blocked" : "",
+    isPlayer ? "player" : "",
+    isGoal ? "goal" : "",
+    isTrigger ? "trigger" : "",
+  ].join(" ")}
+  onClick={() => {
+    setSelectedId(id);
+    tryMoveToId(id);
+  }}
+  disabled={!state || blocked || encounterActive}
+  style={{
+    ["--hexGlow" as any]: layerCssVar(currentLayer),
+    backgroundImage: tileBg || undefined,
+  }}
+  title={id}
+>
+  <div className="hexAnchor">
+    <div className="hexInner">
+      <div className="hexId">
+        {r},{c}
+      </div>
 
-    <div className="hexMarks">
-      {isGoal ? <span className="mark g">G</span> : null}
-      {isTrigger ? <span className="mark t">!</span> : null}
+      <div className="hexMarks">
+        {isGoal ? <span className="mark g">G</span> : null}
+        {isTrigger ? <span className="mark t">!</span> : null}
+      </div>
     </div>
+
+    {/* sprite OUTSIDE hexInner so clip-path doesn't cut it */}
+    {isPlayer ? (
+      <span
+        className={`playerSpriteSheet ${isWalking ? "walking" : ""}`}
+        style={
+          {
+            ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
+            ["--frameW" as any]: FRAME_W,
+            ["--frameH" as any]: FRAME_H,
+            ["--cols" as any]: SPRITE_COLS,
+            ["--rows" as any]: SPRITE_ROWS,
+
+            // cols = walk frames (0..4)
+            ["--frameX" as any]: walkFrame,
+
+            // rows = direction (0..3)
+            ["--frameY" as any]:
+              playerFacing === "down"
+                ? 0
+                : playerFacing === "left"
+                ? 1
+                : playerFacing === "right"
+                ? 2
+                : 3,
+          } as any
+        }
+      />
+    ) : null}
   </div>
-
-  {/* ✅ sprite OUTSIDE hexInner so clip-path doesn't cut it */}
-{isPlayer ? (
-  <span
-    className={`playerSpriteSheet ${isWalking ? "walking" : ""}`}
-    style={
-      {
-        ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
-        ["--frameW" as any]: FRAME_W,
-        ["--frameH" as any]: FRAME_H,
-        ["--cols" as any]: SPRITE_COLS,
-        ["--rows" as any]: SPRITE_ROWS,
-
-        // ✅ cols = walk frames
-        ["--frameX" as any]: walkFrame,
-
-        // ✅ rows = direction
-        ["--frameY" as any]:
-          playerFacing === "down" ? 0 :
-          playerFacing === "left" ? 1 :
-          playerFacing === "right" ? 2 : 3,
-      } as any
-    }
-  />
-) : null}
-
 </button>
+
                       );
                     })}
                   </div>
@@ -1959,32 +1967,36 @@ body{
 
 
 /* === Player sprite from sprite sheet === */
+.hexAnchor{
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
 .playerSpriteSheet{
   position: absolute;
   left: 50%;
-  bottom: 0px;              /* tweak -10..10 */
-  transform: translateX(-50%);
+  top: 100%;
+  transform: translate(-50%, -78%); /* tweak this */
 
-  width: 56px;              /* tweak */
-  height: 72px;             /* tweak */
-
-  z-index: 10;
+  z-index: 20;
   pointer-events: none;
   image-rendering: pixelated;
 
+  width: 56px;
+  height: 72px;
+
   background-image: var(--spriteImg);
   background-repeat: no-repeat;
-
   background-size:
     calc(var(--frameW) * var(--cols) * 1px)
     calc(var(--frameH) * var(--rows) * 1px);
-
   background-position:
     calc(var(--frameW) * -1px * var(--frameX))
     calc(var(--frameH) * -1px * var(--frameY));
-
-  filter: drop-shadow(0 10px 18px rgba(0,0,0,.45));
 }
+
 /* ===== Sidebar ===== */
 .side{
   display:grid;
