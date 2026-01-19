@@ -1710,8 +1710,11 @@ body{
 
   display: grid;                 /* ✅ key change */
   grid-template-columns: auto 1fr auto; /* left group | gap | right group */
-  align-items: center;
-  gap: 12px;
+  /* CHANGE THIS */
+  align-items: start;            /* was: center */
+  align-content: start;          /* helps when hud has extra height */
+  padding-top: 6px;              /* optional: tighter to the top */
+  padding-bottom: 10px;          /* optional */
 }
 
 .hudGroup{
@@ -1723,6 +1726,7 @@ body{
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(0,0,0,.22);
   box-shadow: 0 12px 30px rgba(0,0,0,.22);
+  align-self: start; 
 }
 
 .hudGap{
