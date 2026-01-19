@@ -1999,20 +1999,27 @@ body{
   background-color: rgba(0,0,0,.20);
 }
 
-/* When walking: step through columns 0..(cols-1) */
-.playerSpriteSheet.walking{
-  animation: walkFrames 450ms steps(var(--cols)) infinite;
-}
+<div className="hexMarks">
+  {isPlayer ? (
+    <span
+      className="playerSpriteSheet"
+      style={
+        {
+          ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
+          ["--frameW" as any]: 32,
+          ["--frameH" as any]: 32,
+          ["--cols" as any]: 5,
+          ["--frameX" as any]: spriteFrame % 5,
+          ["--frameY" as any]: Math.floor(spriteFrame / 5),
+        } as any
+      }
+    />
+  ) : null}
 
-/* Go to the LAST frame (-(cols-1)*frameW), not -(cols*frameW) */
-@keyframes walkFrames{
-  from {
-    background-position: 0px calc(var(--frameH) * -1 * var(--frameY));
-  }
-  to {
-    background-position: calc(var(--frameW) * -1 * (var(--cols) - 1)) calc(var(--frameH) * -1 * var(--frameY));
-  }
-}
+  {isGoal ? <span className="mark g">G</span> : null}
+  {isTrigger ? <span className="mark t">!</span> : null}
+</div>
+
 
 
 /* ===== Sidebar ===== */
