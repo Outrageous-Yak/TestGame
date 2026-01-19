@@ -296,9 +296,61 @@ export default function App() {
         return 3;
     }
   }
+function facingCol(f: "down" | "up" | "left" | "right") {
+  switch (f) {
+    case "down":
+      return 0;
+    case "left":
+      return 1;
+    case "right":
+      return 2;
+    case "up":
+      return 3;
+  }
+}
 
-  const [isWalking, setIsWalking] = useState(false);
+const [isWalking, setIsWalking] = useState(false);
 const walkTimer = useRef<number | null>(null);
+
+const [walkFrame, setWalkFrame] = useState(0);
+const rafRef = useRef<number | null>(null);
+const lastRef = useRef(0);
+
+// ✅ sprite_sheet_20.png is 4 cols x 5 rows, 128px per frame
+const SPRITE_FPS = 10;
+const FRAME_DURATION = 1000 / SPRITE_FPS;
+const SPRITE_COLS = 4;
+const SPRITE_ROWS = 5;
+const FRAME_W = 128;
+const FRAME_H = 128;
+
+useEffect(() => {
+  if (!isWalking) {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    setWalkFrame(0);
+    return;
+  }
+
+  // ✅ reset timing each time we start walking
+  lastRef.current = performance.now();
+
+  const tick = (t: number) => {
+    if (t - lastRef.current >= FRAME_DURATION) {
+      setWalkFrame((f) => (f + 1) % SPRITE_ROWS); // 0..4
+      lastRef.current = t;
+    }
+    rafRef.current = requestAnimationFrame(tick);
+  };
+
+  rafRef.current = requestAnimationFrame(tick);
+
+  return () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+  };
+}, [isWalking]);
+
 
 // ✅ Option A Step 1 goes here
 const [spriteFrame, setSpriteFrame] = useState(0);
@@ -1277,21 +1329,22 @@ useEffect(() => {
   </div>
 
   {/* ✅ sprite OUTSIDE hexInner so clip-path doesn't cut it */}
-  {isPlayer ? (
-    <span
-      className="playerSpriteSheet"
-      style={
-        {
-          ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
-          ["--frameW" as any]: 64,
-          ["--frameH" as any]: 64,
-          ["--cols" as any]: 5,
-          ["--frameX" as any]: spriteFrame % 5,
-          ["--frameY" as any]: Math.floor(spriteFrame / 5),
-        } as any
-      }
-    />
-  ) : null}
+{isPlayer ? (
+  <span
+    className="playerSpriteSheet"
+    style={
+      {
+        ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
+        ["--frameW" as any]: FRAME_W,
+        ["--frameH" as any]: FRAME_H,
+        ["--cols" as any]: SPRITE_COLS,
+        ["--rows" as any]: SPRITE_ROWS,
+        ["--frameX" as any]: facingCol(playerFacing), // 0..3
+        ["--frameY" as any]: walkFrame,               // 0..4
+      } as any
+    }
+  />
+) : null}
 </button>
                       );
                     })}
@@ -1946,39 +1999,31 @@ body{
 
 /* === Player sprite from sprite sheet === */
 .playerSpriteSheet{
-z-index: 3;
+  z-index: 3;
   position: absolute;
-
-  /* === Anchor to hex bottom point (center) === */
   left: 50%;
-  bottom: 2px;
+  bottom: -2px;              /* tweak: -8..6 */
   transform: translateX(-50%);
 
-  /* === Display size (how big the sprite looks on the board) === */
-  width: 40px;
-  height: 56px;
+  width: 64px;               /* bigger */
+  height: 88px;              /* taller */
 
-  /* === Sprite sheet rendering === */
   background-image: var(--spriteImg);
   background-repeat: no-repeat;
 
-  /* sheet total pixel size = frameW*cols by frameH*rows (rows=4 here) */
   background-size:
     calc(var(--frameW) * var(--cols) * 1px)
-    calc(var(--frameH) * 4 * 1px);
+    calc(var(--frameH) * var(--rows) * 1px);
 
-  /* show the correct frame (Option A) */
   background-position:
     calc(var(--frameW) * -1px * var(--frameX))
     calc(var(--frameH) * -1px * var(--frameY));
 
   image-rendering: pixelated;
   pointer-events: none;
-
-  /* optional styling */
-  border-radius: 10px;
   filter: drop-shadow(0 10px 18px rgba(0,0,0,.45));
 }
+
 /* ===== Sidebar ===== */
 .side{
   display:grid;
