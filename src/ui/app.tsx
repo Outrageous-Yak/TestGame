@@ -1976,26 +1976,44 @@ body{
 
 .playerSpriteSheet{
   position: absolute;
+
+  /* anchor to hex bottom point center */
   left: 50%;
   top: 100%;
-  transform: translate(-56%, -86%);
+
+  /* IMPORTANT: draw at native frame size so we don't crop */
+  width: calc(var(--frameW) * 1px);
+  height: calc(var(--frameH) * 1px);
+
+  /* tweak knobs */
+  --spriteScale: 0.45;   /* size of character */
+  --footX: -6px;         /* move left/right */
+  --footY: -6px;         /* move up/down */
+
+  /* translate to center, lift so feet sit on point, then scale from feet */
+  transform:
+    translate(calc(-50% + var(--footX)), calc(-100% + var(--footY)))
+    scale(var(--spriteScale));
+  transform-origin: 50% 100%;
 
   z-index: 20;
   pointer-events: none;
   image-rendering: pixelated;
 
-  width: 56px;
-  height: 72px;
-
   background-image: var(--spriteImg);
   background-repeat: no-repeat;
+
   background-size:
     calc(var(--frameW) * var(--cols) * 1px)
     calc(var(--frameH) * var(--rows) * 1px);
+
   background-position:
     calc(var(--frameW) * -1px * var(--frameX))
     calc(var(--frameH) * -1px * var(--frameY));
+
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,.45));
 }
+
 
 /* ===== Sidebar ===== */
 .side{
