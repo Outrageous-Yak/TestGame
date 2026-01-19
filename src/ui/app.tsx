@@ -73,9 +73,9 @@ type WorldEntry = {
   scenarios: ScenarioEntry[];
 };
 
-/* =========================================================
+/* =======================================================
    3) Auto-load all world modules under src/worlds/**/world.ts
-========================================================= */
+======================================================= */
 
 function loadWorlds(): WorldEntry[] {
   const list: WorldEntry[] = [];
