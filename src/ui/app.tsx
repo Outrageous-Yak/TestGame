@@ -73,8 +73,13 @@ type WorldEntry = {
   scenarios: ScenarioEntry[];
 };
 
+/* =========================================================
+   3) Auto-load all world modules under src/worlds/**/world.ts
+========================================================= */
 
 const worldModules = import.meta.glob("../worlds/**/world.ts", { eager: true });
+
+
 
 function loadWorlds(): WorldEntry[] {
   const list: WorldEntry[] = [];
@@ -83,7 +88,7 @@ function loadWorlds(): WorldEntry[] {
     if (!w) continue;
 
     if (!w.id) {
-      const m = /..\/worlds\/([^/]+)\/world\.ts$/.exec(path);
+      const m = /\.\.\/worlds\/([^/]+)\/world\.ts$/.exec(path);
       w.id = m?.[1] ?? "world";
     }
     list.push(w as WorldEntry);
