@@ -841,10 +841,10 @@ useEffect(() => {
     const pid = (state as any)?.playerHexId as string | null;
     return !!pid && pid === id;
   }
-   function HexDeckCardsDemo() {
+   function HexDeckCardsOverlay() {
   return (
-    <div className="hexDeckStage" aria-label="Hex deck cards demo">
-      <div className="hexDeckRow">
+    <div className="hexDeckOverlay" aria-label="Hex deck overlay">
+      <div className="hexDeckGrid">
         <div className="hexDeckCard cosmic">
           <div className="mark">
             <div className="hexDeckHex" />
@@ -876,7 +876,6 @@ useEffect(() => {
     </div>
   );
 }
-
 
   /* =========================================================
      Screens
@@ -1379,7 +1378,7 @@ useEffect(() => {
           </div>
 
           {/* 4 cards underneath */}
-          <HexDeckCardsDemo />
+          <HexDeckCardsOverlay />
         </div>
 
         {/* Right color bar (sibling of boardWrap) */}
@@ -2259,27 +2258,31 @@ body{
   .log{ max-height: 240px; }
 }
 /* =========================
-   HEX DECK CARDS (under board)
+   HEX DECK CARDS (CENTERED OVERLAY INSIDE BOARD)
 ========================= */
-.hexDeckStage{
-  width: 100%;
+.hexDeckOverlay{
+  position: absolute;
+  inset: 0;
+  z-index: 4;               /* above board tiles */
   display: grid;
-  place-items: center;
-  margin-top: 14px;
+  place-items: center;      /* centers the whole grid vertically + horizontally */
+  pointer-events: none;     /* overlay itself doesn't block clicks */
 }
 
-.hexDeckRow{
-  width: calc(var(--hexWMain) + (var(--maxCols) - 1) * var(--hexPitch));
+.hexDeckGrid{
+  width: min(720px, 92%);
+  height: min(520px, 72%);  /* controls vertical centering area */
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+
+  pointer-events: auto;     /* cards ARE clickable */
+  align-items: stretch;
+  justify-items: stretch;
 }
 
 .hexDeckCard{
-  aspect-ratio: 2 / 3;
-  width: 100%;
-  max-height: 240px;
-
   position: relative;
   border-radius: 16px;
   overflow: hidden;
@@ -2292,6 +2295,15 @@ body{
   box-shadow:
     0 18px 48px rgba(0,0,0,.6),
     0 0 0 1px rgba(255,255,255,.06) inset;
+
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.hexDeckCard:hover{
+  transform: translateY(-2px);
+  box-shadow:
+    0 22px 58px rgba(0,0,0,.65),
+    0 0 0 1px rgba(255,255,255,.08) inset;
 }
 
 .hexDeckCard::after{
@@ -2382,55 +2394,14 @@ body{
 .hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; --glow: rgba(160,255,110,.45); }
 .hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; --glow: rgba(200,80,140,.55); }
 
-@media (max-width: 1100px){
-  .hexDeckRow{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .hexDeckCard{ max-height: 220px; }
-}
-/* ===== Layer Bars (left/right) ===== */
-.barWrap{ display:flex; align-items: flex-start; justify-content: center; position: relative; z-index: 12; }
-.layerBar{
-  width: 18px;
-  height: calc(var(--hexHMain) * 7);
-  border-radius: 999px;
-  overflow: visible;
-  background: rgba(0,0,0,.22);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.18);
-  display: grid;
-  grid-template-rows: repeat(7, 1fr);
+@media (max-width: 980px){
+  .hexDeckGrid{
+    width: min(620px, 94%);
+    height: min(520px, 78%);
+    gap: 14px;
+  }
 }
 
-.barSeg{ opacity: .95; position: relative; }
-.barSeg:first-child{ border-top-left-radius: 999px; border-top-right-radius: 999px; }
-.barSeg:last-child{ border-bottom-left-radius: 999px; border-bottom-right-radius: 999px; }
-
-.barSeg[data-layer="1"]{ background: var(--L1); }
-.barSeg[data-layer="2"]{ background: var(--L2); }
-.barSeg[data-layer="3"]{ background: var(--L3); }
-.barSeg[data-layer="4"]{ background: var(--L4); }
-.barSeg[data-layer="5"]{ background: var(--L5); }
-.barSeg[data-layer="6"]{ background: var(--L6); }
-.barSeg[data-layer="7"]{ background: var(--L7); }
-
-.barSeg.isActive{ outline: 1px solid rgba(255,255,255,.30); z-index: 3; }
-.barSeg.isActive::after{
-  content: "";
-  position: absolute;
-  inset: -10px;
-  background: inherit;
-  filter: blur(14px);
-  opacity: .95;
-  border-radius: 999px;
-  pointer-events:none;
-}
-.barRight .barSeg.isActive{
-  outline: 1px solid rgba(255,255,255,.95);
-  box-shadow: 0 0 18px rgba(255,255,255,.70), 0 0 44px rgba(255,255,255,.25);
-  z-index: 49;
-}
-.barRight .barSeg.isActive::after{
-  opacity: 1;
-  filter: blur(18px);
-}
 
 
 `;
