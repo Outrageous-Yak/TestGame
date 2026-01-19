@@ -321,7 +321,7 @@ useEffect(() => {
 
   const tick = (t: number) => {
     if (t - lastRef.current >= FRAME_DURATION) {
-      setWalkFrame((f) => (f + 1) % SPRITE_ROWS);
+     setWalkFrame((f) => (f + 1) % SPRITE_COLS); // 0..4
       lastRef.current = t;
     }
     rafRef.current = requestAnimationFrame(tick);
@@ -1283,7 +1283,7 @@ useEffect(() => {
   {/* ✅ sprite OUTSIDE hexInner so clip-path doesn't cut it */}
 {isPlayer ? (
   <span
-    className="playerSpriteSheet"
+    className={`playerSpriteSheet ${isWalking ? "walking" : ""}`}
     style={
       {
         ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
@@ -1291,12 +1291,20 @@ useEffect(() => {
         ["--frameH" as any]: FRAME_H,
         ["--cols" as any]: SPRITE_COLS,
         ["--rows" as any]: SPRITE_ROWS,
-        ["--frameX" as any]: facingCol(playerFacing),
-        ["--frameY" as any]: walkFrame,
+
+        // ✅ cols = walk frames
+        ["--frameX" as any]: walkFrame,
+
+        // ✅ rows = direction
+        ["--frameY" as any]:
+          playerFacing === "down" ? 0 :
+          playerFacing === "left" ? 1 :
+          playerFacing === "right" ? 2 : 3,
       } as any
     }
   />
 ) : null}
+
 </button>
                       );
                     })}
@@ -1754,7 +1762,8 @@ body{
   position: relative;
   z-index: 2;
   height: calc(100% - 88px); /* HUD height-ish */
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: visible; 
   padding: 16px 10px 18px;
 }
 
@@ -1951,14 +1960,17 @@ body{
 
 /* === Player sprite from sprite sheet === */
 .playerSpriteSheet{
-  z-index: 3;
   position: absolute;
   left: 50%;
-  bottom: -2px;              /* tweak: -8..6 */
+  bottom: 0px;              /* tweak -10..10 */
   transform: translateX(-50%);
 
-  width: 64px;               /* bigger */
-  height: 88px;              /* taller */
+  width: 56px;              /* tweak */
+  height: 72px;             /* tweak */
+
+  z-index: 10;
+  pointer-events: none;
+  image-rendering: pixelated;
 
   background-image: var(--spriteImg);
   background-repeat: no-repeat;
@@ -1971,11 +1983,8 @@ body{
     calc(var(--frameW) * -1px * var(--frameX))
     calc(var(--frameH) * -1px * var(--frameY));
 
-  image-rendering: pixelated;
-  pointer-events: none;
   filter: drop-shadow(0 10px 18px rgba(0,0,0,.45));
 }
-
 /* ===== Sidebar ===== */
 .side{
   display:grid;
