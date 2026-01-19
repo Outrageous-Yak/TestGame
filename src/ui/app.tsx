@@ -1267,20 +1267,24 @@ useEffect(() => {
                           }}
                           title={id}
                         >
-        <div className="hexInner">
-  <div className="hexId">{r},{c}</div>
+      <div className="hexInner">
+    <div className="hexId">{r},{c}</div>
 
+    <div className="hexMarks">
+      {isGoal ? <span className="mark g">G</span> : null}
+      {isTrigger ? <span className="mark t">!</span> : null}
+    </div>
+  </div>
+
+  {/* ✅ sprite OUTSIDE hexInner so clip-path doesn't cut it */}
   {isPlayer ? (
     <span
       className="playerSpriteSheet"
       style={
         {
           ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
-
-          // IMPORTANT: set these to the REAL frame size of the PNG
           ["--frameW" as any]: 64,
           ["--frameH" as any]: 64,
-
           ["--cols" as any]: 5,
           ["--frameX" as any]: spriteFrame % 5,
           ["--frameY" as any]: Math.floor(spriteFrame / 5),
@@ -1288,14 +1292,7 @@ useEffect(() => {
       }
     />
   ) : null}
-
-  <div className="hexMarks">
-    {isGoal ? <span className="mark g">G</span> : null}
-    {isTrigger ? <span className="mark t">!</span> : null}
-  </div>
-</div>
-
-                        </button>
+</button>
                       );
                     })}
                   </div>
@@ -1792,6 +1789,7 @@ body{
   filter: drop-shadow(0 10px 16px rgba(0,0,0,.35));
   transition: transform 140ms ease, filter 140ms ease;
   position: relative;
+  overflow: visible; 
 }
 .hex:hover{
   transform: translateY(-2px);
@@ -1830,7 +1828,7 @@ body{
   background-size: cover;
   background-position: center;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
-  overflow:visible;
+  overflow:hidden;
 }
 
 /* subtle sheen */
@@ -1948,6 +1946,7 @@ body{
 
 /* === Player sprite from sprite sheet === */
 .playerSpriteSheet{
+z-index: 3;
   position: absolute;
 
   /* === Anchor to hex bottom point (center) === */
