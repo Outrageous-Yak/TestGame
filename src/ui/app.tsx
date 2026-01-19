@@ -1985,8 +1985,6 @@ body{
   border-radius: 10px;
   filter: drop-shadow(0 10px 18px rgba(0,0,0,.45));
 }
-
-
 /* ===== Sidebar ===== */
 .side{
   display:grid;
