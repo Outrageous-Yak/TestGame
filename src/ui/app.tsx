@@ -17,6 +17,9 @@ import { newGame, getReachability, tryMove, type ReachMap } from "../engine/api"
 import { ROW_LENS, enterLayer, revealHex } from "../engine/board";
 import { neighborIdsSameLayer } from "../engine/neighbors";
 
+// ✅ GitHub-safe world list (manual registry)
+import { worlds as registeredWorlds } from "../worlds";
+
 /* =========================================================
    2) Core Types
 ========================================================= */
@@ -30,7 +33,15 @@ type PlayerChoice =
 type Coord = { layer: number; row: number; col: number };
 type LogEntry = { n: number; t: string; msg: string; kind?: "ok" | "bad" | "info" };
 
-type LayerPalette = { L1: string; L2: string; L3: string; L4: string; L5: string; L6: string; L7: string };
+type LayerPalette = {
+  L1: string;
+  L2: string;
+  L3: string;
+  L4: string;
+  L5: string;
+  L6: string;
+  L7: string;
+};
 
 type ScenarioTheme = {
   palette: LayerPalette;
@@ -74,32 +85,22 @@ type WorldEntry = {
 };
 
 /* =======================================================
-   3) Auto-load all world modules under src/worlds/**/world.ts
+   3) World loader (GitHub-safe)
+   - Uses src/worlds/index.ts registry
 ======================================================= */
-
-// Vite: auto-import every matching module
-const worldModules = import.meta.glob("../worlds/**/world.ts", { eager: true });
-
-function deriveWorldIdFromPath(path: string): string {
-  const norm = path.replace(/\\/g, "/"); // windows-safe
-  const parts = norm.split("/");
-  // folder right before world.ts (works with any nesting depth)
-  return parts[parts.length - 2] ?? "world";
-}
 
 function loadWorlds(): WorldEntry[] {
   const list: WorldEntry[] = [];
 
-  for (const [path, mod] of Object.entries(worldModules as any)) {
-    const w = (mod as any)?.default ?? (mod as any)?.world ?? null;
+  for (const w of registeredWorlds as any[]) {
     if (!w) continue;
 
-    const derivedId = deriveWorldIdFromPath(path);
+    const id = w.id ?? "world";
+    const name = w.name ?? id;
 
-    // avoid mutating module exports
     list.push({
-      id: w.id ?? derivedId,
-      name: w.name ?? derivedId,
+      id,
+      name,
       ...w,
     } as WorldEntry);
   }
@@ -107,7 +108,6 @@ function loadWorlds(): WorldEntry[] {
   list.sort((a, b) => a.name.localeCompare(b.name));
   return list;
 }
-
 
 /* =========================================================
    4) Villain triggers (loaded from scenario.json)
@@ -237,6 +237,7 @@ function facingFromMove(fromId: string | null, toId: string | null): "down" | "u
    PART 1 END
    Next: PART 2 / 6 (App state + sprite + dice + sidebar bars)
 ========================================================= */
+
 /* =========================================================
    app.tsx — PART 2 / 6
    Sections in this part:
