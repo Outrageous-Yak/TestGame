@@ -298,7 +298,41 @@ export default function App() {
   }
 
   const [isWalking, setIsWalking] = useState(false);
-  const walkTimer = useRef<number | null>(null);
+const walkTimer = useRef<number | null>(null);
+
+// ✅ Option A Step 1 goes here
+const [spriteFrame, setSpriteFrame] = useState(0);
+const lastFrameTimeRef = useRef(0);
+const rafRef = useRef<number | null>(null);
+
+const SPRITE_FPS = 10;
+const FRAME_DURATION = 1000 / SPRITE_FPS;
+const SPRITE_COLS = 5;
+const TOTAL_FRAMES = 20;
+
+useEffect(() => {
+  if (!isWalking) {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    setSpriteFrame(0);
+    return;
+  }
+
+  const tick = (t: number) => {
+    if (t - lastFrameTimeRef.current >= FRAME_DURATION) {
+      setSpriteFrame((f) => (f + 1) % TOTAL_FRAMES);
+      lastFrameTimeRef.current = t;
+    }
+    rafRef.current = requestAnimationFrame(tick);
+  };
+
+  rafRef.current = requestAnimationFrame(tick);
+
+  return () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+  };
+}, [isWalking]);
 
   // villain triggers loaded from scenario.json
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
@@ -1237,22 +1271,29 @@ export default function App() {
                             <div className="hexId">
                               {r},{c}
                             </div>
-                            <div className="hexMarks">
-                              {isPlayer ? (
-                                <span
-                                  className={`playerSpriteSheet ${isWalking ? "walking" : ""}`}
-                                  style={
-                                    {
-                                      ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
-                                      ["--frameY" as any]: facingRow(playerFacing),
-                                    } as any
-                                  }
-                                />
-                              ) : null}
+  <div className="hexMarks">
+  {isPlayer ? (
+    <span
+      className="playerSpriteSheet"
+      style={
+        {
+          ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
+          ["--frameW" as any]: 32,
+          ["--frameH" as any]: 32,
+          ["--cols" as any]: 5,
+          ["--frameX" as any]: spriteFrame % 5,
+          ["--frameY" as any]: Math.floor(spriteFrame / 5),
+        } as any
+      }
+    />
+  ) : null}
 
-                              {isGoal ? <span className="mark g">G</span> : null}
-                              {isTrigger ? <span className="mark t">!</span> : null}
-                            </div>
+  {isGoal ? <span className="mark g">G</span> : null}
+  {isTrigger ? <span className="mark t">!</span> : null}
+</div>
+
+
+                            
                           </div>
                         </button>
                       );
