@@ -841,41 +841,48 @@ useEffect(() => {
     const pid = (state as any)?.playerHexId as string | null;
     return !!pid && pid === id;
   }
-   function HexDeckCardsOverlay() {
+function HexDeckCardsOverlay() {
   return (
     <div className="hexDeckOverlay" aria-label="Hex deck overlay">
-      <div className="hexDeckGrid">
-        <div className="hexDeckCard cosmic">
-          <div className="mark">
-            <div className="hexDeckHex" />
-            <div className="sigil sigil-cosmic" />
+      <div className="hexDeckSides">
+        {/* LEFT COLUMN (top + bottom) */}
+        <div className="hexDeckCol left">
+          <div className="hexDeckCard cosmic">
+            <div className="mark">
+              <div className="hexDeckHex" />
+              <div className="sigil sigil-cosmic" />
+            </div>
+          </div>
+
+          <div className="hexDeckCard risk">
+            <div className="mark">
+              <div className="hexDeckHex" />
+              <div className="sigil sigil-risk" />
+            </div>
           </div>
         </div>
 
-        <div className="hexDeckCard risk">
-          <div className="mark">
-            <div className="hexDeckHex" />
-            <div className="sigil sigil-risk" />
+        {/* RIGHT COLUMN (top + bottom) */}
+        <div className="hexDeckCol right">
+          <div className="hexDeckCard terrain">
+            <div className="mark">
+              <div className="hexDeckHex" />
+              <div className="sigil sigil-terrain" />
+            </div>
           </div>
-        </div>
 
-        <div className="hexDeckCard terrain">
-          <div className="mark">
-            <div className="hexDeckHex" />
-            <div className="sigil sigil-terrain" />
-          </div>
-        </div>
-
-        <div className="hexDeckCard shadow">
-          <div className="mark">
-            <div className="hexDeckHex" />
-            <div className="sigil sigil-shadow" />
+          <div className="hexDeckCard shadow">
+            <div className="mark">
+              <div className="hexDeckHex" />
+              <div className="sigil sigil-shadow" />
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 }
+
 
   /* =========================================================
      Screens
@@ -2258,31 +2265,43 @@ body{
   .log{ max-height: 240px; }
 }
 /* =========================
-   HEX DECK CARDS (CENTERED OVERLAY INSIDE BOARD)
+   HEX DECK CARDS (SIDE DEAD-ZONES INSIDE BOARD)
 ========================= */
 .hexDeckOverlay{
   position: absolute;
   inset: 0;
-  z-index: 4;               /* above board tiles */
-  display: grid;
-  place-items: center;      /* centers the whole grid vertically + horizontally */
-  pointer-events: none;     /* overlay itself doesn't block clicks */
+  z-index: 4;                /* above board background + hexes */
+  pointer-events: none;      /* overlay doesn’t block the board */
 }
 
-.hexDeckGrid{
-  width: min(720px, 92%);
-  height: min(520px, 72%);  /* controls vertical centering area */
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-
-  pointer-events: auto;     /* cards ARE clickable */
-  align-items: stretch;
-  justify-items: stretch;
+/* Two side columns that sit in the “dead zones” */
+.hexDeckSides{
+  position: absolute;
+  inset: 12px;               /* inner padding from board border */
+  display: flex;
+  justify-content: space-between; /* left column + right column */
+  align-items: stretch;           /* full height */
 }
 
-.hexDeckCard{
+/* Each side column holds 2 cards spaced top/bottom */
+.hexDeckCol{
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* ✅ equal distance top/bottom + equal gap */
+  gap: 16px;
+
+  pointer-events: none; /* only cards enable pointer events */
+}
+
+/* Card sizing: tall portrait cards like your reference */
+.hexDeckCol .hexDeckCard{
+  pointer-events: auto; /* cards are clickable */
+  width: min(240px, 18vw);
+  height: min(240px, 28vh);
+  max-width: 260px;
+  max-height: 280px;
+
   position: relative;
   border-radius: 16px;
   overflow: hidden;
@@ -2296,10 +2315,10 @@ body{
     0 18px 48px rgba(0,0,0,.6),
     0 0 0 1px rgba(255,255,255,.06) inset;
 
-  transition: transform 140ms ease, box-shadow 140ms ease;
+  transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
 }
 
-.hexDeckCard:hover{
+.hexDeckCol .hexDeckCard:hover{
   transform: translateY(-2px);
   box-shadow:
     0 22px 58px rgba(0,0,0,.65),
@@ -2348,6 +2367,11 @@ body{
   transition: transform .25s ease, opacity .25s ease;
 }
 
+.hexDeckCard:hover .sigil{
+  opacity:1;
+  transform:scale(1.05);
+}
+
 .hexDeckCard .sigil-cosmic{
   background:
     conic-gradient(from 30deg,
@@ -2384,24 +2408,10 @@ body{
     linear-gradient(90deg, transparent 0 45%, rgba(255,255,255,.35) 50% 52%, transparent 57%);
 }
 
-.hexDeckCard:hover .sigil{
-  opacity:1;
-  transform:scale(1.05);
-}
-
 .hexDeckCard.cosmic  { --a:#0C1026; --b:#1A1F4A; --glow: rgba(230,194,122,.55); }
 .hexDeckCard.risk    { --a:#12090A; --b:#6E0F1B; --glow: rgba(255,96,64,.55); }
 .hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; --glow: rgba(160,255,110,.45); }
 .hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; --glow: rgba(200,80,140,.55); }
-
-@media (max-width: 980px){
-  .hexDeckGrid{
-    width: min(620px, 94%);
-    height: min(520px, 78%);
-    gap: 14px;
-  }
-}
-
 
 
 `;
