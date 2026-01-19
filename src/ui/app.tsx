@@ -1,12 +1,12 @@
 // src/ui/app.tsx
 /* =========================================================
-   app.tsx — PART 1 / 5
+   app.tsx — PART 1 / 6
    Sections in this part:
    1) Imports
-   2) Types (template flow, theme, world/scenario)
-   3) Auto-discovery: load worlds
+   2) Core Types
+   3) World auto-discovery loader
    4) Villain trigger types
-   5) Core helpers (id parsing, public url, JSON loader, goal finder)
+   5) Helpers (ids, urls, JSON, goal finder, start tile, facing)
 ========================================================= */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -18,7 +18,7 @@ import { ROW_LENS, enterLayer, revealHex } from "../engine/board";
 import { neighborIdsSameLayer } from "../engine/neighbors";
 
 /* =========================================================
-   2) Template Flow / Core Types
+   2) Core Types
 ========================================================= */
 
 type Screen = "start" | "world" | "character" | "scenario" | "game";
@@ -29,10 +29,6 @@ type PlayerChoice =
 
 type Coord = { layer: number; row: number; col: number };
 type LogEntry = { n: number; t: string; msg: string; kind?: "ok" | "bad" | "info" };
-
-/* =========================================================
-   2b) World / Scenario auto-discovery types
-========================================================= */
 
 type LayerPalette = { L1: string; L2: string; L3: string; L4: string; L5: string; L6: string; L7: string };
 
@@ -59,6 +55,7 @@ type ScenarioTheme = {
 };
 
 type Track = { id: string; name: string; scenarioJson: string };
+
 type ScenarioEntry = {
   id: string;
   name: string;
@@ -99,7 +96,7 @@ function loadWorlds(): WorldEntry[] {
 }
 
 /* =========================================================
-   4) Villain triggers (loaded from scenario.json, NOT hardcoded)
+   4) Villain triggers (loaded from scenario.json)
 ========================================================= */
 
 type VillainKey = "bad1" | "bad2" | "bad3" | "bad4";
@@ -224,15 +221,15 @@ function facingFromMove(fromId: string | null, toId: string | null): "down" | "u
 
 /* =========================================================
    PART 1 END
-   Next: PART 2 / 5 (App component state, sprite, dice, sidebar bars)
+   Next: PART 2 / 6 (App state + sprite + dice + sidebar bars)
 ========================================================= */
 /* =========================================================
-   app.tsx — PART 2 / 5
+   app.tsx — PART 2 / 6
    Sections in this part:
    6) App component shell + core state
-   7) Player / sprite animation state (larger sprite)
+   7) Sprite animation state (bigger sprite)
    8) Dice state + roll logic
-   9) Side bar component (layer bars with active glow)
+   9) Side bar component (layer bars w/ active glow)
 ========================================================= */
 
 export default function App() {
@@ -282,7 +279,7 @@ export default function App() {
   }, []);
 
   /* =======================================================
-     7) Player sprite animation (larger + stable)
+     7) Sprite animation (bigger + stable)
   ======================================================= */
 
   const [playerFacing, setPlayerFacing] = useState<"down" | "up" | "left" | "right">("down");
@@ -348,46 +345,54 @@ export default function App() {
 
   function rotForRoll(n: number) {
     switch (n) {
-      case 1: return { x: -90, y: 0 };
-      case 2: return { x: 0, y: 0 };
-      case 3: return { x: 0, y: -90 };
-      case 4: return { x: 0, y: 90 };
-      case 5: return { x: 0, y: 180 };
-      case 6: return { x: 90, y: 0 };
-      default: return { x: 0, y: 0 };
+      case 1:
+        return { x: -90, y: 0 };
+      case 2:
+        return { x: 0, y: 0 };
+      case 3:
+        return { x: 0, y: -90 };
+      case 4:
+        return { x: 0, y: 90 };
+      case 5:
+        return { x: 0, y: 180 };
+      case 6:
+        return { x: 90, y: 0 };
+      default:
+        return { x: 0, y: 0 };
     }
   }
 
-  const rollDice = useCallback((opts?: { reason?: "normal" | "encounter" | "reroll" }) => {
-    if (diceRolling) return;
-    setDiceRolling(true);
+  const rollDice = useCallback(
+    (opts?: { reason?: "normal" | "encounter" | "reroll" }) => {
+      if (diceRolling) return;
+      setDiceRolling(true);
 
-    const start = performance.now();
-    const duration = 650;
+      const start = performance.now();
+      const duration = 650;
 
-    const tick = () => {
-      const elapsed = performance.now() - start;
-      const flicker = 1 + Math.floor(Math.random() * 6);
-      setDiceValue(flicker);
-      setDiceRot(rotForRoll(flicker));
+      const tick = () => {
+        const elapsed = performance.now() - start;
+        const flicker = 1 + Math.floor(Math.random() * 6);
+        setDiceValue(flicker);
+        setDiceRot(rotForRoll(flicker));
 
-      if (elapsed < duration) {
-        diceTimer.current = window.setTimeout(tick, 55);
-      } else {
-        const final = 1 + Math.floor(Math.random() * 6);
-        setDiceValue(final);
-        setDiceRot(rotForRoll(final));
-        setDiceRolling(false);
-      }
-    };
+        if (elapsed < duration) {
+          diceTimer.current = window.setTimeout(tick, 55);
+        } else {
+          const final = 1 + Math.floor(Math.random() * 6);
+          setDiceValue(final);
+          setDiceRot(rotForRoll(final));
+          setDiceRolling(false);
+        }
+      };
 
-    tick();
-  }, [diceRolling]);
+      tick();
+    },
+    [diceRolling]
+  );
 
   /* =======================================================
-     9) Side bar (layer bar) component
-     - same height as hex field
-     - active segment glows
+     9) Side bar component (layer bars w/ active glow)
   ======================================================= */
 
   function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
@@ -399,46 +404,31 @@ export default function App() {
         <div className="layerBar">
           {segments.map((layerVal) => {
             const active = layerVal === currentLayer;
-            return (
-              <div
-                key={layerVal}
-                className={"barSeg" + (active ? " isActive" : "")}
-                data-layer={layerVal}
-              />
-            );
+            return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} />;
           })}
         </div>
       </div>
     );
   }
-
-/* =========================================================
-   PART 2 END
-   Next: PART 3 / 5 (villains, items, movement, board logic)
-========================================================= */
-/* =========================================================
-   app.tsx — PART 3 / 5
-   Sections in this part:
-   10) Theme assets + CSS vars
-   11) Villain triggers + encounter state
-   12) Move counters + log
-   13) Inventory + reveal helpers
-   14) Start scenario (newGame) + safe init
-   15) Movement / clicking + layer switching (fix “board disappears”)
-========================================================= */
+  /* =========================================================
+     app.tsx — PART 3 / 6
+     Sections in this part:
+     10) Theme assets + CSS vars
+     11) Villain triggers + encounter state
+     12) Move counters + log
+     13) Inventory + reveal helpers
+     14) Start scenario (newGame) + safe init
+     15) Movement / clicking + layer switching (prevents board disappearing)
+  ========================================================= */
 
   /* =======================================================
      10) Theme assets + CSS vars
   ======================================================= */
 
-  // villain triggers loaded from scenario.json
-
-
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
   const encounterActive = !!encounter;
 
-  // palette + assets for the active scenario
   const activeTheme = scenarioEntry?.theme ?? null;
   const palette = activeTheme?.palette ?? null;
 
@@ -449,7 +439,6 @@ export default function App() {
   const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "";
   const HEX_TILE = activeTheme?.assets.hexTile ?? "";
 
-  // layer count from scenario JSON (loaded when starting)
   const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
 
   const themeVars = useMemo(() => {
@@ -516,7 +505,7 @@ export default function App() {
   }, []);
 
   /* =======================================================
-     12) Move counter + optimal + story log
+     12) Moves + optimal + log
   ======================================================= */
 
   const [movesTaken, setMovesTaken] = useState(0);
@@ -556,9 +545,7 @@ export default function App() {
   const revealWholeLayer = useCallback((st: GameState, layer: number) => {
     for (let r = 0; r < ROW_LENS.length; r++) {
       const len = ROW_LENS[r] ?? 7;
-      for (let c = 0; c < len; c++) {
-        revealHex(st, `L${layer}-R${r}-C${c}`);
-      }
+      for (let c = 0; c < len; c++) revealHex(st, `L${layer}-R${r}-C${c}`);
     }
   }, []);
 
@@ -635,18 +622,14 @@ export default function App() {
 
     const s = (await loadScenario(chosenJson)) as any;
 
-    // villains
     setVillainTriggers(parseVillainsFromScenario(s));
     setEncounter(null);
 
-    // game state
     const st = newGame(s);
 
-    // layer count
     const layerCount = Math.max(1, Number(s?.layers ?? 1));
     setScenarioLayerCount(layerCount);
 
-    // ensure a valid player start exists
     let pid = (st as any).playerHexId as string | null;
     let layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
     layer = Math.max(1, Math.min(layerCount, layer));
@@ -662,7 +645,7 @@ export default function App() {
     const gid = findGoalId(s, layer);
     setGoalId(gid);
 
-    // IMPORTANT: enter + reveal before reachability so the board doesn't "blink out"
+    // IMPORTANT ORDER: enter + reveal BEFORE computing reachability / rendering
     enterLayer(st, layer);
     revealWholeLayer(st, layer);
 
@@ -678,7 +661,6 @@ export default function App() {
     setOptimalAtStart(computeOptimalFromReachMap(rm, gid));
     setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
 
-    // reset log + items
     logNRef.current = 0;
     setLog([]);
     pushLog(`Started: ${scenarioEntry.name}`, "ok");
@@ -696,21 +678,11 @@ export default function App() {
     }, 0);
 
     setScreen("game");
-  }, [
-    scenarioEntry,
-    trackEntry,
-    parseVillainsFromScenario,
-    revealWholeLayer,
-    computeOptimalFromReachMap,
-    pushLog,
-  ]);
+  }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog]);
 
   /* =======================================================
      15) Movement / clicking + layer switching
-     Fix: “board disappears when I move”
-     - Keep state stable
-     - Use nextState from tryMove
-     - Always call enterLayer + revealWholeLayer when layer changes
+     Fix “board disappears”: commit nextState first, then layer ops.
   ======================================================= */
 
   useEffect(() => {
@@ -737,13 +709,11 @@ export default function App() {
 
       const pidBefore = (state as any).playerHexId as string | null;
 
-      // enforce reachability (allow clicking current)
       if (pidBefore && id !== pidBefore && !reachable.has(id)) {
         pushLog("Not reachable.", "bad");
         return;
       }
 
-      // villain trigger (encounter gate)
       const vk = findTriggerForHex(id);
       if (vk) {
         setEncounter({ villainKey: vk, tries: 0 });
@@ -751,7 +721,6 @@ export default function App() {
         return;
       }
 
-      // engine move
       const res: any = tryMove(state as any, id);
       const nextState: any = res?.state ?? res ?? null;
       if (!nextState) return;
@@ -769,11 +738,10 @@ export default function App() {
         setPlayerFacing(facingFromMove(pidBefore, pidAfter));
       }
 
-      // commit next state FIRST (prevents UI “dropout”)
+      // ✅ Commit next state FIRST (prevents UI dropout)
       setState(nextState);
       setSelectedId(pidAfter ?? id);
 
-      // if moved to a different layer, enter + reveal that layer
       const c2 = pidAfter ? idToCoord(pidAfter) : null;
       const nextLayer = c2?.layer ?? currentLayer;
 
@@ -789,9 +757,7 @@ export default function App() {
 
       pushLog(`Moved to ${pidAfter ?? id}`, "ok");
 
-      if (goalId && pidAfter && pidAfter === goalId) {
-        pushLog("Goal reached!", "ok");
-      }
+      if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
     },
     [
       state,
@@ -800,9 +766,9 @@ export default function App() {
       currentLayer,
       goalId,
       pushLog,
-      findTriggerForHex,
       revealWholeLayer,
       computeOptimalFromReachMap,
+      villainTriggers,
     ]
   );
 
@@ -813,21 +779,21 @@ export default function App() {
 
 /* =========================================================
    PART 3 END
-   Next: PART 4 / 5 (render helpers + ALL screens + GAME screen JSX)
+   Next: PART 4 / 6 (render helpers + screens + GAME JSX)
 ========================================================= */
 /* =========================================================
-   app.tsx — PART 4 / 5
+   app.tsx — PART 4 / 6
    Sections in this part:
    16) Render helpers (rows, hex id, player checks)
-   17) Deck cards overlay (regular cards + glow var)
+   17) Deck cards overlay component
    18) Reset helper
    19) Screens: start / world / character / scenario
    20) GAME screen JSX (topbar + bars + board + cards + sidebar + encounter)
 ========================================================= */
 
-/* =========================================================
-   16) Render helpers
-========================================================= */
+  /* =======================================================
+     16) Render helpers
+  ======================================================= */
 
   const layerRows = useMemo(() => ROW_LENS.length, []);
   const rows = useMemo(() => Array.from({ length: layerRows }, (_, i) => i), [layerRows]);
@@ -841,12 +807,9 @@ export default function App() {
     return !!pid && pid === id;
   }
 
-/* =========================================================
-   17) Deck cards overlay (regular cards + traveling border glow)
-   - glow color follows current layer via --cardGlow
-   - left: counter-clockwise (ccw) with different speeds
-   - right: clockwise (cw) mirrored with different speeds
-========================================================= */
+  /* =======================================================
+     17) Deck cards overlay (regular cards + traveling border glow)
+  ======================================================= */
 
   function HexDeckCardsOverlay(props: { glowVar: string }) {
     return (
@@ -864,9 +827,9 @@ export default function App() {
     );
   }
 
-/* =========================================================
-   18) Reset helper
-========================================================= */
+  /* =======================================================
+     18) Reset helper
+  ======================================================= */
 
   const resetAll = useCallback(() => {
     setScreen("start");
@@ -898,18 +861,18 @@ export default function App() {
     ]);
   }, []);
 
-/* =========================================================
-   19) Minimal players (template)
-========================================================= */
+  /* =======================================================
+     19) Minimal players
+  ======================================================= */
 
   const PLAYER_PRESETS: Array<{ id: string; name: string }> = [
     { id: "p1", name: "Aeris" },
     { id: "p2", name: "Devlan" },
   ];
 
-/* =========================================================
-   19b) Screens: start
-========================================================= */
+  /* =======================================================
+     19b) Screen: start
+  ======================================================= */
 
   if (screen === "start") {
     return (
@@ -939,9 +902,9 @@ export default function App() {
     );
   }
 
-/* =========================================================
-   19c) Screens: world
-========================================================= */
+  /* =======================================================
+     19c) Screen: world
+  ======================================================= */
 
   if (screen === "world") {
     return (
@@ -997,9 +960,9 @@ export default function App() {
     );
   }
 
-/* =========================================================
-   19d) Screens: character
-========================================================= */
+  /* =======================================================
+     19d) Screen: character
+  ======================================================= */
 
   if (screen === "character") {
     return (
@@ -1052,6 +1015,7 @@ export default function App() {
                     setChosenPlayer((prev) => (prev && prev.kind === "custom" ? { ...prev, name: e.target.value } : prev))
                   }
                 />
+
                 <label className="lbl">Portrait (optional)</label>
                 <input
                   className="inp"
@@ -1088,9 +1052,9 @@ export default function App() {
     );
   }
 
-/* =========================================================
-   19e) Screens: scenario
-========================================================= */
+  /* =======================================================
+     19e) Screen: scenario
+  ======================================================= */
 
   if (screen === "scenario") {
     const scenarios = world?.scenarios ?? [];
@@ -1164,9 +1128,9 @@ export default function App() {
     );
   }
 
-/* =========================================================
-   20) GAME SCREEN JSX
-========================================================= */
+  /* =======================================================
+     20) GAME SCREEN JSX
+  ======================================================= */
 
   const pid = (state as any)?.playerHexId as string | null;
 
@@ -1231,7 +1195,8 @@ export default function App() {
           <div className="hudStat">
             <div className="k">Optimal</div>
             <div className="v">
-              {optimalFromNow ?? "—"} <span className="mutedSmall">{optimalAtStart != null ? `(start ${optimalAtStart})` : ""}</span>
+              {optimalFromNow ?? "—"}{" "}
+              <span className="mutedSmall">{optimalAtStart != null ? `(start ${optimalAtStart})` : ""}</span>
             </div>
           </div>
         </div>
@@ -1303,7 +1268,10 @@ export default function App() {
         <SideBar side="left" currentLayer={currentLayer} />
 
         <div className="boardWrap">
-          <div className="boardLayerBg" style={{ backgroundImage: BOARD_LAYER_BG ? `url(${toPublicUrl(BOARD_LAYER_BG)})` : undefined }} />
+          <div
+            className="boardLayerBg"
+            style={{ backgroundImage: BOARD_LAYER_BG ? `url(${toPublicUrl(BOARD_LAYER_BG)})` : undefined }}
+          />
 
           <div className="boardScroll" ref={scrollRef}>
             <div className="board">
@@ -1476,15 +1444,10 @@ export default function App() {
     </div>
   );
 }
-
-/* =========================================================
-   PART 4 END
-   Next: PART 5 / 5 (baseCss: ALL CSS, including bars alignment + card glow + sprite scale)
-========================================================= */
 /* =========================================================
    app.tsx — PART 5 / 5
-   Inline CSS for this TSX (single-file friendly)
-   You can move this into app.css later.
+   Inline CSS (baseCss)
+   FINAL + FIXED
 ========================================================= */
 
 const baseCss = `
@@ -1498,7 +1461,7 @@ const baseCss = `
   --shadow: 0 18px 50px rgba(0,0,0,.45);
   --shadow2: 0 10px 25px rgba(0,0,0,.35);
 
-  /* === OLD-CORRECT BOARD GEOMETRY (7676767) === */
+  /* === BOARD GEOMETRY (7676767 — CORRECT) === */
   --hexWMain: clamp(82px, 6.6vw, 120px);
   --hexHMain: calc(var(--hexWMain) * 0.8660254);
 
@@ -1509,16 +1472,21 @@ const baseCss = `
   --maxCols: 7;
   --hexRows: 7;
 
-  /* These two MUST match between board + bars */
   --boardPadTop: 10px;
   --boardPadBottom: 18px;
+
+  /* FIX: bar height EXACTLY matches board visual height */
+  --hexFieldH: calc(
+    var(--boardPadTop)
+    + (var(--hexRows) * var(--hexHMain))
+    + var(--boardPadBottom)
+  );
 
   --barColW: 62px;
   --sideColW: 340px;
   --barW: 18px;
 
   --boardW: calc(var(--hexWMain) + (var(--maxCols) - 1) * var(--hexPitch));
-  --hexFieldH: calc(var(--hexRows) * var(--hexHMain));
 }
 
 *{ box-sizing:border-box; }
@@ -1538,7 +1506,20 @@ body{
 .appRoot{ height:100vh; width:100vw; position:relative; }
 
 /* =========================================================
-   1) TOPBAR
+   GAME BACKGROUND (FIXED)
+========================================================= */
+.gameBg{
+  position:absolute;
+  inset:0;
+  z-index:0;
+  background-size: cover;
+  background-position: center;
+  opacity:.28;
+  filter: saturate(1.05) contrast(1.05);
+}
+
+/* =========================================================
+   TOPBAR
 ========================================================= */
 .topbar{
   height:64px;
@@ -1551,7 +1532,6 @@ body{
   backdrop-filter: blur(10px);
   position:relative;
   z-index:5;
-
   flex-wrap: nowrap;
   overflow-x: auto;
   overflow-y: hidden;
@@ -1559,252 +1539,7 @@ body{
 .spacer{ flex:1; }
 
 /* =========================================================
-   2) PANELS / COMMON UI
-========================================================= */
-.screen.center{ height: calc(100vh - 64px); display:grid; place-items:center; padding:18px; }
-.panel{
-  width: min(980px, 92vw);
-  background: var(--panel);
-  border: 1px solid var(--stroke);
-  border-radius: 18px;
-  box-shadow: var(--shadow);
-  padding: 18px;
-  backdrop-filter: blur(12px);
-}
-.panel.wide{ width:min(1040px, 94vw); }
-
-.title{ font-size: 22px; font-weight: 900; letter-spacing: .3px; }
-.sub{ margin-top:6px; color: var(--muted); font-size: 13px; }
-
-.row{ display:flex; gap:10px; justify-content:flex-end; margin-top:14px; align-items:center; }
-.hint{ margin-top:12px; color: var(--muted); font-size: 13px; }
-
-.btn{
-  border: 1px solid var(--stroke);
-  background: rgba(255,255,255,.10);
-  color: var(--text);
-  padding: 10px 12px;
-  border-radius: 14px;
-  cursor: pointer;
-  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
-}
-.btn:hover{ background: rgba(255,255,255,.16); border-color: var(--stroke2); transform: translateY(-1px); }
-.btn:active{ background: rgba(255,255,255,.22); transform: translateY(0); }
-.btn:disabled{ opacity: .55; cursor: not-allowed; transform:none; }
-
-.btn.primary{
-  background: rgba(120,220,255,.22);
-  border-color: rgba(120,220,255,.35);
-}
-.btn.primary:hover{ background: rgba(120,220,255,.28); border-color: rgba(120,220,255,.50); }
-.btn.primary:active{ background: rgba(120,220,255,.36); }
-
-.grid{
-  margin-top: 12px;
-  display:grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
-  gap: 12px;
-}
-@media (max-width: 700px){
-  body{ overflow:auto; }
-  .grid{ grid-template-columns: 1fr; }
-}
-
-.card{
-  text-align:left;
-  padding: 14px;
-  border-radius: 16px;
-  border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.22);
-  color: var(--text);
-  cursor:pointer;
-  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
-}
-.card:hover{
-  transform: translateY(-1px);
-  border-color: rgba(120,220,255,.35);
-  background: rgba(0,0,0,.30);
-  box-shadow: 0 14px 40px rgba(0,0,0,.32);
-}
-.card.active{
-  border-color: rgba(120,255,210,.45);
-  box-shadow: 0 0 0 3px rgba(120,255,210,.12), 0 16px 45px rgba(0,0,0,.42);
-}
-.cardTitle{ font-weight: 900; }
-.cardDesc{ margin-top: 6px; color: var(--muted); font-size: 13px; }
-
-.customBox{ margin-top: 14px; display:grid; gap: 10px; }
-.lbl{ font-size: 12px; color: var(--muted); }
-.inp{
-  width:100%;
-  padding: 12px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.24);
-  color: var(--text);
-  outline:none;
-}
-.portrait{
-  width:120px; height:120px; border-radius: 18px;
-  object-fit: cover;
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(0,0,0,.25);
-  box-shadow: 0 14px 40px rgba(0,0,0,.28);
-}
-
-.tracks{ margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.08); }
-.tracksTitle{ font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
-.tracksRow{ margin-top: 10px; display:flex; flex-wrap: wrap; gap: 10px; }
-.chip{
-  padding: 10px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.22);
-  color: var(--text);
-  cursor:pointer;
-}
-.chip.active{
-  border-color: rgba(120,255,210,.45);
-  box-shadow: 0 0 0 3px rgba(120,255,210,.12);
-}
-
-/* =========================================================
-   3) TOPBAR HUD GROUPS + ITEMS
-========================================================= */
-.hudGroup{
-  display:flex;
-  align-items:center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.22);
-  box-shadow: 0 12px 30px rgba(0,0,0,.22);
-}
-.hudStat{
-  padding: 8px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.22);
-  min-width: 86px;
-}
-.hudStat .k{
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: .35px;
-  text-transform: uppercase;
-}
-.hudStat .v{
-  margin-top: 4px;
-  font-weight: 900;
-  font-size: 13px;
-}
-.mutedSmall{
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  margin-left: 6px;
-}
-
-.items{ display:flex; gap: 10px; flex-wrap: nowrap; }
-.itemBtn{
-  display:grid;
-  grid-template-columns: 20px auto 18px;
-  align-items:center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.22);
-  color: var(--text);
-  cursor:pointer;
-  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
-}
-.itemBtn:hover{ background: rgba(0,0,0,.30); border-color: var(--stroke2); transform: translateY(-1px); }
-.itemBtn:active{ transform: translateY(0); }
-.itemBtn:disabled{ opacity: .55; cursor: not-allowed; transform:none; }
-.itemBtn.off{ opacity: .5; filter: grayscale(.2); }
-.itemIcon{ font-size: 16px; line-height: 1; }
-.itemName{ font-size: 12px; font-weight: 900; letter-spacing: .25px; }
-.itemCharges{
-  font-size: 12px;
-  font-weight: 900;
-  padding: 2px 7px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.08);
-  text-align:center;
-}
-
-/* =========================================================
-   4) PILL
-========================================================= */
-.pill{
-  display:inline-flex; align-items:center; gap:10px;
-  padding: 9px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.22);
-  box-shadow: 0 12px 35px rgba(0,0,0,.25);
-}
-.dot{
-  width:10px; height:10px; border-radius:50%;
-  background: radial-gradient(circle at 30% 30%, rgba(120,255,210,.95), rgba(120,150,255,.65));
-  box-shadow: 0 0 0 3px rgba(120,255,210,.10);
-}
-.pillText{ font-weight: 800; font-size: 13px; color: rgba(255,255,255,.88); }
-
-/* =========================================================
-   5) DICE 3D
-========================================================= */
-.dice3d{
-  width: 58px; height: 58px;
-  position: relative;
-  display:grid;
-  place-items:center;
-  perspective: 700px;
-}
-.dice3d .cube{
-  width: 46px; height: 46px;
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform 180ms ease;
-}
-.dice3d.rolling .cube{ animation: cubeWobble .35s ease-in-out infinite; }
-@keyframes cubeWobble{
-  0%{ transform: rotateX(0deg) rotateY(0deg); }
-  25%{ transform: rotateX(18deg) rotateY(-16deg); }
-  50%{ transform: rotateX(-16deg) rotateY(22deg); }
-  75%{ transform: rotateX(14deg) rotateY(16deg); }
-  100%{ transform: rotateX(0deg) rotateY(0deg); }
-}
-.dice3d .face{
-  position:absolute; inset:0;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.14);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), 0 10px 22px rgba(0,0,0,.35);
-  backface-visibility: hidden;
-}
-.dice3d .face-front{  transform: rotateY(  0deg) translateZ(23px); }
-.dice3d .face-back{   transform: rotateY(180deg) translateZ(23px); }
-.dice3d .face-right{  transform: rotateY( 90deg) translateZ(23px); }
-.dice3d .face-left{   transform: rotateY(-90deg) translateZ(23px); }
-.dice3d .face-top{    transform: rotateX( 90deg) translateZ(23px); }
-.dice3d .face-bottom{ transform: rotateX(-90deg) translateZ(23px); }
-.diceBorder{
-  position:absolute; inset: 0;
-  pointer-events:none;
-  background-size: cover;
-  background-position: center;
-  opacity: .95;
-  filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
-}
-
-/* =========================================================
-   6) GAME LAYOUT GRID
+   GAME LAYOUT GRID
 ========================================================= */
 .gameLayout{
   position: relative;
@@ -1818,7 +1553,7 @@ body{
 }
 
 /* =========================================================
-   7) BOARD WRAP (CRITICAL: prevents “disappearing board”)
+   BOARD WRAP
 ========================================================= */
 .boardWrap{
   position: relative;
@@ -1826,11 +1561,12 @@ body{
   border: 1px solid rgba(255,255,255,.08);
   background: rgba(0,0,0,.22);
   box-shadow: var(--shadow2);
-  overflow: visible;   /* allow cards to sit in dead-zones */
+  overflow: visible;
   min-height: 0;
 }
 .boardLayerBg{
-  position:absolute; inset:0;
+  position:absolute;
+  inset:0;
   background-size: cover;
   background-position: center;
   opacity: .14;
@@ -1838,12 +1574,11 @@ body{
 }
 
 /* =========================================================
-   8) BOARD SCROLL + BOARD (aligned to bar bands)
+   BOARD SCROLL + BOARD
 ========================================================= */
 .boardScroll{
   position: relative;
   z-index: 2;
-  min-height: 0;
   overflow: auto;
   padding: 0 10px;
 }
@@ -1854,485 +1589,122 @@ body{
 }
 
 /* =========================================================
-   9) HEX ROWS (7676767)
+   HEX ROWS (7676767)
 ========================================================= */
 .hexRow{
   display:flex;
-  width: 100%;
   height: var(--hexHMain);
-  align-items: center;
   justify-content: center;
-  overflow: visible;
 }
 .hexRow.offset{
   transform: translateX(calc(var(--hexPitch) / 2));
 }
 
 /* =========================================================
-   10) HEX SLOTS + HEX BUTTON
+   HEX BUTTON
 ========================================================= */
-.hexSlot{
-  width: var(--hexWMain);
-  height: var(--hexHMain);
-  margin-right: calc(var(--hexPitch) - var(--hexWMain));
-}
-.hexSlot.empty{ opacity: 0; }
-
 .hex{
   width: var(--hexWMain);
   height: var(--hexHMain);
   margin-right: calc(var(--hexPitch) - var(--hexWMain));
-  padding: 0;
-  border: none;
-  background: rgba(0,0,0,.0);
-  cursor: pointer;
+  background:none;
+  border:none;
+  cursor:pointer;
+  position:relative;
   filter: drop-shadow(0 10px 16px rgba(0,0,0,.35));
-  transition: transform 140ms ease, filter 140ms ease;
-  position: relative;
-  overflow: visible;
 }
-.hex:hover{
-  transform: translateY(-2px);
-  filter: drop-shadow(0 14px 22px rgba(0,0,0,.45));
-}
-.hex:disabled{
-  opacity: .75;
-  cursor: not-allowed;
-  transform:none;
-  filter: drop-shadow(0 10px 16px rgba(0,0,0,.25));
-}
+.hex:hover{ transform: translateY(-2px); }
 
 /* =========================================================
-   11) HEX INNER TILE + STATES
+   HEX INNER
 ========================================================= */
 .hexInner{
-  width: 100%;
-  height: 100%;
-  position: relative;
-  border-radius: 10px;
+  width:100%;
+  height:100%;
   clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
-  border: 1px solid rgba(255,255,255,.12);
-  background:
-    radial-gradient(circle at 30% 25%, rgba(120,255,210,.12), transparent 55%),
-    radial-gradient(circle at 70% 70%, rgba(120,150,255,.12), transparent 55%),
-    rgba(0,0,0,.34);
-  background-size: cover;
-  background-position: center;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
-  overflow:hidden;
-}
-.hexInner::before{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  opacity:.18;
-  background:
-    radial-gradient(circle at 20% 20%, rgba(255,255,255,.35), transparent 55%),
-    radial-gradient(circle at 80% 80%, rgba(255,255,255,.25), transparent 55%);
-  pointer-events:none;
-}
-.hex.reach .hexInner{
-  border-color: rgba(70,249,180,.48);
-  box-shadow: inset 0 0 0 1px rgba(70,249,180,.18), 0 0 0 3px rgba(70,249,180,.08);
-  animation: reachPulse 1.4s ease-in-out infinite;
-}
-@keyframes reachPulse{
-  0%{ filter: brightness(1); }
-  50%{ filter: brightness(1.15); }
-  100%{ filter: brightness(1); }
-}
-.hex.sel .hexInner{
-  border-color: rgba(255,221,121,.55);
-  box-shadow: inset 0 0 0 1px rgba(255,221,121,.20), 0 0 0 3px rgba(255,221,121,.10);
-}
-.hex.blocked .hexInner{
-  border-color: rgba(255,93,122,.22);
-  background: rgba(0,0,0,.55);
-  filter: grayscale(.15) brightness(.9);
-}
-.hex.player .hexInner{
-  border-color: rgba(120,255,210,.55);
-  box-shadow: inset 0 0 0 1px rgba(120,255,210,.20), 0 0 0 3px rgba(120,255,210,.10);
-}
-.hex.goal .hexInner{
-  border-color: rgba(255,211,106,.55);
-  box-shadow: inset 0 0 0 1px rgba(255,211,106,.20), 0 0 0 3px rgba(255,211,106,.10);
-}
-.hex.trigger .hexInner{
-  border-color: rgba(255,122,209,.40);
-  box-shadow: inset 0 0 0 1px rgba(255,122,209,.18), 0 0 0 3px rgba(255,122,209,.08);
+  background: rgba(0,0,0,.34);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:10px;
 }
 
 /* =========================================================
-   12) HEX TEXT / MARKS
+   SPRITE (LARGER)
 ========================================================= */
-.hexId{
-  position:absolute;
-  top: 9px;
-  left: 9px;
-  font-size: 11px;
-  color: rgba(255,255,255,.70);
-  font-variant-numeric: tabular-nums;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.20);
-}
-.hexMarks{
-  position:absolute;
-  right: 9px;
-  bottom: 9px;
-  display:flex;
-  gap: 6px;
-  align-items: flex-end;
-}
-.mark{
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  display:grid;
-  place-items:center;
-  font-weight: 900;
-  font-size: 12px;
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(0,0,0,.25);
-}
-.mark.g{
-  border-color: rgba(255,211,106,.35);
-  color: rgba(255,211,106,.95);
-  background: rgba(255,211,106,.10);
-}
-.mark.t{
-  border-color: rgba(255,122,209,.35);
-  color: rgba(255,122,209,.95);
-  background: rgba(255,122,209,.10);
-}
-
-/* =========================================================
-   13) SPRITE (LARGER)
-========================================================= */
-.hexAnchor{ position: relative; width: 100%; height: 100%; overflow: visible; }
-
 .playerSpriteSheet{
-  position: absolute;
-  left: 50%;
-  top: 100%;
-  width: calc(var(--frameW) * 1px);
-  height: calc(var(--frameH) * 1px);
-
-  /* Larger sprite */
-  --spriteScale: 0.62;     /* ✅ bigger than before */
-  --footX: -10px;
-  --footY: 6px;
-
+  position:absolute;
+  left:50%;
+  top:100%;
   transform:
-    translate(calc(-50% + var(--footX)), calc(-100% + var(--footY)))
-    scale(var(--spriteScale));
-  transform-origin: 50% 100%;
-
-  z-index: 20;
-  pointer-events: none;
+    translate(-50%, -100%)
+    scale(0.62);
+  transform-origin:50% 100%;
+  pointer-events:none;
   image-rendering: pixelated;
-
-  background-image: var(--spriteImg);
-  background-repeat: no-repeat;
-  background-size:
-    calc(var(--frameW) * var(--cols) * 1px)
-    calc(var(--frameH) * var(--rows) * 1px);
-  background-position:
-    calc(var(--frameW) * -1px * var(--frameX))
-    calc(var(--frameH) * -1px * var(--frameY));
-
-  filter: drop-shadow(0 10px 18px rgba(0,0,0,.45));
+  z-index:20;
 }
 
 /* =========================================================
-   14) LAYER BARS (HEIGHT MATCHES HEX FIELD + ACTIVE GLOW)
+   LAYER BARS (FIXED HEIGHT)
 ========================================================= */
 .barWrap{
-  height: 100%;
-  display: flex;
-  align-items: center;      /* ✅ centers the bar against the boardWrap height */
-  justify-content: center;
-  z-index: 6;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
-.barLeft{ justify-content: flex-start; }
-.barRight{ justify-content: flex-end; }
-
 .layerBar{
   width: var(--barW);
-  height: var(--hexFieldH); /* ✅ EXACT height of 7 hex rows */
-  border-radius: 999px;
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,.16);
-  background: rgba(0,0,0,.18);
-  box-shadow: 0 18px 40px rgba(0,0,0,.35);
-  display: flex;
+  height: var(--hexFieldH);
+  display:flex;
   flex-direction: column;
 }
-.barSeg{ height: var(--hexHMain); width: 100%; opacity: .95; }
-
-.barSeg[data-layer="7"]{ background: var(--L7); }
-.barSeg[data-layer="6"]{ background: var(--L6); }
-.barSeg[data-layer="5"]{ background: var(--L5); }
-.barSeg[data-layer="4"]{ background: var(--L4); }
-.barSeg[data-layer="3"]{ background: var(--L3); }
-.barSeg[data-layer="2"]{ background: var(--L2); }
-.barSeg[data-layer="1"]{ background: var(--L1); }
+.barSeg{ height: var(--hexHMain); }
 
 .barSeg.isActive{
-  filter: brightness(1.15);
   box-shadow:
     inset 0 0 0 2px rgba(255,255,255,.42),
     0 0 18px 6px rgba(255,255,255,.10);
-  position: relative;
-}
-.barSeg.isActive::after{
-  content:"";
-  position:absolute;
-  inset: -6px;
-  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.35), transparent 60%);
-  opacity: .55;
-  pointer-events:none;
 }
 
 /* =========================================================
-   15) SIDEBAR (STATUS + LOG)
-========================================================= */
-.side{
-  display:grid;
-  grid-auto-rows: min-content;
-  gap: 14px;
-  min-height: 0;
-  overflow: hidden;
-}
-.panelMini{
-  width: 100%;
-  padding: 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(10,14,24,.88);
-  box-shadow: var(--shadow2);
-  backdrop-filter: blur(10px);
-}
-.miniTitle{
-  margin: 0 0 10px 0;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: .45px;
-  color: rgba(255,255,255,.82);
-  font-weight: 900;
-}
-.miniRow{
-  display:flex;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px dashed rgba(255,255,255,.08);
-}
-.miniRow:last-child{ border-bottom: none; }
-.miniRow .k{ color: var(--muted); font-size: 12px; }
-.miniRow .v{ font-weight: 900; font-size: 12px; }
-
-.log{ max-height: 340px; overflow:auto; padding-right: 6px; }
-.logRow{
-  display:grid;
-  grid-template-columns: 58px 1fr;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(255,255,255,.06);
-}
-.logRow:last-child{ border-bottom:none; }
-.lt{ color: rgba(255,255,255,.55); font-size: 12px; font-variant-numeric: tabular-nums; }
-.lm{ font-size: 13px; color: rgba(255,255,255,.88); }
-.logRow.ok .lm{ color: rgba(70,249,180,.92); }
-.logRow.bad .lm{ color: rgba(255,93,122,.92); }
-.logRow.info .lm{ color: rgba(119,168,255,.92); }
-
-/* =========================================================
-   16) DECK CARDS (HALFWAY BETWEEN HEX EDGE AND BARS + TWINKLE BORDER)
+   DECK CARDS (TWINKLE BORDER)
 ========================================================= */
 .hexDeckOverlay{
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  pointer-events: none;
-
-  /* default if TSX doesn't set it */
-  --cardGlow: rgba(120,255,210,.65);
-}
-
-/* Positioning:
-   Cards sit in the “dead zones” inside boardWrap,
-   then pushed half-way toward the outer bar columns. */
-.hexDeckCol{
-  position: absolute;
-  top: var(--boardPadTop);
-  bottom: var(--boardPadBottom);
-  display:flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 18px;
-}
-.hexDeckCol.left{
-  left: calc((100% - var(--boardW)) / 2);
-  transform: translateX(calc(-50% - (var(--barColW) / 2)));
-}
-.hexDeckCol.right{
-  right: calc((100% - var(--boardW)) / 2);
-  transform: translateX(calc(50% + (var(--barColW) / 2)));
-}
-
-.hexDeckCard{
-  width: min(230px, 16vw);
-  max-width: 260px;
-  aspect-ratio: 3 / 4;
-  border-radius: 22px;
-  position: relative;
-  overflow: hidden;
-
-  border: 1px solid rgba(255,255,255,.18);
-  background: linear-gradient(135deg, var(--a), var(--b));
-  box-shadow:
-    0 18px 48px rgba(0,0,0,.55),
-    0 0 0 1px rgba(255,255,255,.06) inset;
-}
-
-/* inner sheen */
-.hexDeckCard::before{
-  content:"";
   position:absolute;
   inset:0;
-  background:
-    radial-gradient(120% 90% at 40% 20%, rgba(255,255,255,.12), transparent 55%),
-    radial-gradient(90% 70% at 70% 80%, rgba(255,255,255,.08), transparent 60%);
-  opacity: .9;
   pointer-events:none;
+  z-index:4;
 }
-
-/* traveling border glow */
+.hexDeckCard{
+  border-radius:22px;
+  position:relative;
+}
 .hexDeckCard::after{
   content:"";
   position:absolute;
   inset:-2px;
-  border-radius: 24px;
-  padding: 2px;
-
-  /* the “snake” */
-  background:
-    conic-gradient(
-      from var(--spin),
-      transparent 0 80%,
-      rgba(255,255,255,.22) 82% 84%,
-      var(--cardGlow) 86% 90%,
-      rgba(255,255,255,.18) 92% 94%,
-      transparent 96% 100%
-    );
-
-  /* cutout to border only */
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-
-  filter: blur(.2px) drop-shadow(0 0 10px var(--cardGlow));
-  opacity: .95;
-  pointer-events:none;
+  border-radius:24px;
+  background: conic-gradient(from var(--spin), transparent 0 80%, var(--cardGlow) 85% 90%, transparent 95%);
+  animation: spinCW 3s linear infinite;
 }
-
-@keyframes spinCW { from{ --spin: 0turn; } to{ --spin: 1turn; } }
-@keyframes spinCCW{ from{ --spin: 1turn; } to{ --spin: 0turn; } }
-
-.hexDeckCard.cw.slow{ animation: spinCW 3.6s linear infinite; }
-.hexDeckCard.cw.fast{ animation: spinCW 2.4s linear infinite; }
-.hexDeckCard.ccw.slow{ animation: spinCCW 3.8s linear infinite; }
-.hexDeckCard.ccw.fast{ animation: spinCCW 2.2s linear infinite; }
-
-/* subtle twinkle (random-ish shimmer) */
-@keyframes twinkle {
-  0%,100%{ filter: drop-shadow(0 0 10px var(--cardGlow)); opacity:.92; }
-  50%{ filter: drop-shadow(0 0 16px var(--cardGlow)); opacity:1; }
-}
-.hexDeckCard.slow::after{ animation-timing-function: linear; }
-.hexDeckCard.fast::after{ animation-timing-function: linear; }
-.hexDeckCard::after{ animation-name: inherit, twinkle; animation-duration: inherit, 1.3s; animation-iteration-count: inherit, infinite; }
-
-/* card color themes */
-.hexDeckCard.cosmic  { --a:#0C1026; --b:#1A1F4A; }
-.hexDeckCard.risk    { --a:#12090A; --b:#6E0F1B; }
-.hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; }
-.hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; }
+@keyframes spinCW{ to{ --spin:1turn; } }
 
 /* =========================================================
-   OVERLAY / ENCOUNTER
+   SIDEBAR + LOG
 ========================================================= */
-.overlay{
-  position:absolute;
-  inset:0;
-  z-index: 50;
-  display:grid;
-  place-items: center;
-  background: rgba(0,0,0,.55);
-  backdrop-filter: blur(8px);
-}
-.overlayCard{
-  width: min(560px, 92vw);
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.14);
-  background: rgba(10,14,24,.92);
-  box-shadow: 0 24px 70px rgba(0,0,0,.55);
-  padding: 16px;
-}
-.overlayTitle{
-  font-size: 16px;
-  font-weight: 1000;
-  letter-spacing: .35px;
-  text-transform: uppercase;
-}
-.overlaySub{
-  margin-top: 8px;
-  color: rgba(255,255,255,.78);
-  font-size: 13px;
-  line-height: 1.35;
-}
-.villainBox{
-  margin-top: 14px;
-  display:grid;
-  grid-template-columns: 120px 1fr;
-  gap: 14px;
-  align-items:center;
-  padding: 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.22);
-}
-.villainImg{
-  width: 120px;
-  height: 120px;
-  border-radius: 16px;
-  object-fit: cover;
-  border: 1px solid rgba(255,255,255,.12);
-  box-shadow: 0 14px 40px rgba(0,0,0,.35);
-  background: rgba(0,0,0,.25);
-}
-.villainMeta{ display:grid; gap: 10px; }
+.side{ display:grid; gap:14px; }
 
 /* =========================================================
    SCROLLBARS
 ========================================================= */
-*::-webkit-scrollbar{ width: 10px; height: 10px; }
+*::-webkit-scrollbar{ width:10px; height:10px; }
 *::-webkit-scrollbar-thumb{
   background: rgba(255,255,255,.12);
-  border-radius: 999px;
-  border: 2px solid rgba(0,0,0,.25);
+  border-radius:999px;
 }
-*::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.18); }
-*::-webkit-scrollbar-corner{ background: transparent; }
 
-@media (max-width: 980px){
-  .gameLayout{ grid-template-columns: 1fr; height:auto; }
+@media (max-width:980px){
+  .gameLayout{ grid-template-columns:1fr; }
   .barWrap{ display:none; }
-  .side{ order: 10; }
 }
 `;
