@@ -277,6 +277,8 @@ export default function App() {
   useEffect(() => {
     setWorlds(loadWorlds());
   }, []);
+// ✅ ADD this near your other refs (e.g. under scrollRef / walkTimer refs)
+const pendingEncounterMoveIdRef = useRef<string | null>(null);
 
   /* =======================================================
      7) Sprite animation (bigger + stable)
@@ -361,6 +363,65 @@ export default function App() {
         return { x: 0, y: 0 };
     }
   }
+// ✅ ADD this effect somewhere inside App() (a good spot is near your other useEffect blocks)
+// This resolves the encounter after the roll finishes.
+useEffect(() => {
+  if (!encounter) return;
+  if (diceRolling) return;
+
+  // count a completed attempt (each time a roll ends while in encounter)
+  setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
+
+  // only succeed on 6
+  if (diceValue !== 6) return;
+
+  const targetId = pendingEncounterMoveIdRef.current;
+  pendingEncounterMoveIdRef.current = null;
+
+  // close the overlay
+  setEncounter(null);
+
+  if (!state || !targetId) return;
+
+  // complete the move to the tile that triggered the encounter
+  const res: any = tryMove(state as any, targetId);
+  const nextState: any = res?.state ?? res ?? null;
+  if (!nextState) return;
+
+  const pidAfter = (nextState as any).playerHexId as string | null;
+
+  // commit next state
+  setState(nextState);
+  setSelectedId(pidAfter ?? targetId);
+
+  // handle layer change safely
+  const c2 = pidAfter ? idToCoord(pidAfter) : null;
+  const nextLayer = c2?.layer ?? currentLayer;
+
+  if (nextLayer !== currentLayer) {
+    setCurrentLayer(nextLayer);
+    enterLayer(nextState, nextLayer);
+    revealWholeLayer(nextState, nextLayer);
+  }
+
+  const rm = getReachability(nextState) as any;
+  setReachMap(rm);
+  setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+
+  pushLog(`Encounter cleared — moved to ${pidAfter ?? targetId}`, "ok");
+
+  if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
+}, [
+  encounter,
+  diceRolling,
+  diceValue,
+  state,
+  currentLayer,
+  goalId,
+  revealWholeLayer,
+  computeOptimalFromReachMap,
+  pushLog,
+]);
 
   const rollDice = useCallback(
     (opts?: { reason?: "normal" | "encounter" | "reroll" }) => {
@@ -714,12 +775,17 @@ export default function App() {
         return;
       }
 
-      const vk = findTriggerForHex(id);
-      if (vk) {
-        setEncounter({ villainKey: vk, tries: 0 });
-        pushLog(`Encounter: ${vk} — roll a 6 to continue`, "bad");
-        return;
-      }
+  const vk = findTriggerForHex(id);
+if (vk) {
+  // remember where we tried to go so we can complete the move after rolling a 6
+  pendingEncounterMoveIdRef.current = id;
+
+  // start (or keep) the encounter without resetting tries repeatedly
+  setEncounter((prev) => (prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }));
+
+  pushLog(`Encounter: ${vk} — roll a 6 to continue`, "bad");
+  return;
+}
 
       const res: any = tryMove(state as any, id);
       const nextState: any = res?.state ?? res ?? null;
