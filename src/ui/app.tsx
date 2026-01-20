@@ -2246,7 +2246,7 @@ body{
   transform: translateX(calc(-1 * (var(--barColW) * 0.5 + 20px)));
 }
 .hexDeckCol.right{
-  left: calc((100% - var(--boardW)) / 2);
+  right: calc((100% - var(--boardW)) / 2);
   transform: translateX(calc(-1 * (var(--barColW) * 0.5 - 20px)));
 }
 
