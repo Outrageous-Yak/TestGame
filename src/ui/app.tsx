@@ -462,15 +462,14 @@ const [isWalking, setIsWalking] = useState(false);
 /* =========================
    Sprite (Larger)
 ========================= */
-type Facing = "down" | "up" | "left" | "right";
+const [playerFacing, setPlayerFacing] =
+  useState<"down" | "up" | "left" | "right">("down");
 
-const [playerFacing, setPlayerFacing] = useState<Facing>("down");
 const [isWalking, setIsWalking] = useState(false);
 
-/* animation code here */
+/* animation refs + useEffect here */
 
-/* --- add this RIGHT AFTER --- */
-function facingRow(f: Facing) {
+function facingRow(f: "down" | "up" | "left" | "right") {
   return f === "down" ? 0 : f === "left" ? 1 : f === "right" ? 2 : 3;
 }
 
