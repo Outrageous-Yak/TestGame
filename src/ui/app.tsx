@@ -1343,8 +1343,11 @@ if (!nextState) {
       <div className="gameLayout">
         <SideBar side="left" currentLayer={currentLayer} />
 
-        <div className="boardWrap">
-          <div className="boardLayerBg" style={{ backgroundImage: BOARD_LAYER_BG ? `url(${toPublicUrl(BOARD_LAYER_BG)})` : undefined }} />
+<div
+  key={currentLayer}
+  className="boardLayerBg"
+   style={{ backgroundImage: BOARD_LAYER_BG ? `url(${toPublicUrl(BOARD_LAYER_BG)})` : undefined }}
+/>
 
           <div className="boardScroll" ref={scrollRef}>
             <div className="board">
@@ -1602,9 +1605,9 @@ body{
   z-index:5;
 
   flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;  /* desktop: no horizontal scroll */
 }
+
 .spacer{ flex:1; }
 
 /* =========================================================
@@ -1884,7 +1887,14 @@ body{
   background-position: center;
   opacity: .14;
   transform: scale(1.02);
+  animation: bgFadeIn 220ms ease;
 }
+
+@keyframes bgFadeIn{
+  from{ opacity: 0; }
+  to{ opacity: .14; }
+}
+
 
 /* =========================================================
    BOARD SCROLL + BOARD
@@ -1896,6 +1906,7 @@ body{
   overflow: auto;
   padding: 0 10px;
 }
+
 .board{
   width: var(--boardW);
   margin: 0 auto;
@@ -2079,13 +2090,13 @@ body{
 .playerSpriteSheet{
   position: absolute;
   left: 50%;
-  top: 100%;
+ top: 86%;
   width: calc(var(--frameW) * 1px);
   height: calc(var(--frameH) * 1px);
 
-  --spriteScale: 0.62;
-  --footX: -10px;
-  --footY: 6px;
+--spriteScale: 0.62;
+--footX: -10px;
+--footY: 0px;
 
   transform:
     translate(calc(-50% + var(--footX)), calc(-100% + var(--footY)))
@@ -2357,11 +2368,11 @@ body{
   grid-template-columns: 120px 1fr;
   gap: 14px;
   align-items:center;
-  padding: 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.22);
+  padding: 0;
+  border: none;
+  background: transparent;
 }
+
 .villainImg{
   width: 120px;
   height: 120px;
