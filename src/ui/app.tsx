@@ -1535,7 +1535,7 @@ const baseCss = `
 
   --hexGap: 10px;
   --hexOverlap: 0.0;
-  --hexPitch: calc(var(--hexWMain) * (1 - var(--hexOverlap)) + var(--hexGap));
+  ---hexPitch: calc(var(--hexWMain) + var(--hexGap));
 
   --maxCols: 7;
   --hexRows: 7;
@@ -1548,14 +1548,10 @@ const baseCss = `
   --sideColW: 340px;
   --barW: 18px;
 
-  --boardW: calc(var(--hexWMain) + (var(--maxCols) - 1) * var(--hexPitch));
-
-  /* Bar height EXACTLY matches visual board height */
-  --hexFieldH: calc(
-    var(--boardPadTop)
-    + (var(--hexRows) * var(--hexHMain))
-    + var(--boardPadBottom)
-  );
+--boardW: calc(
+  var(--hexWMain)
+  + 6 * var(--hexPitch)
+);
 }
 
 *{ box-sizing:border-box; }
@@ -1915,12 +1911,12 @@ body{
    HEX ROWS (7676767)
 ========================================================= */
 .hexRow{
-  display:flex;
-  width: 100%;
+  display: flex;
   height: var(--hexHMain);
   align-items: center;
   justify-content: center;
-  overflow: visible;
+  width: 100%;
+  outline: 1px dashed red;
 }
 .hexRow.offset{
   transform: translateX(calc(var(--hexPitch) / 2));
@@ -1937,7 +1933,7 @@ body{
 .hexSlot.empty{ opacity: 0; }
 
 .hex{
-  width: var(--hexWMain);
+ width: var(--hexWMain);
   height: var(--hexHMain);
   margin-right: calc(var(--hexPitch) - var(--hexWMain));
   padding: 0;
@@ -1950,6 +1946,7 @@ body{
   overflow: visible;
 
   --hexGlow: rgba(120,255,210,.35);
+  outline: 1px solid cyan;
 }
 .hex:hover{
   transform: translateY(-2px);
