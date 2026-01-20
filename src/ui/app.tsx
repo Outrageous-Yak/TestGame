@@ -2285,9 +2285,9 @@ body{
     conic-gradient(
       from var(--spin),
       transparent 0 80%,
-      rgba(255,255,255,.22) 82% 84%,
+      rgba(255,255,255,1) 82% 84%,
       var(--cardGlow) 86% 90%,
-      rgba(255,255,255,.18) 92% 94%,
+      rgba(255,255,255,1) 92% 94%,
       transparent 96% 100%
     );
 
