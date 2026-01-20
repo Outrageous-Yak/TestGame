@@ -313,7 +313,7 @@ export default function App() {
 
   useEffect(() => {
     setWorlds(loadWorlds());
-  }, []);
+  }
 
   // player
   const [chosenPlayer, setChosenPlayer] = useState<PlayerChoice | null>(null);
@@ -443,7 +443,7 @@ function unwrapNextState(res: any): GameState | null {
   }
 
   return null;
-}, []);
+}
 
   /* =========================
      Dice
