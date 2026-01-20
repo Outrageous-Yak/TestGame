@@ -1916,7 +1916,7 @@ body{
   align-items: center;
   justify-content: center;
   width: 100%;
-  outline: 1px dashed red;
+  
 }
 .hexRow.offset{
   transform: translateX(calc(var(--hexPitch) / 2));
@@ -1945,8 +1945,8 @@ body{
   position: relative;
   overflow: visible;
 
-  --hexGlow: rgba(120,255,210,.35);
-  outline: 1px solid cyan;
+  --hexGlow: rgba(120,255,210,1);
+ 
 }
 .hex:hover{
   transform: translateY(-2px);
