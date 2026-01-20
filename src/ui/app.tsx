@@ -394,14 +394,20 @@ export default function App() {
     return toPublicUrl(`${VILLAINS_BASE}/${key}.png`);
   }
 
-  /* =========================
+   /* =========================
      Sprite
   ========================= */
-  const [playerFacing, setPlayerFacing] = useState<"down" | "up" | "left" | "right">("down");
-  const [isWalking, setIsWalking] = useState(false);
+type Facing = "down" | "up" | "left" | "right";
 
+const [playerFacing, setPlayerFacing] = useState<Facing>("down");
+const [isWalking, setIsWalking] = useState(false);
+
+  // Sprite sheet info
+  // NOTE: If your sheet is 4 columns x 5 rows (20 frames), set SPRITE_ROWS = 5.
+  // If you're using 4-direction rows only (down/left/right/up), set SPRITE_ROWS = 4.
   const SPRITE_COLS = 4;
-  const SPRITE_ROWS = 4;
+  const SPRITE_ROWS = 4; // change to 5 ONLY if your CSS/background-size expects 5 rows
+
   const FRAME_W = 128;
   const FRAME_H = 128;
 
@@ -409,6 +415,7 @@ export default function App() {
     return toPublicUrl("images/players/sprite_sheet_20.png");
   }
 
+  // Animation state (canvas-style)
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef(0);
   const [walkFrame, setWalkFrame] = useState(0);
@@ -417,6 +424,7 @@ export default function App() {
   const FRAME_DURATION = 1000 / SPRITE_FPS;
 
   useEffect(() => {
+    // stop animation when not walking
     if (!isWalking) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
@@ -424,9 +432,12 @@ export default function App() {
       return;
     }
 
+    // animate frames at a fixed FPS using rAF timing
     lastRef.current = performance.now();
+
     const tick = (t: number) => {
       if (t - lastRef.current >= FRAME_DURATION) {
+        // loop 0..3 (walk cycle frames)
         setWalkFrame((f) => (f + 1) % SPRITE_COLS);
         lastRef.current = t;
       }
@@ -434,17 +445,34 @@ export default function App() {
     };
 
     rafRef.current = requestAnimationFrame(tick);
+
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
-  }, [isWalking]);
+  }, [isWalking, FRAME_DURATION]);
 
+  // cleanup: if a move timer is still pending, clear it on unmount
   useEffect(() => {
-  return () => {
-    if (walkTimer.current) window.clearTimeout(walkTimer.current);
-  };
-}, []);
+    return () => {
+      if (walkTimer.current) window.clearTimeout(walkTimer.current);
+    };
+  }, []);
+
+/* =========================
+   Sprite (Larger)
+========================= */
+type Facing = "down" | "up" | "left" | "right";
+
+const [playerFacing, setPlayerFacing] = useState<Facing>("down");
+const [isWalking, setIsWalking] = useState(false);
+
+/* animation code here */
+
+/* --- add this RIGHT AFTER --- */
+function facingRow(f: Facing) {
+  return f === "down" ? 0 : f === "left" ? 1 : f === "right" ? 2 : 3;
+}
 
   /* =========================
      Dice
@@ -691,7 +719,16 @@ if (!nextState) {
 
 
     const pidAfter = (nextState as any).playerHexId as string | null;
+/* ✅ PUT THIS HERE */
+const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
+if (moved) {
+  setIsWalking(true);
 
+  if (walkTimer.current) window.clearTimeout(walkTimer.current);
+  walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+
+  setPlayerFacing(facingFromMove(pidBefore, pidAfter));
+}
     // commit state first
     setState(nextState);
     setSelectedId(pidAfter ?? targetId);
