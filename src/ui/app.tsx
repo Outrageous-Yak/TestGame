@@ -365,8 +365,8 @@ export default function App() {
   const activeTheme = scenarioEntry?.theme ?? null;
   const palette = activeTheme?.palette ?? null;
 
-  const GAME_BG_URL = activeTheme?.assets.backgroundGame ?? "";
-  const BOARD_LAYER_BG = (activeTheme?.assets.backgroundLayers as any)?.[`L${currentLayer}`] ?? "";
+  const GAME__URL = activeTheme?.assets.backgroundGame ?? "";
+  const BOARD_LAYER_ = (activeTheme?.assets.backgroundLayers as any)?.[`L${currentLayer}`] ?? "";
   const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "images/dice";
   const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
   const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "images/villains";
@@ -1262,7 +1262,7 @@ if (!nextState) {
 
   return (
     <div className="appRoot game" style={themeVars}>
-      <div className="gameBg" style={{ backgroundImage: GAME_BG_URL ? `url(${toPublicUrl(GAME_BG_URL)})` : undefined }} />
+      <div className="game" style={{ backgroundImage: GAME__URL ? `url(${toPublicUrl(GAME__URL)})` : undefined }} />
 
       <div className="topbar">
         <button className="btn" onClick={() => setScreen("scenario")}>
@@ -1380,8 +1380,8 @@ if (!nextState) {
 <div className="boardWrap">
 <div
   key={currentLayer}
-  className="boardLayerBg"
-   style={{ backgroundImage: BOARD_LAYER_BG ? `url(${toPublicUrl(BOARD_LAYER_BG)})` : undefined }}
+  className="boardLayer"
+   style={{ backgroundImage: BOARD_LAYER_ ? `url(${toPublicUrl(BOARD_LAYER_)})` : undefined }}
 />
 
           <div className="boardScroll" ref={scrollRef}>
@@ -1403,7 +1403,7 @@ if (!nextState) {
                       const isGoal = goalId === id;
                       const isTrigger = !!findTriggerForHex(id);
 
-                      const tileBg = HEX_TILE ? `url(${toPublicUrl(HEX_TILE)})` : "";
+                      const tile = HEX_TILE ? `url(${toPublicUrl(HEX_TILE)})` : "";
 
                       return (
                         <button
@@ -1424,7 +1424,7 @@ if (!nextState) {
                           disabled={!state || blocked || encounterActive}
                           style={{
                             ["--hexGlow" as any]: layerCssVar(currentLayer),
-                            backgroundImage: tileBg || undefined,
+                            backgroundImage: tile || undefined,
                           }}
                           title={id}
                         >
@@ -1598,9 +1598,9 @@ body{
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
   color: var(--text);
   background:
-    radial-gradient(1200px 800px at 20% 10%, rgba(125,255,220,.10), transparent 55%),
-    radial-gradient(900px 700px at 80% 20%, rgba(120,150,255,.12), transparent 55%),
-    radial-gradient(900px 700px at 50% 90%, rgba(255,220,120,.08), transparent 60%),
+    radial-gradient(1200px 800px at 20% 10%, rgba(125,255,220,.10), transparent 5.5%),
+    radial-gradient(900px 700px at 80% 20%, rgba(120,150,255,.12), transparent 5.5%),
+    radial-gradient(900px 700px at 50% 90%, rgba(255,220,120,.08), transparent 6.0%),
     linear-gradient(180deg, var(--bg0), var(--bg1));
   overflow:hidden;
 }
