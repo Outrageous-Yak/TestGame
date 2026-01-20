@@ -2242,12 +2242,12 @@ body{
 }
 
 .hexDeckCol.left{
-  left: calc((100% - var(--boardW)) / 2);
+  left: calc((100% - var(--boardW)) / 1);
   transform: translateX(-20px);
 }
 
 .hexDeckCol.right{
-  right: calc((100% - var(--boardW)) / 2);
+  right: calc((100% - var(--boardW)) / 1);
   transform: translateX(20px);
 }
 
