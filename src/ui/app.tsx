@@ -291,14 +291,12 @@ function facingFromMove(fromId: string | null, toId: string | null): "down" | "u
 function unwrapNextState(res: any): GameState | null {
   if (!res) return null;
 
-  // common pattern: { ok, state }
-  if (typeof res === "object" && res && "state" in res) {
+  if (typeof res === "object" && "state" in (res as any)) {
     const st = (res as any).state;
     return st && typeof st === "object" ? (st as GameState) : null;
   }
 
-  // sometimes tryMove returns the state directly
-  if (typeof res === "object" && res && ("hexesById" in res || "playerHexId" in res)) {
+  if (typeof res === "object" && (("hexesById" in (res as any)) || ("playerHexId" in (res as any)))) {
     return res as GameState;
   }
 
