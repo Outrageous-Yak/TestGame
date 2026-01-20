@@ -287,16 +287,30 @@ function facingFromMove(fromId: string | null, toId: string | null): "down" | "u
   if (Math.abs(dCol) >= Math.abs(dRow)) return dCol > 0 ? "right" : dCol < 0 ? "left" : "down";
   return dRow > 0 ? "down" : "up";
 }
+
 function unwrapNextState(res: any): GameState | null {
   if (!res) return null;
 
+  // common pattern: { ok, state }
+  if (typeof res === "object" && res && "state" in res) {
+    const st = (res as any).state;
+    return st && typeof st === "object" ? (st as GameState) : null;
+  }
 
+  // sometimes tryMove returns the state directly
+  if (typeof res === "object" && res && ("hexesById" in res || "playerHexId" in res)) {
+    return res as GameState;
+  }
+
+  return null;
+}
 
 /* =========================================================
    App
 ========================================================= */
 
 export default function App() {
+
   // navigation
   const [screen, setScreen] = useState<Screen>("start");
 
