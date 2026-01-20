@@ -427,7 +427,23 @@ export default function App() {
     return () => {
       if (walkTimer.current) window.clearTimeout(walkTimer.current);
     };
-  }, []);
+  }
+function unwrapNextState(res: any): GameState | null {
+  if (!res) return null;
+
+  // common pattern: { ok, state }
+  if (typeof res === "object" && "state" in res) {
+    const st = (res as any).state;
+    return st && typeof st === "object" ? (st as GameState) : null;
+  }
+
+  // sometimes tryMove returns the state directly
+  if (typeof res === "object" && ("hexesById" in res || "playerHexId" in res)) {
+    return res as GameState;
+  }
+
+  return null;
+}, []);
 
   /* =========================
      Dice
@@ -662,8 +678,16 @@ export default function App() {
     if (!state || !targetId) return;
 
     const res: any = tryMove(state as any, targetId);
-    const nextState: any = res?.state ?? res ?? null;
-    if (!nextState) return;
+const nextState = unwrapNextState(res);
+
+if (!nextState) {
+  const msg =
+    (res && typeof res === "object" && "reason" in res && String((res as any).reason)) ||
+    "Move failed.";
+  pushLog(msg, "bad");
+  return;
+}
+
 
     const pidAfter = (nextState as any).playerHexId as string | null;
 
@@ -805,8 +829,16 @@ export default function App() {
       }
 
       const res: any = tryMove(state as any, id);
-      const nextState: any = res?.state ?? res ?? null;
-      if (!nextState) return;
+const nextState = unwrapNextState(res);
+
+if (!nextState) {
+  const msg =
+    (res && typeof res === "object" && "reason" in res && String((res as any).reason)) ||
+    "Move failed.";
+  pushLog(msg, "bad");
+  return;
+}
+
 
       const pidAfter = (nextState as any).playerHexId as string | null;
 
