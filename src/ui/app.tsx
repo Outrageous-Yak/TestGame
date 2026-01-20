@@ -462,8 +462,6 @@ const [isWalking, setIsWalking] = useState(false);
 /* =========================
    Sprite (Larger)
 ========================= */
-const [playerFacing, setPlayerFacing] =
-  useState<"down" | "up" | "left" | "right">("down");
 
 const [isWalking, setIsWalking] = useState(false);
 
