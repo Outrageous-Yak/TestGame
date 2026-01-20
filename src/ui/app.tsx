@@ -463,7 +463,7 @@ const [isWalking, setIsWalking] = useState(false);
    Sprite (Larger)
 ========================= */
 
-const [isWalking, setIsWalking] = useState(false);
+
 
 /* animation refs + useEffect here */
 
