@@ -287,6 +287,20 @@ function facingFromMove(fromId: string | null, toId: string | null): "down" | "u
   if (Math.abs(dCol) >= Math.abs(dRow)) return dCol > 0 ? "right" : dCol < 0 ? "left" : "down";
   return dRow > 0 ? "down" : "up";
 }
+function unwrapNextState(res: any): GameState | null {
+  if (!res) return null;
+
+  if (typeof res === "object" && "state" in res) {
+    const st = (res as any).state;
+    return st && typeof st === "object" ? (st as GameState) : null;
+  }
+
+  if (typeof res === "object" && ("hexesById" in res || "playerHexId" in res)) {
+    return res as GameState;
+  }
+
+  return null;
+}
 
 /* =========================================================
    App
@@ -312,8 +326,9 @@ export default function App() {
   }, [scenarioEntry, trackId]);
 
   useEffect(() => {
-    setWorlds(loadWorlds());
-  }
+  setWorlds(loadWorlds());
+}, []);
+
 
   // player
   const [chosenPlayer, setChosenPlayer] = useState<PlayerChoice | null>(null);
@@ -424,12 +439,11 @@ export default function App() {
   }, [isWalking]);
 
   useEffect(() => {
-    return () => {
-      if (walkTimer.current) window.clearTimeout(walkTimer.current);
-    };
-  }
-function unwrapNextState(res: any): GameState | null {
-  if (!res) return null;
+  return () => {
+    if (walkTimer.current) window.clearTimeout(walkTimer.current);
+  };
+}, []);
+
 
   // common pattern: { ok, state }
   if (typeof res === "object" && "state" in res) {
