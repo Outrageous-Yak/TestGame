@@ -2243,11 +2243,11 @@ body{
 
 .hexDeckCol.left{
   left: calc((100% - var(--boardW)) / 2);
-  transform: translateX(calc(-1 * (var(--barColW) * 0.5)));
+  transform: translateX(calc(-1 * (var(--barColW) * 0.5 + 20px)));
 }
-.hexDeckCol.right{
-  right: calc((100% - var(--boardW)) / 2);
-  transform: translateX(calc(var(--barColW) * 0.5));
+.hexDeckCol.left{
+  left: calc((100% - var(--boardW)) / 2);
+  transform: translateX(calc(-1 * (var(--barColW) * 0.5 - 20px)));
 }
 
 .hexDeckCard{
