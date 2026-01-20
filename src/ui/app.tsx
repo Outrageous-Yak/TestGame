@@ -290,17 +290,7 @@ function facingFromMove(fromId: string | null, toId: string | null): "down" | "u
 function unwrapNextState(res: any): GameState | null {
   if (!res) return null;
 
-  if (typeof res === "object" && "state" in res) {
-    const st = (res as any).state;
-    return st && typeof st === "object" ? (st as GameState) : null;
-  }
 
-  if (typeof res === "object" && ("hexesById" in res || "playerHexId" in res)) {
-    return res as GameState;
-  }
-
-  return null;
-}
 
 /* =========================================================
    App
@@ -443,21 +433,6 @@ export default function App() {
     if (walkTimer.current) window.clearTimeout(walkTimer.current);
   };
 }, []);
-
-
-  // common pattern: { ok, state }
-  if (typeof res === "object" && "state" in res) {
-    const st = (res as any).state;
-    return st && typeof st === "object" ? (st as GameState) : null;
-  }
-
-  // sometimes tryMove returns the state directly
-  if (typeof res === "object" && ("hexesById" in res || "playerHexId" in res)) {
-    return res as GameState;
-  }
-
-  return null;
-}
 
   /* =========================
      Dice
@@ -1517,9 +1492,10 @@ if (!nextState) {
         </div>
       ) : null}
 
-      <style>{baseCss}</style>
+       <style>{baseCss}</style>
     </div>
   );
+}
 
 
 /* =========================================================
