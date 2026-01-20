@@ -1340,7 +1340,7 @@ if (!nextState) {
 
       <div className="gameLayout">
         <SideBar side="left" currentLayer={currentLayer} />
-
+<div className="boardWrap">
 <div
   key={currentLayer}
   className="boardLayerBg"
