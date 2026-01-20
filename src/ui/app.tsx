@@ -2239,15 +2239,14 @@ body{
 }
 
 .hexDeckCol.left{
-  left: calc((100% - var(--boardW)) / 5);
+  left: calc((100% - var(--boardW)) / 2);
   transform: translateX(-20px);
 }
 
 .hexDeckCol.right{
-  right: calc((100% - var(--boardW)) / 5);
+  right: calc((100% - var(--boardW)) / 2);
   transform: translateX(20px);
 }
-
 .hexDeckCard{
   width: min(230px, 16vw);
   max-width: 260px;
