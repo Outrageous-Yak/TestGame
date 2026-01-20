@@ -224,7 +224,7 @@ function isBlockedOrMissing(hex: any): { blocked: boolean; missing: boolean } {
 
 function layerCssVar(n: number) {
   const clamped = Math.max(1, Math.min(7, Math.floor(n || 1)));
-  return `var(--L${clamped})`;
+  return `var(L${clamped})`;
 }
 
 function nowHHMM() {
@@ -377,12 +377,12 @@ export default function App() {
   const themeVars = useMemo(() => {
     const p = palette;
     return {
-      ["--L1" as any]: p?.L1 ?? "#19ffb4",
-      ["--L2" as any]: p?.L2 ?? "#67a5ff",
-      ["--L3" as any]: p?.L3 ?? "#ffd36a",
-      ["--L4" as any]: p?.L4 ?? "#ff7ad1",
-      ["--L5" as any]: p?.L5 ?? "#a1ff5a",
-      ["--L6" as any]: p?.L6 ?? "#a58bff",
+      ["L1" as any]: p?.L1 ?? "#19ffb4",
+      ["L2" as any]: p?.L2 ?? "#67a5ff",
+      ["L3" as any]: p?.L3 ?? "#ffd36a",
+      ["L4" as any]: p?.L4 ?? "#ff7ad1",
+      ["L5" as any]: p?.L5 ?? "#a1ff5a",
+      ["L6" as any]: p?.L6 ?? "#a58bff",
       ["--L7" as any]: p?.L7 ?? "#ff5d7a",
     } as React.CSSProperties;
   }, [palette]);
@@ -1528,7 +1528,7 @@ const baseCss = `
   --muted: rgba(255,255,255,.62);
   --shadow: 0 18px 50px rgba(0,0,0,.45);
   --shadow2: 0 10px 25px rgba(0,0,0,.35);
-
+--deckGap: 20px;
   /* === BOARD GEOMETRY (7676767) === */
   --hexWMain: clamp(82px, 6.6vw, 120px);
   --hexHMain: calc(var(--hexWMain) * 0.8660254);
@@ -2240,12 +2240,12 @@ body{
 
 .hexDeckCol.left{
   left: calc((100% - var(--boardW)) / 2);
-  transform: translateX(-20px);
+  transform: translateX(calc(-1 * var(--deckGap)));
 }
 
 .hexDeckCol.right{
   right: calc((100% - var(--boardW)) / 2);
-  transform: translateX(20px);
+  transform: translateX(var(--deckGap));
 }
 .hexDeckCard{
   width: min(230px, 16vw);
