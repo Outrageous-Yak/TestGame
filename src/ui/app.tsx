@@ -2295,8 +2295,12 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
 
 /* ✅ cards shrink if the inset is small so they never intrude onto the board */
 .hexDeckCard{
+  /* target size */
   width: clamp(150px, 16vw, 230px);
-  max-width: calc(var(--boardInset) - 14px); /* keep fully inside the inset */
+
+  /* ✅ never allow negative/zero collapse */
+  max-width: max(150px, calc(var(--boardInset) - 14px));
+
   aspect-ratio: 3 / 4;
   border-radius: 22px;
   position: relative;
@@ -2308,6 +2312,7 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
     0 18px 48px rgba(0,0,0,.55),
     0 0 0 1px rgba(255,255,255,.06) inset;
 }
+
 
 .hexDeckCard::before{
   content:"";
