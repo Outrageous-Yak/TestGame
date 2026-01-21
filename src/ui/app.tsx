@@ -771,7 +771,8 @@ if (moved) {
     setReachMap(rm);
     setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
 
-    pushLog(`Encounter cleared — moved to ${pidAfter ?? targetId}`, "ok");
+    pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
+
     if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
   }, [
     encounter,
