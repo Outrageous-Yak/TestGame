@@ -689,8 +689,8 @@ const revealWholeLayer = useCallback((st: GameState, layer: number) => {
         const up = Math.min(scenarioLayerCount, currentLayer + 1);
         const dn = Math.max(1, currentLayer - 1);
 
-        const upId = pid.replace(/^L\d+-/, `L${up}-`);
-        const dnId = pid.replace(/^L\d+-/, `L${dn}-`);
+        const upId = pid.replace(/^L\d+-/, "L" + up + "-");
+const dnId = pid.replace(/^L\d+-/, "L" + dn + "-");
 
         revealRing(state, upId);
         revealRing(state, dnId);
