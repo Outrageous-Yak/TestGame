@@ -224,7 +224,7 @@ function isBlockedOrMissing(hex: any): { blocked: boolean; missing: boolean } {
 
 function layerCssVar(n: number) {
   const clamped = Math.max(1, Math.min(7, Math.floor(n || 1)));
-  return `var(L${clamped})`;
+  return `var(--L${clamped})`;
 }
 
 function nowHHMM() {
@@ -375,17 +375,18 @@ export default function App() {
   const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
 
   const themeVars = useMemo(() => {
-    const p = palette;
-    return {
-      ["L1" as any]: p?.L1 ?? "#19ffb4",
-      ["L2" as any]: p?.L2 ?? "#67a5ff",
-      ["L3" as any]: p?.L3 ?? "#ffd36a",
-      ["L4" as any]: p?.L4 ?? "#ff7ad1",
-      ["L5" as any]: p?.L5 ?? "#a1ff5a",
-      ["L6" as any]: p?.L6 ?? "#a58bff",
-      ["--L7" as any]: p?.L7 ?? "#ff5d7a",
-    } as React.CSSProperties;
-  }, [palette]);
+  const p = palette;
+  return {
+    ["--L1" as any]: p?.L1 ?? "#19ffb4",
+    ["--L2" as any]: p?.L2 ?? "#67a5ff",
+    ["--L3" as any]: p?.L3 ?? "#ffd36a",
+    ["--L4" as any]: p?.L4 ?? "#ff7ad1",
+    ["--L5" as any]: p?.L5 ?? "#a1ff5a",
+    ["--L6" as any]: p?.L6 ?? "#a58bff",
+    ["--L7" as any]: p?.L7 ?? "#ff5d7a",
+  } as React.CSSProperties;
+}, [palette]);
+
 
   function diceImg(n: number) {
     return toPublicUrl(`${DICE_FACES_BASE}/D20_${n}.png`);
@@ -1574,7 +1575,7 @@ const baseCss = `
 
   --hexGap: 10px;
   --hexOverlap: 0.0;
-  ---hexPitch: calc(var(--hexWMain) + var(--hexGap));
+  --hexPitch: calc(var(--hexWMain) + var(--hexGap));
 
   --maxCols: 7;
   --hexRows: 7;
@@ -1586,7 +1587,7 @@ const baseCss = `
   --barColW: 62px;
   --sideColW: 340px;
   --barW: 18px;
-
+--hexFieldH: calc(var(--hexRows) * var(--hexHMain));
 --boardW: calc(
   var(--hexWMain)
   + 6 * var(--hexPitch)
@@ -1913,6 +1914,7 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   box-shadow: var(--shadow2);
   overflow: visible;
   min-height: 0;
+    --boardInset: calc((100% - var(--boardW)) / 2);
 }
 .boardLayerBg{
   position:absolute; inset:0;
@@ -2277,16 +2279,13 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   gap: 18px;
 }
 
-/* LEFT cards: outside the board, toward left bar */
 .hexDeckCol.left{
-  left: calc((100% - var(--boardW)) / 2);
-  transform: translateX(calc(-100% - var(--deckGap)));
+  left: var(--boardInset);
+  transform: translateX(calc(-1 * var(--deckGap)));
 }
-
-/* RIGHT cards: mirrored perfectly */
 .hexDeckCol.right{
-  right: calc((100% - var(--boardW)) / 2);
-  transform: translateX(calc(100% + var(--deckGap)));
+  right: var(--boardInset);
+  transform: translateX(var(--deckGap));
 }
 
 .hexDeckCard{
