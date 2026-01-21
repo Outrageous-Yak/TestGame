@@ -1613,8 +1613,8 @@ body{
   z-index:0;
   background-size: cover;
   background-position: center;
-  opacity:.28;
-  filter: saturate(1.05) contrast(1.05);
+  opacity:.65;
+filter: saturate(1.25) contrast(1.15) brightness(1.05);
 }
 
 /* =========================================================
