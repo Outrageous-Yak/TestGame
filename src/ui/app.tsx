@@ -359,28 +359,39 @@ export default function App() {
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
   const encounterActive = !!encounter;
-Can you please doesn’t me a correct version ready to paste?
 
- /* =========================
-     Theme / assets (✅ INSIDE App)
-  ========================= */
-  const activeTheme = scenarioEntry?.theme ?? null;
-  const palette = activeTheme?.palette ?? null;
+/* =========================
+   Theme / assets (INSIDE App)
+========================= */
 
-  const GAME__URL = activeTheme?.assets.backgroundGame ?? "";
-const backgroundLayers =
-  (activeTheme?.assets.backgroundLayers as any) || {};
+const activeTheme = scenarioEntry?.theme ?? null;
+const palette = activeTheme?.palette ?? null;
 
-const BOARD_LAYER_ = backgroundLayers[`L${currentLayer}`] ?? "";
+const GAME__URL = activeTheme?.assets.backgroundGame ?? "";
 
-  const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "images/dice";
-  const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
-  const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "images/villains";
-  const HEX_TILE = activeTheme?.assets.hexTile ?? "";
+// ✅ ABSOLUTELY NO TEMPLATE LITERALS
+const backgroundLayers: any =
+  (activeTheme && activeTheme.assets && activeTheme.assets.backgroundLayers) || {};
 
-  const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
+const BOARD_LAYER_ =
+  backgroundLayers["L" + currentLayer] || "";
 
-  const themeVars = useMemo(() => {
+const DICE_FACES_BASE =
+  activeTheme?.assets.diceFacesBase ?? "images/dice";
+
+const DICE_BORDER_IMG =
+  activeTheme?.assets.diceCornerBorder ?? "";
+
+const VILLAINS_BASE =
+  activeTheme?.assets.villainsBase ?? "images/villains";
+
+const HEX_TILE =
+  activeTheme?.assets.hexTile ?? "";
+
+const [scenarioLayerCount, setScenarioLayerCount] =
+  useState<number>(1);
+
+const themeVars = useMemo(() => {
   const p = palette;
   return {
     ["--L1" as any]: p?.L1 ?? "#19ffb4",
@@ -393,13 +404,17 @@ const BOARD_LAYER_ = backgroundLayers[`L${currentLayer}`] ?? "";
   } as React.CSSProperties;
 }, [palette]);
 
+function diceImg(n: number) {
+  return toPublicUrl(
+    DICE_FACES_BASE + "/D20_" + n + ".png"
+  );
+}
 
-  function diceImg(n: number) {
-    return toPublicUrl(`${DICE_FACES_BASE}/D20_${n}.png`);
-  }
-  function villainImg(key: VillainKey) {
-    return toPublicUrl(`${VILLAINS_BASE}/${key}.png`);
-  }
+function villainImg(key: VillainKey) {
+  return toPublicUrl(
+    VILLAINS_BASE + "/" + key + ".png"
+  );
+}
 
 
   
