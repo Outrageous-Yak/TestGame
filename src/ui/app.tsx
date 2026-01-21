@@ -1904,7 +1904,7 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   position: relative;
   border-radius: 18px;
   border: 1px solid rgba(255,255,255,.08);
-  background: rgba(0,0,0,.22);
+  background: rgba(0,0,0,.10);
   box-shadow: var(--shadow2);
   overflow: visible;
   min-height: 0;
@@ -1913,7 +1913,7 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   position:absolute; inset:0;
   background-size: cover;
   background-position: center;
-  opacity: .14;
+  opacity: .28;
   transform: scale(1.02);
   animation: bgFadeIn 220ms ease;
 }
