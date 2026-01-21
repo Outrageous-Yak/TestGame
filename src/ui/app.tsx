@@ -2267,24 +2267,22 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   inset: 0;
   z-index: 4;
   pointer-events: none;
+
   --cardGlow: rgba(120,255,210,.65);
 
-  /* ✅ match your yellow-box “gutters” */
-  --deckPadX: 14px;                      /* how close to boardWrap outer edge */
-  --deckPadY: 14px;                      /* how close to top/bottom */
+  /* spacing from gutter edge */
+  --deckPadX: 14px;
+  --deckPadY: 14px;
 }
 
-/* keep your JSX structure but don't let the columns affect layout */
+/* columns not used for layout */
 .hexDeckCol{ display: contents; }
 
-/* ✅ base card */
+/* base card */
 .hexDeckCard{
   position: absolute;
 
-  /* target size */
   width: clamp(150px, 16vw, 230px);
-
-  /* ✅ force the card to stay INSIDE the gutter width (never intrude onto board) */
   max-width: max(150px, calc(var(--boardInset) - (var(--deckPadX) * 2)));
 
   aspect-ratio: 3 / 4;
@@ -2297,36 +2295,36 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
     0 18px 48px rgba(0,0,0,.55),
     0 0 0 1px rgba(255,255,255,.06) inset;
 }
-
 /* =========================================================
-   POSITIONS (exactly like your marked image)
-   - Left cards: hug left edge of boardWrap, inside gutter
-   - Right cards: hug right edge of boardWrap, inside gutter
-   - Top/Bottom pinned with small padding
+   POSITIONS — PUSHED AWAY FROM BOARD (KEY FIX)
 ========================================================= */
 
-/* TOP-LEFT */
+/* TOP-LEFT (outer gutter edge) */
 .hexDeckCard.cosmic{
-  left: var(--deckPadX);
+  left: calc(var(--boardInset) - var(--deckPadX));
   top: calc(var(--boardPadTop) + var(--deckPadY));
+  transform: translateX(-100%);
 }
 
 /* BOTTOM-LEFT */
 .hexDeckCard.risk{
-  left: var(--deckPadX);
+  left: calc(var(--boardInset) - var(--deckPadX));
   bottom: calc(var(--boardPadBottom) + var(--deckPadY));
+  transform: translateX(-100%);
 }
 
 /* TOP-RIGHT */
 .hexDeckCard.terrain{
-  right: var(--deckPadX);
+  right: calc(var(--boardInset) - var(--deckPadX));
   top: calc(var(--boardPadTop) + var(--deckPadY));
+  transform: translateX(100%);
 }
 
 /* BOTTOM-RIGHT */
 .hexDeckCard.shadow{
-  right: var(--deckPadX);
+  right: calc(var(--boardInset) - var(--deckPadX));
   bottom: calc(var(--boardPadBottom) + var(--deckPadY));
+  transform: translateX(100%);
 }
 
 /* =========================================================
