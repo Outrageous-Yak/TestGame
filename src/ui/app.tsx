@@ -308,7 +308,6 @@ function unwrapNextState(res: any): GameState | null {
 ========================================================= */
 
 const baseCss = `
-export default function App() {
 
   // navigation
   const [screen, setScreen] = useState<Screen>("start");
@@ -1335,6 +1334,9 @@ body{
 }
 
 .appRoot{ height:100vh; width:100vw; position:relative; }
+`;
+export default function App() {
+
 
 /* =========================================================
    GAME BACKGROUND
@@ -2205,3 +2207,4 @@ export default function App() {
     </div>
   );
 }
+
