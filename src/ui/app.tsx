@@ -2258,57 +2258,38 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
 .logRow.bad .lm{ color: rgba(255,93,122,.92); }
 .logRow.info .lm{ color: rgba(119,168,255,.92); }
 
+
 /* =========================================================
-   DECK CARDS (HALFWAY BETWEEN HEX EDGE AND BAR COLUMN)
+   DECK CARDS (LOCKED TO 4 CORNERS LIKE YOUR YELLOW BOXES)
 ========================================================= */
-/* =========================================================
-   DECK CARDS (HALFWAY BETWEEN BOARD EDGE AND BAR COLUMN)
-========================================================= */
+
 .hexDeckOverlay{
   position: absolute;
   inset: 0;
   z-index: 4;
   pointer-events: none;
   --cardGlow: rgba(120,255,210,.65);
+
+  /* ✅ tweak these to match your yellow pockets perfectly */
+  --deckX: calc(var(--boardInset) / 2);                 /* halfway between board edge + bar column */
+  --deckEdgePad: clamp(26px, 3.2vh, 44px);              /* top/bottom pocket padding */
 }
 
-/* the vertical span matches the board content area */
-.hexDeckCol{
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 22px;
-  pointer-events: none;
+/* keep your JSX structure, but make cols not drive layout */
+.hexDeckCol{ display: contents; }
 
-  /* keeps them away from the very top/bottom */
-  padding: 10px 0;
-}
-
-/* ✅ place in the middle of the inset (halfway between wrap edge and board edge) */
-.hexDeckCol.left{
-  left: calc(var(--boardInset) / 2);
-  transform: translate(-50%, -50%);
-}
-
-.hexDeckCol.right{
-  right: calc(var(--boardInset) / 2);
-  transform: translate(50%, -50%);
-}
-
-/* ✅ cards shrink if the inset is small so they never intrude onto the board */
+/* ✅ cards are positioned individually in 4 corner pockets */
 .hexDeckCard{
+  position: absolute;
+
   /* target size */
   width: clamp(150px, 16vw, 230px);
 
-  /* ✅ never allow negative/zero collapse */
+  /* never collapse smaller than 150px, and never exceed the inset pocket */
   max-width: max(150px, calc(var(--boardInset) - 14px));
 
   aspect-ratio: 3 / 4;
   border-radius: 22px;
-  position: relative;
   overflow: hidden;
 
   border: 1px solid rgba(255,255,255,.18);
@@ -2318,6 +2299,39 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
     0 0 0 1px rgba(255,255,255,.06) inset;
 }
 
+/* === POCKET POSITIONS (match your yellow boxes) === */
+
+/* TOP-LEFT */
+.hexDeckCard.cosmic{
+  left: var(--deckX);
+  top: calc(var(--boardPadTop) + var(--deckEdgePad));
+  transform: translateX(-50%);
+}
+
+/* BOTTOM-LEFT */
+.hexDeckCard.risk{
+  left: var(--deckX);
+  bottom: calc(var(--boardPadBottom) + var(--deckEdgePad));
+  transform: translateX(-50%);
+}
+
+/* TOP-RIGHT */
+.hexDeckCard.terrain{
+  right: var(--deckX);
+  top: calc(var(--boardPadTop) + var(--deckEdgePad));
+  transform: translateX(50%);
+}
+
+/* BOTTOM-RIGHT */
+.hexDeckCard.shadow{
+  right: var(--deckX);
+  bottom: calc(var(--boardPadBottom) + var(--deckEdgePad));
+  transform: translateX(50%);
+}
+
+/* =========================================================
+   SHINE + BORDER GLOW
+========================================================= */
 
 .hexDeckCard::before{
   content:"";
