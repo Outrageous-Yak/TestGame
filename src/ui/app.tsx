@@ -2275,22 +2275,27 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
 /* the vertical span matches the board content area */
 .hexDeckCol{
   position: absolute;
-  top: var(--boardPadTop);
-  bottom: var(--boardPadBottom);
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 18px;
+  justify-content: center;
+  gap: 22px;
+  pointer-events: none;
+
+  /* keeps them away from the very top/bottom */
+  padding: 10px 0;
 }
 
 /* ✅ place in the middle of the inset (halfway between wrap edge and board edge) */
 .hexDeckCol.left{
   left: calc(var(--boardInset) / 2);
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
 }
+
 .hexDeckCol.right{
   right: calc(var(--boardInset) / 2);
-  transform: translateX(50%);
+  transform: translate(50%, -50%);
 }
 
 /* ✅ cards shrink if the inset is small so they never intrude onto the board */
