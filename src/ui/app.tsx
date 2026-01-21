@@ -2271,21 +2271,24 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   position: absolute;
   top: var(--boardPadTop);
   bottom: var(--boardPadBottom);
-  display:flex;
+  display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 18px;
 }
 
+/* LEFT cards: outside the board, toward left bar */
 .hexDeckCol.left{
   left: calc((100% - var(--boardW)) / 2);
-  transform: translateX(calc(-1 * var(--deckGap)));
+  transform: translateX(calc(-100% - var(--deckGap)));
 }
 
+/* RIGHT cards: mirrored perfectly */
 .hexDeckCol.right{
   right: calc((100% - var(--boardW)) / 2);
-  transform: translateX(var(--deckGap));
+  transform: translateX(calc(100% + var(--deckGap)));
 }
+
 .hexDeckCard{
   width: min(230px, 16vw);
   max-width: 260px;
