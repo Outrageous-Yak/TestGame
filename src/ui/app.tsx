@@ -1259,7 +1259,11 @@ if (!nextState) {
 
   return (
     <div className="appRoot game" style={themeVars}>
-      <div className="game" style={{ backgroundImage: GAME__URL ? `url(${toPublicUrl(GAME__URL)})` : undefined }} />
+     <div
+  className="gameBg"
+  style={{ backgroundImage: GAME__URL ? `url(${toPublicUrl(GAME__URL)})` : undefined }}
+/>
+
 
       <div className="topbar">
         <button className="btn" onClick={() => setScreen("scenario")}>
