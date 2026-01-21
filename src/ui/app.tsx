@@ -1381,9 +1381,10 @@ if (!nextState) {
 <div className="boardWrap">
 <div
   key={currentLayer}
-  className="boardLayer"
-   style={{ backgroundImage: BOARD_LAYER_ ? `url(${toPublicUrl(BOARD_LAYER_)})` : undefined }}
+  className="boardLayerBg"
+  style={{ backgroundImage: BOARD_LAYER_ ? `url(${toPublicUrl(BOARD_LAYER_)})` : undefined }}
 />
+
 
           <div className="boardScroll" ref={scrollRef}>
             <div className="board">
@@ -1924,7 +1925,7 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
 
 @keyframes bgFadeIn{
   from{ opacity: 0; }
-  to{ opacity: .14; }
+  to{ opacity: .45; }
 }
 
 
