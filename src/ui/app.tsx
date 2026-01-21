@@ -2261,6 +2261,9 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
 /* =========================================================
    DECK CARDS (HALFWAY BETWEEN HEX EDGE AND BAR COLUMN)
 ========================================================= */
+/* =========================================================
+   DECK CARDS (HALFWAY BETWEEN BOARD EDGE AND BAR COLUMN)
+========================================================= */
 .hexDeckOverlay{
   position: absolute;
   inset: 0;
@@ -2269,6 +2272,7 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   --cardGlow: rgba(120,255,210,.65);
 }
 
+/* the vertical span matches the board content area */
 .hexDeckCol{
   position: absolute;
   top: var(--boardPadTop);
@@ -2279,18 +2283,20 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   gap: 18px;
 }
 
+/* ✅ place in the middle of the inset (halfway between wrap edge and board edge) */
 .hexDeckCol.left{
-  left: var(--boardInset);
-  transform: translateX(calc(-1 * var(--deckGap)));
+  left: calc(var(--boardInset) / 2);
+  transform: translateX(-50%);
 }
 .hexDeckCol.right{
-  right: var(--boardInset);
-  transform: translateX(var(--deckGap));
+  right: calc(var(--boardInset) / 2);
+  transform: translateX(50%);
 }
 
+/* ✅ cards shrink if the inset is small so they never intrude onto the board */
 .hexDeckCard{
-  width: min(230px, 16vw);
-  max-width: 260px;
+  width: clamp(150px, 16vw, 230px);
+  max-width: calc(var(--boardInset) - 14px); /* keep fully inside the inset */
   aspect-ratio: 3 / 4;
   border-radius: 22px;
   position: relative;
@@ -2302,6 +2308,7 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
     0 18px 48px rgba(0,0,0,.55),
     0 0 0 1px rgba(255,255,255,.06) inset;
 }
+
 .hexDeckCard::before{
   content:"";
   position:absolute;
@@ -2312,13 +2319,13 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   opacity: .9;
   pointer-events:none;
 }
+
 .hexDeckCard::after{
   content:"";
   position:absolute;
   inset:-2px;
   border-radius: 24px;
   padding: 2px;
-
   background:
     conic-gradient(
       from var(--spin),
@@ -2348,7 +2355,6 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
 .hexDeckCard.ccw.slow{ animation: spinCCW 3.8s linear infinite; }
 .hexDeckCard.ccw.fast{ animation: spinCCW 2.2s linear infinite; }
 
-/* subtle twinkle */
 @keyframes twinkle {
   0%,100%{ filter: drop-shadow(0 0 10px var(--cardGlow)); opacity:.92; }
   50%{ filter: drop-shadow(0 0 16px var(--cardGlow)); opacity:1; }
@@ -2365,6 +2371,7 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
 .hexDeckCard.risk    { --a:#12090A; --b:#6E0F1B; }
 .hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; }
 .hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; }
+
 
 /* =========================================================
    OVERLAY / ENCOUNTER
