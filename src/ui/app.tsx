@@ -1904,7 +1904,7 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   position: relative;
   border-radius: 18px;
   border: 1px solid rgba(255,255,255,.08);
-  background: rgba(0,0,0,.10);
+  background: rgba(0,0,0,.50);
   box-shadow: var(--shadow2);
   overflow: visible;
   min-height: 0;
