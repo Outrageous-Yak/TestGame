@@ -1979,7 +1979,7 @@ body{
   position: relative;
   overflow: visible;
 
-  --hexGlow: rgba(120,255,210,1);
+  --hexGlow: rgba(120,255,210,.51);
  
 }
 .hex:hover{
