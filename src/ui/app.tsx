@@ -2316,7 +2316,7 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
     conic-gradient(
       from var(--spin),
       transparent 0 80%,
-      rgba(255,255,255,1) 82% 84%,
+      rgba(255,255,255,.1) 82% 84%,
       var(--cardGlow) 86% 90%,
       rgba(255,255,255,.1) 92% 94%,
       transparent 96% 100%
