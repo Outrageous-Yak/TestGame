@@ -333,10 +333,6 @@ const baseCss = `
 `;
 
 
-const baseCss = `
-/* ALL CSS ONLY IN HERE */
-/* ...your huge CSS... */
-`;
 
 export default function App() {
 
@@ -344,7 +340,7 @@ export default function App() {
    App
 ========================================================= */
 
-export default function App() {
+
   // navigation
   const [screen, setScreen] = useState<Screen>("start");
 
