@@ -359,8 +359,9 @@ export default function App() {
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
   const encounterActive = !!encounter;
+Can you please doesn’t me a correct version ready to paste?
 
-  /* =========================
+ /* =========================
      Theme / assets (✅ INSIDE App)
   ========================= */
   const activeTheme = scenarioEntry?.theme ?? null;
@@ -400,6 +401,8 @@ const BOARD_LAYER_ = backgroundLayers[`L${currentLayer}`] ?? "";
     return toPublicUrl(`${VILLAINS_BASE}/${key}.png`);
   }
 
+
+  
    /* =========================
      Sprite
   ========================= */
