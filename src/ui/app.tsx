@@ -367,7 +367,11 @@ export default function App() {
   const palette = activeTheme?.palette ?? null;
 
   const GAME__URL = activeTheme?.assets.backgroundGame ?? "";
-  const BOARD_LAYER_ = (activeTheme?.assets.backgroundLayers as any)?.[`L${currentLayer}`] ?? "";
+const backgroundLayers =
+  (activeTheme?.assets.backgroundLayers as any) || {};
+
+const BOARD_LAYER_ = backgroundLayers[`L${currentLayer}`] ?? "";
+
   const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "images/dice";
   const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
   const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "images/villains";
