@@ -2258,9 +2258,8 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
 .logRow.bad .lm{ color: rgba(255,93,122,.92); }
 .logRow.info .lm{ color: rgba(119,168,255,.92); }
 
-
 /* =========================================================
-   DECK CARDS (LOCKED TO 4 CORNERS LIKE YOUR YELLOW BOXES)
+   DECK CARDS (MATCH IMAGE: PINNED TO TOP/BOTTOM IN THE GUTTERS)
 ========================================================= */
 
 .hexDeckOverlay{
@@ -2270,23 +2269,23 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   pointer-events: none;
   --cardGlow: rgba(120,255,210,.65);
 
-  /* ✅ tweak these to match your yellow pockets perfectly */
-  --deckX: calc(var(--boardInset) / 2);                 /* halfway between board edge + bar column */
-  --deckEdgePad: clamp(26px, 3.2vh, 44px);              /* top/bottom pocket padding */
+  /* ✅ match your yellow-box “gutters” */
+  --deckPadX: 14px;                      /* how close to boardWrap outer edge */
+  --deckPadY: 14px;                      /* how close to top/bottom */
 }
 
-/* keep your JSX structure, but make cols not drive layout */
+/* keep your JSX structure but don't let the columns affect layout */
 .hexDeckCol{ display: contents; }
 
-/* ✅ cards are positioned individually in 4 corner pockets */
+/* ✅ base card */
 .hexDeckCard{
   position: absolute;
 
   /* target size */
   width: clamp(150px, 16vw, 230px);
 
-  /* never collapse smaller than 150px, and never exceed the inset pocket */
-  max-width: max(150px, calc(var(--boardInset) - 14px));
+  /* ✅ force the card to stay INSIDE the gutter width (never intrude onto board) */
+  max-width: max(150px, calc(var(--boardInset) - (var(--deckPadX) * 2)));
 
   aspect-ratio: 3 / 4;
   border-radius: 22px;
@@ -2299,34 +2298,35 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
     0 0 0 1px rgba(255,255,255,.06) inset;
 }
 
-/* === POCKET POSITIONS (match your yellow boxes) === */
+/* =========================================================
+   POSITIONS (exactly like your marked image)
+   - Left cards: hug left edge of boardWrap, inside gutter
+   - Right cards: hug right edge of boardWrap, inside gutter
+   - Top/Bottom pinned with small padding
+========================================================= */
 
 /* TOP-LEFT */
 .hexDeckCard.cosmic{
-  left: var(--deckX);
-  top: calc(var(--boardPadTop) + var(--deckEdgePad));
-  transform: translateX(-50%);
+  left: var(--deckPadX);
+  top: calc(var(--boardPadTop) + var(--deckPadY));
 }
 
 /* BOTTOM-LEFT */
 .hexDeckCard.risk{
-  left: var(--deckX);
-  bottom: calc(var(--boardPadBottom) + var(--deckEdgePad));
-  transform: translateX(-50%);
+  left: var(--deckPadX);
+  bottom: calc(var(--boardPadBottom) + var(--deckPadY));
 }
 
 /* TOP-RIGHT */
 .hexDeckCard.terrain{
-  right: var(--deckX);
-  top: calc(var(--boardPadTop) + var(--deckEdgePad));
-  transform: translateX(50%);
+  right: var(--deckPadX);
+  top: calc(var(--boardPadTop) + var(--deckPadY));
 }
 
 /* BOTTOM-RIGHT */
 .hexDeckCard.shadow{
-  right: var(--deckX);
-  bottom: calc(var(--boardPadBottom) + var(--deckEdgePad));
-  transform: translateX(50%);
+  right: var(--deckPadX);
+  bottom: calc(var(--boardPadBottom) + var(--deckPadY));
 }
 
 /* =========================================================
@@ -2350,6 +2350,7 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   inset:-2px;
   border-radius: 24px;
   padding: 2px;
+
   background:
     conic-gradient(
       from var(--spin),
