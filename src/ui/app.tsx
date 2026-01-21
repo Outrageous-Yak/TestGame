@@ -619,15 +619,18 @@ function facingRow(f: "down" | "up" | "left" | "right") {
     setLog((prev) => [e, ...prev].slice(0, 24));
   }, []);
 
-  /* =========================
-     Reveal helpers
-  ========================= */
-  const revealWholeLayer = useCallback((st: GameState, layer: number) => {
-    for (let r = 0; r < ROW_LENS.length; r++) {
-      const len = ROW_LENS[r] ?? 7;
-      for (let c = 0; c < len; c++) revealHex(st, `L${layer}-R${r}-C${c}`);
+/* =========================
+   Reveal helpers
+========================= */
+const revealWholeLayer = useCallback((st: GameState, layer: number) => {
+  for (let r = 0; r < ROW_LENS.length; r++) {
+    const len = ROW_LENS[r] ?? 7;
+    for (let c = 0; c < len; c++) {
+      revealHex(st, "L" + layer + "-R" + r + "-C" + c);
     }
-  }, []);
+  }
+}, []);
+
 
   const revealRing = useCallback((st: GameState, centerId: string) => {
     revealHex(st, centerId);
