@@ -306,10 +306,8 @@ function unwrapNextState(res: any): GameState | null {
 /* =========================================================
    App
 ========================================================= */
-const baseCss = `
-  ...css...
-`;
 
+const baseCss = `
 export default function App() {
 
   // navigation
@@ -1555,7 +1553,7 @@ if (!nextState) {
     </div>
   );
 }
-const baseCss = `
+
 /* =========================================================
    CSS
 ========================================================= */
@@ -2479,7 +2477,7 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   .side{ order: 10; }
 }
 `;
-`;
+
 
 export default function App() {
   return (
