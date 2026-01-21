@@ -1557,8 +1557,6 @@ if (!nextState) {
    CSS
 ========================================================= */
 
-
-const baseCss = `
 :root{
   --bg0:#070a10; --bg1:#0b1324;
   --panel: rgba(10,14,24,.72);
@@ -1568,14 +1566,18 @@ const baseCss = `
   --muted: rgba(255,255,255,.62);
   --shadow: 0 18px 50px rgba(0,0,0,.45);
   --shadow2: 0 10px 25px rgba(0,0,0,.35);
---deckGap: 20px;
-  /* === BOARD GEOMETRY (7676767) === */
-  --hexWMain: clamp(82px, 6.6vw, 120px);
-  --hexHMain: calc(var(--hexWMain) * 0.8660254);
 
-  --hexGap: 10px;
-  --hexOverlap: 0.0;
-  --hexPitch: calc(var(--hexWMain) + var(--hexGap));
+  --deckGap: 20px;
+
+  /* === BOARD GEOMETRY (LOCKED 7676767) === */
+  --hexWMain: clamp(82px, 6.6vw, 120px);
+  --hexHMain: calc(var(--hexWMain) * 0.8660254); /* √3/2 */
+
+  /* ✅ true pointy-top horizontal step (3/4 width) */
+  --hexStepX: calc(var(--hexWMain) * 0.75);
+
+  /* ✅ true vertical step */
+  --hexStepY: var(--hexHMain);
 
   --maxCols: 7;
   --hexRows: 7;
@@ -1587,12 +1589,16 @@ const baseCss = `
   --barColW: 62px;
   --sideColW: 340px;
   --barW: 18px;
---hexFieldH: calc(var(--hexRows) * var(--hexHMain));
---boardW: calc(
-  var(--hexWMain)
-  + 6 * var(--hexPitch)
-);
+
+  /* used by bars */
+  --hexFieldH: calc(var(--hexRows) * var(--hexStepY));
+
+  /* ✅ board width based on center-to-center step */
+  --boardW: calc(
+    var(--hexWMain) + (var(--maxCols) - 1) * var(--hexStepX)
+  );
 }
+
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
@@ -1960,7 +1966,7 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   
 }
 .hexRow.offset{
-  transform: translateX(calc(var(--hexPitch) / 2));
+  transform: translateX(calc(var(--hexStepX) / 2));
 }
 
 /* =========================================================
@@ -1969,7 +1975,8 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
 .hexSlot{
   width: var(--hexWMain);
   height: var(--hexHMain);
-  margin-right: calc(var(--hexPitch) - var(--hexWMain));
+ margin-right: calc(var(--hexStepX) - var(--hexWMain));
+
 }
 .hexSlot.empty{ opacity: 0; }
 
