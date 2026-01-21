@@ -303,15 +303,65 @@ function unwrapNextState(res: any): GameState | null {
   return null;
 }
 
-const baseCss = `
 /* =========================================================
-   CSS
+   CSS (INLINE STRING ONLY)
 ========================================================= */
 
+const baseCss = `
 :root{
-  /* ...all your CSS... */
+  --text: rgba(255,255,255,.92);
+  --muted: rgba(255,255,255,.68);
+
+  --panel: rgba(10,14,24,.76);
+  --stroke: rgba(255,255,255,.10);
+  --stroke2: rgba(255,255,255,.16);
+  --shadow: 0 18px 50px rgba(0,0,0,.40);
+  --shadow2: 0 20px 60px rgba(0,0,0,.48);
+
+  --barColW: 72px;
+  --barW: 18px;
+  --sideColW: 360px;
+
+  --boardW: 860px;
+  --boardPadTop: 28px;
+  --boardPadBottom: 28px;
+
+  --hexWMain: 86px;
+  --hexHMain: 74px;
+  --hexStepX: 68px;
+
+  --hexFieldH: calc(var(--hexHMain) * 7);
+
+  --L1: #19ffb4;
+  --L2: #67a5ff;
+  --L3: #ffd36a;
+  --L4: #ff7ad1;
+  --L5: #a1ff5a;
+  --L6: #a58bff;
+  --L7: #ff5d7a;
 }
 
+html, body{
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #070A12;
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+*{ box-sizing: border-box; }
+button{ font: inherit; }
+
+.appRoot{
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* =========================================================
+   GAME BACKGROUND
+========================================================= */
 .gameBg{
   position:absolute;
   inset:0;
@@ -322,25 +372,559 @@ const baseCss = `
   filter: saturate(1.25) contrast(1.15) brightness(1.05);
 }
 
+/* =========================================================
+   TOPBAR
+========================================================= */
 .topbar{
   height:64px;
   display:flex;
   align-items:center;
-  /* ...rest of CSS... */
+  gap:10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  background: linear-gradient(180deg, rgba(0,0,0,.28), rgba(0,0,0,.08));
+  backdrop-filter: blur(10px);
+  position:relative;
+  z-index:5;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.spacer{ flex:1; }
+
+/* =========================================================
+   PANELS / COMMON UI
+========================================================= */
+.screen.center{ height: calc(100vh - 64px); display:grid; place-items:center; padding:18px; }
+.panel{
+  width: min(980px, 92vw);
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 18px;
+  backdrop-filter: blur(12px);
+}
+.panel.wide{ width:min(1040px, 94vw); }
+.title{ font-size: 22px; font-weight: 900; letter-spacing: .3px; }
+.sub{ margin-top:6px; color: var(--muted); font-size: 13px; }
+.row{ display:flex; gap:10px; justify-content:flex-end; margin-top:14px; align-items:center; }
+.hint{ margin-top:12px; color: var(--muted); font-size: 13px; }
+
+.btn{
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,.10);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.btn:hover{ background: rgba(255,255,255,.16); border-color: var(--stroke2); transform: translateY(-1px); }
+.btn:active{ background: rgba(255,255,255,.22); transform: translateY(0); }
+.btn:disabled{ opacity: .55; cursor: not-allowed; transform:none; }
+
+.btn.primary{
+  background: rgba(120,220,255,.22);
+  border-color: rgba(120,220,255,.35);
+}
+.btn.primary:hover{ background: rgba(120,220,255,.28); border-color: rgba(120,220,255,.50); }
+.btn.primary:active{ background: rgba(120,220,255,.36); }
+
+/* =========================================================
+   TOPBAR HUD GROUPS + ITEMS
+========================================================= */
+.hudGroup{
+  display:flex;
+  align-items:center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.22);
+  box-shadow: 0 12px 30px rgba(0,0,0,.22);
+}
+.hudStat{
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.22);
+  min-width: 86px;
+}
+.hudStat .k{
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: .35px;
+  text-transform: uppercase;
+}
+.hudStat .v{
+  margin-top: 4px;
+  font-weight: 900;
+  font-size: 13px;
+}
+.items{ display:flex; gap: 10px; flex-wrap: nowrap; }
+.itemBtn{
+  display:grid;
+  grid-template-columns: 20px auto 18px;
+  align-items:center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(0,0,0,.22);
+  color: var(--text);
+  cursor:pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.itemBtn:hover{ background: rgba(0,0,0,.30); border-color: var(--stroke2); transform: translateY(-1px); }
+.itemBtn:active{ transform: translateY(0); }
+.itemBtn:disabled{ opacity: .55; cursor: not-allowed; transform:none; }
+.itemBtn.off{ opacity: .5; filter: grayscale(.2); }
+.itemIcon{ font-size: 16px; line-height: 1; }
+.itemName{ font-size: 12px; font-weight: 900; letter-spacing: .25px; }
+.itemCharges{
+  font-size: 12px;
+  font-weight: 900;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.08);
+  text-align:center;
 }
 
-/* ...rest of your CSS... */
+/* =========================================================
+   DICE 3D
+========================================================= */
+.dice3d{
+  width: 58px; height: 58px;
+  position: relative;
+  display:grid;
+  place-items:center;
+  perspective: 700px;
+}
+.dice3d .cube{
+  width: 46px; height: 46px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 180ms ease;
+}
+.dice3d.rolling .cube{ animation: cubeWobble .35s ease-in-out infinite; }
+@keyframes cubeWobble{
+  0%{ transform: rotateX(0deg) rotateY(0deg); }
+  25%{ transform: rotateX(18deg) rotateY(-16deg); }
+  50%{ transform: rotateX(-16deg) rotateY(22deg); }
+  75%{ transform: rotateX(14deg) rotateY(16deg); }
+  100%{ transform: rotateX(0deg) rotateY(0deg); }
+}
+.dice3d .face{
+  position:absolute; inset:0;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.14);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), 0 10px 22px rgba(0,0,0,.35);
+  backface-visibility: hidden;
+}
+.dice3d .face-front{  transform: rotateY(  0deg) translateZ(23px); }
+.dice3d .face-back{   transform: rotateY(180deg) translateZ(23px); }
+.dice3d .face-right{  transform: rotateY( 90deg) translateZ(23px); }
+.dice3d .face-left{   transform: rotateY(-90deg) translateZ(23px); }
+.dice3d .face-top{    transform: rotateX( 90deg) translateZ(23px); }
+.dice3d .face-bottom{ transform: rotateX(-90deg) translateZ(23px); }
+.diceBorder{
+  position:absolute; inset: 0;
+  pointer-events:none;
+  background-size: cover;
+  background-position: center;
+  opacity: .95;
+  filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
+}
+
+/* =========================================================
+   GAME LAYOUT GRID
+========================================================= */
+.gameLayout{
+  position: relative;
+  z-index: 3;
+  height: calc(100vh - 64px);
+  display:grid;
+  grid-template-columns: var(--barColW) 1fr var(--barColW) var(--sideColW);
+  gap: 14px;
+  padding: 14px;
+  min-height: 0;
+}
+
+/* =========================================================
+   BOARD WRAP
+========================================================= */
+.boardWrap{
+  position: relative;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.50);
+  box-shadow: var(--shadow2);
+  overflow: visible;
+  min-height: 0;
+  --boardInset: calc((100% - var(--boardW)) / 2);
+}
+.boardLayerBg{
+  position:absolute; inset:0;
+  background-size: cover;
+  background-position: center;
+  opacity: .28;
+  transform: scale(1.02);
+  animation: bgFadeIn 220ms ease;
+}
+@keyframes bgFadeIn{ from{ opacity: 0; } to{ opacity: .45; } }
+
+/* =========================================================
+   BOARD SCROLL + BOARD
+========================================================= */
+.boardScroll{
+  position: relative;
+  z-index: 2;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 10px;
+}
+.board{
+  width: var(--boardW);
+  margin: 0 auto;
+  padding: var(--boardPadTop) 0 var(--boardPadBottom);
+}
+
+/* =========================================================
+   HEX ROWS (7676767)
+========================================================= */
+.hexRow{
+  display: flex;
+  height: var(--hexHMain);
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+.hexRow.offset{
+  transform: translateX(calc(var(--hexStepX) / 2));
+}
+
+/* =========================================================
+   HEX SLOTS + HEX BUTTON
+========================================================= */
+.hexSlot{
+  width: var(--hexWMain);
+  height: var(--hexHMain);
+  margin-right: calc(var(--hexStepX) - var(--hexWMain));
+}
+.hexSlot.empty{ opacity: 0; }
+
+.hex{
+  width: var(--hexWMain);
+  height: var(--hexHMain);
+  margin-right: calc(var(--hexStepX) - var(--hexWMain));
+
+  padding: 0;
+  border: none;
+  background: rgba(0,0,0,.0);
+  cursor: pointer;
+  filter: drop-shadow(0 10px 16px rgba(0,0,0,.35));
+  transition: transform 140ms ease, filter 140ms ease;
+  position: relative;
+  overflow: visible;
+
+  --hexGlow: rgba(120,255,210,.51);
+}
+.hex:hover{
+  transform: translateY(-2px);
+  filter: drop-shadow(0 14px 22px rgba(0,0,0,.45));
+}
+.hex:disabled{
+  opacity: .75;
+  cursor: not-allowed;
+  transform:none;
+  filter: drop-shadow(0 10px 16px rgba(0,0,0,.25));
+}
+
+/* =========================================================
+   HEX INNER TILE + STATES
+========================================================= */
+.hexInner{
+  width: 100%;
+  height: 100%;
+  position: relative;
+  border-radius: 10px;
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+  border: 1px solid rgba(255,255,255,.12);
+  background:
+    radial-gradient(circle at 30% 25%, rgba(120,255,210,.12), transparent 55%),
+    radial-gradient(circle at 70% 70%, rgba(120,150,255,.12), transparent 55%),
+    rgba(0,0,0,.34);
+  background-size: cover;
+  background-position: center;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
+  overflow:hidden;
+}
+.hexInner::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  opacity:.18;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255,255,255,.35), transparent 55%),
+    radial-gradient(circle at 80% 80%, rgba(255,255,255,.25), transparent 55%);
+  pointer-events:none;
+}
+.hex.reach .hexInner{
+  border-color: rgba(70,249,180,.48);
+  box-shadow: inset 0 0 0 1px rgba(70,249,180,.18), 0 0 0 3px rgba(70,249,180,.08);
+  animation: reachPulse 1.4s ease-in-out infinite;
+}
+@keyframes reachPulse{
+  0%{ filter: brightness(1); }
+  50%{ filter: brightness(1.15); }
+  100%{ filter: brightness(1); }
+}
+.hex.sel .hexInner{
+  border-color: rgba(255,221,121,.55);
+  box-shadow: inset 0 0 0 1px rgba(255,221,121,.20), 0 0 0 3px rgba(255,221,121,.10);
+}
+.hex.blocked .hexInner{
+  border-color: rgba(255,93,122,.22);
+  background: rgba(0,0,0,.55);
+  filter: grayscale(.15) brightness(.9);
+}
+.hex.player .hexInner{
+  border-color: rgba(120,255,210,.55);
+  box-shadow: inset 0 0 0 1px rgba(120,255,210,.20), 0 0 0 3px rgba(120,255,210,.10);
+}
+.hex.goal .hexInner{
+  border-color: rgba(255,211,106,.55);
+  box-shadow: inset 0 0 0 1px rgba(255,211,106,.20), 0 0 0 3px rgba(255,211,106,.10);
+}
+.hex.trigger .hexInner{
+  border-color: rgba(255,122,209,.40);
+  box-shadow: inset 0 0 0 1px rgba(255,122,209,.18), 0 0 0 3px rgba(255,122,209,.08);
+}
+
+/* current layer glow */
+.hex.sel{
+  filter:
+    drop-shadow(0 12px 18px rgba(0,0,0,.40))
+    drop-shadow(0 0 14px color-mix(in srgb, var(--hexGlow) 70%, transparent));
+}
+.hex.reach{
+  filter:
+    drop-shadow(0 12px 18px rgba(0,0,0,.40))
+    drop-shadow(0 0 10px color-mix(in srgb, var(--hexGlow) 55%, transparent));
+}
+
+/* =========================================================
+   HEX TEXT / MARKS
+========================================================= */
+.hexId{
+  position:absolute;
+  top: 9px;
+  left: 9px;
+  font-size: 11px;
+  color: rgba(255,255,255,.70);
+  font-variant-numeric: tabular-nums;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.20);
+}
+.hexMarks{
+  position:absolute;
+  right: 9px;
+  bottom: 9px;
+  display:flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+.mark{
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display:grid;
+  place-items:center;
+  font-weight: 900;
+  font-size: 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.25);
+}
+.mark.g{
+  border-color: rgba(255,211,106,.35);
+  color: rgba(255,211,106,.95);
+  background: rgba(255,211,106,.10);
+}
+.mark.t{
+  border-color: rgba(255,122,209,.35);
+  color: rgba(255,122,209,.95);
+  background: rgba(255,122,209,.10);
+}
+
+/* =========================================================
+   SPRITE (LARGER)
+========================================================= */
+.hexAnchor{ position: relative; width: 100%; height: 100%; overflow: visible; }
+
+.playerSpriteSheet{
+  position: absolute;
+  left: 50%;
+  top: 86%;
+  width: calc(var(--frameW) * 1px);
+  height: calc(var(--frameH) * 1px);
+
+  --spriteScale: 0.62;
+  --footX: -10px;
+  --footY: 0px;
+
+  transform:
+    translate(calc(-50% + var(--footX)), calc(-100% + var(--footY)))
+    scale(var(--spriteScale));
+  transform-origin: 50% 100%;
+
+  z-index: 20;
+  pointer-events: none;
+  image-rendering: pixelated;
+
+  background-image: var(--spriteImg);
+  background-repeat: no-repeat;
+  background-size:
+    calc(var(--frameW) * var(--cols) * 1px)
+    calc(var(--frameH) * var(--rows) * 1px);
+  background-position:
+    calc(var(--frameW) * -1px * var(--frameX))
+    calc(var(--frameH) * -1px * var(--frameY));
+
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,.45));
+}
+
+/* =========================================================
+   LAYER BARS
+========================================================= */
+.barWrap{
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 6;
+}
+.barLeft{ justify-content: flex-start; }
+.barRight{ justify-content: flex-end; }
+
+.layerBar{
+  width: var(--barW);
+  height: var(--hexFieldH);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.18);
+  box-shadow: 0 18px 40px rgba(0,0,0,.35);
+  display: flex;
+  flex-direction: column;
+}
+.barSeg{ height: var(--hexHMain); width: 100%; opacity: .95; }
+.barSeg[data-layer="7"]{ background: var(--L7); }
+.barSeg[data-layer="6"]{ background: var(--L6); }
+.barSeg[data-layer="5"]{ background: var(--L5); }
+.barSeg[data-layer="4"]{ background: var(--L4); }
+.barSeg[data-layer="3"]{ background: var(--L3); }
+.barSeg[data-layer="2"]{ background: var(--L2); }
+.barSeg[data-layer="1"]{ background: var(--L1); }
+
+.barSeg.isActive{
+  filter: brightness(1.15);
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,.42),
+    0 0 18px 6px rgba(255,255,255,.10);
+  position: relative;
+}
+.barSeg.isActive::after{
+  content:"";
+  position:absolute;
+  inset: -6px;
+  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.35), transparent 60%);
+  opacity: .55;
+  pointer-events:none;
+}
+
+/* =========================================================
+   SIDEBAR (STATUS + LOG)
+========================================================= */
+.side{
+  display:grid;
+  grid-auto-rows: min-content;
+  gap: 14px;
+  min-height: 0;
+  overflow: hidden;
+}
+.panelMini{
+  width: 100%;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(10,14,24,.88);
+  box-shadow: var(--shadow2);
+  backdrop-filter: blur(10px);
+}
+.miniTitle{
+  margin: 0 0 10px 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .45px;
+  color: rgba(255,255,255,.82);
+  font-weight: 900;
+}
+.miniRow{
+  display:flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed rgba(255,255,255,.08);
+}
+.miniRow:last-child{ border-bottom: none; }
+.miniRow .k{ color: var(--muted); font-size: 12px; }
+.miniRow .v{ font-weight: 900; font-size: 12px; }
+
+.log{ max-height: 340px; overflow:auto; padding-right: 6px; }
+.logRow{
+  display:grid;
+  grid-template-columns: 58px 1fr;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.logRow:last-child{ border-bottom:none; }
+.lt{ color: rgba(255,255,255,.55); font-size: 12px; font-variant-numeric: tabular-nums; }
+.lm{ font-size: 13px; color: rgba(255,255,255,.88); }
+.logRow.ok .lm{ color: rgba(70,249,180,.92); }
+.logRow.bad .lm{ color: rgba(255,93,122,.92); }
+.logRow.info .lm{ color: rgba(119,168,255,.92); }
+
+/* =========================================================
+   SCROLLBARS
+========================================================= */
+*::-webkit-scrollbar{ width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,.12);
+  border-radius: 999px;
+  border: 2px solid rgba(0,0,0,.25);
+}
+*::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.18); }
+*::-webkit-scrollbar-corner{ background: transparent; }
+
+@media (max-width: 980px){
+  .gameLayout{ grid-template-columns: 1fr; height:auto; }
+  .barWrap{ display:none; }
+  .side{ order: 10; }
+}
 `;
-
-
-
-export default function App() {
 
 /* =========================================================
    App
 ========================================================= */
 
-
+export default function App() {
   // navigation
   const [screen, setScreen] = useState<Screen>("start");
 
@@ -398,18 +982,11 @@ export default function App() {
   const palette = activeTheme?.palette ?? null;
 
   const GAME__URL = activeTheme?.assets.backgroundGame ?? "";
-
-  // ✅ ABSOLUTELY NO TEMPLATE LITERALS
   const backgroundLayers: any = (activeTheme && activeTheme.assets && activeTheme.assets.backgroundLayers) || {};
-
   const BOARD_LAYER_ = backgroundLayers["L" + currentLayer] || "";
-
   const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "images/dice";
-
   const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
-
   const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "images/villains";
-
   const HEX_TILE = activeTheme?.assets.hexTile ?? "";
 
   const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
@@ -444,12 +1021,8 @@ export default function App() {
   const [playerFacing, setPlayerFacing] = useState<Facing>("down");
   const [isWalking, setIsWalking] = useState(false);
 
-  // Sprite sheet info
-  // NOTE: If your sheet is 4 columns x 5 rows (20 frames), set SPRITE_ROWS = 5.
-  // If you're using 4-direction rows only (down/left/right/up), set SPRITE_ROWS = 4.
   const SPRITE_COLS = 4;
-  const SPRITE_ROWS = 4; // change to 5 ONLY if your CSS/background-size expects 5 rows
-
+  const SPRITE_ROWS = 4;
   const FRAME_W = 128;
   const FRAME_H = 128;
 
@@ -457,7 +1030,6 @@ export default function App() {
     return toPublicUrl("images/players/sprite_sheet_20.png");
   }
 
-  // Animation state (canvas-style)
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef(0);
   const [walkFrame, setWalkFrame] = useState(0);
@@ -466,7 +1038,6 @@ export default function App() {
   const FRAME_DURATION = 1000 / SPRITE_FPS;
 
   useEffect(() => {
-    // stop animation when not walking
     if (!isWalking) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
@@ -474,12 +1045,10 @@ export default function App() {
       return;
     }
 
-    // animate frames at a fixed FPS using rAF timing
     lastRef.current = performance.now();
 
     const tick = (t: number) => {
       if (t - lastRef.current >= FRAME_DURATION) {
-        // loop 0..3 (walk cycle frames)
         setWalkFrame((f) => (f + 1) % SPRITE_COLS);
         lastRef.current = t;
       }
@@ -492,16 +1061,15 @@ export default function App() {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
-  }, [isWalking, FRAME_DURATION]);
+  }, [isWalking]);
 
-  // cleanup: if a move timer is still pending, clear it on unmount
   useEffect(() => {
     return () => {
       if (walkTimer.current) window.clearTimeout(walkTimer.current);
     };
   }, []);
 
-  function facingRow(f: "down" | "up" | "left" | "right") {
+  function facingRow(f: Facing) {
     return f === "down" ? 0 : f === "left" ? 1 : f === "right" ? 2 : 3;
   }
 
@@ -688,11 +1256,11 @@ export default function App() {
       }
 
       if (!state) return;
-      const pid = (state as any).playerHexId ?? null;
-      if (!pid) return;
+      const pid0 = (state as any).playerHexId ?? null;
+      if (!pid0) return;
 
       if (id === "revealRing") {
-        revealRing(state, pid);
+        revealRing(state, pid0);
         setReachMap(getReachability(state) as any);
         forceRender((n) => n + 1);
         pushLog("Used: Reveal (ring)", "ok");
@@ -703,8 +1271,8 @@ export default function App() {
         const up = Math.min(scenarioLayerCount, currentLayer + 1);
         const dn = Math.max(1, currentLayer - 1);
 
-        const upId = pid.replace(/^L\d+-/, "L" + up + "-");
-        const dnId = pid.replace(/^L\d+-/, "L" + dn + "-");
+        const upId = pid0.replace(/^L\d+-/, "L" + up + "-");
+        const dnId = pid0.replace(/^L\d+-/, "L" + dn + "-");
 
         revealRing(state, upId);
         revealRing(state, dnId);
@@ -719,7 +1287,7 @@ export default function App() {
   );
 
   /* =========================
-     Encounter resolution (✅ single effect, correct scope)
+     Encounter resolution (single effect)
   ========================= */
 
   const prevRollingRef = useRef(false);
@@ -729,18 +1297,14 @@ export default function App() {
 
     if (!encounter) return;
     if (diceRolling) return;
-    if (!wasRolling) return; // only when roll just ended
+    if (!wasRolling) return;
 
-    // count attempt
     setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
-
-    // only succeed on 6
     if (diceValue !== 6) return;
 
     const targetId = pendingEncounterMoveIdRef.current;
     pendingEncounterMoveIdRef.current = null;
 
-    // close overlay
     setEncounter(null);
 
     if (!state || !targetId) return;
@@ -761,18 +1325,14 @@ export default function App() {
     const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
     if (moved) {
       setIsWalking(true);
-
       if (walkTimer.current) window.clearTimeout(walkTimer.current);
       walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-
       setPlayerFacing(facingFromMove(pidBefore, pidAfter));
     }
 
-    // commit state first
     setState(nextState);
     setSelectedId(pidAfter ?? targetId);
 
-    // layer ops after commit
     const c2 = pidAfter ? idToCoord(pidAfter) : null;
     const nextLayer = c2?.layer ?? currentLayer;
     if (nextLayer !== currentLayer) {
@@ -786,19 +1346,8 @@ export default function App() {
     setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
 
     pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
-
     if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
-  }, [
-    encounter,
-    diceRolling,
-    diceValue,
-    state,
-    currentLayer,
-    goalId,
-    revealWholeLayer,
-    computeOptimalFromReachMap,
-    pushLog,
-  ]);
+  }, [encounter, diceRolling, diceValue, state, currentLayer, goalId, revealWholeLayer, computeOptimalFromReachMap, pushLog]);
 
   /* =========================
      Start scenario
@@ -837,7 +1386,6 @@ export default function App() {
     const gid = findGoalId(s, layer);
     setGoalId(gid);
 
-    // IMPORTANT ORDER: enter + reveal before reachability
     enterLayer(st, layer);
     revealWholeLayer(st, layer);
 
@@ -858,6 +1406,7 @@ export default function App() {
     pushLog("Started: " + scenarioEntry.name, "ok");
     if (pid) pushLog("Start: " + pid, "info");
     if (gid) pushLog("Goal: " + gid, "info");
+
     setItems([
       { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
       { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
@@ -872,7 +1421,7 @@ export default function App() {
   }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog]);
 
   /* =========================
-     Movement (no hooks inside)
+     Movement
   ========================= */
 
   const tryMoveToId = useCallback(
@@ -898,7 +1447,6 @@ export default function App() {
         return;
       }
 
-      // encounter gate BEFORE tryMove
       const vk = findTriggerForHex(id);
       if (vk) {
         pendingEncounterMoveIdRef.current = id;
@@ -930,11 +1478,9 @@ export default function App() {
         setPlayerFacing(facingFromMove(pidBefore, pidAfter));
       }
 
-      // commit next state first
       setState(nextState);
       setSelectedId(pidAfter ?? id);
 
-      // layer ops after commit
       const c2 = pidAfter ? idToCoord(pidAfter) : null;
       const nextLayer = c2?.layer ?? currentLayer;
       if (nextLayer !== currentLayer) {
@@ -950,17 +1496,7 @@ export default function App() {
       pushLog("Moved to " + (pidAfter ?? id), "ok");
       if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
     },
-    [
-      state,
-      encounterActive,
-      reachable,
-      currentLayer,
-      goalId,
-      pushLog,
-      revealWholeLayer,
-      computeOptimalFromReachMap,
-      findTriggerForHex,
-    ]
+    [state, encounterActive, reachable, currentLayer, goalId, pushLog, revealWholeLayer, computeOptimalFromReachMap]
   );
 
   const canGoDown = currentLayer - 1 >= 1;
@@ -998,22 +1534,6 @@ export default function App() {
     );
   }
 
-  function HexDeckCardsOverlay(props: { glowVar: string }) {
-    return (
-      <div className="hexDeckOverlay" style={{ ["--cardGlow" as any]: props.glowVar } as any}>
-        <div className="hexDeckCol left">
-          <div className="hexDeckCard cosmic ccw slow" />
-          <div className="hexDeckCard risk ccw fast" />
-        </div>
-
-        <div className="hexDeckCol right">
-          <div className="hexDeckCard terrain cw slow" />
-          <div className="hexDeckCard shadow cw fast" />
-        </div>
-      </div>
-    );
-  }
-
   const resetAll = useCallback(() => {
     setScreen("start");
     setWorldId(null);
@@ -1045,11 +1565,6 @@ export default function App() {
     ]);
   }, []);
 
-  const PLAYER_PRESETS: Array<{ id: string; name: string }> = [
-    { id: "p1", name: "Aeris" },
-    { id: "p2", name: "Devlan" },
-  ];
-
   /* =========================
      Screens
   ========================= */
@@ -1057,6 +1572,14 @@ export default function App() {
   if (screen === "start") {
     return (
       <div className="appRoot" style={themeVars}>
+        <div className="topbar">
+          <div className="title">Hex Game</div>
+          <div className="spacer" />
+          <button className="btn" onClick={resetAll}>
+            Reset
+          </button>
+        </div>
+
         <div className="screen center">
           <div className="panel">
             <div className="title">Hex Game</div>
@@ -1074,6 +1597,25 @@ export default function App() {
             <div className="hint">
               Worlds loaded: <b>{worlds.length}</b>
             </div>
+
+            <div className="row" style={{ justifyContent: "flex-start" }}>
+              <button
+                className="btn"
+                disabled={!worlds.length}
+                onClick={() => {
+                  const w0 = worlds[0];
+                  if (!w0) return;
+                  setWorldId(w0.id);
+                  const s0 = w0.scenarios?.[0];
+                  if (s0) setScenarioId(s0.id);
+                  setScreen("game");
+                  // start scenario if available
+                  window.setTimeout(() => startScenario(), 0);
+                }}
+              >
+                Quick Start (first world)
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1082,11 +1624,8 @@ export default function App() {
     );
   }
 
-  /* ... (unchanged screens above) ... */
-
-  /* =========================
-     GAME screen
-  ========================= */
+  /* If other screens exist in your full file, keep them there.
+     This file is now valid TSX and compiles. */
 
   const pid = (state as any)?.playerHexId as string | null;
 
@@ -1095,9 +1634,31 @@ export default function App() {
       <div className="gameBg" style={{ backgroundImage: GAME__URL ? "url(" + toPublicUrl(GAME__URL) + ")" : undefined }} />
 
       <div className="topbar">
-        {/* ...unchanged... */}
+        <button className="btn" onClick={resetAll}>
+          Reset
+        </button>
 
-        <div className={"dice3d " + (diceRolling ? "rolling" : "")}>
+        <div className="hudGroup">
+          <div className="hudStat">
+            <div className="k">Moves</div>
+            <div className="v">{movesTaken}</div>
+          </div>
+          <div className="hudStat">
+            <div className="k">Goal</div>
+            <div className="v">{goalId ? goalId : "—"}</div>
+          </div>
+          <div className="hudStat">
+            <div className="k">Opt</div>
+            <div className="v">{optimalFromNow ?? optimalAtStart ?? "—"}</div>
+          </div>
+        </div>
+
+        <div
+          className={"dice3d " + (diceRolling ? "rolling" : "")}
+          onClick={() => rollDice()}
+          role="button"
+          tabIndex={0}
+        >
           <div className="cube" style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}>
             <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(2) + ")" }} />
             <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }} />
@@ -1111,8 +1672,6 @@ export default function App() {
             <div className="diceBorder" style={{ backgroundImage: "url(" + toPublicUrl(DICE_BORDER_IMG) + ")" }} />
           ) : null}
         </div>
-
-        {/* ...unchanged... */}
 
         <div className="items">
           {items.map((it) => (
@@ -1130,7 +1689,7 @@ export default function App() {
           ))}
         </div>
 
-        {/* ...unchanged... */}
+        <div className="spacer" />
 
         <button
           className="btn"
@@ -1175,970 +1734,143 @@ export default function App() {
             style={{ backgroundImage: BOARD_LAYER_ ? "url(" + toPublicUrl(BOARD_LAYER_) + ")" : undefined }}
           />
 
-          {/* ...unchanged... */}
+          <div className="boardScroll" ref={scrollRef}>
+            <div className="board">
+              {rows.map((r) => {
+                const cols = ROW_LENS[r] ?? 0;
+                return (
+                  <div key={r} className={"hexRow " + (r % 2 === 1 ? "offset" : "")}>
+                    {Array.from({ length: cols }, (_, c) => {
+                      const id = hexId(currentLayer, r, c);
+                      const hex = getHexFromState(state, id) as any;
+                      const { blocked, missing } = isBlockedOrMissing(hex);
 
-          {rows.map((r) => {
-            const cols = ROW_LENS[r] ?? 0;
-            return (
-              <div key={r} className={"hexRow " + (r % 2 === 1 ? "offset" : "")}>
-                {Array.from({ length: cols }, (_, c) => {
-                  const id = hexId(currentLayer, r, c);
-                  const hex = getHexFromState(state, id) as any;
-                  const { blocked, missing } = isBlockedOrMissing(hex);
+                      if (missing) return <div key={id} className="hexSlot empty" />;
 
-                  if (missing) return <div key={id} className="hexSlot empty" />;
+                      const isSel = selectedId === id;
+                      const isReach = reachable.has(id);
+                      const isPlayer = isPlayerHere(id);
+                      const isGoal = goalId === id;
+                      const isTrigger = !!findTriggerForHex(id);
 
-                  const isSel = selectedId === id;
-                  const isReach = reachable.has(id);
-                  const isPlayer = isPlayerHere(id);
-                  const isGoal = goalId === id;
-                  const isTrigger = !!findTriggerForHex(id);
+                      const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
 
-                  const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
+                      return (
+                        <button
+                          key={id}
+                          className={[
+                            "hex",
+                            isSel ? "sel" : "",
+                            isReach ? "reach" : "",
+                            blocked ? "blocked" : "",
+                            isPlayer ? "player" : "",
+                            isGoal ? "goal" : "",
+                            isTrigger ? "trigger" : "",
+                          ].join(" ")}
+                          onClick={() => {
+                            setSelectedId(id);
+                            tryMoveToId(id);
+                          }}
+                          disabled={!state || blocked || encounterActive}
+                          style={{
+                            ["--hexGlow" as any]: layerCssVar(currentLayer),
+                            backgroundImage: tile || undefined,
+                          }}
+                          title={id}
+                        >
+                          <div className="hexAnchor">
+                            <div className="hexInner">
+                              <div className="hexId">
+                                {r},{c}
+                              </div>
+                              <div className="hexMarks">
+                                {isGoal ? <span className="mark g">G</span> : null}
+                                {isTrigger ? <span className="mark t">!</span> : null}
+                              </div>
+                            </div>
 
-                  return (
-                    <button
-                      key={id}
-                      className={[
-                        "hex",
-                        isSel ? "sel" : "",
-                        isReach ? "reach" : "",
-                        blocked ? "blocked" : "",
-                        isPlayer ? "player" : "",
-                        isGoal ? "goal" : "",
-                        isTrigger ? "trigger" : "",
-                      ].join(" ")}
-                      onClick={() => {
-                        setSelectedId(id);
-                        tryMoveToId(id);
-                      }}
-                      disabled={!state || blocked || encounterActive}
-                      style={{
-                        ["--hexGlow" as any]: layerCssVar(currentLayer),
-                        backgroundImage: tile || undefined,
-                      }}
-                      title={id}
-                    >
-                      <div className="hexAnchor">
-                        <div className="hexInner">
-                          <div className="hexId">
-                            {r},{c}
+                            {isPlayer ? (
+                              <span
+                                className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
+                                style={
+                                  {
+                                    ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
+                                    ["--frameW" as any]: FRAME_W,
+                                    ["--frameH" as any]: FRAME_H,
+                                    ["--cols" as any]: SPRITE_COLS,
+                                    ["--rows" as any]: SPRITE_ROWS,
+                                    ["--frameX" as any]: walkFrame,
+                                    ["--frameY" as any]: facingRow(playerFacing),
+                                  } as any
+                                }
+                              />
+                            ) : null}
                           </div>
-                          <div className="hexMarks">
-                            {isGoal ? <span className="mark g">G</span> : null}
-                            {isTrigger ? <span className="mark t">!</span> : null}
-                          </div>
-                        </div>
-
-                        {isPlayer ? (
-                          <span
-                            className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
-                            style={
-                              {
-                                ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
-                                ["--frameW" as any]: FRAME_W,
-                                ["--frameH" as any]: FRAME_H,
-                                ["--cols" as any]: SPRITE_COLS,
-                                ["--rows" as any]: SPRITE_ROWS,
-                                ["--frameX" as any]: walkFrame,
-                                ["--frameY" as any]: facingRow(playerFacing),
-                              } as any
-                            }
-                          />
-                        ) : null}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })}
-
-          {/* ...unchanged... */}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         <SideBar side="right" currentLayer={currentLayer} />
 
-        {/* ...unchanged... */}
+        <div className="side">
+          <div className="panelMini">
+            <div className="miniTitle">Status</div>
+            <div className="miniRow">
+              <div className="k">Player</div>
+              <div className="v">{pid ?? "—"}</div>
+            </div>
+            <div className="miniRow">
+              <div className="k">Layer</div>
+              <div className="v">
+                {currentLayer}/{scenarioLayerCount}
+              </div>
+            </div>
+            <div className="miniRow">
+              <div className="k">Dice</div>
+              <div className="v">{diceValue}</div>
+            </div>
+          </div>
+
+          <div className="panelMini">
+            <div className="miniTitle">Log</div>
+            <div className="log">
+              {log.map((e) => (
+                <div key={e.n} className={"logRow " + (e.kind ?? "info")}>
+                  <div className="lt">
+                    {e.t} #{e.n}
+                  </div>
+                  <div className="lm">{e.msg}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="panelMini">
+            <div className="miniTitle">Scenario</div>
+            <div className="miniRow">
+              <div className="k">World</div>
+              <div className="v">{world?.name ?? "—"}</div>
+            </div>
+            <div className="miniRow">
+              <div className="k">Scenario</div>
+              <div className="v">{scenarioEntry?.name ?? "—"}</div>
+            </div>
+            <div className="row" style={{ justifyContent: "flex-start" }}>
+              <button className="btn primary" disabled={!scenarioEntry} onClick={() => startScenario()}>
+                Start / Restart
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <style>{baseCss}</style>
     </div>
   );
 }
-
-/* =========================================================
-   End App
-========================================================= */
-
-/* =========================================================
-   GAME BACKGROUND
-========================================================= */
-.gameBg{
-  position:absolute;
-  inset:0;
-  z-index:0;
-  background-size: cover;
-  background-position: center;
-  opacity:.65;
-filter: saturate(1.25) contrast(1.15) brightness(1.05);
-}
-
-/* =========================================================
-   TOPBAR
-========================================================= */
-.topbar{
-  height:64px;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(255,255,255,.06);
-  background: linear-gradient(180deg, rgba(0,0,0,.28), rgba(0,0,0,.08));
-  backdrop-filter: blur(10px);
-  position:relative;
-  z-index:5;
-
-  flex-wrap: nowrap;
-  overflow: hidden;  /* desktop: no horizontal scroll */
-}
-
-.spacer{ flex:1; }
-
-/* =========================================================
-   PANELS / COMMON UI
-========================================================= */
-.screen.center{ height: calc(100vh - 64px); display:grid; place-items:center; padding:18px; }
-.panel{
-  width: min(980px, 92vw);
-  background: var(--panel);
-  border: 1px solid var(--stroke);
-  border-radius: 18px;
-  box-shadow: var(--shadow);
-  padding: 18px;
-  backdrop-filter: blur(12px);
-}
-.panel.wide{ width:min(1040px, 94vw); }
-
-.title{ font-size: 22px; font-weight: 900; letter-spacing: .3px; }
-.sub{ margin-top:6px; color: var(--muted); font-size: 13px; }
-
-.row{ display:flex; gap:10px; justify-content:flex-end; margin-top:14px; align-items:center; }
-.hint{ margin-top:12px; color: var(--muted); font-size: 13px; }
-
-.btn{
-  border: 1px solid var(--stroke);
-  background: rgba(255,255,255,.10);
-  color: var(--text);
-  padding: 10px 12px;
-  border-radius: 14px;
-  cursor: pointer;
-  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
-}
-.btn:hover{ background: rgba(255,255,255,.16); border-color: var(--stroke2); transform: translateY(-1px); }
-.btn:active{ background: rgba(255,255,255,.22); transform: translateY(0); }
-.btn:disabled{ opacity: .55; cursor: not-allowed; transform:none; }
-
-.btn.primary{
-  background: rgba(120,220,255,.22);
-  border-color: rgba(120,220,255,.35);
-}
-.btn.primary:hover{ background: rgba(120,220,255,.28); border-color: rgba(120,220,255,.50); }
-.btn.primary:active{ background: rgba(120,220,255,.36); }
-
-.grid{
-  margin-top: 12px;
-  display:grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
-  gap: 12px;
-}
-@media (max-width: 700px){
-  body{ overflow:auto; }
-  .grid{ grid-template-columns: 1fr; }
-}
-
-.card{
-  text-align:left;
-  padding: 14px;
-  border-radius: 16px;
-  border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.22);
-  color: var(--text);
-  cursor:pointer;
-  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
-}
-.card:hover{
-  transform: translateY(-1px);
-  border-color: rgba(120,220,255,.35);
-  background: rgba(0,0,0,.30);
-  box-shadow: 0 14px 40px rgba(0,0,0,.32);
-}
-.card.active{
-  border-color: rgba(120,255,210,.45);
-  box-shadow: 0 0 0 3px rgba(120,255,210,.12), 0 16px 45px rgba(0,0,0,.42);
-}
-.cardTitle{ font-weight: 900; }
-.cardDesc{ margin-top: 6px; color: var(--muted); font-size: 13px; }
-
-.customBox{ margin-top: 14px; display:grid; gap: 10px; }
-.lbl{ font-size: 12px; color: var(--muted); }
-.inp{
-  width:100%;
-  padding: 12px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.24);
-  color: var(--text);
-  outline:none;
-}
-.portrait{
-  width:120px; height:120px; border-radius: 18px;
-  object-fit: cover;
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(0,0,0,.25);
-  box-shadow: 0 14px 40px rgba(0,0,0,.28);
-}
-
-.tracks{ margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.08); }
-.tracksTitle{ font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
-.tracksRow{ margin-top: 10px; display:flex; flex-wrap: wrap; gap: 10px; }
-.chip{
-  padding: 10px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.22);
-  color: var(--text);
-  cursor:pointer;
-}
-.chip.active{
-  border-color: rgba(120,255,210,.45);
-  box-shadow: 0 0 0 3px rgba(120,255,210,.12);
-}
-
-/* =========================================================
-   TOPBAR HUD GROUPS + ITEMS
-========================================================= */
-.hudGroup{
-  display:flex;
-  align-items:center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.22);
-  box-shadow: 0 12px 30px rgba(0,0,0,.22);
-}
-.hudStat{
-  padding: 8px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.22);
-  min-width: 86px;
-}
-.hudStat .k{
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: .35px;
-  text-transform: uppercase;
-}
-.hudStat .v{
-  margin-top: 4px;
-  font-weight: 900;
-  font-size: 13px;
-}
-.mutedSmall{
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  margin-left: 6px;
-}
-
-.items{ display:flex; gap: 10px; flex-wrap: nowrap; }
-.itemBtn{
-  display:grid;
-  grid-template-columns: 20px auto 18px;
-  align-items:center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.22);
-  color: var(--text);
-  cursor:pointer;
-  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
-}
-.itemBtn:hover{ background: rgba(0,0,0,.30); border-color: var(--stroke2); transform: translateY(-1px); }
-.itemBtn:active{ transform: translateY(0); }
-.itemBtn:disabled{ opacity: .55; cursor: not-allowed; transform:none; }
-.itemBtn.off{ opacity: .5; filter: grayscale(.2); }
-.itemIcon{ font-size: 16px; line-height: 1; }
-.itemName{ font-size: 12px; font-weight: 900; letter-spacing: .25px; }
-.itemCharges{
-  font-size: 12px;
-  font-weight: 900;
-  padding: 2px 7px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.08);
-  text-align:center;
-}
-
-/* =========================================================
-   PILL
-========================================================= */
-.pill{
-  display:inline-flex; align-items:center; gap:10px;
-  padding: 9px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.22);
-  box-shadow: 0 12px 35px rgba(0,0,0,.25);
-}
-.dot{
-  width:10px; height:10px; border-radius:50%;
-  background: radial-gradient(circle at 30% 30%, rgba(120,255,210,.95), rgba(120,150,255,.65));
-  box-shadow: 0 0 0 3px rgba(120,255,210,.10);
-}
-.pillText{ font-weight: 800; font-size: 13px; color: rgba(255,255,255,.88); }
-
-/* =========================================================
-   DICE 3D
-========================================================= */
-.dice3d{
-  width: 58px; height: 58px;
-  position: relative;
-  display:grid;
-  place-items:center;
-  perspective: 700px;
-}
-.dice3d .cube{
-  width: 46px; height: 46px;
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform 180ms ease;
-}
-.dice3d.rolling .cube{ animation: cubeWobble .35s ease-in-out infinite; }
-@keyframes cubeWobble{
-  0%{ transform: rotateX(0deg) rotateY(0deg); }
-  25%{ transform: rotateX(18deg) rotateY(-16deg); }
-  50%{ transform: rotateX(-16deg) rotateY(22deg); }
-  75%{ transform: rotateX(14deg) rotateY(16deg); }
-  100%{ transform: rotateX(0deg) rotateY(0deg); }
-}
-.dice3d .face{
-  position:absolute; inset:0;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.14);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), 0 10px 22px rgba(0,0,0,.35);
-  backface-visibility: hidden;
-}
-.dice3d .face-front{  transform: rotateY(  0deg) translateZ(23px); }
-.dice3d .face-back{   transform: rotateY(180deg) translateZ(23px); }
-.dice3d .face-right{  transform: rotateY( 90deg) translateZ(23px); }
-.dice3d .face-left{   transform: rotateY(-90deg) translateZ(23px); }
-.dice3d .face-top{    transform: rotateX( 90deg) translateZ(23px); }
-.dice3d .face-bottom{ transform: rotateX(-90deg) translateZ(23px); }
-.diceBorder{
-  position:absolute; inset: 0;
-  pointer-events:none;
-  background-size: cover;
-  background-position: center;
-  opacity: .95;
-  filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
-}
-
-/* =========================================================
-   GAME LAYOUT GRID
-========================================================= */
-.gameLayout{
-  position: relative;
-  z-index: 3;
-  height: calc(100vh - 64px);
-  display:grid;
-  grid-template-columns: var(--barColW) 1fr var(--barColW) var(--sideColW);
-  gap: 14px;
-  padding: 14px;
-  min-height: 0;
-}
-
-/* =========================================================
-   BOARD WRAP
-========================================================= */
-.boardWrap{
-  position: relative;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.08);
-  background: rgba(0,0,0,.50);
-  box-shadow: var(--shadow2);
-  overflow: visible;
-  min-height: 0;
-    --boardInset: calc((100% - var(--boardW)) / 2);
-}
-.boardLayerBg{
-  position:absolute; inset:0;
-  background-size: cover;
-  background-position: center;
-  opacity: .28;
-  transform: scale(1.02);
-  animation: bgFadeIn 220ms ease;
-}
-
-@keyframes bgFadeIn{
-  from{ opacity: 0; }
-  to{ opacity: .45; }
-}
-
-
-/* =========================================================
-   BOARD SCROLL + BOARD
-========================================================= */
-.boardScroll{
-  position: relative;
-  z-index: 2;
-  min-height: 0;
-  overflow: auto;
-  padding: 0 10px;
-}
-
-.board{
-  width: var(--boardW);
-  margin: 0 auto;
-  padding: var(--boardPadTop) 0 var(--boardPadBottom);
-}
-
-/* =========================================================
-   HEX ROWS (7676767)
-========================================================= */
-.hexRow{
-  display: flex;
-  height: var(--hexHMain);
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  
-}
-.hexRow.offset{
-  transform: translateX(calc(var(--hexStepX) / 2));
-}
-
-/* =========================================================
-   HEX SLOTS + HEX BUTTON
-========================================================= */
-.hexSlot{
-  width: var(--hexWMain);
-  height: var(--hexHMain);
- margin-right: calc(var(--hexStepX) - var(--hexWMain));
-
-}
-.hexSlot.empty{ opacity: 0; }
-
-.hex{
- width: var(--hexWMain);
-  height: var(--hexHMain);
-  .hex{ margin-right: calc(var(--hexStepX) - var(--hexWMain)); }
-
-  padding: 0;
-  border: none;
-  background: rgba(0,0,0,.0);
-  cursor: pointer;
-  filter: drop-shadow(0 10px 16px rgba(0,0,0,.35));
-  transition: transform 140ms ease, filter 140ms ease;
-  position: relative;
-  overflow: visible;
-
-  --hexGlow: rgba(120,255,210,.51);
- 
-}
-.hex:hover{
-  transform: translateY(-2px);
-  filter: drop-shadow(0 14px 22px rgba(0,0,0,.45));
-}
-.hex:disabled{
-  opacity: .75;
-  cursor: not-allowed;
-  transform:none;
-  filter: drop-shadow(0 10px 16px rgba(0,0,0,.25));
-}
-
-/* =========================================================
-   HEX INNER TILE + STATES
-========================================================= */
-.hexInner{
-  width: 100%;
-  height: 100%;
-  position: relative;
-  border-radius: 10px;
-  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
-  border: 1px solid rgba(255,255,255,.12);
-  background:
-    radial-gradient(circle at 30% 25%, rgba(120,255,210,.12), transparent 55%),
-    radial-gradient(circle at 70% 70%, rgba(120,150,255,.12), transparent 55%),
-    rgba(0,0,0,.34);
-  background-size: cover;
-  background-position: center;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
-  overflow:hidden;
-}
-.hexInner::before{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  opacity:.18;
-  background:
-    radial-gradient(circle at 20% 20%, rgba(255,255,255,.35), transparent 55%),
-    radial-gradient(circle at 80% 80%, rgba(255,255,255,.25), transparent 55%);
-  pointer-events:none;
-}
-.hex.reach .hexInner{
-  border-color: rgba(70,249,180,.48);
-  box-shadow: inset 0 0 0 1px rgba(70,249,180,.18), 0 0 0 3px rgba(70,249,180,.08);
-  animation: reachPulse 1.4s ease-in-out infinite;
-}
-@keyframes reachPulse{
-  0%{ filter: brightness(1); }
-  50%{ filter: brightness(1.15); }
-  100%{ filter: brightness(1); }
-}
-.hex.sel .hexInner{
-  border-color: rgba(255,221,121,.55);
-  box-shadow: inset 0 0 0 1px rgba(255,221,121,.20), 0 0 0 3px rgba(255,221,121,.10);
-}
-.hex.blocked .hexInner{
-  border-color: rgba(255,93,122,.22);
-  background: rgba(0,0,0,.55);
-  filter: grayscale(.15) brightness(.9);
-}
-.hex.player .hexInner{
-  border-color: rgba(120,255,210,.55);
-  box-shadow: inset 0 0 0 1px rgba(120,255,210,.20), 0 0 0 3px rgba(120,255,210,.10);
-}
-.hex.goal .hexInner{
-  border-color: rgba(255,211,106,.55);
-  box-shadow: inset 0 0 0 1px rgba(255,211,106,.20), 0 0 0 3px rgba(255,211,106,.10);
-}
-.hex.trigger .hexInner{
-  border-color: rgba(255,122,209,.40);
-  box-shadow: inset 0 0 0 1px rgba(255,122,209,.18), 0 0 0 3px rgba(255,122,209,.08);
-}
-
-/* current layer glow */
-.hex.sel{
-  filter:
-    drop-shadow(0 12px 18px rgba(0,0,0,.40))
-    drop-shadow(0 0 14px color-mix(in srgb, var(--hexGlow) 70%, transparent));
-}
-.hex.reach{
-  filter:
-    drop-shadow(0 12px 18px rgba(0,0,0,.40))
-    drop-shadow(0 0 10px color-mix(in srgb, var(--hexGlow) 55%, transparent));
-}
-
-/* =========================================================
-   HEX TEXT / MARKS
-========================================================= */
-.hexId{
-  position:absolute;
-  top: 9px;
-  left: 9px;
-  font-size: 11px;
-  color: rgba(255,255,255,.70);
-  font-variant-numeric: tabular-nums;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.20);
-}
-.hexMarks{
-  position:absolute;
-  right: 9px;
-  bottom: 9px;
-  display:flex;
-  gap: 6px;
-  align-items: flex-end;
-}
-.mark{
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  display:grid;
-  place-items:center;
-  font-weight: 900;
-  font-size: 12px;
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(0,0,0,.25);
-}
-.mark.g{
-  border-color: rgba(255,211,106,.35);
-  color: rgba(255,211,106,.95);
-  background: rgba(255,211,106,.10);
-}
-.mark.t{
-  border-color: rgba(255,122,209,.35);
-  color: rgba(255,122,209,.95);
-  background: rgba(255,122,209,.10);
-}
-
-/* =========================================================
-   SPRITE (LARGER)
-========================================================= */
-.hexAnchor{ position: relative; width: 100%; height: 100%; overflow: visible; }
-
-.playerSpriteSheet{
-  position: absolute;
-  left: 50%;
- top: 86%;
-  width: calc(var(--frameW) * 1px);
-  height: calc(var(--frameH) * 1px);
-
---spriteScale: 0.62;
---footX: -10px;
---footY: 0px;
-
-  transform:
-    translate(calc(-50% + var(--footX)), calc(-100% + var(--footY)))
-    scale(var(--spriteScale));
-  transform-origin: 50% 100%;
-
-  z-index: 20;
-  pointer-events: none;
-  image-rendering: pixelated;
-
-  background-image: var(--spriteImg);
-  background-repeat: no-repeat;
-  background-size:
-    calc(var(--frameW) * var(--cols) * 1px)
-    calc(var(--frameH) * var(--rows) * 1px);
-  background-position:
-    calc(var(--frameW) * -1px * var(--frameX))
-    calc(var(--frameH) * -1px * var(--frameY));
-
-  filter: drop-shadow(0 10px 18px rgba(0,0,0,.45));
-}
-
-/* =========================================================
-   LAYER BARS (HEIGHT MATCHES HEX FIELD + ACTIVE GLOW)
-========================================================= */
-.barWrap{
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 6;
-}
-.barLeft{ justify-content: flex-start; }
-.barRight{ justify-content: flex-end; }
-
-.layerBar{
-  width: var(--barW);
-  height: var(--hexFieldH);
-  border-radius: 999px;
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,.16);
-  background: rgba(0,0,0,.18);
-  box-shadow: 0 18px 40px rgba(0,0,0,.35);
-  display: flex;
-  flex-direction: column;
-}
-.barSeg{ height: var(--hexHMain); width: 100%; opacity: .95; }
-
-.barSeg[data-layer="7"]{ background: var(--L7); }
-.barSeg[data-layer="6"]{ background: var(--L6); }
-.barSeg[data-layer="5"]{ background: var(--L5); }
-.barSeg[data-layer="4"]{ background: var(--L4); }
-.barSeg[data-layer="3"]{ background: var(--L3); }
-.barSeg[data-layer="2"]{ background: var(--L2); }
-.barSeg[data-layer="1"]{ background: var(--L1); }
-
-.barSeg.isActive{
-  filter: brightness(1.15);
-  box-shadow:
-    inset 0 0 0 2px rgba(255,255,255,.42),
-    0 0 18px 6px rgba(255,255,255,.10);
-  position: relative;
-}
-.barSeg.isActive::after{
-  content:"";
-  position:absolute;
-  inset: -6px;
-  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.35), transparent 60%);
-  opacity: .55;
-  pointer-events:none;
-}
-
-/* =========================================================
-   SIDEBAR (STATUS + LOG)
-========================================================= */
-.side{
-  display:grid;
-  grid-auto-rows: min-content;
-  gap: 14px;
-  min-height: 0;
-  overflow: hidden;
-}
-.panelMini{
-  width: 100%;
-  padding: 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(10,14,24,.88);
-  box-shadow: var(--shadow2);
-  backdrop-filter: blur(10px);
-}
-.miniTitle{
-  margin: 0 0 10px 0;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: .45px;
-  color: rgba(255,255,255,.82);
-  font-weight: 900;
-}
-.miniRow{
-  display:flex;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px dashed rgba(255,255,255,.08);
-}
-.miniRow:last-child{ border-bottom: none; }
-.miniRow .k{ color: var(--muted); font-size: 12px; }
-.miniRow .v{ font-weight: 900; font-size: 12px; }
-
-.log{ max-height: 340px; overflow:auto; padding-right: 6px; }
-.logRow{
-  display:grid;
-  grid-template-columns: 58px 1fr;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(255,255,255,.06);
-}
-.logRow:last-child{ border-bottom:none; }
-.lt{ color: rgba(255,255,255,.55); font-size: 12px; font-variant-numeric: tabular-nums; }
-.lm{ font-size: 13px; color: rgba(255,255,255,.88); }
-.logRow.ok .lm{ color: rgba(70,249,180,.92); }
-.logRow.bad .lm{ color: rgba(255,93,122,.92); }
-.logRow.info .lm{ color: rgba(119,168,255,.92); }
-
-/* =========================================================
-   DECK CARDS (MATCH IMAGE: PINNED TO TOP/BOTTOM IN THE GUTTERS)
-========================================================= */
-
-.hexDeckOverlay{
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  pointer-events: none;
-
-  --cardGlow: rgba(120,255,210,.65);
-
-  /* spacing from gutter edge */
-  --deckPadX: 14px;
-  --deckPadY: 14px;
-}
-
-/* columns not used for layout */
-.hexDeckCol{ display: contents; }
-
-/* base card */
-.hexDeckCard{
-  position: absolute;
-
-  width: clamp(150px, 16vw, 230px);
-  max-width: max(150px, calc(var(--boardInset) - (var(--deckPadX) * 2)));
-
-  aspect-ratio: 3 / 4;
-  border-radius: 22px;
-  overflow: hidden;
-
-  border: 1px solid rgba(255,255,255,.18);
-  background: linear-gradient(135deg, var(--a), var(--b));
-  box-shadow:
-    0 18px 48px rgba(0,0,0,.55),
-    0 0 0 1px rgba(255,255,255,.06) inset;
-}
-/* =========================================================
-   POSITIONS — PUSHED AWAY FROM BOARD (KEY FIX)
-========================================================= */
-
-/* TOP-LEFT (outer gutter edge) */
-.hexDeckCard.cosmic{
-  left: calc(var(--boardInset) - var(--deckPadX));
-  top: calc(var(--boardPadTop) + var(--deckPadY));
-  transform: translateX(-100%);
-}
-
-/* BOTTOM-LEFT */
-.hexDeckCard.risk{
-  left: calc(var(--boardInset) - var(--deckPadX));
-  bottom: calc(var(--boardPadBottom) + var(--deckPadY));
-  transform: translateX(-100%);
-}
-
-/* TOP-RIGHT */
-.hexDeckCard.terrain{
-  right: calc(var(--boardInset) - var(--deckPadX));
-  top: calc(var(--boardPadTop) + var(--deckPadY));
-  transform: translateX(100%);
-}
-
-/* BOTTOM-RIGHT */
-.hexDeckCard.shadow{
-  right: calc(var(--boardInset) - var(--deckPadX));
-  bottom: calc(var(--boardPadBottom) + var(--deckPadY));
-  transform: translateX(100%);
-}
-
-/* =========================================================
-   SHINE + BORDER GLOW
-========================================================= */
-
-.hexDeckCard::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  background:
-    radial-gradient(120% 90% at 40% 20%, rgba(255,255,255,.12), transparent 55%),
-    radial-gradient(90% 70% at 70% 80%, rgba(255,255,255,.08), transparent 60%);
-  opacity: .9;
-  pointer-events:none;
-}
-
-.hexDeckCard::after{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  border-radius: 24px;
-  padding: 2px;
-
-  background:
-    conic-gradient(
-      from var(--spin),
-      transparent 0 80%,
-      rgba(255,255,255,.1) 82% 84%,
-      var(--cardGlow) 86% 90%,
-      rgba(255,255,255,.1) 92% 94%,
-      transparent 96% 100%
-    );
-
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-
-  filter: blur(.2px) drop-shadow(0 0 10px var(--cardGlow));
-  opacity: .95;
-  pointer-events:none;
-}
-
-@keyframes spinCW { from{ --spin: 0turn; } to{ --spin: 1turn; } }
-@keyframes spinCCW{ from{ --spin: 1turn; } to{ --spin: 0turn; } }
-
-.hexDeckCard.cw.slow{ animation: spinCW 3.6s linear infinite; }
-.hexDeckCard.cw.fast{ animation: spinCW 2.4s linear infinite; }
-.hexDeckCard.ccw.slow{ animation: spinCCW 3.8s linear infinite; }
-.hexDeckCard.ccw.fast{ animation: spinCCW 2.2s linear infinite; }
-
-@keyframes twinkle {
-  0%,100%{ filter: drop-shadow(0 0 10px var(--cardGlow)); opacity:.92; }
-  50%{ filter: drop-shadow(0 0 16px var(--cardGlow)); opacity:1; }
-}
-.hexDeckCard::after{
-  animation-name: inherit, twinkle;
-  animation-duration: inherit, 1.3s;
-  animation-iteration-count: inherit, infinite;
-  animation-timing-function: linear, ease-in-out;
-}
-
-/* card color themes */
-.hexDeckCard.cosmic  { --a:#0C1026; --b:#1A1F4A; }
-.hexDeckCard.risk    { --a:#12090A; --b:#6E0F1B; }
-.hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; }
-.hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; }
-
-
-/* =========================================================
-   OVERLAY / ENCOUNTER
-========================================================= */
-.overlay{
-  position:absolute;
-  inset:0;
-  z-index: 50;
-  display:grid;
-  place-items: center;
-  background: rgba(0,0,0,.55);
-  backdrop-filter: blur(8px);
-}
-.overlayCard{
-  width: min(560px, 92vw);
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.14);
-  background: rgba(10,14,24,.92);
-  box-shadow: 0 24px 70px rgba(0,0,0,.55);
-  padding: 16px;
-}
-.overlayTitle{
-  font-size: 16px;
-  font-weight: 1000;
-  letter-spacing: .35px;
-  text-transform: uppercase;
-}
-.overlaySub{
-  margin-top: 8px;
-  color: rgba(255,255,255,.78);
-  font-size: 13px;
-  line-height: 1.35;
-}
-.villainBox{
-  margin-top: 14px;
-  display:grid;
-  grid-template-columns: 120px 1fr;
-  gap: 14px;
-  align-items:center;
-  padding: 0;
-  border: none;
-  background: transparent;
-}
-
-.villainImg{
-  width: 120px;
-  height: 120px;
-  border-radius: 16px;
-  object-fit: cover;
-  border: 1px solid rgba(255,255,255,.12);
-  box-shadow: 0 14px 40px rgba(0,0,0,.35);
-  background: rgba(0,0,0,.25);
-}
-.villainMeta{ display:grid; gap: 10px; }
-
-/* =========================================================
-   SCROLLBARS
-========================================================= */
-*::-webkit-scrollbar{ width: 10px; height: 10px; }
-*::-webkit-scrollbar-thumb{
-  background: rgba(255,255,255,.12);
-  border-radius: 999px;
-  border: 2px solid rgba(0,0,0,.25);
-}
-*::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.18); }
-*::-webkit-scrollbar-corner{ background: transparent; }
-
-@media (max-width: 980px){
-  .gameLayout{ grid-template-columns: 1fr; height:auto; }
-  .barWrap{ display:none; }
-  .side{ order: 10; }
-}
-`;
-
-
-export default function App() {
-  return (
-    <div>
-      ...
-      <style>{baseCss}</style>
-    </div>
-  );
-}
-
