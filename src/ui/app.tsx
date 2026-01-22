@@ -1992,7 +1992,7 @@ export default function App() {
   // Keep your existing "world", "character", "scenario" screens above this point.
   // Only drop in the updated GAME screen below.
 
-  /  /* =========================
+ /* =========================
      GAME screen
   ========================= */
 
