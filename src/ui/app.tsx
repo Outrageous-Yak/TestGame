@@ -718,7 +718,7 @@ body{
   overflow: hidden;           /* ✅ important: contain scroll/overlays */
   min-height: 0;
 
-  --boardInset: calc((100% - var(--boardW)) / 2);
+--boardInset: calc((100% - (var(--barColW) * 2) - var(--boardW)) / 2);
 
   display: grid;
   grid-template-columns: var(--barColW) 1fr var(--barColW);
@@ -1030,7 +1030,7 @@ flex: 0 0 var(--hexWMain);
 .hexDeckOverlay{
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 7;
   pointer-events: none;
 
   --cardGlow: rgba(120,255,210,.65);
@@ -1058,22 +1058,22 @@ flex: 0 0 var(--hexWMain);
 
 /* positions */
 .hexDeckCard.cosmic{
-  left: calc(var(--boardInset) - var(--deckPadX));
+  left: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
   top: calc(var(--boardPadTop) + var(--deckPadY));
   transform: translateX(-100%);
 }
 .hexDeckCard.risk{
-  left: calc(var(--boardInset) - var(--deckPadX));
+  left: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
   bottom: calc(var(--boardPadBottom) + var(--deckPadY));
   transform: translateX(-100%);
 }
 .hexDeckCard.terrain{
-  right: calc(var(--boardInset) - var(--deckPadX));
+  right: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
   top: calc(var(--boardPadTop) + var(--deckPadY));
   transform: translateX(100%);
 }
 .hexDeckCard.shadow{
-  right: calc(var(--boardInset) - var(--deckPadX));
+  right: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
   bottom: calc(var(--boardPadBottom) + var(--deckPadY));
   transform: translateX(100%);
 }
