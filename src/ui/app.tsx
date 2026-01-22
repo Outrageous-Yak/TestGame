@@ -715,16 +715,16 @@ body{
   border: 1px solid rgba(255,255,255,.08);
   background: rgba(0,0,0,.50);
   box-shadow: var(--shadow2);
-  overflow: visible;
+  overflow: hidden;           /* ✅ important: contain scroll/overlays */
   min-height: 0;
 
   --boardInset: calc((100% - var(--boardW)) / 2);
 
-  /* ✅ NEW: bars + board in one container */
   display: grid;
   grid-template-columns: var(--barColW) 1fr var(--barColW);
-  align-items: center;
+  align-items: stretch;       /* ✅ WAS center — this is the big bug */
 }
+
 
 .boardLayerBg{
   position:absolute; inset:0;
@@ -733,6 +733,7 @@ body{
   opacity: .28;
   transform: scale(1.02);
   animation: bgFadeIn 220ms ease;
+  z-index: 1;
 }
 @keyframes bgFadeIn{
   from{ opacity: 0; }
@@ -740,15 +741,15 @@ body{
 }
 
 .boardScroll{
-grid-column: 2;
-
-
+  grid-column: 2;
   position: relative;
-  z-index: 2;
+  z-index: 3;          /* above bg + overlay */
+  height: 100%;        /* ✅ make it fill the stretched cell */
   min-height: 0;
   overflow: auto;
   padding: 0 10px;
 }
+
 .barWrap.barLeft{ grid-column: 1; }
 .barWrap.barRight{ grid-column: 3; }
 .board{
@@ -777,12 +778,14 @@ grid-column: 2;
    ✅ FIX: removed invalid nested ".hex{ .hex{ ... } }"
 ========================================================= */
 .hexSlot{
-  width: var(--hexWMain);
+  width: var(--hexStepX);
   height: var(--hexHMain);
-  margin-right: calc(var(--hexStepX) - var(--hexWMain));
-  flex: 0 0 var(--hexWMain);
+  display: grid;
+  place-items: center;
+  flex: 0 0 var(--hexStepX);
 }
 .hexSlot.empty{ opacity: 0; }
+
 .hex{
   width: var(--hexWMain);
   height: var(--hexHMain);
@@ -1027,7 +1030,7 @@ flex: 0 0 var(--hexWMain);
 .hexDeckOverlay{
   position: absolute;
   inset: 0;
-  z-index: 4;
+  z-index: 2;
   pointer-events: none;
 
   --cardGlow: rgba(120,255,210,.65);
