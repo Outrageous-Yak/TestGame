@@ -1257,12 +1257,39 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // reachability
-  const [reachMap, setReachMap] = useState<ReachMap>({} as ReachMap);
-  const reachable = useMemo(() => {
-    const set = new Set<string>();
-    for (const [k, v] of Object.entries(reachMap as any)) if ((v as any)?.reachable) set.add(k);
-    return set;
-  }, [reachMap]);
+ // reachability (NEIGHBORS ONLY)
+const [reachMap, setReachMap] = useState<ReachMap>({} as ReachMap);
+
+// ids you can move to in ONE step
+const reachable = useMemo(() => {
+  const set = new Set<string>();
+  if (!state) return set;
+
+  const pid = (state as any).playerHexId as string | null;
+  if (!pid) return set;
+
+  let nbs: string[] = [];
+  try {
+    // preferred signature
+    nbs = (neighborIdsSameLayer as any)(state, pid) as string[];
+  } catch {
+    try {
+      // fallback signature
+      nbs = (neighborIdsSameLayer as any)(pid) as string[];
+    } catch {
+      nbs = [];
+    }
+  }
+
+  for (const id of nbs) {
+    const hex = getHexFromState(state, id) as any;
+    const { blocked, missing } = isBlockedOrMissing(hex);
+    if (!blocked && !missing) set.add(id);
+  }
+
+  return set;
+}, [state]);
+
 useEffect(() => {
   if (!state) return;
   setReachMap(getReachability(state));
@@ -1772,10 +1799,14 @@ useEffect(() => {
 
       const pidBefore = (state as any).playerHexId as string | null;
 
-      if (pidBefore && id !== pidBefore && reachable.size > 0 && !reachable.has(id)) {
-        pushLog("Not reachable.", "bad");
-        return;
-      }
+    // only allow ONE-step neighbor moves
+if (pidBefore && id !== pidBefore) {
+  if (!reachable.has(id)) {
+    pushLog("Not a neighbor move.", "bad");
+    return;
+  }
+}
+
 
       // encounter gate BEFORE tryMove
       const vk = findTriggerForHex(id);
@@ -2144,7 +2175,8 @@ const isReach =
                             setSelectedId(id);
                             tryMoveToId(id);
                           }}
-                          disabled={!state || blocked || encounterActive}
+                         disabled={!state || blocked || encounterActive || (!isPlayer && !reachable.has(id))}
+
                           style={{ ["--hexGlow" as any]: layerCssVar(currentLayer) } as any}
                           title={id}
                         >
