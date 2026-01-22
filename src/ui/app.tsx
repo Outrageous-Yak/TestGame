@@ -333,8 +333,8 @@ const baseCss = `
   --hexHMain: 84px;
   --hexStepX: 72px; /* horizontal spacing between centers */
 
-  /* derived: used by bars */
-  --hexFieldH: calc(var(--hexHMain) * 7);
+  /* derived: used by bars (match board height incl padding) */
+  --hexFieldH: calc((var(--hexHMain) * 7) + var(--boardPadTop) + var(--boardPadBottom));
 
   /* side columns */
   --barColW: 86px;
@@ -933,7 +933,7 @@ flex: 0 0 var(--hexWMain);
   width: calc(var(--frameW) * 1px);
   height: calc(var(--frameH) * 1px);
 
-  --spriteScale: 0.62;
+  --spriteScale: 0.78;  /* medium bigger */
   --footX: -10px;
   --footY: 0px;
 
@@ -1935,6 +1935,45 @@ export default function App() {
       </div>
     );
   }
+  if (screen !== "game") {
+    return (
+      <div className="appRoot" style={themeVars}>
+        <div className="screen center">
+          <div className="panel">
+            <div className="title">Not in game yet</div>
+            <div className="sub">Screen: {screen}</div>
+
+            <div className="hint" style={{ marginTop: 12 }}>
+              Pick a world / character / scenario (screens not pasted here yet), then start the scenario.
+            </div>
+
+            <div className="row">
+              <button className="btn" onClick={resetAll}>Back</button>
+
+              <button
+                className="btn primary"
+                onClick={() => {
+                  const w0 = worlds[0];
+                  const s0 = w0?.scenarios?.[0];
+                  if (w0 && s0) {
+                    setWorldId(w0.id);
+                    setScenarioId(s0.id);
+                    setTrackId(null);
+                    // startScenario depends on scenarioEntry, let React commit state first
+                    window.setTimeout(() => startScenario(), 0);
+                  }
+                }}
+              >
+                Quick start (debug)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <style>{baseCss}</style>
+      </div>
+    );
+  }
 
   // NOTE:
   // Keep your existing "world", "character", "scenario" screens above this point.
@@ -1955,7 +1994,7 @@ export default function App() {
 
         <div className={"dice3d " + (diceRolling ? "rolling" : "")}>
           <div className="cube" style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}>
-            <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(2) + ")" }} />
+            <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }} />
             <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }} />
             <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }} />
             <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }} />
@@ -2072,12 +2111,12 @@ export default function App() {
                           disabled={!state || blocked || encounterActive}
                           style={{
                             ["--hexGlow" as any]: layerCssVar(currentLayer),
-                            backgroundImage: tile || undefined,
+
                           }}
                           title={id}
                         >
                           <div className="hexAnchor">
-                            <div className="hexInner">
+                            <div className="hexInner" style={tile ? { backgroundImage: tile } : undefined}>
                               <div className="hexId">
                                 {r},{c}
                               </div>
