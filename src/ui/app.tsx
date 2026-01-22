@@ -1252,7 +1252,7 @@ export default function App() {
 
   // game state
   const [state, setState] = useState<GameState | null>(null);
-  const [, forceRender] = useState(0);
+const [uiTick, forceRender] = useState(0);
   const [currentLayer, setCurrentLayer] = useState<number>(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -1288,12 +1288,12 @@ const reachable = useMemo(() => {
   }
 
   return set;
-}, [state]);
+}, [state, uiTick]);
 
 useEffect(() => {
   if (!state) return;
   setReachMap(getReachability(state));
-}, [state]);
+}, [state, uiTick]);
 
 
   // refs
@@ -2104,15 +2104,17 @@ forceRender((n) => n + 1);
       <button
         className="btn"
         disabled={!state || !canGoUp || encounterActive}
-        onClick={() => {
-          if (!state) return;
-          const next = Math.min(scenarioLayerCount, currentLayer + 1);
-          setCurrentLayer(next);
-          enterLayer(state, next);
-          revealWholeLayer(state, next);
-          setReachMap(getReachability(state) as any);
-          pushLog("Layer " + next, "info");
-        }}
+  onClick={() => {
+  if (!state) return;
+  const next = Math.min(scenarioLayerCount, currentLayer + 1);
+  setCurrentLayer(next);
+  enterLayer(state, next);
+  revealWholeLayer(state, next);
+  setReachMap(getReachability(state) as any);
+  forceRender((n) => n + 1); // ✅ ADD THIS LINE
+  pushLog("Layer " + next, "info");
+}}
+
       >
         + Layer
       </button>
@@ -2150,7 +2152,7 @@ forceRender((n) => n + 1);
 const isSel = selectedId === id;
 
 // ✅ only highlight ONE-step neighbor targets
-const isReach = reachable.has(id);
+const isReach = !isPlayer && reachable.has(id);
 
 
                     const isPlayer = isPlayerHere(id);
