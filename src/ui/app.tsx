@@ -2148,17 +2148,18 @@ forceRender((n) => n + 1);
                     const hex = getHexFromState(state, id) as any;
                     const { blocked, missing } = isBlockedOrMissing(hex);
 
-                    if (missing) return <div key={id} className="hexSlot empty" />;
-const isSel = selectedId === id;
+if (missing) return <div key={id} className="hexSlot empty" />;
 
-// ✅ only highlight ONE-step neighbor targets
+const isSel = selectedId === id;
+const isPlayer = isPlayerHere(id);
+
+// ✅ only highlight ONE-step neighbor targets (never the player tile)
 const isReach = !isPlayer && reachable.has(id);
 
+const isGoal = goalId === id;
+const isTrigger = !!findTriggerForHex(id);
+const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
 
-                    const isPlayer = isPlayerHere(id);
-                    const isGoal = goalId === id;
-                    const isTrigger = !!findTriggerForHex(id);
-                    const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
 
                     return (
                       <div key={id} className="hexSlot">
