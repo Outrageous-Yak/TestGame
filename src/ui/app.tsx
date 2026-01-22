@@ -770,7 +770,7 @@ body{
   width: 100%;
 }
 .hexRow.offset{
-  transform: translateX(calc(var(--hexStepX) / 2));
+  transform: translateX(calc(var(--hexStepX) / -2));
 }
 
 /* =========================================================
@@ -2087,9 +2087,14 @@ export default function App() {
 
           <div className="boardScroll" ref={scrollRef}>
             <div className="board">
-              {rows.map((r) => {
-                const cols = ROW_LENS[r] ?? 0;
-                return (
+            {rows.map((r) => {
+  const cols = ROW_LENS[r] ?? 0;
+  const isOffset = cols === 6;
+
+  return (
+    <div key={r} className={"hexRow" + (isOffset ? " offset" : "")}>
+      {Array.from({ length: cols }, (_, c) => {
+         return (
                   <div key={r} className={"hexRow " + (r % 2 === 1 ? "offset" : "")}>
                     {Array.from({ length: cols }, (_, c) => {
                       const id = hexId(currentLayer, r, c);
