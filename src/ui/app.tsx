@@ -317,6 +317,17 @@ function getNeighborsSameLayer(st: any, pid: string): string[] {
 
   return [];
 }
+function cloneReachMap(rm: any): ReachMap {
+  if (!rm) return {} as any;
+
+  // Map-like
+  if (typeof rm?.entries === "function") {
+    return new Map(rm) as any;
+  }
+
+  // Plain object
+  return { ...(rm as any) } as any;
+}
 
 
 /* =========================================================
@@ -1304,7 +1315,7 @@ const reachable = useMemo(() => {
 
 useEffect(() => {
   if (!state) return;
-  setReachMap(getReachability(state));
+  setReachMap(cloneReachMap(getReachability(state)));
 }, [state, uiTick]);
 
 
@@ -1701,7 +1712,7 @@ forceRender((n) => n + 1);
     }
 
     const rm = getReachability(nextState) as any;
-    setReachMap(rm);
+    setReachMap(cloneReachMap(rm));
     setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
 
     pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
