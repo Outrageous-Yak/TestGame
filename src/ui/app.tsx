@@ -1676,7 +1676,8 @@ useEffect(() => {
 
     // commit state first
     setState(nextState);
-    setSelectedId(pidAfter ?? targetId);
+setSelectedId(pidAfter ?? targetId);
+forceRender((n) => n + 1);
 
     // layer ops after commit
     const c2 = pidAfter ? idToCoord(pidAfter) : null;
@@ -1841,8 +1842,12 @@ if (pidBefore && id !== pidBefore) {
       }
 
       // commit next state first
-      setState(nextState);
-      setSelectedId(pidAfter ?? id);
+    setState(nextState);
+setSelectedId(pidAfter ?? id);
+
+// ✅ force UI update even if nextState === oldState
+forceRender((n) => n + 1);
+
 
       // layer ops after commit
       const c2 = pidAfter ? idToCoord(pidAfter) : null;
@@ -2087,8 +2092,9 @@ return (
           const next = Math.max(1, currentLayer - 1);
           setCurrentLayer(next);
           enterLayer(state, next);
-          revealWholeLayer(state, next);
-          setReachMap(getReachability(state) as any);
+revealWholeLayer(state, next);
+setReachMap(getReachability(state) as any);
+forceRender((n) => n + 1);
           pushLog("Layer " + next, "info");
         }}
       >
