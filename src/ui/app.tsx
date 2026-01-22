@@ -1276,29 +1276,24 @@ const [uiTick, forceRender] = useState(0);
 const [reachMap, setReachMap] = useState<ReachMap>({} as ReachMap);
 
 // ids you can move to in ONE step
+
 const reachable = useMemo(() => {
   const set = new Set<string>();
-  if (!state) return set;
+  if (!reachMap) return set;
 
-  const pid = (state as any).playerHexId as string | null;
-  if (!pid) return set;
-
-  const nbs = getNeighborsSameLayer(state as any, pid);
-
-  for (const id of nbs) {
-    const hex = getHexFromState(state, id) as any;
-    const { blocked, missing } = isBlockedOrMissing(hex);
-    if (!blocked && !missing) set.add(id);
+  for (const [id, info] of Object.entries(reachMap as any)) {
+    if (!info) continue;
+    if (info.reachable && info.distance === 1) set.add(id);
   }
-
   return set;
-}, [state, uiTick]);
+}, [reachMap]);
+
 
 
 useEffect(() => {
   if (!state) return;
   setReachMap(getReachability(state));
-}, [state, uiTick]);
+}, [state]);
 
 
   // refs
