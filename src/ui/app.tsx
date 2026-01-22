@@ -2179,7 +2179,7 @@ export default function App() {
 
 
 
-</div>
+
 
         <div className="side">
           <div className="panelMini">
