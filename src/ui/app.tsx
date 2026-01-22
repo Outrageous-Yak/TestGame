@@ -766,13 +766,13 @@ body{
    ✅ FIX: removed invalid nested ".hex{ .hex{ ... } }"
 ========================================================= */
 .hexSlot{
-  width: var(--hexWMain);
+  width: var(--hexStepX);
   height: var(--hexHMain);
-  margin-right: calc(var(--hexStepX) - var(--hexWMain));
-flex: 0 0 var(--hexWMain);
+  display: grid;
+  place-items: center;
+  flex: 0 0 var(--hexStepX);
 }
 .hexSlot.empty{ opacity: 0; }
-
 .hex{
   width: var(--hexWMain);
   height: var(--hexHMain);
@@ -788,7 +788,7 @@ flex: 0 0 var(--hexWMain);
   overflow: visible;
 
   --hexGlow: rgba(120,255,210,.51);
-flex: 0 0 var(--hexWMain);
+
 }
 .hex:hover{
   transform: translateY(-2px);
@@ -1307,7 +1307,7 @@ export default function App() {
 
   // Sprite sheet info
   const SPRITE_COLS = 4;
-  const SPRITE_ROWS = 5; // set to 5 ONLY if your sheet has 5 direction rows
+  const SPRITE_ROWS = 4; // set to 5 ONLY if your sheet has 5 direction rows
 
   const FRAME_W = 128;
   const FRAME_H = 128;
