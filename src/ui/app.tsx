@@ -725,7 +725,7 @@ body{
   grid-template-columns: var(--barColW) 1fr var(--barColW);
   align-items: center;
 }
-}
+
 .boardLayerBg{
   position:absolute; inset:0;
   background-size: cover;
@@ -741,14 +741,16 @@ body{
 
 .boardScroll{
 grid-column: 2;
-.barWrap.barLeft{ grid-column: 1; }
-.barWrap.barRight{ grid-column: 3; }
+
+
   position: relative;
   z-index: 2;
   min-height: 0;
   overflow: auto;
   padding: 0 10px;
 }
+.barWrap.barLeft{ grid-column: 1; }
+.barWrap.barRight{ grid-column: 3; }
 .board{
   width: var(--boardW);
   margin: 0 auto;
@@ -767,7 +769,7 @@ grid-column: 2;
   width: 100%;
 }
 .hexRow.offset{
-  transform: translateX(calc(var(--hexStepX) / 2));
+  transform: translateX(calc(var(--hexStepX) / -2));
 }
 
 /* =========================================================
@@ -775,13 +777,13 @@ grid-column: 2;
    ✅ FIX: removed invalid nested ".hex{ .hex{ ... } }"
 ========================================================= */
 .hexSlot{
-  width: var(--hexWMain);
+  width: var(--hexStepX);
   height: var(--hexHMain);
-  margin-right: calc(var(--hexStepX) - var(--hexWMain));
-flex: 0 0 var(--hexWMain);
+  display: grid;
+  place-items: center;
+  flex: 0 0 var(--hexStepX);
 }
 .hexSlot.empty{ opacity: 0; }
-
 .hex{
   width: var(--hexWMain);
   height: var(--hexHMain);
@@ -2174,9 +2176,9 @@ export default function App() {
     <SideBar side="right" currentLayer={currentLayer} />
   </div>
 
-  <div className="side">
-    {/* Status + Log panels remain unchanged */}
-  </div>
+
+
+
 </div>
 
         <div className="side">
@@ -2219,10 +2221,12 @@ export default function App() {
                   </div>
                 ))
               )}
-                       </div>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* encounter overlay: KEEP your existing overlay render here */}
 
       <style>{baseCss}</style>
     </div>
