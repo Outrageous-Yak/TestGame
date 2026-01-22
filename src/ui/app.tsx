@@ -847,10 +847,16 @@ flex: 0 0 var(--hexWMain);
 }
 
 .hex.reach .hexInner{
-  border-color: rgba(70,249,180,.48);
-  box-shadow: inset 0 0 0 1px rgba(70,249,180,.18), 0 0 0 3px rgba(70,249,180,.08);
-  animation: reachPulse 1.4s ease-in-out infinite;
+  border-color: rgba(255, 45, 161, .85);
+  background: #ff2da1 !important;          /* HOT PINK FILL */
+  background-image: none !important;       /* makes sure tile image doesn't cover it */
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.35),
+    0 0 0 3px rgba(255, 45, 161, .22),
+    0 0 16px rgba(255, 45, 161, .55);
+  animation: reachPulse 1.0s ease-in-out infinite;
 }
+
 @keyframes reachPulse{
   0%{ filter: brightness(1); }
   50%{ filter: brightness(1.15); }
@@ -1257,6 +1263,11 @@ export default function App() {
     for (const [k, v] of Object.entries(reachMap as any)) if ((v as any)?.reachable) set.add(k);
     return set;
   }, [reachMap]);
+useEffect(() => {
+  if (!state) return;
+  setReachMap(getReachability(state));
+}, [state]);
+
 
   // refs
   const scrollRef = useRef<HTMLDivElement | null>(null);
