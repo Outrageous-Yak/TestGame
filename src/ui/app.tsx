@@ -2060,7 +2060,7 @@ export default function App() {
 
       <div className="gameLayout">
          <div className="boardWrap">
-        <SideBar side="left" currentLayer={currentLayer} />
+        <SideBar side="left" currentLayer={currentLayer}>
 
        
           <div
@@ -2146,6 +2146,7 @@ export default function App() {
                       );
                     })}
                   </div>
+                   />
                 );
               })}
             </div>
