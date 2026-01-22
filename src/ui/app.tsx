@@ -2059,9 +2059,10 @@ export default function App() {
       </div>
 
       <div className="gameLayout">
+         <div className="boardWrap">
         <SideBar side="left" currentLayer={currentLayer} />
 
-        <div className="boardWrap">
+       
           <div
             key={currentLayer}
             className="boardLayerBg"
