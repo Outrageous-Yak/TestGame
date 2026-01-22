@@ -758,7 +758,7 @@ body{
   width: 100%;
 }
 .hexRow.offset{
-  transform: translateX(calc(var(--hexStepX) / 2));
+  transform: translateX(calc(var(--hexStepX) / -2));
 }
 
 /* =========================================================
