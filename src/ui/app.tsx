@@ -329,9 +329,9 @@ const baseCss = `
   --boardPadBottom: 18px;
 
   /* hex geometry (7676767) */
---hexWMain: 82px;
---hexHMain: calc(var(--hexWMain) * 0.8660254);
---hexStepX: calc(var(--hexWMain) * 0.87); /* or 72px if you prefer the tighter look */
+  --hexWMain: 96px;
+  --hexHMain: 84px;
+  --hexStepX: 72px; /* horizontal spacing between centers */
 
   /* derived: used by bars (match board height incl padding) */
   --hexFieldH: calc((var(--hexHMain) * 7) + var(--boardPadTop) + var(--boardPadBottom));
@@ -719,6 +719,12 @@ body{
   min-height: 0;
 
   --boardInset: calc((100% - var(--boardW)) / 2);
+
+  /* ✅ NEW: bars + board in one container */
+  display: grid;
+  grid-template-columns: var(--barColW) 1fr var(--barColW);
+  align-items: center;
+}
 }
 .boardLayerBg{
   position:absolute; inset:0;
@@ -734,6 +740,9 @@ body{
 }
 
 .boardScroll{
+grid-column: 2;
+.barWrap.barLeft{ grid-column: 1; }
+.barWrap.barRight{ grid-column: 3; }
   position: relative;
   z-index: 2;
   min-height: 0;
@@ -757,8 +766,8 @@ body{
   justify-content: center;
   width: 100%;
 }
-.hexRow.even{
-  padding-left: calc(var(--hexStepX) / 2);
+.hexRow.offset{
+  transform: translateX(calc(var(--hexStepX) / 2));
 }
 
 /* =========================================================
@@ -766,13 +775,13 @@ body{
    ✅ FIX: removed invalid nested ".hex{ .hex{ ... } }"
 ========================================================= */
 .hexSlot{
-  width: var(--hexStepX);
+  width: var(--hexWMain);
   height: var(--hexHMain);
-  display: grid;
-  place-items: center;
-  flex: 0 0 var(--hexStepX);
+  margin-right: calc(var(--hexStepX) - var(--hexWMain));
+flex: 0 0 var(--hexWMain);
 }
 .hexSlot.empty{ opacity: 0; }
+
 .hex{
   width: var(--hexWMain);
   height: var(--hexHMain);
@@ -788,7 +797,7 @@ body{
   overflow: visible;
 
   --hexGlow: rgba(120,255,210,.51);
-
+flex: 0 0 var(--hexWMain);
 }
 .hex:hover{
   transform: translateY(-2px);
@@ -2058,102 +2067,117 @@ export default function App() {
         </button>
       </div>
 
-      <div className="gameLayout">
-         <div className="boardWrap">
-        <SideBar side="left" currentLayer={currentLayer}>
+<div className="gameLayout">
+  <div className="boardWrap">
+    <SideBar side="left" currentLayer={currentLayer} />
 
-       
-          <div
-            key={currentLayer}
-            className="boardLayerBg"
-            style={{ backgroundImage: BOARD_LAYER_ ? "url(" + toPublicUrl(BOARD_LAYER_) + ")" : undefined }}
-          />
+    <div
+      key={currentLayer}
+      className="boardLayerBg"
+      style={{
+        backgroundImage: BOARD_LAYER_
+          ? "url(" + toPublicUrl(BOARD_LAYER_) + ")"
+          : undefined,
+      }}
+    />
 
-          {/* deck cards overlay (the glowing border / spin effect) */}
-          <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
+    <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
 
-          <div className="boardScroll" ref={scrollRef}>
-            <div className="board">
-              {rows.map((r) => {
-                const cols = ROW_LENS[r] ?? 0;
+    <div className="boardScroll" ref={scrollRef}>
+      <div className="board">
+        {rows.map((r) => {
+          const cols = ROW_LENS[r] ?? 0;
+          return (
+            <div key={r} className={"hexRow " + (r % 2 === 1 ? "offset" : "")}>
+              {Array.from({ length: cols }, (_, c) => {
+                const id = hexId(currentLayer, r, c);
+                const hex = getHexFromState(state, id) as any;
+                const { blocked, missing } = isBlockedOrMissing(hex);
+
+                if (missing) return <div key={id} className="hexSlot empty" />;
+
+                const isSel = selectedId === id;
+                const isReach = reachable.has(id);
+                const isPlayer = isPlayerHere(id);
+                const isGoal = goalId === id;
+                const isTrigger = !!findTriggerForHex(id);
+                const tile = HEX_TILE
+                  ? "url(" + toPublicUrl(HEX_TILE) + ")"
+                  : "";
+
                 return (
-<div key={r} className={"hexRow " + (r % 2 === 0 ? "offset" : "")}>
-                    {Array.from({ length: cols }, (_, c) => {
-                      const id = hexId(currentLayer, r, c);
-                      const hex = getHexFromState(state, id) as any;
-                      const { blocked, missing } = isBlockedOrMissing(hex);
-
-                      if (missing) return <div key={id} className="hexSlot empty" />;
-
-                      const isSel = selectedId === id;
-                      const isReach = reachable.has(id);
-                      const isPlayer = isPlayerHere(id);
-                      const isGoal = goalId === id;
-                      const isTrigger = !!findTriggerForHex(id);
-
-                      const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
-
-                      return (
-                        <div key={id} className="hexSlot">
-                          <button
-                            className={[
-                              "hex",
-                              isSel ? "sel" : "",
-                              isReach ? "reach" : "",
-                              blocked ? "blocked" : "",
-                              isPlayer ? "player" : "",
-                              isGoal ? "goal" : "",
-                              isTrigger ? "trigger" : "",
-                            ].join(" ")}
-                            onClick={() => {
-                              setSelectedId(id);
-                              tryMoveToId(id);
-                            }}
-                            disabled={!state || blocked || encounterActive}
-                            style={{ ["--hexGlow" as any]: layerCssVar(currentLayer) } as any}
-                            title={id}
-                          >
-                            <div className="hexAnchor">
-                              <div className="hexInner" style={tile ? { backgroundImage: tile } : undefined}>
-                                <div className="hexId">
-                                  {r},{c}
-                                </div>
-                                <div className="hexMarks">
-                                  {isGoal ? <span className="mark g">G</span> : null}
-                                  {isTrigger ? <span className="mark t">!</span> : null}
-                                </div>
-                              </div>
-
-                              {isPlayer ? (
-                                <span
-                                  className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
-                                  style={
-                                    {
-                                      ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
-                                      ["--frameW" as any]: FRAME_W,
-                                      ["--frameH" as any]: FRAME_H,
-                                      ["--cols" as any]: SPRITE_COLS,
-                                      ["--rows" as any]: SPRITE_ROWS,
-                                      ["--frameX" as any]: walkFrame,
-                                      ["--frameY" as any]: facingRow(playerFacing),
-                                    } as any
-                                  }
-                                />
-                              ) : null}
-                            </div>
-                          </button>
+                  <div key={id} className="hexSlot">
+                    <button
+                      className={[
+                        "hex",
+                        isSel ? "sel" : "",
+                        isReach ? "reach" : "",
+                        blocked ? "blocked" : "",
+                        isPlayer ? "player" : "",
+                        isGoal ? "goal" : "",
+                        isTrigger ? "trigger" : "",
+                      ].join(" ")}
+                      onClick={() => {
+                        setSelectedId(id);
+                        tryMoveToId(id);
+                      }}
+                      disabled={!state || blocked || encounterActive}
+                      style={{ ["--hexGlow" as any]: layerCssVar(currentLayer) } as any}
+                      title={id}
+                    >
+                      <div className="hexAnchor">
+                        <div
+                          className="hexInner"
+                          style={tile ? { backgroundImage: tile } : undefined}
+                        >
+                          <div className="hexId">
+                            {r},{c}
+                          </div>
+                          <div className="hexMarks">
+                            {isGoal ? <span className="mark g">G</span> : null}
+                            {isTrigger ? <span className="mark t">!</span> : null}
+                          </div>
                         </div>
-                      );
-                    })}
+
+                        {isPlayer ? (
+                          <span
+                            className={
+                              "playerSpriteSheet " +
+                              (isWalking ? "walking" : "")
+                            }
+                            style={
+                              {
+                                ["--spriteImg" as any]:
+                                  "url(" + spriteSheetUrl() + ")",
+                                ["--frameW" as any]: FRAME_W,
+                                ["--frameH" as any]: FRAME_H,
+                                ["--cols" as any]: SPRITE_COLS,
+                                ["--rows" as any]: SPRITE_ROWS,
+                                ["--frameX" as any]: walkFrame,
+                                ["--frameY" as any]:
+                                  facingRow(playerFacing),
+                              } as any
+                            }
+                          />
+                        ) : null}
+                      </div>
+                    </button>
                   </div>
-                   />
                 );
               })}
             </div>
-          </div>
-        </div>
+          );
+        })}
+      </div>
+    </div>
 
-        <SideBar side="right" currentLayer={currentLayer} />
+    <SideBar side="right" currentLayer={currentLayer} />
+  </div>
+
+  <div className="side">
+    {/* Status + Log panels remain unchanged */}
+  </div>
+</div>
 
         <div className="side">
           <div className="panelMini">
