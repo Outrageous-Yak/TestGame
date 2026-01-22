@@ -329,9 +329,9 @@ const baseCss = `
   --boardPadBottom: 18px;
 
   /* hex geometry (7676767) */
-  --hexWMain: 96px;
-  --hexHMain: 84px;
-  --hexStepX: 72px; /* horizontal spacing between centers */
+--hexWMain: 82px;
+--hexHMain: calc(var(--hexWMain) * 0.8660254);
+--hexStepX: calc(var(--hexWMain) * 0.87); /* or 72px if you prefer the tighter look */
 
   /* derived: used by bars (match board height incl padding) */
   --hexFieldH: calc((var(--hexHMain) * 7) + var(--boardPadTop) + var(--boardPadBottom));
@@ -757,8 +757,8 @@ body{
   justify-content: center;
   width: 100%;
 }
-.hexRow.offset{
-  transform: translateX(calc(var(--hexStepX) / -2));
+.hexRow.even{
+  padding-left: calc(var(--hexStepX) / 2);
 }
 
 /* =========================================================
@@ -2076,7 +2076,7 @@ export default function App() {
               {rows.map((r) => {
                 const cols = ROW_LENS[r] ?? 0;
                 return (
-                  <div key={r} className={"hexRow " + (r % 2 === 1 ? "offset" : "")}>
+<div key={r} className={"hexRow " + ((r + 1) % 2 === 0 ? "even" : "")}>
                     {Array.from({ length: cols }, (_, c) => {
                       const id = hexId(currentLayer, r, c);
                       const hex = getHexFromState(state, id) as any;
