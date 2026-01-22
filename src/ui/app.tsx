@@ -744,6 +744,7 @@ body{
   width: var(--boardW);
   margin: 0 auto;
   padding: var(--boardPadTop) 0 var(--boardPadBottom);
+ position: relative; /* ADD THIS */
 }
 
 /* =========================================================
@@ -775,7 +776,6 @@ flex: 0 0 var(--hexWMain);
 .hex{
   width: var(--hexWMain);
   height: var(--hexHMain);
-  margin-right: calc(var(--hexStepX) - var(--hexWMain));
 
   padding: 0;
   border: none;
@@ -2093,58 +2093,55 @@ export default function App() {
                       const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
 
                       return (
-                        <button
-                          key={id}
-                          className={[
-                            "hex",
-                            isSel ? "sel" : "",
-                            isReach ? "reach" : "",
-                            blocked ? "blocked" : "",
-                            isPlayer ? "player" : "",
-                            isGoal ? "goal" : "",
-                            isTrigger ? "trigger" : "",
-                          ].join(" ")}
-                          onClick={() => {
-                            setSelectedId(id);
-                            tryMoveToId(id);
-                          }}
-                          disabled={!state || blocked || encounterActive}
-                          style={{
-                            ["--hexGlow" as any]: layerCssVar(currentLayer),
+                        <div key={id} className="hexSlot">
+                          <button
+                            className={[
+                              "hex",
+                              isSel ? "sel" : "",
+                              isReach ? "reach" : "",
+                              blocked ? "blocked" : "",
+                              isPlayer ? "player" : "",
+                              isGoal ? "goal" : "",
+                              isTrigger ? "trigger" : "",
+                            ].join(" ")}
+                            onClick={() => {
+                              setSelectedId(id);
+                              tryMoveToId(id);
+                            }}
+                            disabled={!state || blocked || encounterActive}
+                            style={{ ["--hexGlow" as any]: layerCssVar(currentLayer) } as any}
+                            title={id}
+                          >
+                            <div className="hexAnchor">
+                              <div className="hexInner" style={tile ? { backgroundImage: tile } : undefined}>
+                                <div className="hexId">
+                                  {r},{c}
+                                </div>
+                                <div className="hexMarks">
+                                  {isGoal ? <span className="mark g">G</span> : null}
+                                  {isTrigger ? <span className="mark t">!</span> : null}
+                                </div>
+                              </div>
 
-                          }}
-                          title={id}
-                        >
-                          <div className="hexAnchor">
-                            <div className="hexInner" style={tile ? { backgroundImage: tile } : undefined}>
-                              <div className="hexId">
-                                {r},{c}
-                              </div>
-                              <div className="hexMarks">
-                                {isGoal ? <span className="mark g">G</span> : null}
-                                {isTrigger ? <span className="mark t">!</span> : null}
-                              </div>
+                              {isPlayer ? (
+                                <span
+                                  className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
+                                  style={
+                                    {
+                                      ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
+                                      ["--frameW" as any]: FRAME_W,
+                                      ["--frameH" as any]: FRAME_H,
+                                      ["--cols" as any]: SPRITE_COLS,
+                                      ["--rows" as any]: SPRITE_ROWS,
+                                      ["--frameX" as any]: walkFrame,
+                                      ["--frameY" as any]: facingRow(playerFacing),
+                                    } as any
+                                  }
+                                />
+                              ) : null}
                             </div>
-
-                            {/* sprite (only on player hex) */}
-                            {isPlayer ? (
-                              <span
-                                className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
-                                style={
-                                  {
-                                    ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
-                                    ["--frameW" as any]: FRAME_W,
-                                    ["--frameH" as any]: FRAME_H,
-                                    ["--cols" as any]: SPRITE_COLS,
-                                    ["--rows" as any]: SPRITE_ROWS,
-                                    ["--frameX" as any]: walkFrame,
-                                    ["--frameY" as any]: facingRow(playerFacing),
-                                  } as any
-                                }
-                              />
-                            ) : null}
-                          </div>
-                        </button>
+                          </button>
+                        </div>
                       );
                     })}
                   </div>
@@ -2156,7 +2153,49 @@ export default function App() {
 
         <SideBar side="right" currentLayer={currentLayer} />
 
-        {/* KEEP your existing right-side panels/log etc here */}
+        <div className="side">
+          <div className="panelMini">
+            <div className="miniTitle">Status</div>
+
+            <div className="miniRow">
+              <span className="k">Player</span>
+              <span className="v">{chosenPlayer?.kind === "preset" ? chosenPlayer.name : chosenPlayer?.name ?? "—"}</span>
+            </div>
+
+            <div className="miniRow">
+              <span className="k">Layer</span>
+              <span className="v">
+                {currentLayer} / {scenarioLayerCount}
+              </span>
+            </div>
+
+            <div className="miniRow">
+              <span className="k">Moves</span>
+              <span className="v">{movesTaken}</span>
+            </div>
+
+            <div className="miniRow">
+              <span className="k">Optimal</span>
+              <span className="v">{optimalFromNow ?? "—"}</span>
+            </div>
+          </div>
+
+          <div className="panelMini">
+            <div className="miniTitle">Log</div>
+            <div className="log">
+              {log.length === 0 ? (
+                <div className="hint">No events yet.</div>
+              ) : (
+                log.map((e) => (
+                  <div key={e.n} className={"logRow " + (e.kind ?? "info")}>
+                    <div className="lt">{e.t}</div>
+                    <div className="lm">{e.msg}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* encounter overlay: KEEP your existing overlay render here */}
