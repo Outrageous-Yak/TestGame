@@ -2076,7 +2076,7 @@ export default function App() {
               {rows.map((r) => {
                 const cols = ROW_LENS[r] ?? 0;
                 return (
-<div key={r} className={"hexRow " + ((r + 1) % 2 === 0 ? "even" : "")}>
+<div key={r} className={"hexRow " + (r % 2 === 0 ? "offset" : "")}>
                     {Array.from({ length: cols }, (_, c) => {
                       const id = hexId(currentLayer, r, c);
                       const hex = getHexFromState(state, id) as any;
