@@ -2141,18 +2141,11 @@ return (
                     const { blocked, missing } = isBlockedOrMissing(hex);
 
                     if (missing) return <div key={id} className="hexSlot empty" />;
+const isSel = selectedId === id;
 
-                    const isSel = selectedId === id;
-      const info: any = (reachMap as any)[id];
-const dist = Number(info?.distance ?? Infinity);
+// ✅ only highlight ONE-step neighbor targets
+const isReach = reachable.has(id);
 
-// only highlight valid move targets
-const isReach =
-  !!info?.reachable &&
-  dist > 0 &&
-  dist <= diceValue &&
-  !blocked &&
-  !missing;
 
                     const isPlayer = isPlayerHere(id);
                     const isGoal = goalId === id;
