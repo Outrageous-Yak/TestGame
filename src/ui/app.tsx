@@ -2085,28 +2085,84 @@ export default function App() {
 
     <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
 
-    <div className="boardScroll" ref={scrollRef}>
-      <div className="board">
-        {/* rows map exactly as you have it */}
-      </div>
-    </div>
+   <div className="boardScroll" ref={scrollRef}>
+  <div className="board">
+    {rows.map((r) => {
+      const cols = ROW_LENS[r] ?? 0;
+      return (
+        <div key={r} className={"hexRow " + (r % 2 === 1 ? "offset" : "")}>
+          {Array.from({ length: cols }, (_, c) => {
+            const id = hexId(currentLayer, r, c);
+            const hex = getHexFromState(state, id) as any;
+            const { blocked, missing } = isBlockedOrMissing(hex);
 
-    <SideBar side="right" currentLayer={currentLayer} />
-  </div>
+            if (missing) return <div key={id} className="hexSlot empty" />;
 
-  {/* ✅ Sidebar must be INSIDE gameLayout */}
-  <div className="side">
-    <div className="panelMini">
-      <div className="miniTitle">Status</div>
-      {/* status rows */}
-    </div>
+            const isSel = selectedId === id;
+            const isReach = reachable.has(id);
+            const isPlayer = isPlayerHere(id);
+            const isGoal = goalId === id;
+            const isTrigger = !!findTriggerForHex(id);
+            const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
 
-    <div className="panelMini">
-      <div className="miniTitle">Log</div>
-      {/* log */}
-    </div>
+            return (
+              <div key={id} className="hexSlot">
+                <button
+                  className={[
+                    "hex",
+                    isSel ? "sel" : "",
+                    isReach ? "reach" : "",
+                    blocked ? "blocked" : "",
+                    isPlayer ? "player" : "",
+                    isGoal ? "goal" : "",
+                    isTrigger ? "trigger" : "",
+                  ].join(" ")}
+                  onClick={() => {
+                    setSelectedId(id);
+                    tryMoveToId(id);
+                  }}
+                  disabled={!state || blocked || encounterActive}
+                  style={{ ["--hexGlow" as any]: layerCssVar(currentLayer) } as any}
+                  title={id}
+                >
+                  <div className="hexAnchor">
+                    <div className="hexInner" style={tile ? { backgroundImage: tile } : undefined}>
+                      <div className="hexId">
+                        {r},{c}
+                      </div>
+                      <div className="hexMarks">
+                        {isGoal ? <span className="mark g">G</span> : null}
+                        {isTrigger ? <span className="mark t">!</span> : null}
+                      </div>
+                    </div>
+
+                    {isPlayer ? (
+                      <span
+                        className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
+                        style={
+                          {
+                            ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
+                            ["--frameW" as any]: FRAME_W,
+                            ["--frameH" as any]: FRAME_H,
+                            ["--cols" as any]: SPRITE_COLS,
+                            ["--rows" as any]: SPRITE_ROWS,
+                            ["--frameX" as any]: walkFrame,
+                            ["--frameY" as any]: facingRow(playerFacing),
+                          } as any
+                        }
+                      />
+                    ) : null}
+                  </div>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      );
+    })}
   </div>
 </div>
+
 
 
       {/* encounter overlay: KEEP your existing overlay render here */}
