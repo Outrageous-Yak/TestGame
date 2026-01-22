@@ -8,75 +8,75 @@ import { ROW_LENS, enterLayer, revealHex } from "../engine/board";
 import { neighborIdsSameLayer } from "../engine/neighbors";
 
 /**
-* ✅ Worlds registry import (GitHub/Linux safe)
-* Requires a module at: src/worlds/index.(ts|js|tsx|jsx)
-* Supported export shapes:
-* - export const worlds = [...]
-* - export default [...]
-* - export const registry = [...]
-*/
+ * ✅ Worlds registry import (GitHub/Linux safe)
+ * Requires a module at: src/worlds/index.(ts|js|tsx|jsx)
+ * Supported export shapes:
+ * - export const worlds = [...]
+ * - export default [...]
+ * - export const registry = [...]
+ */
 import * as WorldsMod from "../worlds";
 
 /* =========================================================
-  Types
+   Types
 ========================================================= */
 
 type Screen = "start" | "world" | "character" | "scenario" | "game";
 
 type PlayerChoice =
-| { kind: "preset"; id: string; name: string }
-| { kind: "custom"; name: string; imageDataUrl: string | null };
+  | { kind: "preset"; id: string; name: string }
+  | { kind: "custom"; name: string; imageDataUrl: string | null };
 
 type Coord = { layer: number; row: number; col: number };
 type LogEntry = { n: number; t: string; msg: string; kind?: "ok" | "bad" | "info" };
 
 type LayerPalette = {
-L1: string;
-L2: string;
-L3: string;
-L4: string;
-L5: string;
-L6: string;
-L7: string;
+  L1: string;
+  L2: string;
+  L3: string;
+  L4: string;
+  L5: string;
+  L6: string;
+  L7: string;
 };
 
 type ScenarioTheme = {
-palette: LayerPalette;
-assets: {
-backgroundGame?: string;
-backgroundLayers?: Partial<{
-L1: string;
-L2: string;
-L3: string;
-L4: string;
-L5: string;
-L6: string;
-L7: string;
-}>;
-diceFacesBase: string;
-diceCornerBorder: string;
-villainsBase: string;
-hexTile?: string;
-};
+  palette: LayerPalette;
+  assets: {
+    backgroundGame?: string;
+    backgroundLayers?: Partial<{
+      L1: string;
+      L2: string;
+      L3: string;
+      L4: string;
+      L5: string;
+      L6: string;
+      L7: string;
+    }>;
+    diceFacesBase: string;
+    diceCornerBorder: string;
+    villainsBase: string;
+    hexTile?: string;
+  };
 };
 
 type Track = { id: string; name: string; scenarioJson: string };
 
 type ScenarioEntry = {
-id: string;
-name: string;
-desc?: string;
-scenarioJson: string;
-theme: ScenarioTheme;
-tracks?: Track[];
+  id: string;
+  name: string;
+  desc?: string;
+  scenarioJson: string;
+  theme: ScenarioTheme;
+  tracks?: Track[];
 };
 
 type WorldEntry = {
-id: string;
-name: string;
-desc?: string;
-menu: { solidColor?: string };
-scenarios: ScenarioEntry[];
+  id: string;
+  name: string;
+  desc?: string;
+  menu: { solidColor?: string };
+  scenarios: ScenarioEntry[];
 };
 
 type VillainKey = "bad1" | "bad2" | "bad3" | "bad4";
@@ -84,1545 +84,290 @@ type VillainTrigger = { key: VillainKey; layer: number; row: number; cols?: "any
 type Encounter = null | { villainKey: VillainKey; tries: number };
 
 /* =========================================================
-  Worlds registry helpers
+   Worlds registry helpers
 ========================================================= */
 
 function getRegisteredWorlds(): any[] {
-const anyMod: any = WorldsMod as any;
-const list =
-(Array.isArray(anyMod?.worlds) && anyMod.worlds) ||
-(Array.isArray(anyMod?.default) && anyMod.default) ||
-(Array.isArray(anyMod?.registeredWorlds) && anyMod.registeredWorlds) ||
-(Array.isArray(anyMod?.registry) && anyMod.registry) ||
-[];
-return list;
+  const anyMod: any = WorldsMod as any;
+  const list =
+    (Array.isArray(anyMod?.worlds) && anyMod.worlds) ||
+    (Array.isArray(anyMod?.default) && anyMod.default) ||
+    (Array.isArray(anyMod?.registeredWorlds) && anyMod.registeredWorlds) ||
+    (Array.isArray(anyMod?.registry) && anyMod.registry) ||
+    [];
+  return list;
 }
 
 function normalizeWorldEntry(raw: any): WorldEntry | null {
-if (!raw) return null;
-const w = raw.default ?? raw;
+  if (!raw) return null;
+  const w = raw.default ?? raw;
 
-const id = String(w.id ?? w.slug ?? w.key ?? "world");
-const name = String(w.name ?? w.title ?? id);
+  const id = String(w.id ?? w.slug ?? w.key ?? "world");
+  const name = String(w.name ?? w.title ?? id);
 
-const scenarios = Array.isArray(w.scenarios) ? w.scenarios : [];
-const normScenarios: ScenarioEntry[] = scenarios
-.map((s: any, idx: number) => {
-if (!s) return null;
+  const scenarios = Array.isArray(w.scenarios) ? w.scenarios : [];
+  const normScenarios: ScenarioEntry[] = scenarios
+    .map((s: any, idx: number) => {
+      if (!s) return null;
 
-const sid = String(s.id ?? s.slug ?? `scenario-${idx}`);
-const sname = String(s.name ?? s.title ?? sid);
+      const sid = String(s.id ?? s.slug ?? `scenario-${idx}`);
+      const sname = String(s.name ?? s.title ?? sid);
 
-const scenarioJson = String(s.scenarioJson ?? s.json ?? "");
-if (!scenarioJson) return null;
+      const scenarioJson = String(s.scenarioJson ?? s.json ?? "");
+      if (!scenarioJson) return null;
 
-const theme: ScenarioTheme =
-s.theme ??
-({
-palette: {
-L1: "#19ffb4",
-L2: "#67a5ff",
-L3: "#ffd36a",
-L4: "#ff7ad1",
-L5: "#a1ff5a",
-L6: "#a58bff",
-L7: "#ff5d7a",
-},
-assets: {
-diceFacesBase: "images/dice",
-diceCornerBorder: "",
-villainsBase: "images/villains",
-},
-} as ScenarioTheme);
+      const theme: ScenarioTheme =
+        s.theme ??
+        ({
+          palette: {
+            L1: "#19ffb4",
+            L2: "#67a5ff",
+            L3: "#ffd36a",
+            L4: "#ff7ad1",
+            L5: "#a1ff5a",
+            L6: "#a58bff",
+            L7: "#ff5d7a",
+          },
+          assets: {
+            diceFacesBase: "images/dice",
+            diceCornerBorder: "",
+            villainsBase: "images/villains",
+          },
+        } as ScenarioTheme);
 
-const tracks: Track[] | undefined = Array.isArray(s.tracks)
-? (s.tracks
-.map((t: any, tIdx: number) => {
-if (!t) return null;
-const tid = String(t.id ?? `track-${tIdx}`);
-const tname = String(t.name ?? tid);
-const tjson = String(t.scenarioJson ?? t.json ?? "");
-if (!tjson) return null;
-return { id: tid, name: tname, scenarioJson: tjson } as Track;
-})
-.filter(Boolean) as Track[])
-: undefined;
+      const tracks: Track[] | undefined = Array.isArray(s.tracks)
+        ? (s.tracks
+            .map((t: any, tIdx: number) => {
+              if (!t) return null;
+              const tid = String(t.id ?? `track-${tIdx}`);
+              const tname = String(t.name ?? tid);
+              const tjson = String(t.scenarioJson ?? t.json ?? "");
+              if (!tjson) return null;
+              return { id: tid, name: tname, scenarioJson: tjson } as Track;
+            })
+            .filter(Boolean) as Track[])
+        : undefined;
 
-return {
-id: sid,
-name: sname,
-desc: s.desc,
-scenarioJson,
-theme,
-tracks: tracks && tracks.length ? tracks : undefined,
-} as ScenarioEntry;
-})
-.filter(Boolean) as ScenarioEntry[];
+      return {
+        id: sid,
+        name: sname,
+        desc: s.desc,
+        scenarioJson,
+        theme,
+        tracks: tracks && tracks.length ? tracks : undefined,
+      } as ScenarioEntry;
+    })
+    .filter(Boolean) as ScenarioEntry[];
 
-return {
-id,
-name,
-desc: w.desc,
-menu: w.menu ?? {},
-scenarios: normScenarios,
-} as WorldEntry;
+  return {
+    id,
+    name,
+    desc: w.desc,
+    menu: w.menu ?? {},
+    scenarios: normScenarios,
+  } as WorldEntry;
 }
 
 function loadWorlds(): WorldEntry[] {
-const rawList = getRegisteredWorlds();
-const list: WorldEntry[] = [];
+  const rawList = getRegisteredWorlds();
+  const list: WorldEntry[] = [];
 
-for (const raw of rawList) {
-const norm = normalizeWorldEntry(raw);
-if (norm) list.push(norm);
-}
+  for (const raw of rawList) {
+    const norm = normalizeWorldEntry(raw);
+    if (norm) list.push(norm);
+  }
 
-list.sort((a, b) => a.name.localeCompare(b.name));
-return list;
+  list.sort((a, b) => a.name.localeCompare(b.name));
+  return list;
 }
 
 /* =========================================================
-  Helpers
+   Helpers
 ========================================================= */
 
 function idToCoord(id: string): Coord | null {
-const m = /^L(\d+)-R(\d+)-C(\d+)$/.exec(id);
-if (!m) return null;
-return { layer: Number(m[1]), row: Number(m[2]), col: Number(m[3]) };
+  const m = /^L(\d+)-R(\d+)-C(\d+)$/.exec(id);
+  if (!m) return null;
+  return { layer: Number(m[1]), row: Number(m[2]), col: Number(m[3]) };
 }
 
 function toPublicUrl(p: string) {
-const base = (import.meta as any).env?.BASE_URL ?? "/";
-const cleanBase = String(base).endsWith("/") ? String(base) : `${base}/`;
-const cleanPath = String(p).replace(/^\/+/, "");
-return cleanBase + cleanPath;
+  const base = (import.meta as any).env?.BASE_URL ?? "/";
+  const cleanBase = String(base).endsWith("/") ? String(base) : `${base}/`;
+  const cleanPath = String(p).replace(/^\/+/, "");
+  return cleanBase + cleanPath;
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
-const res = await fetch(toPublicUrl(path));
-if (!res.ok) throw new Error(`Failed to load: ${path}`);
-return res.json();
+  const res = await fetch(toPublicUrl(path));
+  if (!res.ok) throw new Error(`Failed to load: ${path}`);
+  return res.json();
 }
 
 async function loadScenario(path: string): Promise<Scenario> {
-const s = await fetchJson<Scenario>(path);
-assertScenario(s as any);
-return s;
+  const s = await fetchJson<Scenario>(path);
+  assertScenario(s as any);
+  return s;
 }
 
 function getHexFromState(state: GameState | null, id: string): Hex | undefined {
-if (!state) return undefined;
-const m: any = (state as any).hexesById;
-if (m?.get) return m.get(id);
-return (state as any).hexesById?.[id];
+  if (!state) return undefined;
+  const m: any = (state as any).hexesById;
+  if (m?.get) return m.get(id);
+  return (state as any).hexesById?.[id];
 }
 
 function isBlockedOrMissing(hex: any): { blocked: boolean; missing: boolean } {
-if (!hex) return { blocked: true, missing: true };
-return { missing: !!hex.missing, blocked: !!hex.blocked };
+  if (!hex) return { blocked: true, missing: true };
+  return { missing: !!hex.missing, blocked: !!hex.blocked };
 }
 
 function layerCssVar(n: number) {
-const clamped = Math.max(1, Math.min(7, Math.floor(n || 1)));
-return `var(--L${clamped})`;
+  const clamped = Math.max(1, Math.min(7, Math.floor(n || 1)));
+  return `var(--L${clamped})`;
 }
 
 function nowHHMM() {
-const d = new Date();
-const hh = String(d.getHours()).padStart(2, "0");
-const mm = String(d.getMinutes()).padStart(2, "0");
-return `${hh}:${mm}`;
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
 }
 
 function findGoalId(s: any, fallbackLayer: number): string | null {
-const direct =
-s?.goalHexId ??
-s?.goalId ??
-s?.exitHexId ??
-s?.exitId ??
-s?.targetHexId ??
-s?.targetId ??
-s?.winHexId ??
-s?.winId ??
-null;
+  const direct =
+    s?.goalHexId ??
+    s?.goalId ??
+    s?.exitHexId ??
+    s?.exitId ??
+    s?.targetHexId ??
+    s?.targetId ??
+    s?.winHexId ??
+    s?.winId ??
+    null;
 
-if (typeof direct === "string" && /^L\d+-R\d+-C\d+$/.test(direct)) return direct;
+  if (typeof direct === "string" && /^L\d+-R\d+-C\d+$/.test(direct)) return direct;
 
-const gc = s?.goal ?? s?.exit ?? s?.target ?? null;
-if (gc && typeof gc === "object") {
-const layer = Number(gc.layer ?? fallbackLayer);
-const row = Number(gc.row ?? gc.r);
-const col = Number(gc.col ?? gc.c);
-if (Number.isFinite(layer) && Number.isFinite(row) && Number.isFinite(col)) {
-return `L${layer}-R${row}-C${col}`;
-}
-}
-return null;
+  const gc = s?.goal ?? s?.exit ?? s?.target ?? null;
+  if (gc && typeof gc === "object") {
+    const layer = Number(gc.layer ?? fallbackLayer);
+    const row = Number(gc.row ?? gc.r);
+    const col = Number(gc.col ?? gc.c);
+    if (Number.isFinite(layer) && Number.isFinite(row) && Number.isFinite(col)) {
+      return `L${layer}-R${row}-C${col}`;
+    }
+  }
+  return null;
 }
 
 function findFirstPlayableHexId(st: GameState, layer: number): string {
-for (let r = 0; r < ROW_LENS.length; r++) {
-const len = ROW_LENS[r] ?? 7;
-for (let c = 0; c < len; c++) {
-const id = `L${layer}-R${r}-C${c}`;
-const hex = getHexFromState(st, id) as any;
-if (!hex) continue;
-if (hex.missing) continue;
-if (hex.blocked) continue;
-return id;
-}
-}
-return `L${layer}-R0-C0`;
+  for (let r = 0; r < ROW_LENS.length; r++) {
+    const len = ROW_LENS[r] ?? 7;
+    for (let c = 0; c < len; c++) {
+      const id = `L${layer}-R${r}-C${c}`;
+      const hex = getHexFromState(st, id) as any;
+      if (!hex) continue;
+      if (hex.missing) continue;
+      if (hex.blocked) continue;
+      return id;
+    }
+  }
+  return `L${layer}-R0-C0`;
 }
 
 function facingFromMove(fromId: string | null, toId: string | null): "down" | "up" | "left" | "right" {
-const a = fromId ? idToCoord(fromId) : null;
-const b = toId ? idToCoord(toId) : null;
-if (!a || !b) return "down";
-if (a.layer !== b.layer) return "down";
+  const a = fromId ? idToCoord(fromId) : null;
+  const b = toId ? idToCoord(toId) : null;
+  if (!a || !b) return "down";
+  if (a.layer !== b.layer) return "down";
 
-const dRow = b.row - a.row;
-const dCol = b.col - a.col;
+  const dRow = b.row - a.row;
+  const dCol = b.col - a.col;
 
-if (Math.abs(dCol) >= Math.abs(dRow)) return dCol > 0 ? "right" : dCol < 0 ? "left" : "down";
-return dRow > 0 ? "down" : "up";
+  if (Math.abs(dCol) >= Math.abs(dRow)) return dCol > 0 ? "right" : dCol < 0 ? "left" : "down";
+  return dRow > 0 ? "down" : "up";
 }
 
 function unwrapNextState(res: any): GameState | null {
-if (!res) return null;
+  if (!res) return null;
 
-if (typeof res === "object" && "state" in (res as any)) {
-const st = (res as any).state;
-return st && typeof st === "object" ? (st as GameState) : null;
+  if (typeof res === "object" && "state" in (res as any)) {
+    const st = (res as any).state;
+    return st && typeof st === "object" ? (st as GameState) : null;
+  }
+
+  if (typeof res === "object" && (("hexesById" in (res as any)) || ("playerHexId" in (res as any)))) {
+    return res as GameState;
+  }
+
+  return null;
 }
 
-if (typeof res === "object" && (("hexesById" in (res as any)) || ("playerHexId" in (res as any)))) {
-return res as GameState;
-}
-
-return null;
-}
-
-/* =========================================================
-  App
-========================================================= */
-const baseCss = `
-  ...css...
-`;
-
-export default function App() {
-
-// navigation
-const [screen, setScreen] = useState<Screen>("start");
-
-// worlds
-const [worlds, setWorlds] = useState<WorldEntry[]>([]);
-const [worldId, setWorldId] = useState<string | null>(null);
-const world = useMemo(() => worlds.find((w) => w.id === worldId) ?? null, [worlds, worldId]);
-
-const [scenarioId, setScenarioId] = useState<string | null>(null);
-const scenarioEntry = useMemo(() => world?.scenarios.find((s) => s.id === scenarioId) ?? null, [world, scenarioId]);
-
-const [trackId, setTrackId] = useState<string | null>(null);
-const trackEntry = useMemo(() => {
-const tracks = scenarioEntry?.tracks;
-if (!tracks || tracks.length <= 0) return null;
-return tracks.find((t) => t.id === trackId) ?? null;
-}, [scenarioEntry, trackId]);
-
-useEffect(() => {
-setWorlds(loadWorlds());
-}, []);
-
-
-// player
-const [chosenPlayer, setChosenPlayer] = useState<PlayerChoice | null>(null);
-
-// game state
-const [state, setState] = useState<GameState | null>(null);
-const [, forceRender] = useState(0);
-const [currentLayer, setCurrentLayer] = useState<number>(1);
-const [selectedId, setSelectedId] = useState<string | null>(null);
-
-// reachability
-const [reachMap, setReachMap] = useState<ReachMap>({} as ReachMap);
-const reachable = useMemo(() => {
-const set = new Set<string>();
-for (const [k, v] of Object.entries(reachMap as any)) if ((v as any)?.reachable) set.add(k);
-return set;
-}, [reachMap]);
-
-// refs
-const scrollRef = useRef<HTMLDivElement | null>(null);
-const walkTimer = useRef<number | null>(null);
-
-// encounter flow
-const pendingEncounterMoveIdRef = useRef<string | null>(null);
-const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
-const [encounter, setEncounter] = useState<Encounter>(null);
-const encounterActive = !!encounter;
-
-/* =========================
-    Theme / assets (✅ INSIDE App)
- ========================= */
-const activeTheme = scenarioEntry?.theme ?? null;
-const palette = activeTheme?.palette ?? null;
-
-const GAME__URL = activeTheme?.assets.backgroundGame ?? "";
-const BOARD_LAYER_ = (activeTheme?.assets.backgroundLayers as any)?.[`L${currentLayer}`] ?? "";
-const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "images/dice";
-const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
-const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "images/villains";
-const HEX_TILE = activeTheme?.assets.hexTile ?? "";
-
-const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
-
-const themeVars = useMemo(() => {
-const p = palette;
-return {
-["--L1" as any]: p?.L1 ?? "#19ffb4",
-["--L2" as any]: p?.L2 ?? "#67a5ff",
-["--L3" as any]: p?.L3 ?? "#ffd36a",
-["--L4" as any]: p?.L4 ?? "#ff7ad1",
-["--L5" as any]: p?.L5 ?? "#a1ff5a",
-["--L6" as any]: p?.L6 ?? "#a58bff",
-["--L7" as any]: p?.L7 ?? "#ff5d7a",
-} as React.CSSProperties;
-}, [palette]);
-
-
-function diceImg(n: number) {
-return toPublicUrl(`${DICE_FACES_BASE}/D20_${n}.png`);
-}
-function villainImg(key: VillainKey) {
-return toPublicUrl(`${VILLAINS_BASE}/${key}.png`);
-}
-
-/* =========================
-    Sprite
- ========================= */
-type Facing = "down" | "up" | "left" | "right";
-
-const [playerFacing, setPlayerFacing] = useState<Facing>("down");
-const [isWalking, setIsWalking] = useState(false);
-
-// Sprite sheet info
-// NOTE: If your sheet is 4 columns x 5 rows (20 frames), set SPRITE_ROWS = 5.
-// If you're using 4-direction rows only (down/left/right/up), set SPRITE_ROWS = 4.
-const SPRITE_COLS = 4;
-const SPRITE_ROWS = 4; // change to 5 ONLY if your CSS/background-size expects 5 rows
-
-const FRAME_W = 128;
-const FRAME_H = 128;
-
-function spriteSheetUrl() {
-return toPublicUrl("images/players/sprite_sheet_20.png");
-}
-
-// Animation state (canvas-style)
-const rafRef = useRef<number | null>(null);
-const lastRef = useRef(0);
-const [walkFrame, setWalkFrame] = useState(0);
-
-const SPRITE_FPS = 10;
-const FRAME_DURATION = 1000 / SPRITE_FPS;
-
-useEffect(() => {
-// stop animation when not walking
-if (!isWalking) {
-if (rafRef.current) cancelAnimationFrame(rafRef.current);
-rafRef.current = null;
-setWalkFrame(0);
-return;
-}
-
-// animate frames at a fixed FPS using rAF timing
-lastRef.current = performance.now();
-
-const tick = (t: number) => {
-if (t - lastRef.current >= FRAME_DURATION) {
-// loop 0..3 (walk cycle frames)
-setWalkFrame((f) => (f + 1) % SPRITE_COLS);
-lastRef.current = t;
-}
-rafRef.current = requestAnimationFrame(tick);
-};
-
-rafRef.current = requestAnimationFrame(tick);
-
-return () => {
-if (rafRef.current) cancelAnimationFrame(rafRef.current);
-rafRef.current = null;
-};
-}, [isWalking, FRAME_DURATION]);
-
-// cleanup: if a move timer is still pending, clear it on unmount
-useEffect(() => {
-return () => {
-if (walkTimer.current) window.clearTimeout(walkTimer.current);
-};
-}, []);
-
-/* =========================
-  Sprite (Larger)
-========================= */
-
-
-
-/* animation refs + useEffect here */
-
-function facingRow(f: "down" | "up" | "left" | "right") {
-return f === "down" ? 0 : f === "left" ? 1 : f === "right" ? 2 : 3;
-}
-
-/* =========================
-    Dice
- ========================= */
-const [diceValue, setDiceValue] = useState<number>(2);
-const [diceRolling, setDiceRolling] = useState(false);
-const [diceRot, setDiceRot] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-const diceTimer = useRef<number | null>(null);
-
-useEffect(() => {
-return () => {
-if (diceTimer.current) window.clearTimeout(diceTimer.current);
-};
-}, []);
-
-function rotForRoll(n: number) {
-switch (n) {
-case 1:
-return { x: -90, y: 0 };
-case 2:
-return { x: 0, y: 0 };
-case 3:
-return { x: 0, y: -90 };
-case 4:
-return { x: 0, y: 90 };
-case 5:
-return { x: 0, y: 180 };
-case 6:
-return { x: 90, y: 0 };
-default:
-return { x: 0, y: 0 };
-}
-}
-
-const rollDice = useCallback(() => {
-if (diceRolling) return;
-setDiceRolling(true);
-
-const start = performance.now();
-const duration = 650;
-
-const tick = () => {
-const elapsed = performance.now() - start;
-const flicker = 1 + Math.floor(Math.random() * 6);
-setDiceValue(flicker);
-setDiceRot(rotForRoll(flicker));
-
-if (elapsed < duration) {
-diceTimer.current = window.setTimeout(tick, 55);
-} else {
-const final = 1 + Math.floor(Math.random() * 6);
-setDiceValue(final);
-setDiceRot(rotForRoll(final));
-setDiceRolling(false);
-}
-};
-
-tick();
-}, [diceRolling]);
-
-/* =========================
-    Villain trigger helpers
- ========================= */
-function findTriggerForHex(id: string): VillainKey | null {
-const c = idToCoord(id);
-if (!c) return null;
-for (const t of villainTriggers) {
-if (t.layer !== c.layer) continue;
-if (t.row !== c.row) continue;
-if (!t.cols || t.cols === "any") return t.key;
-if (Array.isArray(t.cols) && t.cols.includes(c.col)) return t.key;
-}
-return null;
-}
-
-const parseVillainsFromScenario = useCallback((s: any): VillainTrigger[] => {
-if (Array.isArray(s?.villainTriggers)) {
-return s.villainTriggers
-.map((t: any) => ({
-key: t.key as VillainKey,
-layer: Number(t.layer),
-row: Number(t.row),
-cols: t.cols ?? "any",
-}))
-.filter((t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row));
-}
-
-if (Array.isArray(s?.villains?.triggers)) {
-return s.villains.triggers
-.map((t: any) => ({
-key: String(t.id) as VillainKey,
-layer: Number(t.layer),
-row: Number(t.row),
-cols: "any" as const,
-}))
-.filter((t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row));
-}
-
-return [];
-}, []);
-
-/* =========================
-    Moves / optimal / log
- ========================= */
-const [movesTaken, setMovesTaken] = useState(0);
-
-const [goalId, setGoalId] = useState<string | null>(null);
-const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
-const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
-
-const computeOptimalFromReachMap = useCallback((rm: ReachMap, gid: string | null) => {
-if (!gid) return null;
-const info: any = (rm as any)[gid];
-return info?.reachable ? (info.distance as number) : null;
-}, []);
-
-const [log, setLog] = useState<LogEntry[]>([]);
-const logNRef = useRef(0);
-
-const pushLog = useCallback((msg: string, kind: LogEntry["kind"] = "info") => {
-logNRef.current += 1;
-const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
-setLog((prev) => [e, ...prev].slice(0, 24));
-}, []);
-
-/* =========================
-    Reveal helpers
- ========================= */
-const revealWholeLayer = useCallback((st: GameState, layer: number) => {
-for (let r = 0; r < ROW_LENS.length; r++) {
-const len = ROW_LENS[r] ?? 7;
-for (let c = 0; c < len; c++) revealHex(st, `L${layer}-R${r}-C${c}`);
-}
-}, []);
-
-const revealRing = useCallback((st: GameState, centerId: string) => {
-revealHex(st, centerId);
-
-let nbs: string[] = [];
-try {
-nbs = (neighborIdsSameLayer as any)(st, centerId) as string[];
-} catch {
-try {
-nbs = (neighborIdsSameLayer as any)(centerId) as string[];
-} catch {
-nbs = [];
-}
-}
-for (const nbId of nbs) revealHex(st, nbId);
-}, []);
-
-/* =========================
-    Items
- ========================= */
-type ItemId = "reroll" | "revealRing" | "peek";
-type Item = { id: ItemId; name: string; icon: string; charges: number };
-
-const [items, setItems] = useState<Item[]>([
-{ id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
-{ id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
-{ id: "peek", name: "Peek", icon: "🧿", charges: 1 },
-]);
-
-const useItem = useCallback(
-(id: ItemId) => {
-const it = items.find((x) => x.id === id);
-if (!it || it.charges <= 0) return;
-
-setItems((prev) => prev.map((x) => (x.id === id ? { ...x, charges: Math.max(0, x.charges - 1) } : x)));
-
-if (id === "reroll") {
-rollDice();
-pushLog("Reroll used — rolling…", "info");
-return;
-}
-
-if (!state) return;
-const pid = (state as any).playerHexId ?? null;
-if (!pid) return;
-
-if (id === "revealRing") {
-revealRing(state, pid);
-setReachMap(getReachability(state) as any);
-forceRender((n) => n + 1);
-pushLog("Used: Reveal (ring)", "ok");
-return;
-}
-
-if (id === "peek") {
-const up = Math.min(scenarioLayerCount, currentLayer + 1);
-const dn = Math.max(1, currentLayer - 1);
-
-const upId = pid.replace(/^L\d+-/, `L${up}-`);
-const dnId = pid.replace(/^L\d+-/, `L${dn}-`);
-
-revealRing(state, upId);
-revealRing(state, dnId);
-
-setReachMap(getReachability(state) as any);
-forceRender((n) => n + 1);
-pushLog("Used: Peek (above/below ring)", "info");
-return;
-}
-},
-[items, rollDice, pushLog, state, revealRing, scenarioLayerCount, currentLayer]
-);
-
-/* =========================
-    Encounter resolution (✅ single effect, correct scope)
- ========================= */
-const prevRollingRef = useRef(false);
-useEffect(() => {
-const wasRolling = prevRollingRef.current;
-prevRollingRef.current = diceRolling;
-
-if (!encounter) return;
-if (diceRolling) return;
-if (!wasRolling) return; // only when roll just ended
-
-// count attempt
-setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
-
-// only succeed on 6
-if (diceValue !== 6) return;
-
-const targetId = pendingEncounterMoveIdRef.current;
-pendingEncounterMoveIdRef.current = null;
-
-// close overlay
-setEncounter(null);
-
-if (!state || !targetId) return;
-
-const res: any = tryMove(state as any, targetId);
-const nextState = unwrapNextState(res);
-
-if (!nextState) {
-const msg =
-(res && typeof res === "object" && "reason" in res && String((res as any).reason)) ||
-Move failed.;
-pushLog(msg, "bad");
-return;
-}
-const pidBefore = (state as any)?.playerHexId as string | null;
-
-
-const pidAfter = (nextState as any).playerHexId as string | null;
-/* ✅ PUT THIS HERE */
-const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
-if (moved) {
-setIsWalking(true);
-
-if (walkTimer.current) window.clearTimeout(walkTimer.current);
-walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-
-setPlayerFacing(facingFromMove(pidBefore, pidAfter));
-}
-// commit state first
-setState(nextState);
-setSelectedId(pidAfter ?? targetId);
-
-// layer ops after commit
-const c2 = pidAfter ? idToCoord(pidAfter) : null;
-const nextLayer = c2?.layer ?? currentLayer;
-if (nextLayer !== currentLayer) {
-setCurrentLayer(nextLayer);
-enterLayer(nextState, nextLayer);
-revealWholeLayer(nextState, nextLayer);
-}
-
-const rm = getReachability(nextState) as any;
-setReachMap(rm);
-setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
-
-pushLog(`Encounter cleared — moved to ${pidAfter ?? targetId}`, "ok");
-if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
-}, [
-encounter,
-diceRolling,
-diceValue,
-state,
-currentLayer,
-goalId,
-revealWholeLayer,
-computeOptimalFromReachMap,
-pushLog,
-]);
-
-/* =========================
-    Start scenario
- ========================= */
-const startScenario = useCallback(async () => {
-if (!scenarioEntry) return;
-
-const tracks = scenarioEntry.tracks ?? [];
-const hasTracks = tracks.length > 1;
-const chosenJson = hasTracks ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson : scenarioEntry.scenarioJson;
-
-const s = (await loadScenario(chosenJson)) as any;
-
-setVillainTriggers(parseVillainsFromScenario(s));
-setEncounter(null);
-pendingEncounterMoveIdRef.current = null;
-
-const st = newGame(s);
-
-const layerCount = Math.max(1, Number(s?.layers ?? 1));
-setScenarioLayerCount(layerCount);
-
-let pid = (st as any).playerHexId as string | null;
-let layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
-layer = Math.max(1, Math.min(layerCount, layer));
-
-if (!pid || !/^L\d+-R\d+-C\d+$/.test(pid)) {
-pid = findFirstPlayableHexId(st, layer);
-(st as any).playerHexId = pid;
-}
-
-const pidCoord = idToCoord(pid);
-if (pidCoord) layer = Math.max(1, Math.min(layerCount, pidCoord.layer));
-
-const gid = findGoalId(s, layer);
-setGoalId(gid);
-
-// IMPORTANT ORDER: enter + reveal before reachability
-enterLayer(st, layer);
-revealWholeLayer(st, layer);
-
-const rm = getReachability(st) as any;
-
-setState(st);
-setSelectedId(pid);
-setCurrentLayer(layer);
-setPlayerFacing("down");
-
-setReachMap(rm);
-setMovesTaken(0);
-setOptimalAtStart(computeOptimalFromReachMap(rm, gid));
-setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
-
-logNRef.current = 0;
-setLog([]);
-pushLog(`Started: ${scenarioEntry.name}`, "ok");
-if (pid) pushLog(`Start: ${pid}`, "info");
-if (gid) pushLog(`Goal: ${gid}`, "info");
-
-setItems([
-{ id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
-{ id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
-{ id: "peek", name: "Peek", icon: "🧿", charges: 1 },
-]);
-
-window.setTimeout(() => {
-if (scrollRef.current) scrollRef.current.scrollLeft = 0;
-}, 0);
-
-setScreen("game");
-}, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog]);
-
-/* =========================
-    Movement (no hooks inside)
- ========================= */
-const tryMoveToId = useCallback(
-(id: string) => {
-if (!state) return;
-if (encounterActive) return;
-
-const hex = getHexFromState(state, id) as any;
-const { blocked, missing } = isBlockedOrMissing(hex);
-if (missing) {
-pushLog("Missing tile.", "bad");
-return;
-}
-if (blocked) {
-pushLog("Blocked tile.", "bad");
-return;
-}
-
-const pidBefore = (state as any).playerHexId as string | null;
-
-if (pidBefore && id !== pidBefore && reachable.size > 0 && !reachable.has(id)) {
-pushLog("Not reachable.", "bad");
-return;
-}
-
-// encounter gate BEFORE tryMove
-const vk = findTriggerForHex(id);
-if (vk) {
-pendingEncounterMoveIdRef.current = id;
-setEncounter((prev) => (prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }));
-pushLog(`Encounter: ${vk} — roll a 6 to continue`, "bad");
-return;
-}
-
-const res: any = tryMove(state as any, id);
-const nextState = unwrapNextState(res);
-
-if (!nextState) {
-const msg =
-(res && typeof res === "object" && "reason" in res && String((res as any).reason)) ||
-Move failed.;
-pushLog(msg, "bad");
-return;
-}
-
-
-const pidAfter = (nextState as any).playerHexId as string | null;
-
-const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
-if (moved) {
-setMovesTaken((n) => n + 1);
-
-setIsWalking(true);
-if (walkTimer.current) window.clearTimeout(walkTimer.current);
-walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-
-setPlayerFacing(facingFromMove(pidBefore, pidAfter));
-}
-
-// commit next state first
-setState(nextState);
-setSelectedId(pidAfter ?? id);
-
-// layer ops after commit
-const c2 = pidAfter ? idToCoord(pidAfter) : null;
-const nextLayer = c2?.layer ?? currentLayer;
-if (nextLayer !== currentLayer) {
-setCurrentLayer(nextLayer);
-enterLayer(nextState, nextLayer);
-revealWholeLayer(nextState, nextLayer);
-}
-
-const rm = getReachability(nextState) as any;
-setReachMap(rm);
-setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
-
-pushLog(`Moved to ${pidAfter ?? id}`, "ok");
-if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
-},
-[
-state,
-encounterActive,
-reachable,
-currentLayer,
-goalId,
-pushLog,
-revealWholeLayer,
-computeOptimalFromReachMap,
-findTriggerForHex,
-]
-);
-
-const canGoDown = currentLayer - 1 >= 1;
-const canGoUp = currentLayer + 1 <= scenarioLayerCount;
-
-/* =========================
-    Render helpers/components
- ========================= */
-const layerRows = useMemo(() => ROW_LENS.length, []);
-const rows = useMemo(() => Array.from({ length: layerRows }, (_, i) => i), [layerRows]);
-
-function hexId(layer: number, r: number, c: number) {
-return `L${layer}-R${r}-C${c}`;
-}
-
-function isPlayerHere(id: string) {
-const pid = (state as any)?.playerHexId as string | null;
-return !!pid && pid === id;
-}
-
-function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
-const segments = [7, 6, 5, 4, 3, 2, 1];
-const { side, currentLayer } = props;
-
-return (
-<div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")}>
-<div className="layerBar">
-{segments.map((layerVal) => {
-const active = layerVal === currentLayer;
-return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} />;
-})}
-</div>
-</div>
-);
-}
-
-function HexDeckCardsOverlay(props: { glowVar: string }) {
-return (
-<div className="hexDeckOverlay" style={{ ["--cardGlow" as any]: props.glowVar } as any}>
-<div className="hexDeckCol left">
-<div className="hexDeckCard cosmic ccw slow" />
-<div className="hexDeckCard risk ccw fast" />
-</div>
-
-<div className="hexDeckCol right">
-<div className="hexDeckCard terrain cw slow" />
-<div className="hexDeckCard shadow cw fast" />
-</div>
-</div>
-);
-}
-
-const resetAll = useCallback(() => {
-setScreen("start");
-setWorldId(null);
-setScenarioId(null);
-setTrackId(null);
-setChosenPlayer(null);
-
-setState(null);
-setCurrentLayer(1);
-setSelectedId(null);
-setReachMap({} as any);
-
-setVillainTriggers([]);
-setEncounter(null);
-pendingEncounterMoveIdRef.current = null;
-
-setGoalId(null);
-setOptimalAtStart(null);
-setOptimalFromNow(null);
-setMovesTaken(0);
-
-logNRef.current = 0;
-setLog([]);
-
-setItems([
-{ id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
-{ id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
-{ id: "peek", name: "Peek", icon: "🧿", charges: 1 },
-]);
-}, []);
-
-const PLAYER_PRESETS: Array<{ id: string; name: string }> = [
-{ id: "p1", name: "Aeris" },
-{ id: "p2", name: "Devlan" },
-];
-
-/* =========================
-    Screens
- ========================= */
-if (screen === "start") {
-return (
-<div className="appRoot" style={themeVars}>
-<div className="screen center">
-<div className="panel">
-<div className="title">Hex Game</div>
-<div className="sub">Start → World → Character → Scenario → Game</div>
-
-<div className="row">
-<button className="btn primary" onClick={() => setScreen("world")}>
-Start
-</button>
-<button className="btn" onClick={resetAll}>
-Reset
-</button>
-</div>
-
-<div className="hint">
-Worlds loaded: <b>{worlds.length}</b>
-</div>
-</div>
-</div>
-
-<style>{baseCss}</style>
-</div>
-);
-}
-
-if (screen === "world") {
-return (
-<div className="appRoot" style={themeVars}>
-<div className="topbar">
-<button className="btn" onClick={() => setScreen("start")}>
-← Back
-</button>
-<div className="spacer" />
-<button className="btn" onClick={resetAll}>
-Reset
-</button>
-</div>
-
-<div className="screen center">
-<div className="panel wide">
-<div className="title">Choose World</div>
-
-<div className="grid">
-{worlds.map((w) => {
-const active = w.id === worldId;
-return (
-<button
-key={w.id}
-className={`card ${active ? "active" : ""}`}
-style={{ borderColor: active ? w.menu?.solidColor ?? "rgba(255,255,255,.2)" : undefined }}
-onClick={() => {
-setWorldId(w.id);
-setScenarioId(null);
-setTrackId(null);
-}}
->
-<div className="cardTitle">{w.name}</div>
-<div className="cardDesc">{w.desc ?? w.id}</div>
-</button>
-);
-})}
-</div>
-
-<div className="row">
-<button className="btn" onClick={() => setScreen("start")}>
-Back
-</button>
-<button className="btn primary" disabled={!worldId} onClick={() => setScreen("character")}>
-Continue
-</button>
-</div>
-</div>
-</div>
-
-<style>{baseCss}</style>
-</div>
-);
-}
-
-if (screen === "character") {
-return (
-<div className="appRoot" style={themeVars}>
-<div className="topbar">
-<button className="btn" onClick={() => setScreen("world")}>
-← Back
-</button>
-<div className="spacer" />
-<button className="btn" onClick={resetAll}>
-Reset
-</button>
-</div>
-
-<div className="screen center">
-<div className="panel wide">
-<div className="title">Choose Character</div>
-
-<div className="grid">
-{PLAYER_PRESETS.map((p) => {
-const active = chosenPlayer?.kind === "preset" && chosenPlayer.id === p.id;
-return (
-<button
-key={p.id}
-className={`card ${active ? "active" : ""}`}
-onClick={() => setChosenPlayer({ kind: "preset", id: p.id, name: p.name })}
->
-<div className="cardTitle">{p.name}</div>
-<div className="cardDesc">Preset</div>
-</button>
-);
-})}
-
-<button
-className={`card ${chosenPlayer?.kind === "custom" ? "active" : ""}`}
-onClick={() => setChosenPlayer({ kind: "custom", name: "Custom", imageDataUrl: null })}
->
-<div className="cardTitle">Custom</div>
-<div className="cardDesc">Upload an image</div>
-</button>
-</div>
-
-{chosenPlayer?.kind === "custom" ? (
-<div className="customBox">
-<label className="lbl">Name</label>
-<input
-className="inp"
-value={chosenPlayer.name}
-onChange={(e) =>
-setChosenPlayer((prev) => (prev && prev.kind === "custom" ? { ...prev, name: e.target.value } : prev))
-}
-/>
-
-<label className="lbl">Portrait (optional)</label>
-<input
-className="inp"
-type="file"
-accept="image/*"
-onChange={(e) => {
-const file = e.target.files?.[0] ?? null;
-if (!file) return;
-const fr = new FileReader();
-fr.onload = () => {
-const url = typeof fr.result === "string" ? fr.result : null;
-setChosenPlayer((prev) => (prev && prev.kind === "custom" ? { ...prev, imageDataUrl: url } : prev));
-};
-fr.readAsDataURL(file);
-}}
-/>
-{chosenPlayer.imageDataUrl ? <img className="portrait" src={chosenPlayer.imageDataUrl} alt="portrait" /> : null}
-</div>
-) : null}
-
-<div className="row">
-<button className="btn" onClick={() => setScreen("world")}>
-Back
-</button>
-<button className="btn primary" disabled={!chosenPlayer} onClick={() => setScreen("scenario")}>
-Continue
-</button>
-</div>
-</div>
-</div>
-
-<style>{baseCss}</style>
-</div>
-);
-}
-
-if (screen === "scenario") {
-const scenarios = world?.scenarios ?? [];
-const tracks = scenarioEntry?.tracks ?? [];
-const showTracks = tracks.length > 1;
-
-return (
-<div className="appRoot" style={themeVars}>
-<div className="topbar">
-<button className="btn" onClick={() => setScreen("character")}>
-← Back
-</button>
-<div className="spacer" />
-<button className="btn" onClick={resetAll}>
-Reset
-</button>
-</div>
-
-<div className="screen center">
-<div className="panel wide">
-<div className="title">Choose Scenario</div>
-
-<div className="grid">
-{scenarios.map((s) => {
-const active = s.id === scenarioId;
-return (
-<button
-key={s.id}
-className={`card ${active ? "active" : ""}`}
-onClick={() => {
-setScenarioId(s.id);
-setTrackId(null);
-}}
->
-<div className="cardTitle">{s.name}</div>
-<div className="cardDesc">{s.desc ?? s.id}</div>
-</button>
-);
-})}
-</div>
-
-{scenarioEntry && showTracks ? (
-<div className="tracks">
-<div className="tracksTitle">Tracks</div>
-<div className="tracksRow">
-{tracks.map((t) => {
-const active = t.id === trackId;
-return (
-<button key={t.id} className={`chip ${active ? "active" : ""}`} onClick={() => setTrackId(t.id)}>
-{t.name}
-</button>
-);
-})}
-</div>
-</div>
-) : null}
-
-<div className="row">
-<button className="btn" onClick={() => setScreen("character")}>
-Back
-</button>
-<button className="btn primary" disabled={!scenarioEntry} onClick={startScenario}>
-Start Game
-</button>
-</div>
-</div>
-</div>
-
-<style>{baseCss}</style>
-</div>
-);
-}
-
-/* =========================
-    GAME screen
- ========================= */
-const pid = (state as any)?.playerHexId as string | null;
-
-return (
-<div className="appRoot game" style={themeVars}>
-<div
-className="gameBg"
-style={{ backgroundImage: GAME__URL ? `url(${toPublicUrl(GAME__URL)})` : undefined }}
-/>
-
-
-<div className="topbar">
-<button className="btn" onClick={() => setScreen("scenario")}>
-↺ Setup
-</button>
-<button className="btn" onClick={resetAll}>
-Reset
-</button>
-
-<div className="hudGroup hudGroupLeft">
-<button className="btn primary" disabled={!state || diceRolling} onClick={rollDice}>
-{diceRolling ? "Rolling…" : encounterActive ? "Roll (Need 6)" : "Roll"}
-</button>
-
-<div className={`dice3d ${diceRolling ? "rolling" : ""}`}>
-<div className="cube" style={{ transform: `rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)` }}>
-<div className="face face-front" style={{ backgroundImage: `url(${diceImg(2)})` }} />
-<div className="face face-back" style={{ backgroundImage: `url(${diceImg(5)})` }} />
-<div className="face face-right" style={{ backgroundImage: `url(${diceImg(3)})` }} />
-<div className="face face-left" style={{ backgroundImage: `url(${diceImg(4)})` }} />
-<div className="face face-top" style={{ backgroundImage: `url(${diceImg(1)})` }} />
-<div className="face face-bottom" style={{ backgroundImage: `url(${diceImg(6)})` }} />
-</div>
-
-{DICE_BORDER_IMG ? <div className="diceBorder" style={{ backgroundImage: `url(${toPublicUrl(DICE_BORDER_IMG)})` }} /> : null}
-</div>
-
-<div className="hudStat">
-<div className="k">Dice</div>
-<div className="v">{diceValue}</div>
-</div>
-
-<div className="hudStat">
-<div className="k">Facing</div>
-<div className="v">{playerFacing}</div>
-</div>
-
-<div className="hudStat">
-<div className="k">Goal</div>
-<div className="v">{goalId ?? "—"}</div>
-</div>
-
-<div className="hudStat">
-<div className="k">Optimal</div>
-<div className="v">
-{optimalFromNow ?? "—"} <span className="mutedSmall">{optimalAtStart != null ? `(start ${optimalAtStart})` : ""}</span>
-</div>
-</div>
-</div>
-
-<div className="spacer" />
-
-<div className="hudGroup hudGroupRight">
-<div className="items">
-{items.map((it) => (
-<button
-key={it.id}
-className={`itemBtn ${it.charges <= 0 ? "off" : ""}`}
-disabled={it.charges <= 0 || !state || (encounterActive && it.id !== "reroll")}
-onClick={() => useItem(it.id)}
-title={`${it.name} (${it.charges})`}
->
-<span className="itemIcon">{it.icon}</span>
-<span className="itemName">{it.name}</span>
-<span className="itemCharges">{it.charges}</span>
-</button>
-))}
-</div>
-</div>
-
-<div className="spacer" />
-
-<div className="pill">
-<span className="dot" />
-<span className="pillText">
-{world?.name ?? "World"} • {scenarioEntry?.name ?? "Scenario"} • L{currentLayer} • Moves {movesTaken}
-</span>
-</div>
-
-<button
-className="btn"
-disabled={!state || !canGoDown || encounterActive}
-onClick={() => {
-if (!state) return;
-const next = Math.max(1, currentLayer - 1);
-setCurrentLayer(next);
-enterLayer(state, next);
-revealWholeLayer(state, next);
-setReachMap(getReachability(state) as any);
-pushLog(`Layer ${next}`, "info");
-}}
->
-− Layer
-</button>
-
-<button
-className="btn"
-disabled={!state || !canGoUp || encounterActive}
-onClick={() => {
-if (!state) return;
-const next = Math.min(scenarioLayerCount, currentLayer + 1);
-setCurrentLayer(next);
-enterLayer(state, next);
-revealWholeLayer(state, next);
-setReachMap(getReachability(state) as any);
-pushLog(`Layer ${next}`, "info");
-}}
->
-#NAME?
-</button>
-</div>
-
-<div className="gameLayout">
-<SideBar side="left" currentLayer={currentLayer} />
-<div className="boardWrap">
-<div
-key={currentLayer}
-className="boardLayerBg"
-style={{ backgroundImage: BOARD_LAYER_ ? `url(${toPublicUrl(BOARD_LAYER_)})` : undefined }}
-/>
-
-
-<div className="boardScroll" ref={scrollRef}>
-<div className="board">
-{rows.map((r) => {
-const cols = ROW_LENS[r] ?? 0;
-return (
-<div key={r} className={`hexRow ${r % 2 === 1 ? "offset" : ""}`}>
-{Array.from({ length: cols }, (_, c) => {
-const id = hexId(currentLayer, r, c);
-const hex = getHexFromState(state, id) as any;
-const { blocked, missing } = isBlockedOrMissing(hex);
-
-if (missing) return <div key={id} className="hexSlot empty" />;
-
-const isSel = selectedId === id;
-const isReach = reachable.has(id);
-const isPlayer = isPlayerHere(id);
-const isGoal = goalId === id;
-const isTrigger = !!findTriggerForHex(id);
-
-const tile = HEX_TILE ? `url(${toPublicUrl(HEX_TILE)})` : "";
-
-return (
-<button
-key={id}
-className={[
-hex,
-isSel ? "sel" : "",
-isReach ? "reach" : "",
-blocked ? "blocked" : "",
-isPlayer ? "player" : "",
-isGoal ? "goal" : "",
-isTrigger ? "trigger" : "",
-].join(" ")}
-onClick={() => {
-setSelectedId(id);
-tryMoveToId(id);
-}}
-disabled={!state || blocked || encounterActive}
-style={{
-["--hexGlow" as any]: layerCssVar(currentLayer),
-backgroundImage: tile || undefined,
-}}
-title={id}
->
-<div className="hexAnchor">
-<div className="hexInner">
-<div className="hexId">
-{r},{c}
-</div>
-<div className="hexMarks">
-{isGoal ? <span className="mark g">G</span> : null}
-{isTrigger ? <span className="mark t">!</span> : null}
-</div>
-</div>
-
-{isPlayer ? (
-<span
-className={`playerSpriteSheet ${isWalking ? "walking" : ""}`}
-style={
-{
-["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
-["--frameW" as any]: FRAME_W,
-["--frameH" as any]: FRAME_H,
-["--cols" as any]: SPRITE_COLS,
-["--rows" as any]: SPRITE_ROWS,
-["--frameX" as any]: walkFrame,
-["--frameY" as any]:
-playerFacing === "down" ? 0 : playerFacing === "left" ? 1 : playerFacing === "right" ? 2 : 3,
-} as any
-}
-/>
-) : null}
-</div>
-</button>
-);
-})}
-</div>
-);
-})}
-</div>
-</div>
-
-<HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
-</div>
-
-<SideBar side="right" currentLayer={currentLayer} />
-
-<div className="side">
-<div className="panelMini">
-<div className="miniTitle">Status</div>
-<div className="miniRow">
-<span className="k">Player</span>
-<span className="v">{chosenPlayer?.kind === "preset" ? chosenPlayer.name : chosenPlayer?.name ?? "—"}</span>
-</div>
-<div className="miniRow">
-<span className="k">Tile</span>
-<span className="v">{pid ?? "—"}</span>
-</div>
-<div className="miniRow">
-<span className="k">Reach</span>
-<span className="v">{reachable.size}</span>
-</div>
-<div className="miniRow">
-<span className="k">Encounter</span>
-<span className="v">{encounterActive ? encounter!.villainKey : "no"}</span>
-</div>
-</div>
-
-<div className="panelMini">
-<div className="miniTitle">Log</div>
-<div className="log">
-{log.length === 0 ? (
-<div className="mutedSmall">No events yet.</div>
-) : (
-log.map((e) => (
-<div key={e.n} className={`logRow ${e.kind ?? "info"}`}>
-<span className="lt">{e.t}</span>
-<span className="lm">{e.msg}</span>
-</div>
-))
-)}
-</div>
-</div>
-</div>
-</div>
-
-{encounterActive ? (
-<div className="overlay">
-<div className="overlayCard">
-<div className="overlayTitle">Encounter</div>
-<div className="overlaySub">
-Villain: <b>{encounter!.villainKey}</b> — roll a <b>6</b> to continue.
-</div>
-
-<div className="villainBox">
-<img className="villainImg" src={villainImg(encounter!.villainKey)} alt="villain" />
-<div className="villainMeta">
-<div className="miniRow">
-<span className="k">Tries</span>
-<span className="v">{encounter!.tries}</span>
-</div>
-<div className="miniRow">
-<span className="k">Last roll</span>
-<span className="v">{diceValue}</span>
-</div>
-</div>
-</div>
-
-<div className="row">
-<button className="btn primary" disabled={diceRolling} onClick={rollDice}>
-{diceRolling ? "Rolling…" : "Roll"}
-</button>
-<button className="btn" onClick={() => pushLog("You cannot flee. Roll a 6.", "bad")}>
-Flee
-</button>
-</div>
-</div>
-</div>
-) : null}
-
-<style>{baseCss}</style>
-</div>
-);
-
-`;
 
 /* =========================================================
    CSS
 ========================================================= */
 
+const baseCss = `
 :root{
-  --bg0:#070a10; --bg1:#0b1324;
-  --panel: rgba(10,14,24,.72);
+  --bg0: #070814;
+  --bg1: rgba(10,14,24,.92);
+
+  --text: rgba(255,255,255,.92);
+  --muted: rgba(255,255,255,.65);
+
+  --panel: rgba(10,14,24,.88);
   --stroke: rgba(255,255,255,.10);
   --stroke2: rgba(255,255,255,.18);
-  --text: rgba(255,255,255,.92);
-  --muted: rgba(255,255,255,.62);
-  --shadow: 0 18px 50px rgba(0,0,0,.45);
-  --shadow2: 0 10px 25px rgba(0,0,0,.35);
 
-  --deckGap: 20px;
+  --shadow: 0 18px 52px rgba(0,0,0,.45);
+  --shadow2: 0 18px 56px rgba(0,0,0,.55);
 
-  /* === BOARD GEOMETRY (LOCKED 7676767) === */
-  --hexWMain: clamp(82px, 6.6vw, 120px);
-  --hexHMain: calc(var(--hexWMain) * 0.8660254); /* √3/2 */
-
-  /* ✅ true pointy-top horizontal step (3/4 width) */
-  --hexStepX: calc(var(--hexWMain) * 0.75);
-
-  /* ✅ true vertical step */
-  --hexStepY: var(--hexHMain);
-
-  --maxCols: 7;
-  --hexRows: 7;
-
-  /* These two MUST match between board + bars */
-  --boardPadTop: 10px;
+  /* board sizing */
+  --boardW: 860px;
+  --boardPadTop: 18px;
   --boardPadBottom: 18px;
 
-  --barColW: 62px;
+  /* hex geometry (7676767) */
+  --hexWMain: 96px;
+  --hexHMain: 84px;
+  --hexStepX: 72px; /* horizontal spacing between centers */
+
+  /* derived: used by bars */
+  --hexFieldH: calc(var(--hexHMain) * 7);
+
+  /* side columns */
+  --barColW: 86px;
+  --barW: 26px;
   --sideColW: 340px;
-  --barW: 18px;
 
-  /* used by bars */
-  --hexFieldH: calc(var(--hexRows) * var(--hexStepY));
-
-  /* ✅ board width based on center-to-center step */
-  --boardW: calc(
-    var(--hexWMain) + (var(--maxCols) - 1) * var(--hexStepX)
-  );
+  /* layer colors (overridden by themeVars inline) */
+  --L1:#19ffb4;
+  --L2:#67a5ff;
+  --L3:#ffd36a;
+  --L4:#ff7ad1;
+  --L5:#a1ff5a;
+  --L6:#a58bff;
+  --L7:#ff5d7a;
 }
-
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
 body{
   margin:0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  background: radial-gradient(1200px 900px at 50% 20%, rgba(60,80,180,.22), transparent 55%),
+              radial-gradient(900px 650px at 20% 80%, rgba(120,255,210,.10), transparent 55%),
+              var(--bg0);
   color: var(--text);
-  background:
-    radial-gradient(1200px 800px at 20% 10%, rgba(125,255,220,.10), transparent 5.5%),
-    radial-gradient(900px 700px at 80% 20%, rgba(120,150,255,.12), transparent 5.5%),
-    radial-gradient(900px 700px at 50% 90%, rgba(255,220,120,.08), transparent 6.0%),
-    linear-gradient(180deg, var(--bg0), var(--bg1));
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
   overflow:hidden;
 }
 
-.appRoot{ height:100vh; width:100vw; position:relative; }
+.appRoot{
+  min-height:100vh;
+  position:relative;
+}
 
-/* =========================================================
-   GAME BACKGROUND
-========================================================= */
 .gameBg{
   position:absolute;
   inset:0;
@@ -1630,7 +375,7 @@ body{
   background-size: cover;
   background-position: center;
   opacity:.65;
-filter: saturate(1.25) contrast(1.15) brightness(1.05);
+  filter: saturate(1.25) contrast(1.15) brightness(1.05);
 }
 
 /* =========================================================
@@ -1649,9 +394,8 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   z-index:5;
 
   flex-wrap: nowrap;
-  overflow: hidden;  /* desktop: no horizontal scroll */
+  overflow: hidden;
 }
-
 .spacer{ flex:1; }
 
 /* =========================================================
@@ -1914,6 +658,55 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
 }
 
 /* =========================================================
+   LAYER BARS (HEIGHT MATCHES HEX FIELD + ACTIVE GLOW)
+========================================================= */
+.barWrap{
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 6;
+}
+.barLeft{ justify-content: flex-start; }
+.barRight{ justify-content: flex-end; }
+
+.layerBar{
+  width: var(--barW);
+  height: var(--hexFieldH);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.18);
+  box-shadow: 0 18px 40px rgba(0,0,0,.35);
+  display: flex;
+  flex-direction: column;
+}
+.barSeg{ height: var(--hexHMain); width: 100%; opacity: .95; }
+.barSeg[data-layer="7"]{ background: var(--L7); }
+.barSeg[data-layer="6"]{ background: var(--L6); }
+.barSeg[data-layer="5"]{ background: var(--L5); }
+.barSeg[data-layer="4"]{ background: var(--L4); }
+.barSeg[data-layer="3"]{ background: var(--L3); }
+.barSeg[data-layer="2"]{ background: var(--L2); }
+.barSeg[data-layer="1"]{ background: var(--L1); }
+
+.barSeg.isActive{
+  filter: brightness(1.15);
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,.42),
+    0 0 18px 6px rgba(255,255,255,.10);
+  position: relative;
+}
+.barSeg.isActive::after{
+  content:"";
+  position:absolute;
+  inset: -6px;
+  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.35), transparent 60%);
+  opacity: .55;
+  pointer-events:none;
+}
+
+/* =========================================================
    BOARD WRAP
 ========================================================= */
 .boardWrap{
@@ -1924,7 +717,8 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   box-shadow: var(--shadow2);
   overflow: visible;
   min-height: 0;
-    --boardInset: calc((100% - var(--boardW)) / 2);
+
+  --boardInset: calc((100% - var(--boardW)) / 2);
 }
 .boardLayerBg{
   position:absolute; inset:0;
@@ -1934,16 +728,11 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   transform: scale(1.02);
   animation: bgFadeIn 220ms ease;
 }
-
 @keyframes bgFadeIn{
   from{ opacity: 0; }
   to{ opacity: .45; }
 }
 
-
-/* =========================================================
-   BOARD SCROLL + BOARD
-========================================================= */
 .boardScroll{
   position: relative;
   z-index: 2;
@@ -1951,7 +740,6 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   overflow: auto;
   padding: 0 10px;
 }
-
 .board{
   width: var(--boardW);
   margin: 0 auto;
@@ -1967,7 +755,6 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   align-items: center;
   justify-content: center;
   width: 100%;
-  
 }
 .hexRow.offset{
   transform: translateX(calc(var(--hexStepX) / 2));
@@ -1975,30 +762,33 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
 
 /* =========================================================
    HEX SLOTS + HEX BUTTON
+   ✅ FIX: removed invalid nested ".hex{ .hex{ ... } }"
 ========================================================= */
 .hexSlot{
   width: var(--hexWMain);
   height: var(--hexHMain);
- margin-right: calc(var(--hexStepX) - var(--hexWMain));
-
+  margin-right: calc(var(--hexStepX) - var(--hexWMain));
+flex: 0 0 var(--hexWMain);
 }
 .hexSlot.empty{ opacity: 0; }
 
 .hex{
- width: var(--hexWMain);
+  width: var(--hexWMain);
   height: var(--hexHMain);
-  margin-right: calc(var(--hexPitch) - var(--hexWMain));
+  margin-right: calc(var(--hexStepX) - var(--hexWMain));
+
   padding: 0;
   border: none;
-  background: rgba(0,0,0,.0);
+  background: rgba(0,0,0,0);
   cursor: pointer;
+
   filter: drop-shadow(0 10px 16px rgba(0,0,0,.35));
   transition: transform 140ms ease, filter 140ms ease;
   position: relative;
   overflow: visible;
 
   --hexGlow: rgba(120,255,210,.51);
- 
+flex: 0 0 var(--hexWMain);
 }
 .hex:hover{
   transform: translateY(-2px);
@@ -2014,6 +804,8 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
 /* =========================================================
    HEX INNER TILE + STATES
 ========================================================= */
+.hexAnchor{ position: relative; width: 100%; height: 100%; overflow: visible; }
+
 .hexInner{
   width: 100%;
   height: 100%;
@@ -2040,6 +832,7 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
     radial-gradient(circle at 80% 80%, rgba(255,255,255,.25), transparent 55%);
   pointer-events:none;
 }
+
 .hex.reach .hexInner{
   border-color: rgba(70,249,180,.48);
   box-shadow: inset 0 0 0 1px rgba(70,249,180,.18), 0 0 0 3px rgba(70,249,180,.08);
@@ -2050,6 +843,7 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   50%{ filter: brightness(1.15); }
   100%{ filter: brightness(1); }
 }
+
 .hex.sel .hexInner{
   border-color: rgba(255,221,121,.55);
   box-shadow: inset 0 0 0 1px rgba(255,221,121,.20), 0 0 0 3px rgba(255,221,121,.10);
@@ -2132,18 +926,16 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
 /* =========================================================
    SPRITE (LARGER)
 ========================================================= */
-.hexAnchor{ position: relative; width: 100%; height: 100%; overflow: visible; }
-
 .playerSpriteSheet{
   position: absolute;
   left: 50%;
- top: 86%;
+  top: 86%;
   width: calc(var(--frameW) * 1px);
   height: calc(var(--frameH) * 1px);
 
---spriteScale: 0.62;
---footX: -10px;
---footY: 0px;
+  --spriteScale: 0.62;
+  --footX: -10px;
+  --footY: 0px;
 
   transform:
     translate(calc(-50% + var(--footX)), calc(-100% + var(--footY)))
@@ -2164,56 +956,6 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
     calc(var(--frameH) * -1px * var(--frameY));
 
   filter: drop-shadow(0 10px 18px rgba(0,0,0,.45));
-}
-
-/* =========================================================
-   LAYER BARS (HEIGHT MATCHES HEX FIELD + ACTIVE GLOW)
-========================================================= */
-.barWrap{
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 6;
-}
-.barLeft{ justify-content: flex-start; }
-.barRight{ justify-content: flex-end; }
-
-.layerBar{
-  width: var(--barW);
-  height: var(--hexFieldH);
-  border-radius: 999px;
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,.16);
-  background: rgba(0,0,0,.18);
-  box-shadow: 0 18px 40px rgba(0,0,0,.35);
-  display: flex;
-  flex-direction: column;
-}
-.barSeg{ height: var(--hexHMain); width: 100%; opacity: .95; }
-
-.barSeg[data-layer="7"]{ background: var(--L7); }
-.barSeg[data-layer="6"]{ background: var(--L6); }
-.barSeg[data-layer="5"]{ background: var(--L5); }
-.barSeg[data-layer="4"]{ background: var(--L4); }
-.barSeg[data-layer="3"]{ background: var(--L3); }
-.barSeg[data-layer="2"]{ background: var(--L2); }
-.barSeg[data-layer="1"]{ background: var(--L1); }
-
-.barSeg.isActive{
-  filter: brightness(1.15);
-  box-shadow:
-    inset 0 0 0 2px rgba(255,255,255,.42),
-    0 0 18px 6px rgba(255,255,255,.10);
-  position: relative;
-}
-.barSeg.isActive::after{
-  content:"";
-  position:absolute;
-  inset: -6px;
-  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.35), transparent 60%);
-  opacity: .55;
-  pointer-events:none;
 }
 
 /* =========================================================
@@ -2270,9 +1012,8 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
 .logRow.info .lm{ color: rgba(119,168,255,.92); }
 
 /* =========================================================
-   DECK CARDS (MATCH IMAGE: PINNED TO TOP/BOTTOM IN THE GUTTERS)
+   DECK CARDS (PINNED TO GUTTERS) + BORDER EFFECT
 ========================================================= */
-
 .hexDeckOverlay{
   position: absolute;
   inset: 0;
@@ -2280,16 +1021,11 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   pointer-events: none;
 
   --cardGlow: rgba(120,255,210,.65);
-
-  /* spacing from gutter edge */
   --deckPadX: 14px;
   --deckPadY: 14px;
 }
-
-/* columns not used for layout */
 .hexDeckCol{ display: contents; }
 
-/* base card */
 .hexDeckCard{
   position: absolute;
 
@@ -2306,41 +1042,28 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
     0 18px 48px rgba(0,0,0,.55),
     0 0 0 1px rgba(255,255,255,.06) inset;
 }
-/* =========================================================
-   POSITIONS — PUSHED AWAY FROM BOARD (KEY FIX)
-========================================================= */
 
-/* TOP-LEFT (outer gutter edge) */
+/* positions */
 .hexDeckCard.cosmic{
   left: calc(var(--boardInset) - var(--deckPadX));
   top: calc(var(--boardPadTop) + var(--deckPadY));
   transform: translateX(-100%);
 }
-
-/* BOTTOM-LEFT */
 .hexDeckCard.risk{
   left: calc(var(--boardInset) - var(--deckPadX));
   bottom: calc(var(--boardPadBottom) + var(--deckPadY));
   transform: translateX(-100%);
 }
-
-/* TOP-RIGHT */
 .hexDeckCard.terrain{
   right: calc(var(--boardInset) - var(--deckPadX));
   top: calc(var(--boardPadTop) + var(--deckPadY));
   transform: translateX(100%);
 }
-
-/* BOTTOM-RIGHT */
 .hexDeckCard.shadow{
   right: calc(var(--boardInset) - var(--deckPadX));
   bottom: calc(var(--boardPadBottom) + var(--deckPadY));
   transform: translateX(100%);
 }
-
-/* =========================================================
-   SHINE + BORDER GLOW
-========================================================= */
 
 .hexDeckCard::before{
   content:"";
@@ -2351,6 +1074,16 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
     radial-gradient(90% 70% at 70% 80%, rgba(255,255,255,.08), transparent 60%);
   opacity: .9;
   pointer-events:none;
+}
+
+/* single combined ::after (no duplicate blocks) */
+@property --spin { syntax: "<angle>"; inherits: false; initial-value: 0turn; }
+
+@keyframes spinCW { from{ --spin: 0turn; } to{ --spin: 1turn; } }
+@keyframes spinCCW{ from{ --spin: 1turn; } to{ --spin: 0turn; } }
+@keyframes twinkle {
+  0%,100%{ filter: drop-shadow(0 0 10px var(--cardGlow)); opacity:.92; }
+  50%{ filter: drop-shadow(0 0 16px var(--cardGlow)); opacity:1; }
 }
 
 .hexDeckCard::after{
@@ -2376,36 +1109,23 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 
-  filter: blur(.2px) drop-shadow(0 0 10px var(--cardGlow));
   opacity: .95;
   pointer-events:none;
+
+  animation: var(--spinAnim) linear infinite, twinkle 1.3s ease-in-out infinite;
 }
 
-@keyframes spinCW { from{ --spin: 0turn; } to{ --spin: 1turn; } }
-@keyframes spinCCW{ from{ --spin: 1turn; } to{ --spin: 0turn; } }
+/* animation direction/speed via CSS var */
+.hexDeckCard.cw.slow{  --spinAnim: spinCW 3.6s; }
+.hexDeckCard.cw.fast{  --spinAnim: spinCW 2.4s; }
+.hexDeckCard.ccw.slow{ --spinAnim: spinCCW 3.8s; }
+.hexDeckCard.ccw.fast{ --spinAnim: spinCCW 2.2s; }
 
-.hexDeckCard.cw.slow{ animation: spinCW 3.6s linear infinite; }
-.hexDeckCard.cw.fast{ animation: spinCW 2.4s linear infinite; }
-.hexDeckCard.ccw.slow{ animation: spinCCW 3.8s linear infinite; }
-.hexDeckCard.ccw.fast{ animation: spinCCW 2.2s linear infinite; }
-
-@keyframes twinkle {
-  0%,100%{ filter: drop-shadow(0 0 10px var(--cardGlow)); opacity:.92; }
-  50%{ filter: drop-shadow(0 0 16px var(--cardGlow)); opacity:1; }
-}
-.hexDeckCard::after{
-  animation-name: inherit, twinkle;
-  animation-duration: inherit, 1.3s;
-  animation-iteration-count: inherit, infinite;
-  animation-timing-function: linear, ease-in-out;
-}
-
-/* card color themes */
+/* card themes */
 .hexDeckCard.cosmic  { --a:#0C1026; --b:#1A1F4A; }
 .hexDeckCard.risk    { --a:#12090A; --b:#6E0F1B; }
 .hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; }
 .hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; }
-
 
 /* =========================================================
    OVERLAY / ENCOUNTER
@@ -2449,7 +1169,6 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
   border: none;
   background: transparent;
 }
-
 .villainImg{
   width: 120px;
   height: 120px;
@@ -2474,8 +1193,936 @@ filter: saturate(1.25) contrast(1.15) brightness(1.05);
 *::-webkit-scrollbar-corner{ background: transparent; }
 
 @media (max-width: 980px){
+  body{ overflow:auto; }
   .gameLayout{ grid-template-columns: 1fr; height:auto; }
   .barWrap{ display:none; }
   .side{ order: 10; }
+  .board{ width: min(var(--boardW), 96vw); }
 }
+
 `;
+/* =========================================================
+   App
+========================================================= */
+
+export default function App() {
+  // navigation
+  const [screen, setScreen] = useState<Screen>("start");
+
+  // worlds
+  const [worlds, setWorlds] = useState<WorldEntry[]>([]);
+  const [worldId, setWorldId] = useState<string | null>(null);
+  const world = useMemo(() => worlds.find((w) => w.id === worldId) ?? null, [worlds, worldId]);
+
+  const [scenarioId, setScenarioId] = useState<string | null>(null);
+  const scenarioEntry = useMemo(() => world?.scenarios.find((s) => s.id === scenarioId) ?? null, [world, scenarioId]);
+
+  const [trackId, setTrackId] = useState<string | null>(null);
+  const trackEntry = useMemo(() => {
+    const tracks = scenarioEntry?.tracks;
+    if (!tracks || tracks.length <= 0) return null;
+    return tracks.find((t) => t.id === trackId) ?? null;
+  }, [scenarioEntry, trackId]);
+
+  useEffect(() => {
+    setWorlds(loadWorlds());
+  }, []);
+
+  // player
+  const [chosenPlayer, setChosenPlayer] = useState<PlayerChoice | null>(null);
+
+  // game state
+  const [state, setState] = useState<GameState | null>(null);
+  const [, forceRender] = useState(0);
+  const [currentLayer, setCurrentLayer] = useState<number>(1);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // reachability
+  const [reachMap, setReachMap] = useState<ReachMap>({} as ReachMap);
+  const reachable = useMemo(() => {
+    const set = new Set<string>();
+    for (const [k, v] of Object.entries(reachMap as any)) if ((v as any)?.reachable) set.add(k);
+    return set;
+  }, [reachMap]);
+
+  // refs
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const walkTimer = useRef<number | null>(null);
+
+  // encounter flow
+  const pendingEncounterMoveIdRef = useRef<string | null>(null);
+  const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
+  const [encounter, setEncounter] = useState<Encounter>(null);
+  const encounterActive = !!encounter;
+
+  /* =========================
+     Theme / assets (INSIDE App)
+  ========================= */
+
+  const activeTheme = scenarioEntry?.theme ?? null;
+  const palette = activeTheme?.palette ?? null;
+
+  const GAME__URL = activeTheme?.assets.backgroundGame ?? "";
+
+  // ✅ ABSOLUTELY NO TEMPLATE LITERALS
+  const backgroundLayers: any = (activeTheme && activeTheme.assets && activeTheme.assets.backgroundLayers) || {};
+  const BOARD_LAYER_ = backgroundLayers["L" + currentLayer] || "";
+
+  const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "images/dice";
+  const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
+  const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "images/villains";
+  const HEX_TILE = activeTheme?.assets.hexTile ?? "";
+
+  const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
+
+  const themeVars = useMemo(() => {
+    const p = palette;
+    return {
+      ["--L1" as any]: p?.L1 ?? "#19ffb4",
+      ["--L2" as any]: p?.L2 ?? "#67a5ff",
+      ["--L3" as any]: p?.L3 ?? "#ffd36a",
+      ["--L4" as any]: p?.L4 ?? "#ff7ad1",
+      ["--L5" as any]: p?.L5 ?? "#a1ff5a",
+      ["--L6" as any]: p?.L6 ?? "#a58bff",
+      ["--L7" as any]: p?.L7 ?? "#ff5d7a",
+    } as React.CSSProperties;
+  }, [palette]);
+
+  function diceImg(n: number) {
+    return toPublicUrl(DICE_FACES_BASE + "/D20_" + n + ".png");
+  }
+
+  function villainImg(key: VillainKey) {
+    return toPublicUrl(VILLAINS_BASE + "/" + key + ".png");
+  }
+
+  /* =========================
+     Sprite
+  ========================= */
+
+  type Facing = "down" | "up" | "left" | "right";
+
+  const [playerFacing, setPlayerFacing] = useState<Facing>("down");
+  const [isWalking, setIsWalking] = useState(false);
+
+  // Sprite sheet info
+  const SPRITE_COLS = 4;
+  const SPRITE_ROWS = 4; // set to 5 ONLY if your sheet has 5 direction rows
+
+  const FRAME_W = 128;
+  const FRAME_H = 128;
+
+  function spriteSheetUrl() {
+    return toPublicUrl("images/players/sprite_sheet_20.png");
+  }
+
+  // Animation state
+  const rafRef = useRef<number | null>(null);
+  const lastRef = useRef(0);
+  const [walkFrame, setWalkFrame] = useState(0);
+
+  const SPRITE_FPS = 10;
+  const FRAME_DURATION = 1000 / SPRITE_FPS;
+
+  useEffect(() => {
+    if (!isWalking) {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+      setWalkFrame(0);
+      return;
+    }
+
+    lastRef.current = performance.now();
+
+    const tick = (t: number) => {
+      if (t - lastRef.current >= FRAME_DURATION) {
+        setWalkFrame((f) => (f + 1) % SPRITE_COLS);
+        lastRef.current = t;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [isWalking, FRAME_DURATION]);
+
+  // cleanup: if a move timer is still pending, clear it on unmount
+  useEffect(() => {
+    return () => {
+      if (walkTimer.current) window.clearTimeout(walkTimer.current);
+    };
+  }, []);
+
+  function facingRow(f: Facing) {
+    return f === "down" ? 0 : f === "left" ? 1 : f === "right" ? 2 : 3;
+  }
+
+  /* =========================
+     Dice
+  ========================= */
+
+  const [diceValue, setDiceValue] = useState<number>(2);
+  const [diceRolling, setDiceRolling] = useState(false);
+  const [diceRot, setDiceRot] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const diceTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (diceTimer.current) window.clearTimeout(diceTimer.current);
+    };
+  }, []);
+
+  function rotForRoll(n: number) {
+    switch (n) {
+      case 1:
+        return { x: -90, y: 0 };
+      case 2:
+        return { x: 0, y: 0 };
+      case 3:
+        return { x: 0, y: -90 };
+      case 4:
+        return { x: 0, y: 90 };
+      case 5:
+        return { x: 0, y: 180 };
+      case 6:
+        return { x: 90, y: 0 };
+      default:
+        return { x: 0, y: 0 };
+    }
+  }
+
+  const rollDice = useCallback(() => {
+    if (diceRolling) return;
+    setDiceRolling(true);
+
+    const start = performance.now();
+    const duration = 650;
+
+    const tick = () => {
+      const elapsed = performance.now() - start;
+      const flicker = 1 + Math.floor(Math.random() * 6);
+      setDiceValue(flicker);
+      setDiceRot(rotForRoll(flicker));
+
+      if (elapsed < duration) {
+        diceTimer.current = window.setTimeout(tick, 55);
+      } else {
+        const final = 1 + Math.floor(Math.random() * 6);
+        setDiceValue(final);
+        setDiceRot(rotForRoll(final));
+        setDiceRolling(false);
+      }
+    };
+
+    tick();
+  }, [diceRolling]);
+
+  /* =========================
+     Villain trigger helpers
+  ========================= */
+
+  function findTriggerForHex(id: string): VillainKey | null {
+    const c = idToCoord(id);
+    if (!c) return null;
+    for (const t of villainTriggers) {
+      if (t.layer !== c.layer) continue;
+      if (t.row !== c.row) continue;
+      if (!t.cols || t.cols === "any") return t.key;
+      if (Array.isArray(t.cols) && t.cols.includes(c.col)) return t.key;
+    }
+    return null;
+  }
+
+  const parseVillainsFromScenario = useCallback((s: any): VillainTrigger[] => {
+    if (Array.isArray(s?.villainTriggers)) {
+      return s.villainTriggers
+        .map((t: any) => ({
+          key: t.key as VillainKey,
+          layer: Number(t.layer),
+          row: Number(t.row),
+          cols: t.cols ?? "any",
+        }))
+        .filter((t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row));
+    }
+
+    if (Array.isArray(s?.villains?.triggers)) {
+      return s.villains.triggers
+        .map((t: any) => ({
+          key: String(t.id) as VillainKey,
+          layer: Number(t.layer),
+          row: Number(t.row),
+          cols: "any" as const,
+        }))
+        .filter((t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row));
+    }
+
+    return [];
+  }, []);
+  /* =========================
+     Moves / optimal / log
+  ========================= */
+
+  const [movesTaken, setMovesTaken] = useState(0);
+
+  const [goalId, setGoalId] = useState<string | null>(null);
+  const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
+  const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
+
+  const computeOptimalFromReachMap = useCallback((rm: ReachMap, gid: string | null) => {
+    if (!gid) return null;
+    const info: any = (rm as any)[gid];
+    return info?.reachable ? (info.distance as number) : null;
+  }, []);
+
+  const [log, setLog] = useState<LogEntry[]>([]);
+  const logNRef = useRef(0);
+
+  const pushLog = useCallback((msg: string, kind: LogEntry["kind"] = "info") => {
+    logNRef.current += 1;
+    const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
+    setLog((prev) => [e, ...prev].slice(0, 24));
+  }, []);
+
+  /* =========================
+     Reveal helpers
+  ========================= */
+
+  const revealWholeLayer = useCallback((st: GameState, layer: number) => {
+    for (let r = 0; r < ROW_LENS.length; r++) {
+      const len = ROW_LENS[r] ?? 7;
+      for (let c = 0; c < len; c++) {
+        revealHex(st, "L" + layer + "-R" + r + "-C" + c);
+      }
+    }
+  }, []);
+
+  const revealRing = useCallback((st: GameState, centerId: string) => {
+    revealHex(st, centerId);
+
+    let nbs: string[] = [];
+    try {
+      nbs = (neighborIdsSameLayer as any)(st, centerId) as string[];
+    } catch {
+      try {
+        nbs = (neighborIdsSameLayer as any)(centerId) as string[];
+      } catch {
+        nbs = [];
+      }
+    }
+    for (const nbId of nbs) revealHex(st, nbId);
+  }, []);
+
+  /* =========================
+     Items
+  ========================= */
+
+  type ItemId = "reroll" | "revealRing" | "peek";
+  type Item = { id: ItemId; name: string; icon: string; charges: number };
+
+  const [items, setItems] = useState<Item[]>([
+    { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
+    { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
+    { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
+  ]);
+
+  const useItem = useCallback(
+    (id: ItemId) => {
+      const it = items.find((x) => x.id === id);
+      if (!it || it.charges <= 0) return;
+
+      setItems((prev) => prev.map((x) => (x.id === id ? { ...x, charges: Math.max(0, x.charges - 1) } : x)));
+
+      if (id === "reroll") {
+        rollDice();
+        pushLog("Reroll used — rolling…", "info");
+        return;
+      }
+
+      if (!state) return;
+      const pid = (state as any).playerHexId ?? null;
+      if (!pid) return;
+
+      if (id === "revealRing") {
+        revealRing(state, pid);
+        setReachMap(getReachability(state) as any);
+        forceRender((n) => n + 1);
+        pushLog("Used: Reveal (ring)", "ok");
+        return;
+      }
+
+      if (id === "peek") {
+        const up = Math.min(scenarioLayerCount, currentLayer + 1);
+        const dn = Math.max(1, currentLayer - 1);
+
+        const upId = pid.replace(/^L\d+-/, "L" + up + "-");
+        const dnId = pid.replace(/^L\d+-/, "L" + dn + "-");
+
+        revealRing(state, upId);
+        revealRing(state, dnId);
+
+        setReachMap(getReachability(state) as any);
+        forceRender((n) => n + 1);
+        pushLog("Used: Peek (above/below ring)", "info");
+        return;
+      }
+    },
+    [items, rollDice, pushLog, state, revealRing, scenarioLayerCount, currentLayer]
+  );
+
+  /* =========================
+     Encounter resolution (✅ single effect, correct scope)
+  ========================= */
+
+  const prevRollingRef = useRef(false);
+  useEffect(() => {
+    const wasRolling = prevRollingRef.current;
+    prevRollingRef.current = diceRolling;
+
+    if (!encounter) return;
+    if (diceRolling) return;
+    if (!wasRolling) return; // only when roll just ended
+
+    // count attempt
+    setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
+
+    // only succeed on 6
+    if (diceValue !== 6) return;
+
+    const targetId = pendingEncounterMoveIdRef.current;
+    pendingEncounterMoveIdRef.current = null;
+
+    // close overlay
+    setEncounter(null);
+
+    if (!state || !targetId) return;
+
+    const res: any = tryMove(state as any, targetId);
+    const nextState = unwrapNextState(res);
+
+    if (!nextState) {
+      const msg =
+        (res && typeof res === "object" && "reason" in res && String((res as any).reason)) || "Move failed.";
+      pushLog(msg, "bad");
+      return;
+    }
+
+    const pidBefore = (state as any)?.playerHexId as string | null;
+    const pidAfter = (nextState as any).playerHexId as string | null;
+
+    const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
+    if (moved) {
+      setIsWalking(true);
+
+      if (walkTimer.current) window.clearTimeout(walkTimer.current);
+      walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+
+      setPlayerFacing(facingFromMove(pidBefore, pidAfter));
+    }
+
+    // commit state first
+    setState(nextState);
+    setSelectedId(pidAfter ?? targetId);
+
+    // layer ops after commit
+    const c2 = pidAfter ? idToCoord(pidAfter) : null;
+    const nextLayer = c2?.layer ?? currentLayer;
+    if (nextLayer !== currentLayer) {
+      setCurrentLayer(nextLayer);
+      enterLayer(nextState, nextLayer);
+      revealWholeLayer(nextState, nextLayer);
+    }
+
+    const rm = getReachability(nextState) as any;
+    setReachMap(rm);
+    setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+
+    pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
+    if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
+  }, [
+    encounter,
+    diceRolling,
+    diceValue,
+    state,
+    currentLayer,
+    goalId,
+    revealWholeLayer,
+    computeOptimalFromReachMap,
+    pushLog,
+  ]);
+
+  /* =========================
+     Start scenario
+  ========================= */
+
+  const startScenario = useCallback(async () => {
+    if (!scenarioEntry) return;
+
+    const tracks = scenarioEntry.tracks ?? [];
+    const hasTracks = tracks.length > 1;
+    const chosenJson = hasTracks ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson : scenarioEntry.scenarioJson;
+
+    const s = (await loadScenario(chosenJson)) as any;
+
+    setVillainTriggers(parseVillainsFromScenario(s));
+    setEncounter(null);
+    pendingEncounterMoveIdRef.current = null;
+
+    const st = newGame(s);
+
+    const layerCount = Math.max(1, Number(s?.layers ?? 1));
+    setScenarioLayerCount(layerCount);
+
+    let pid = (st as any).playerHexId as string | null;
+    let layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
+    layer = Math.max(1, Math.min(layerCount, layer));
+
+    if (!pid || !/^L\d+-R\d+-C\d+$/.test(pid)) {
+      pid = findFirstPlayableHexId(st, layer);
+      (st as any).playerHexId = pid;
+    }
+
+    const pidCoord = idToCoord(pid);
+    if (pidCoord) layer = Math.max(1, Math.min(layerCount, pidCoord.layer));
+
+    const gid = findGoalId(s, layer);
+    setGoalId(gid);
+
+    // IMPORTANT ORDER: enter + reveal before reachability
+    enterLayer(st, layer);
+    revealWholeLayer(st, layer);
+
+    const rm = getReachability(st) as any;
+
+    setState(st);
+    setSelectedId(pid);
+    setCurrentLayer(layer);
+    setPlayerFacing("down");
+
+    setReachMap(rm);
+    setMovesTaken(0);
+    setOptimalAtStart(computeOptimalFromReachMap(rm, gid));
+    setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
+
+    logNRef.current = 0;
+    setLog([]);
+    pushLog("Started: " + scenarioEntry.name, "ok");
+    if (pid) pushLog("Start: " + pid, "info");
+    if (gid) pushLog("Goal: " + gid, "info");
+
+    setItems([
+      { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
+      { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
+      { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
+    ]);
+
+    window.setTimeout(() => {
+      if (scrollRef.current) scrollRef.current.scrollLeft = 0;
+    }, 0);
+
+    setScreen("game");
+  }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog]);
+
+  /* =========================
+     Movement (no hooks inside)
+  ========================= */
+
+  const tryMoveToId = useCallback(
+    (id: string) => {
+      if (!state) return;
+      if (encounterActive) return;
+
+      const hex = getHexFromState(state, id) as any;
+      const { blocked, missing } = isBlockedOrMissing(hex);
+      if (missing) {
+        pushLog("Missing tile.", "bad");
+        return;
+      }
+      if (blocked) {
+        pushLog("Blocked tile.", "bad");
+        return;
+      }
+
+      const pidBefore = (state as any).playerHexId as string | null;
+
+      if (pidBefore && id !== pidBefore && reachable.size > 0 && !reachable.has(id)) {
+        pushLog("Not reachable.", "bad");
+        return;
+      }
+
+      // encounter gate BEFORE tryMove
+      const vk = findTriggerForHex(id);
+      if (vk) {
+        pendingEncounterMoveIdRef.current = id;
+        setEncounter((prev) => (prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }));
+        pushLog("Encounter: " + vk + " — roll a 6 to continue", "bad");
+        return;
+      }
+
+      const res: any = tryMove(state as any, id);
+      const nextState = unwrapNextState(res);
+
+      if (!nextState) {
+        const msg =
+          (res && typeof res === "object" && "reason" in res && String((res as any).reason)) || "Move failed.";
+        pushLog(msg, "bad");
+        return;
+      }
+
+      const pidAfter = (nextState as any).playerHexId as string | null;
+
+      const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
+      if (moved) {
+        setMovesTaken((n) => n + 1);
+
+        setIsWalking(true);
+        if (walkTimer.current) window.clearTimeout(walkTimer.current);
+        walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+
+        setPlayerFacing(facingFromMove(pidBefore, pidAfter));
+      }
+
+      // commit next state first
+      setState(nextState);
+      setSelectedId(pidAfter ?? id);
+
+      // layer ops after commit
+      const c2 = pidAfter ? idToCoord(pidAfter) : null;
+      const nextLayer = c2?.layer ?? currentLayer;
+      if (nextLayer !== currentLayer) {
+        setCurrentLayer(nextLayer);
+        enterLayer(nextState, nextLayer);
+        revealWholeLayer(nextState, nextLayer);
+      }
+
+      const rm = getReachability(nextState) as any;
+      setReachMap(rm);
+      setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+
+      pushLog("Moved to " + (pidAfter ?? id), "ok");
+      if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
+    },
+    [
+      state,
+      encounterActive,
+      reachable,
+      currentLayer,
+      goalId,
+      pushLog,
+      revealWholeLayer,
+      computeOptimalFromReachMap,
+      findTriggerForHex,
+    ]
+  );
+
+  const canGoDown = currentLayer - 1 >= 1;
+  const canGoUp = currentLayer + 1 <= scenarioLayerCount;
+     /* =========================
+     Render helpers/components
+  ========================= */
+
+  const layerRows = useMemo(() => ROW_LENS.length, []);
+  const rows = useMemo(() => Array.from({ length: layerRows }, (_, i) => i), [layerRows]);
+
+  function hexId(layer: number, r: number, c: number) {
+    return "L" + layer + "-R" + r + "-C" + c;
+  }
+
+  function isPlayerHere(id: string) {
+    const pid0 = (state as any)?.playerHexId as string | null;
+    return !!pid0 && pid0 === id;
+  }
+
+  function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
+    const segments = [7, 6, 5, 4, 3, 2, 1];
+    const { side, currentLayer } = props;
+
+    return (
+      <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")}>
+        <div className="layerBar">
+          {segments.map((layerVal) => {
+            const active = layerVal === currentLayer;
+            return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} />;
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  function HexDeckCardsOverlay(props: { glowVar: string }) {
+    return (
+      <div className="hexDeckOverlay" style={{ ["--cardGlow" as any]: props.glowVar } as any}>
+        <div className="hexDeckCol left">
+          <div className="hexDeckCard cosmic ccw slow" />
+          <div className="hexDeckCard risk ccw fast" />
+        </div>
+
+        <div className="hexDeckCol right">
+          <div className="hexDeckCard terrain cw slow" />
+          <div className="hexDeckCard shadow cw fast" />
+        </div>
+      </div>
+    );
+  }
+
+  const resetAll = useCallback(() => {
+    setScreen("start");
+    setWorldId(null);
+    setScenarioId(null);
+    setTrackId(null);
+    setChosenPlayer(null);
+
+    setState(null);
+    setCurrentLayer(1);
+    setSelectedId(null);
+    setReachMap({} as any);
+
+    setVillainTriggers([]);
+    setEncounter(null);
+    pendingEncounterMoveIdRef.current = null;
+
+    setGoalId(null);
+    setOptimalAtStart(null);
+    setOptimalFromNow(null);
+    setMovesTaken(0);
+
+    logNRef.current = 0;
+    setLog([]);
+
+    setItems([
+      { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
+      { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
+      { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
+    ]);
+  }, []);
+
+  const PLAYER_PRESETS: Array<{ id: string; name: string }> = [
+    { id: "p1", name: "Aeris" },
+    { id: "p2", name: "Devlan" },
+  ];
+
+  /* =========================
+     Screens
+  ========================= */
+
+  if (screen === "start") {
+    return (
+      <div className="appRoot" style={themeVars}>
+        <div className="screen center">
+          <div className="panel">
+            <div className="title">Hex Game</div>
+            <div className="sub">Start → World → Character → Scenario → Game</div>
+
+            <div className="row">
+              <button className="btn primary" onClick={() => setScreen("world")}>
+                Start
+              </button>
+              <button className="btn" onClick={resetAll}>
+                Reset
+              </button>
+            </div>
+
+            <div className="hint">
+              Worlds loaded: <b>{worlds.length}</b>
+            </div>
+          </div>
+        </div>
+
+        <style>{baseCss}</style>
+      </div>
+    );
+  }
+
+  // NOTE:
+  // Keep your existing "world", "character", "scenario" screens above this point.
+  // Only drop in the updated GAME screen below.
+
+  /* =========================
+     GAME screen
+  ========================= */
+
+
+  return (
+    <div className="appRoot game" style={themeVars}>
+      <div className="gameBg" style={{ backgroundImage: GAME__URL ? "url(" + toPublicUrl(GAME__URL) + ")" : undefined }} />
+
+      <div className="topbar">
+        {/* KEEP your existing topbar HUD blocks */}
+        {/* Dice block can be replaced with this (it uses diceRot + diceImg) */}
+
+        <div className={"dice3d " + (diceRolling ? "rolling" : "")}>
+          <div className="cube" style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}>
+            <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(2) + ")" }} />
+            <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }} />
+            <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }} />
+            <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }} />
+            <div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }} />
+            <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }} />
+          </div>
+
+          {DICE_BORDER_IMG ? (
+            <div className="diceBorder" style={{ backgroundImage: "url(" + toPublicUrl(DICE_BORDER_IMG) + ")" }} />
+          ) : null}
+        </div>
+
+        {/* Items (unchanged) */}
+        <div className="items">
+          {items.map((it) => (
+            <button
+              key={it.id}
+              className={"itemBtn " + (it.charges <= 0 ? "off" : "")}
+              disabled={it.charges <= 0 || !state || (encounterActive && it.id !== "reroll")}
+              onClick={() => useItem(it.id)}
+              title={it.name + " (" + it.charges + ")"}
+            >
+              <span className="itemIcon">{it.icon}</span>
+              <span className="itemName">{it.name}</span>
+              <span className="itemCharges">{it.charges}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Layer buttons (unchanged) */}
+        <button
+          className="btn"
+          disabled={!state || !canGoDown || encounterActive}
+          onClick={() => {
+            if (!state) return;
+            const next = Math.max(1, currentLayer - 1);
+            setCurrentLayer(next);
+            enterLayer(state, next);
+            revealWholeLayer(state, next);
+            setReachMap(getReachability(state) as any);
+            pushLog("Layer " + next, "info");
+          }}
+        >
+          − Layer
+        </button>
+
+        <button
+          className="btn"
+          disabled={!state || !canGoUp || encounterActive}
+          onClick={() => {
+            if (!state) return;
+            const next = Math.min(scenarioLayerCount, currentLayer + 1);
+            setCurrentLayer(next);
+            enterLayer(state, next);
+            revealWholeLayer(state, next);
+            setReachMap(getReachability(state) as any);
+            pushLog("Layer " + next, "info");
+          }}
+        >
+          + Layer
+        </button>
+      </div>
+
+      <div className="gameLayout">
+        <SideBar side="left" currentLayer={currentLayer} />
+
+        <div className="boardWrap">
+          <div
+            key={currentLayer}
+            className="boardLayerBg"
+            style={{ backgroundImage: BOARD_LAYER_ ? "url(" + toPublicUrl(BOARD_LAYER_) + ")" : undefined }}
+          />
+
+          {/* deck cards overlay (the glowing border / spin effect) */}
+          <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
+
+          <div className="boardScroll" ref={scrollRef}>
+            <div className="board">
+              {rows.map((r) => {
+                const cols = ROW_LENS[r] ?? 0;
+                return (
+                  <div key={r} className={"hexRow " + (r % 2 === 1 ? "offset" : "")}>
+                    {Array.from({ length: cols }, (_, c) => {
+                      const id = hexId(currentLayer, r, c);
+                      const hex = getHexFromState(state, id) as any;
+                      const { blocked, missing } = isBlockedOrMissing(hex);
+
+                      if (missing) return <div key={id} className="hexSlot empty" />;
+
+                      const isSel = selectedId === id;
+                      const isReach = reachable.has(id);
+                      const isPlayer = isPlayerHere(id);
+                      const isGoal = goalId === id;
+                      const isTrigger = !!findTriggerForHex(id);
+
+                      const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
+
+                      return (
+                        <button
+                          key={id}
+                          className={[
+                            "hex",
+                            isSel ? "sel" : "",
+                            isReach ? "reach" : "",
+                            blocked ? "blocked" : "",
+                            isPlayer ? "player" : "",
+                            isGoal ? "goal" : "",
+                            isTrigger ? "trigger" : "",
+                          ].join(" ")}
+                          onClick={() => {
+                            setSelectedId(id);
+                            tryMoveToId(id);
+                          }}
+                          disabled={!state || blocked || encounterActive}
+                          style={{
+                            ["--hexGlow" as any]: layerCssVar(currentLayer),
+                            backgroundImage: tile || undefined,
+                          }}
+                          title={id}
+                        >
+                          <div className="hexAnchor">
+                            <div className="hexInner">
+                              <div className="hexId">
+                                {r},{c}
+                              </div>
+                              <div className="hexMarks">
+                                {isGoal ? <span className="mark g">G</span> : null}
+                                {isTrigger ? <span className="mark t">!</span> : null}
+                              </div>
+                            </div>
+
+                            {/* sprite (only on player hex) */}
+                            {isPlayer ? (
+                              <span
+                                className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
+                                style={
+                                  {
+                                    ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
+                                    ["--frameW" as any]: FRAME_W,
+                                    ["--frameH" as any]: FRAME_H,
+                                    ["--cols" as any]: SPRITE_COLS,
+                                    ["--rows" as any]: SPRITE_ROWS,
+                                    ["--frameX" as any]: walkFrame,
+                                    ["--frameY" as any]: facingRow(playerFacing),
+                                  } as any
+                                }
+                              />
+                            ) : null}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <SideBar side="right" currentLayer={currentLayer} />
+
+        {/* KEEP your existing right-side panels/log etc here */}
+      </div>
+
+      {/* encounter overlay: KEEP your existing overlay render here */}
+
+      <style>{baseCss}</style>
+    </div>
+  );
+}
