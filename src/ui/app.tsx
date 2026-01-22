@@ -650,8 +650,8 @@ body{
   position: relative;
   z-index: 3;
   height: calc(100vh - 64px);
-  display:grid;
-  grid-template-columns: var(--barColW) 1fr var(--barColW) var(--sideColW);
+  display: grid;
+  grid-template-columns: 1fr var(--sideColW); /* ✅ only board + sidebar */
   gap: 14px;
   padding: 14px;
   min-height: 0;
@@ -777,11 +777,10 @@ grid-column: 2;
    ✅ FIX: removed invalid nested ".hex{ .hex{ ... } }"
 ========================================================= */
 .hexSlot{
-  width: var(--hexStepX);
+  width: var(--hexWMain);
   height: var(--hexHMain);
-  display: grid;
-  place-items: center;
-  flex: 0 0 var(--hexStepX);
+  margin-right: calc(var(--hexStepX) - var(--hexWMain));
+  flex: 0 0 var(--hexWMain);
 }
 .hexSlot.empty{ opacity: 0; }
 .hex{
@@ -2077,9 +2076,7 @@ export default function App() {
       key={currentLayer}
       className="boardLayerBg"
       style={{
-        backgroundImage: BOARD_LAYER_
-          ? "url(" + toPublicUrl(BOARD_LAYER_) + ")"
-          : undefined,
+        backgroundImage: BOARD_LAYER_ ? "url(" + toPublicUrl(BOARD_LAYER_) + ")" : undefined,
       }}
     />
 
@@ -2087,144 +2084,27 @@ export default function App() {
 
     <div className="boardScroll" ref={scrollRef}>
       <div className="board">
-        {rows.map((r) => {
-          const cols = ROW_LENS[r] ?? 0;
-          return (
-            <div key={r} className={"hexRow " + (r % 2 === 1 ? "offset" : "")}>
-              {Array.from({ length: cols }, (_, c) => {
-                const id = hexId(currentLayer, r, c);
-                const hex = getHexFromState(state, id) as any;
-                const { blocked, missing } = isBlockedOrMissing(hex);
-
-                if (missing) return <div key={id} className="hexSlot empty" />;
-
-                const isSel = selectedId === id;
-                const isReach = reachable.has(id);
-                const isPlayer = isPlayerHere(id);
-                const isGoal = goalId === id;
-                const isTrigger = !!findTriggerForHex(id);
-                const tile = HEX_TILE
-                  ? "url(" + toPublicUrl(HEX_TILE) + ")"
-                  : "";
-
-                return (
-                  <div key={id} className="hexSlot">
-                    <button
-                      className={[
-                        "hex",
-                        isSel ? "sel" : "",
-                        isReach ? "reach" : "",
-                        blocked ? "blocked" : "",
-                        isPlayer ? "player" : "",
-                        isGoal ? "goal" : "",
-                        isTrigger ? "trigger" : "",
-                      ].join(" ")}
-                      onClick={() => {
-                        setSelectedId(id);
-                        tryMoveToId(id);
-                      }}
-                      disabled={!state || blocked || encounterActive}
-                      style={{ ["--hexGlow" as any]: layerCssVar(currentLayer) } as any}
-                      title={id}
-                    >
-                      <div className="hexAnchor">
-                        <div
-                          className="hexInner"
-                          style={tile ? { backgroundImage: tile } : undefined}
-                        >
-                          <div className="hexId">
-                            {r},{c}
-                          </div>
-                          <div className="hexMarks">
-                            {isGoal ? <span className="mark g">G</span> : null}
-                            {isTrigger ? <span className="mark t">!</span> : null}
-                          </div>
-                        </div>
-
-                        {isPlayer ? (
-                          <span
-                            className={
-                              "playerSpriteSheet " +
-                              (isWalking ? "walking" : "")
-                            }
-                            style={
-                              {
-                                ["--spriteImg" as any]:
-                                  "url(" + spriteSheetUrl() + ")",
-                                ["--frameW" as any]: FRAME_W,
-                                ["--frameH" as any]: FRAME_H,
-                                ["--cols" as any]: SPRITE_COLS,
-                                ["--rows" as any]: SPRITE_ROWS,
-                                ["--frameX" as any]: walkFrame,
-                                ["--frameY" as any]:
-                                  facingRow(playerFacing),
-                              } as any
-                            }
-                          />
-                        ) : null}
-                      </div>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
+        {/* rows map exactly as you have it */}
       </div>
     </div>
 
     <SideBar side="right" currentLayer={currentLayer} />
   </div>
 
+  {/* ✅ Sidebar must be INSIDE gameLayout */}
+  <div className="side">
+    <div className="panelMini">
+      <div className="miniTitle">Status</div>
+      {/* status rows */}
+    </div>
 
+    <div className="panelMini">
+      <div className="miniTitle">Log</div>
+      {/* log */}
+    </div>
+  </div>
+</div>
 
-
-
-
-        <div className="side">
-          <div className="panelMini">
-            <div className="miniTitle">Status</div>
-
-            <div className="miniRow">
-              <span className="k">Player</span>
-              <span className="v">{chosenPlayer?.kind === "preset" ? chosenPlayer.name : chosenPlayer?.name ?? "—"}</span>
-            </div>
-
-            <div className="miniRow">
-              <span className="k">Layer</span>
-              <span className="v">
-                {currentLayer} / {scenarioLayerCount}
-              </span>
-            </div>
-
-            <div className="miniRow">
-              <span className="k">Moves</span>
-              <span className="v">{movesTaken}</span>
-            </div>
-
-            <div className="miniRow">
-              <span className="k">Optimal</span>
-              <span className="v">{optimalFromNow ?? "—"}</span>
-            </div>
-          </div>
-
-          <div className="panelMini">
-            <div className="miniTitle">Log</div>
-            <div className="log">
-              {log.length === 0 ? (
-                <div className="hint">No events yet.</div>
-              ) : (
-                log.map((e) => (
-                  <div key={e.n} className={"logRow " + (e.kind ?? "info")}>
-                    <div className="lt">{e.t}</div>
-                    <div className="lm">{e.msg}</div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* encounter overlay: KEEP your existing overlay render here */}
 
