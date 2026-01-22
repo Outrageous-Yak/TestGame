@@ -302,6 +302,21 @@ function unwrapNextState(res: any): GameState | null {
 
   return null;
 }
+function getNeighborsSameLayer(st: any, pid: string): string[] {
+  // Try pid-only first (most common)
+  try {
+    const a = (neighborIdsSameLayer as any)(pid);
+    if (Array.isArray(a) && a.every((x) => typeof x === "string" && x.startsWith("L"))) return a;
+  } catch {}
+
+  // Then try (state, pid)
+  try {
+    const b = (neighborIdsSameLayer as any)(st, pid);
+    if (Array.isArray(b) && b.every((x) => typeof x === "string" && x.startsWith("L"))) return b;
+  } catch {}
+
+  return [];
+}
 
 
 /* =========================================================
@@ -1268,18 +1283,7 @@ const reachable = useMemo(() => {
   const pid = (state as any).playerHexId as string | null;
   if (!pid) return set;
 
-  let nbs: string[] = [];
-  try {
-    // preferred signature
-    nbs = (neighborIdsSameLayer as any)(state, pid) as string[];
-  } catch {
-    try {
-      // fallback signature
-      nbs = (neighborIdsSameLayer as any)(pid) as string[];
-    } catch {
-      nbs = [];
-    }
-  }
+  const nbs = getNeighborsSameLayer(state as any, pid);
 
   for (const id of nbs) {
     const hex = getHexFromState(state, id) as any;
@@ -1289,6 +1293,7 @@ const reachable = useMemo(() => {
 
   return set;
 }, [state, uiTick]);
+
 
 useEffect(() => {
   if (!state) return;
@@ -2177,7 +2182,7 @@ const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
                             setSelectedId(id);
                             tryMoveToId(id);
                           }}
-                         disabled={!state || blocked || encounterActive || (!isPlayer && !reachable.has(id))}
+disabled={!state || blocked || missing || encounterActive}
 
                           style={{ ["--hexGlow" as any]: layerCssVar(currentLayer) } as any}
                           title={id}
