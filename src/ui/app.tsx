@@ -2221,12 +2221,12 @@ export default function App() {
               )}
             </div>
           </div>
-        </div>
-      </div>
+                </div> {/* closes .side */}
+      </div>   {/* closes .gameLayout */}
 
       {/* encounter overlay: KEEP your existing overlay render here */}
 
       <style>{baseCss}</style>
-    </div>
+    </div>     {/* closes .appRoot */}
   );
 }
