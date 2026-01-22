@@ -1279,21 +1279,33 @@ const [reachMap, setReachMap] = useState<ReachMap>({} as ReachMap);
 
 const reachable = useMemo(() => {
   const set = new Set<string>();
-  if (!reachMap) return set;
+  const rm: any = reachMap;
 
-  for (const [id, info] of Object.entries(reachMap as any)) {
-    if (!info) continue;
-    if (info.reachable && info.distance === 1) set.add(id);
+  if (!rm) return set;
+
+  // Map case
+  if (typeof rm?.entries === "function") {
+    for (const [id, info] of rm.entries()) {
+      if (info?.reachable && info?.distance === 1) set.add(id);
+    }
+    return set;
   }
+
+  // Object case
+  for (const [id, info] of Object.entries(rm)) {
+    if ((info as any)?.reachable && (info as any)?.distance === 1) set.add(id);
+  }
+
   return set;
 }, [reachMap]);
+
 
 
 
 useEffect(() => {
   if (!state) return;
   setReachMap(getReachability(state));
-}, [state]);
+}, [state, uiTick]);
 
 
   // refs
