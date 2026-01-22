@@ -2112,7 +2112,17 @@ return (
                     if (missing) return <div key={id} className="hexSlot empty" />;
 
                     const isSel = selectedId === id;
-                    const isReach = reachable.has(id);
+      const info: any = (reachMap as any)[id];
+const dist = Number(info?.distance ?? Infinity);
+
+// only highlight valid move targets
+const isReach =
+  !!info?.reachable &&
+  dist > 0 &&
+  dist <= diceValue &&
+  !blocked &&
+  !missing;
+
                     const isPlayer = isPlayerHere(id);
                     const isGoal = goalId === id;
                     const isTrigger = !!findTriggerForHex(id);
