@@ -1528,10 +1528,11 @@ const reachable = useMemo(() => {
   ========================= */
 
   const [movesTaken, setMovesTaken] = useState(0);
-
+const [playerId, setPlayerId] = useState<string | null>(null);
   const [goalId, setGoalId] = useState<string | null>(null);
   const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
   const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
+
 
 const computeOptimalFromReachMap = useCallback((rm: any, gid: string | null) => {
   if (!gid || !rm) return null;
