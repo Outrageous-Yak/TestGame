@@ -1290,7 +1290,7 @@ const reachable = useMemo(() => {
   const set = new Set<string>();
   if (!state) return set;
 
-  const pid = (state as any).playerHexId as string | null;
+  const pid = playerId;
   if (!pid) return set;
 
   const nbs = getNeighborsSameLayer(state as any, pid);
@@ -1301,7 +1301,8 @@ const reachable = useMemo(() => {
   }
 
   return set;
-}, [state, uiTick, currentLayer]);
+}, [state, uiTick, currentLayer, playerId]);
+
 
 
 
@@ -1697,9 +1698,11 @@ console.log("MOVE RESULT", { pidBefore, pidAfter, moved: pidAfter && pidBefore !
     }
 
     // commit state first
-    setState(nextState);
+setState(nextState);
 setSelectedId(pidAfter ?? targetId);
+setPlayerId(pidAfter ?? targetId);
 forceRender((n) => n + 1);
+
 
     // layer ops after commit
     const c2 = pidAfter ? idToCoord(pidAfter) : null;
@@ -1774,6 +1777,7 @@ setState(st);
 setSelectedId(pid);
 setCurrentLayer(layer);
 setPlayerFacing("down");
+setPlayerId(pid);
 
 setMovesTaken(0);
 setOptimalAtStart(computeOptimalFromReachMap(rm, gid));
@@ -1873,11 +1877,11 @@ if (pidBefore && id !== pidBefore) {
       }
 
       // commit next state first
-    setState(nextState);
+  setState(nextState);
 setSelectedId(pidAfter ?? id);
-
-// ✅ force UI update even if nextState === oldState
+setPlayerId(pidAfter ?? id);
 forceRender((n) => n + 1);
+
 
 
       // layer ops after commit
@@ -1923,8 +1927,7 @@ function hexId(layer: number, r: number, c: number) {
 }
 
 function isPlayerHere(id: string) {
-  const pid0 = (state as any)?.playerHexId as string | null;
-  return !!pid0 && pid0 === id;
+  return !!playerId && playerId === id;
 }
 
 function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
