@@ -114,7 +114,7 @@ function normalizeWorldEntry(raw: any): WorldEntry | null {
       const sid = String(s.id ?? s.slug ?? `scenario-${idx}`);
       const sname = String(s.name ?? s.title ?? sid);
 
-      const scenario = String(s.scenarioJson ?? s.on ?? "");
+      const scenarioJson = String(s.scenarioJson ?? s.json ?? "");
 if (!scenarioJson) return null;
 
 
@@ -145,19 +145,19 @@ if (!scenarioJson) return null;
               const tname = String(t.name ?? tid);
               const tjson = String(t.scenarioJson ?? t.json ?? "");
               if (!tjson) return null;
-              return { id: tid, name: tname, scenarioJson: tjson } as Track;
+              ype Track = { id: string; name: string; scenarioJson: string };
             })
             .filter(Boolean) as Track[])
         : undefined;
 
-      return {
-        id: sid,
-        name: sname,
-        desc: s.desc,
-        scenarioJson,
-        theme,
-        tracks: tracks && tracks.length ? tracks : undefined,
-      } as ScenarioEntry;
+    return {
+  id: sid,
+  name: sname,
+  desc: s.desc,
+  scenarioJson,
+  theme,
+  tracks: tracks && tracks.length ? tracks : undefined,
+} as ScenarioEntry;
     })
     .filter(Boolean) as ScenarioEntry[];
 
