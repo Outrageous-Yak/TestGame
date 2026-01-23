@@ -1244,6 +1244,7 @@ flex: 0 0 var(--hexWMain);
   display:flex;
   gap: 6px;
   align-items: flex-end;
+  z-index: 20;
 }
 .mark{
   width: 22px;
