@@ -1706,7 +1706,7 @@ console.log("MOVE RESULT", { pidBefore, pidAfter, moved: pidAfter && pidBefore !
 
     // commit state first
 setState(nextState);
-setSelectedId(pidAfter ?? targetId);
+
 setPlayerId(pidAfter ?? targetId);
 forceRender((n) => n + 1);
 
@@ -1784,7 +1784,7 @@ setState(st);
 setSelectedId(pid);
 setCurrentLayer(layer);
 setPlayerFacing("down");
-setPlayerId(pid);
+
 
 setMovesTaken(0);
 setOptimalAtStart(computeOptimalFromReachMap(rm, gid));
@@ -1887,7 +1887,7 @@ console.log("CLICK", {
       // commit next state first
   setState(nextState);
 setSelectedId(pidAfter ?? id);
-setPlayerId(pidAfter ?? id);
+
 forceRender((n) => n + 1);
 
 
