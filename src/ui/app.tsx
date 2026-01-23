@@ -2480,7 +2480,8 @@ forceRender((n) => n + 1);
         <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
 
         <div className="boardScroll" ref={scrollRef}>
-          <div className="board">
+<div className="board" key={currentLayer + "-" + uiTick}>
+
             {rows.map((r) => {
               const cols = ROW_LENS[r] ?? 0;
               const isOffset = cols === 6; // ✅ 7676767: offset only the 6-wide rows
