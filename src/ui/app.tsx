@@ -1615,13 +1615,12 @@ const computeOptimalFromReachMap = useCallback((rm: any, gid: string | null) => 
       const pid = (state as any).playerHexId ?? null;
       if (!pid) return;
 
-      if (id === "revealRing") {
-        revealRing(state, pid);
-        getReachability(state)));
-        forceRender((n) => n + 1);
-        pushLog("Used: Reveal (ring)", "ok");
-        return;
-      }
+    if (id === "revealRing") {
+  revealRing(state, pid);
+  forceRender((n) => n + 1);
+  pushLog("Used: Reveal (ring)", "ok");
+  return;
+}
 
       if (id === "peek") {
         const up = Math.min(scenarioLayerCount, currentLayer + 1);
@@ -1709,7 +1708,7 @@ forceRender((n) => n + 1);
     }
 
     const rm = getReachability(nextState) as any;
-    ReachMap(rm));
+    const rm = getReachability(nextState) as any;
     setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
 
     pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
@@ -1774,7 +1773,7 @@ forceRender((n) => n + 1);
     setCurrentLayer(layer);
     setPlayerFacing("down");
 
-    ReachMap(rm));
+    const rm = getReachability(st) as any;
     setMovesTaken(0);
     setOptimalAtStart(computeOptimalFromReachMap(rm, gid));
     setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
@@ -1917,168 +1916,175 @@ setOptimalFromNow(computeOptimalFromReachMap(rm as any, goalId));
   const canGoDown = currentLayer - 1 >= 1;
   const canGoUp = currentLayer + 1 <= scenarioLayerCount;
   /* =========================
-     Render helpers/components
-  ========================= */
+   Render helpers/components
+========================= */
 
+const layerRows = useMemo(() => ROW_LENS.length, []);
+const rows = useMemo(() => Array.from({ length: layerRows }, (_, i) => i), [layerRows]);
 
-  const layerRows = useMemo(() => ROW_LENS.length, []);
-  const rows = useMemo(() => Array.from({ length: layerRows }, (_, i) => i), [layerRows]);
+function hexId(layer: number, r: number, c: number) {
+  return "L" + layer + "-R" + r + "-C" + c;
+}
 
-  function hexId(layer: number, r: number, c: number) {
-    return "L" + layer + "-R" + r + "-C" + c;
-  }
+function isPlayerHere(id: string) {
+  const pid0 = (state as any)?.playerHexId as string | null;
+  return !!pid0 && pid0 === id;
+}
 
-  function isPlayerHere(id: string) {
-    const pid0 = (state as any)?.playerHexId as string | null;
-    return !!pid0 && pid0 === id;
-  }
+function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
+  const segments = [7, 6, 5, 4, 3, 2, 1];
+  const { side, currentLayer } = props;
 
-  function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
-    const segments = [7, 6, 5, 4, 3, 2, 1];
-    const { side, currentLayer } = props;
-
-    return (
-      <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")}>
-        <div className="layerBar">
-          {segments.map((layerVal) => {
-            const active = layerVal === currentLayer;
-            return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} />;
-          })}
-        </div>
+  return (
+    <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")}>
+      <div className="layerBar">
+        {segments.map((layerVal) => {
+          const active = layerVal === currentLayer;
+          return (
+            <div
+              key={layerVal}
+              className={"barSeg" + (active ? " isActive" : "")}
+              data-layer={layerVal}
+            />
+          );
+        })}
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  function HexDeckCardsOverlay(props: { glowVar: string }) {
-    return (
-      <div className="hexDeckOverlay" style={{ ["--cardGlow" as any]: props.glowVar } as any}>
-        <div className="hexDeckCol left">
-          <div className="hexDeckCard cosmic ccw slow" />
-          <div className="hexDeckCard risk ccw fast" />
-        </div>
-
-        <div className="hexDeckCol right">
-          <div className="hexDeckCard terrain cw slow" />
-          <div className="hexDeckCard shadow cw fast" />
-        </div>
+function HexDeckCardsOverlay(props: { glowVar: string }) {
+  return (
+    <div
+      className="hexDeckOverlay"
+      style={{ ["--cardGlow" as any]: props.glowVar } as any}
+    >
+      <div className="hexDeckCol left">
+        <div className="hexDeckCard cosmic ccw slow" />
+        <div className="hexDeckCard risk ccw fast" />
       </div>
-    );
-  }
 
-  const resetAll = useCallback(() => {
-    setScreen("start");
-    setWorldId(null);
-    setScenarioId(null);
-    setTrackId(null);
-    setChosenPlayer(null);
+      <div className="hexDeckCol right">
+        <div className="hexDeckCard terrain cw slow" />
+        <div className="hexDeckCard shadow cw fast" />
+      </div>
+    </div>
+  );
+}
 
-    setState(null);
-    setCurrentLayer(1);
-    setSelectedId(null);
-    setReachMap({} as any);
+const resetAll = useCallback(() => {
+  setScreen("start");
+  setWorldId(null);
+  setScenarioId(null);
+  setTrackId(null);
+  setChosenPlayer(null);
 
-    setVillainTriggers([]);
-    setEncounter(null);
-    pendingEncounterMoveIdRef.current = null;
+  setState(null);
+  setCurrentLayer(1);
+  setSelectedId(null);
 
-    setGoalId(null);
-    setOptimalAtStart(null);
-    setOptimalFromNow(null);
-    setMovesTaken(0);
+  setVillainTriggers([]);
+  setEncounter(null);
+  pendingEncounterMoveIdRef.current = null;
 
-    logNRef.current = 0;
-    setLog([]);
+  setGoalId(null);
+  setOptimalAtStart(null);
+  setOptimalFromNow(null);
+  setMovesTaken(0);
 
-    setItems([
-      { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
-      { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
-      { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
-    ]);
-  }, []);
+  logNRef.current = 0;
+  setLog([]);
 
-  const PLAYER_PRESETS: Array<{ id: string; name: string }> = [
-    { id: "p1", name: "Aeris" },
-    { id: "p2", name: "Devlan" },
-  ];
+  setItems([
+    { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
+    { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
+    { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
+  ]);
+}, []);
 
-  /* =========================
-     Screens
-  ========================= */
+const PLAYER_PRESETS: Array<{ id: string; name: string }> = [
+  { id: "p1", name: "Aeris" },
+  { id: "p2", name: "Devlan" },
+];
 
-  if (screen === "start") {
-    return (
-      <div className="appRoot" style={themeVars}>
-        <div className="screen center">
-          <div className="panel">
-            <div className="title">Hex Game</div>
-            <div className="sub">Start → World → Character → Scenario → Game</div>
+/* =========================
+   Screens
+========================= */
 
-            <div className="row">
-              <button className="btn primary" onClick={() => setScreen("world")}>
-                Start
-              </button>
-              <button className="btn" onClick={resetAll}>
-                Reset
-              </button>
-            </div>
+if (screen === "start") {
+  return (
+    <div className="appRoot" style={themeVars}>
+      <div className="screen center">
+        <div className="panel">
+          <div className="title">Hex Game</div>
+          <div className="sub">Start → World → Character → Scenario → Game</div>
 
-            <div className="hint">
-              Worlds loaded: <b>{worlds.length}</b>
-            </div>
+          <div className="row">
+            <button className="btn primary" onClick={() => setScreen("world")}>
+              Start
+            </button>
+            <button className="btn" onClick={resetAll}>
+              Reset
+            </button>
+          </div>
+
+          <div className="hint">
+            Worlds loaded: <b>{worlds.length}</b>
           </div>
         </div>
-
-        <style>{baseCss}</style>
       </div>
-    );
-  }
-  if (screen !== "game") {
-    return (
-      <div className="appRoot" style={themeVars}>
-        <div className="screen center">
-          <div className="panel">
-            <div className="title">Not in game yet</div>
-            <div className="sub">Screen: {screen}</div>
 
-            <div className="hint" style={{ marginTop: 12 }}>
-              Pick a world / character / scenario (screens not pasted here yet), then start the scenario.
-            </div>
+      <style>{baseCss}</style>
+    </div>
+  );
+}
 
-            <div className="row">
-              <button className="btn" onClick={resetAll}>Back</button>
+if (screen !== "game") {
+  return (
+    <div className="appRoot" style={themeVars}>
+      <div className="screen center">
+        <div className="panel">
+          <div className="title">Not in game yet</div>
+          <div className="sub">Screen: {screen}</div>
 
-              <button
-                className="btn primary"
-                onClick={() => {
-                  const w0 = worlds[0];
-                  const s0 = w0?.scenarios?.[0];
-                  if (w0 && s0) {
-                    setWorldId(w0.id);
-                    setScenarioId(s0.id);
-                    setTrackId(null);
-                    // startScenario depends on scenarioEntry, let React commit state first
-                    window.setTimeout(() => startScenario(), 0);
-                  }
-                }}
-              >
-                Quick start (debug)
-              </button>
-            </div>
+          <div className="hint" style={{ marginTop: 12 }}>
+            Pick a world / character / scenario (screens not pasted here yet),
+            then start the scenario.
+          </div>
+
+          <div className="row">
+            <button className="btn" onClick={resetAll}>
+              Back
+            </button>
+
+            <button
+              className="btn primary"
+              onClick={() => {
+                const w0 = worlds[0];
+                const s0 = w0?.scenarios?.[0];
+                if (w0 && s0) {
+                  setWorldId(w0.id);
+                  setScenarioId(s0.id);
+                  setTrackId(null);
+                  window.setTimeout(() => startScenario(), 0);
+                }
+              }}
+            >
+              Quick start (debug)
+            </button>
           </div>
         </div>
-
-        <style>{baseCss}</style>
       </div>
-    );
-  }
 
-  // NOTE:
-  // Keep your existing "world", "character", "scenario" screens above this point.
-  // Only drop in the updated GAME screen below.
+      <style>{baseCss}</style>
+    </div>
+  );
+}
 
 /* =========================
    GAME screen
 ========================= */
+
 
 return (
   <div className="appRoot game" style={themeVars}>
