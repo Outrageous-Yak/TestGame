@@ -1546,20 +1546,20 @@ useEffect(() => {
   const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
   const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
 
- const computeOptimalFromReachMap = useCallback((rm: ReachMap, gid: string | null) => {
-  if (!gid) return null;
-  const anyRm: any = rm;
+const computeOptimalFromReachMap = useCallback((rm: any, gid: string | null) => {
+  if (!gid || !rm) return null;
 
   // Map case
-  if (anyRm && typeof anyRm.get === "function") {
-    const info = anyRm.get(gid);
+  if (typeof rm?.get === "function") {
+    const info = rm.get(gid);
     return info?.reachable ? (info.distance as number) : null;
   }
 
   // Object case
-  const info: any = anyRm?.[gid];
+  const info = rm[gid];
   return info?.reachable ? (info.distance as number) : null;
 }, []);
+
 
 
   const [log, setLog] = useState<LogEntry[]>([]);
@@ -1696,6 +1696,8 @@ useEffect(() => {
 
     const pidBefore = (state as any)?.playerHexId as string | null;
     const pidAfter = (nextState as any).playerHexId as string | null;
+console.log("MOVE RESULT", { pidBefore, pidAfter, moved: pidAfter && pidBefore !== pidAfter });
+
 
     const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
     if (moved) {
@@ -1831,13 +1833,15 @@ forceRender((n) => n + 1);
         return;
       }
 
-      const pidBefore = (state as any).playerHexId as string | null;
-console.log("[MOVE DEBUG]", {
+const pidBefore = (state as any).playerHexId as string | null;
+
+console.log("CLICK", {
   pidBefore,
   clicked: id,
-  reachableHas: reachable.has(id),
-  reachableList: Array.from(reachable),
+  reachableCount: reachable.size,
+  reachable: Array.from(reachable),
 });
+
 
 // only allow ONE-step neighbor moves
 if (pidBefore && id !== pidBefore) {
@@ -1848,7 +1852,9 @@ if (pidBefore && id !== pidBefore) {
 }
     // only allow ONE-step neighbor moves
 if (pidBefore && id !== pidBefore) {
-  if (!reachable.has(id)) {
+  const ok = reachable.has(id);
+  console.log("NEIGHBOR CHECK", { pidBefore, clicked: id, ok });
+  if (!ok) {
     pushLog("Not a neighbor move.", "bad");
     return;
   }
@@ -1905,8 +1911,9 @@ forceRender((n) => n + 1);
       }
 
       const rm = getReachability(nextState) as any;
-      setReachMap(cloneReachMap(rm));
-      setOptimalFromNow(setReachMap(cloneReachMap(rm));(rm, goalId));
+setReachMap(cloneReachMap(rm));
+setOptimalFromNow(computeOptimalFromReachMap(rm as any, goalId));
+
 
       pushLog("Moved to " + (pidAfter ?? id), "ok");
       if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
