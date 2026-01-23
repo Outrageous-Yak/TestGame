@@ -156,7 +156,7 @@ if (!scenarioJson) return null;
   id: sid,
   name: sname,
   desc: s.desc,
-  ScenarioEntry,
+  scenarioJson,              // ✅ THIS is what you intended
   theme,
   tracks: tracks && tracks.length ? tracks : undefined,
 } as ScenarioEntry;
