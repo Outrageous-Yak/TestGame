@@ -2310,7 +2310,7 @@ disabled={!state || blocked || missing || encounterActive}
               ))
             )}
           </div>
-        </div>
+        </div> 
       </div>
     </div>
 
