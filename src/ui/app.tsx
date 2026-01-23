@@ -114,7 +114,7 @@ function normalizeWorldEntry(raw: any): WorldEntry | null {
       const sid = String(s.id ?? s.slug ?? `scenario-${idx}`);
       const sname = String(s.name ?? s.title ?? sid);
 
-      const scenarioJson = String(s.scenarioJson ?? s.json ?? "");
+      const scenarioJson = String(s.scenarioJson ?? s.on ?? "");
 if (!scenarioJson) return null;
 
 
