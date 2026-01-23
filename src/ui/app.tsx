@@ -60,16 +60,17 @@ type ScenarioTheme = {
   };
 };
 
-type Track = { id: string; name: string; scenario: string };
+type Track = { id: string; name: string; scenarioJson: string };
 
 type ScenarioEntry = {
   id: string;
   name: string;
   desc?: string;
-  scenario: string;
+  scenarioJson: string;
   theme: ScenarioTheme;
   tracks?: Track[];
 };
+
 
 
 type WorldEntry = {
@@ -138,23 +139,24 @@ if (!scenarioJson) return null;
         } as ScenarioTheme);
 
       const tracks: Track[] | undefined = Array.isArray(s.tracks)
-        ? (s.tracks
-            .map((t: any, tIdx: number) => {
-              if (!t) return null;
-              const tid = String(t.id ?? `track-${tIdx}`);
-              const tname = String(t.name ?? tid);
-              const tjson = String(t.scenarioJson ?? t.json ?? "");
-              if (!tjson) return null;
-              ype Track = { id: string; name: string; scenarioJson: string };
-            })
-            .filter(Boolean) as Track[])
-        : undefined;
+  ? (s.tracks
+      .map((t: any, tIdx: number) => {
+        if (!t) return null;
+        const tid = String(t.id ?? `track-${tIdx}`);
+        const tname = String(t.name ?? tid);
+        const tjson = String(t.scenarioJson ?? t.json ?? "");
+        if (!tjson) return null;
+
+        return { id: tid, name: tname, scenarioJson: tjson } as Track;
+      })
+      .filter(Boolean) as Track[])
+  : undefined;
 
     return {
   id: sid,
   name: sname,
   desc: s.desc,
-  scenarioJson,
+  ScenarioEntry,
   theme,
   tracks: tracks && tracks.length ? tracks : undefined,
 } as ScenarioEntry;
