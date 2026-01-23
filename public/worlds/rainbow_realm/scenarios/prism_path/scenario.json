@@ -30,14 +30,12 @@
     "6": "NONE",
     "7": "NONE"
   },
-  "hexFlags": {
-    "L1-R3-C5": { "portal": "up" }
-  },
   "transitions": [
     {
       "type": "UP",
       "from": { "layer": 1, "row": 3, "col": 5 },
-      "to": { "layer": 2, "row": 2, "col": 2 }
+      "to": { "layer": 2, "row": 2, "col": 2 },
+      "portal": "up"
     }
   ],
   "revealOnEnterGuaranteedUp": false
