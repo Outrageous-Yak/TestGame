@@ -1,4 +1,4 @@
-// src/ui/app.tsx
+// src/ui/app.tsx 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { GameState, Scenario, Hex } from "../engine/types";
