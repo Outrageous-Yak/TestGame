@@ -1070,10 +1070,12 @@ flex: 0 0 var(--hexWMain);
 .hex .hexInner .pRim,
 .hex .hexInner .pOval{
   position:absolute;
+  inset:0;
   pointer-events:none;
   border-radius: 10px;
   clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
 }
+
 
 /* glow framing (subtle so your existing look stays) */
 .hex.portalUp .hexInner,
@@ -2465,6 +2467,8 @@ forceRender((n) => n + 1);
                     const id = hexId(currentLayer, r, c);
                     const hex = getHexFromState(state, id) as any;
                     const { blocked, missing } = isBlockedOrMissing(hex);
+const isPortalUp = (hex as any)?.portal === "up";
+const isPortalDown = (hex as any)?.portal === "down";
 
 if (missing) return <div key={id} className="hexSlot empty" />;
 
@@ -2491,15 +2495,18 @@ const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
                       <div key={id} className="hexSlot">
                         <button
                           className={[
-                            "hex",
-                            isSel ? "sel" : "",
-                            isReach ? "reach" : "",
-                            blocked ? "blocked" : "",
-                            isPlayer ? "player" : "",
-                            isGoal ? "goal" : "",
-                            isTrigger ? "trigger" : "",
-                             isStart ? "portalStart" : "",
-                          ].join(" ")}
+  "hex",
+  isSel ? "sel" : "",
+  isReach ? "reach" : "",
+  blocked ? "blocked" : "",
+  isPlayer ? "player" : "",
+  isGoal ? "goal" : "",
+  isTrigger ? "trigger" : "",
+  isStart ? "portalStart" : "",
+  isPortalUp ? "portalUp" : "",
+  isPortalDown ? "portalDown" : "",
+].join(" ")}
+
                           onClick={() => {
                             setSelectedId(id);
                             tryMoveToId(id);
