@@ -2477,8 +2477,7 @@ const isPlayer = isPlayerHere(id);
 const isStart = startHexId === id;
 // ✅ only highlight ONE-step neighbor targets (never the player tile)
 const isReach = !isPlayer && reachable.has(id);
-const isPortalUp = (hex as any)?.portal === "up";     // <-- your scenario/engine should set this
-const isPortalDown = (hex as any)?.portal === "down"; // optional
+
 
 const upLayer = Math.min(scenarioLayerCount, currentLayer + 1);
 const downLayer = Math.max(1, currentLayer - 1);
