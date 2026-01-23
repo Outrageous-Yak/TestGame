@@ -2542,10 +2542,14 @@ disabled={!state || blocked || missing || encounterActive}
                               <div className="hexId">
                                 {r},{c}
                               </div>
-                              <div className="hexMarks">
-                                {isGoal ? <span className="mark g">G</span> : null}
-                                {isTrigger ? <span className="mark t">!</span> : null}
-                              </div>
+                          <div className="hexMarks">
+  {isPortalUp ? <span className="mark">↑</span> : null}
+  {isPortalDown ? <span className="mark">↓</span> : null}
+
+  {isGoal ? <span className="mark g">G</span> : null}
+  {isTrigger ? <span className="mark t">!</span> : null}
+</div>
+
                             </div>
 
                             {isPlayer ? (
