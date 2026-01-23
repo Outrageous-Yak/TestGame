@@ -280,6 +280,30 @@ function findFirstPlayableHexId(st: GameState, layer: number): string {
   }
   return `L${layer}-R0-C0`;
 }
+function findPortalDirection(
+  transitions: any[] | undefined,
+  id: string
+): "up" | "down" | null {
+  if (!transitions) return null;
+
+  const c = idToCoord(id);
+  if (!c) return null;
+
+  for (const t of transitions) {
+    const from = t.from;
+    if (!from) continue;
+
+    if (
+      Number(from.layer) === c.layer &&
+      Number(from.row) === c.row &&
+      Number(from.col) === c.col
+    ) {
+      return t.type === "UP" ? "up" : "down";
+    }
+  }
+
+  return null;
+}
 
 function facingFromMove(fromId: string | null, toId: string | null): "down" | "up" | "left" | "right" {
   const a = fromId ? idToCoord(fromId) : null;
@@ -2467,8 +2491,15 @@ forceRender((n) => n + 1);
                     const id = hexId(currentLayer, r, c);
                     const hex = getHexFromState(state, id) as any;
                     const { blocked, missing } = isBlockedOrMissing(hex);
-const isPortalUp = (hex as any)?.portal === "up";
-const isPortalDown = (hex as any)?.portal === "down";
+const portalDir = findPortalDirection(
+  (state as any)?.scenario?.transitions,
+  id
+);
+
+const isPortalUp = portalDir === "up";
+const isPortalDown = portalDir === "down";
+
+
 
 if (missing) return <div key={id} className="hexSlot empty" />;
 
