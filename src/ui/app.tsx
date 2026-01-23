@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import type { GameState, Scenario, Hex } from "../engine/types";
 import { assertScenario } from "../engine/scenario";
-import { newGame, getReachability, tryMove, type ReachMap } from "../engine/api";
+import { newGame, getReachability, tryMove } from "../engine/api";
 import { ROW_LENS, enterLayer, revealHex } from "../engine/board";
 import { neighborIdsSameLayer } from "../engine/neighbors";
 
