@@ -1283,40 +1283,25 @@ const [uiTick, forceRender] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // reachability
- // reachability (NEIGHBORS ONLY)
-const [reachMap, setReachMap] = useState<ReachMap>({} as ReachMap);
-
-// ids you can move to in ONE step
-
+// ids you can move to in ONE step (direct neighbors of the current player)
 const reachable = useMemo(() => {
   const set = new Set<string>();
-  const rm: any = reachMap;
+  if (!state) return set;
 
-  if (!rm) return set;
+  const pid = (state as any).playerHexId as string | null;
+  if (!pid) return set;
 
-  // Map case
-  if (typeof rm?.entries === "function") {
-    for (const [id, info] of rm.entries()) {
-      if (info?.reachable && info?.distance === 1) set.add(id);
-    }
-    return set;
-  }
-
-  // Object case
-  for (const [id, info] of Object.entries(rm)) {
-    if ((info as any)?.reachable && (info as any)?.distance === 1) set.add(id);
+  const nbs = getNeighborsSameLayer(state as any, pid);
+  for (const nbId of nbs) {
+    const hex = getHexFromState(state, nbId) as any;
+    const { blocked, missing } = isBlockedOrMissing(hex);
+    if (!missing && !blocked) set.add(nbId);
   }
 
   return set;
-}, [reachMap]);
+}, [state, uiTick, currentLayer]);
 
 
-
-
-useEffect(() => {
-  if (!state) return;
-  setReachMap(cloneReachMap(getReachability(state)));
-}, [state, uiTick]);
 
 
   // refs
@@ -1632,7 +1617,7 @@ const computeOptimalFromReachMap = useCallback((rm: any, gid: string | null) => 
 
       if (id === "revealRing") {
         revealRing(state, pid);
-        setReachMap(cloneReachMap(getReachability(state)));
+        getReachability(state)));
         forceRender((n) => n + 1);
         pushLog("Used: Reveal (ring)", "ok");
         return;
@@ -1648,7 +1633,7 @@ const computeOptimalFromReachMap = useCallback((rm: any, gid: string | null) => 
         revealRing(state, upId);
         revealRing(state, dnId);
 
-        setReachMap(cloneReachMap(getReachability(state)));
+        
         forceRender((n) => n + 1);
         pushLog("Used: Peek (above/below ring)", "info");
         return;
@@ -1724,7 +1709,7 @@ forceRender((n) => n + 1);
     }
 
     const rm = getReachability(nextState) as any;
-    setReachMap(cloneReachMap(rm));
+    ReachMap(rm));
     setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
 
     pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
@@ -1789,7 +1774,7 @@ forceRender((n) => n + 1);
     setCurrentLayer(layer);
     setPlayerFacing("down");
 
-    setReachMap(cloneReachMap(rm));
+    ReachMap(rm));
     setMovesTaken(0);
     setOptimalAtStart(computeOptimalFromReachMap(rm, gid));
     setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
@@ -1850,15 +1835,13 @@ if (pidBefore && id !== pidBefore) {
     return;
   }
 }
-    // only allow ONE-step neighbor moves
 if (pidBefore && id !== pidBefore) {
-  const ok = reachable.has(id);
-  console.log("NEIGHBOR CHECK", { pidBefore, clicked: id, ok });
-  if (!ok) {
+  if (!reachable.has(id)) {
     pushLog("Not a neighbor move.", "bad");
     return;
   }
 }
+
 
 
       // encounter gate BEFORE tryMove
@@ -1911,7 +1894,7 @@ forceRender((n) => n + 1);
       }
 
       const rm = getReachability(nextState) as any;
-setReachMap(cloneReachMap(rm));
+ReachMap(rm));
 setOptimalFromNow(computeOptimalFromReachMap(rm as any, goalId));
 
 
@@ -2147,7 +2130,7 @@ return (
           setCurrentLayer(next);
           enterLayer(state, next);
 revealWholeLayer(state, next);
-setReachMap(cloneReachMap(getReachability(state)));
+
 forceRender((n) => n + 1);
           pushLog("Layer " + next, "info");
         }}
@@ -2164,7 +2147,7 @@ forceRender((n) => n + 1);
   setCurrentLayer(next);
   enterLayer(state, next);
   revealWholeLayer(state, next);
-  setReachMap(cloneReachMap(getReachability(state)));
+  
   forceRender((n) => n + 1); // ✅ ADD THIS LINE
   pushLog("Layer " + next, "info");
 }}
