@@ -108,16 +108,16 @@ function normalizeWorldEntry(raw: any): WorldEntry | null {
   const name = String(w.name ?? w.title ?? id);
 
   const scenarios = Array.isArray(w.scenarios) ? w.scenarios : [];
+
   const normScenarios: ScenarioEntry[] = scenarios
-    .map((s: any, idx: number) => {
+    .map((s: any, idx: number): ScenarioEntry | null => {
       if (!s) return null;
 
       const sid = String(s.id ?? s.slug ?? `scenario-${idx}`);
       const sname = String(s.name ?? s.title ?? sid);
 
       const scenarioJson = String(s.scenarioJson ?? s.json ?? "");
-if (!scenarioJson) return null;
-
+      if (!scenarioJson) return null;
 
       const theme: ScenarioTheme =
         s.theme ??
@@ -139,28 +139,30 @@ if (!scenarioJson) return null;
         } as ScenarioTheme);
 
       const tracks: Track[] | undefined = Array.isArray(s.tracks)
-  ? (s.tracks
-      .map((t: any, tIdx: number) => {
-        if (!t) return null;
-        const tid = String(t.id ?? `track-${tIdx}`);
-        const tname = String(t.name ?? tid);
-        const tjson = String(t.scenarioJson ?? t.json ?? "");
-        if (!tjson) return null;
+        ? (s.tracks
+            .map((t: any, tIdx: number): Track | null => {
+              if (!t) return null;
+              const tid = String(t.id ?? `track-${tIdx}`);
+              const tname = String(t.name ?? tid);
+              const tjson = String(t.scenarioJson ?? t.json ?? "");
+              if (!tjson) return null;
+              return { id: tid, name: tname, scenarioJson: tjson };
+            })
+            .filter(Boolean) as Track[])
+        : undefined;
 
-        return { id: tid, name: tname, scenarioJson: tjson } as Track;
-      })
-      .filter(Boolean) as Track[])
-  : undefined;
+      return {
+        id: sid,
+        name: sname,
+        desc: s.desc,
+        scenarioJson,
+        theme,
+        tracks: tracks && tracks.length ? tracks : undefined,
+      };
+    })
+    .filter(Boolean) as ScenarioEntry[];
 
-return {
-  id: sid,
-  name: sname,
-  desc: s.desc,
-  scenarioJson,      // ✅ correct
-  theme,
-  tracks: tracks && tracks.length ? tracks : undefined,
-} as ScenarioEntry;
-
+  if (normScenarios.length === 0) return null;
 
   return {
     id,
@@ -168,7 +170,7 @@ return {
     desc: w.desc,
     menu: w.menu ?? {},
     scenarios: normScenarios,
-  } as WorldEntry;
+  };
 }
 
 function loadWorlds(): WorldEntry[] {
