@@ -60,13 +60,13 @@ type ScenarioTheme = {
   };
 };
 
-type Track = { id: string; name: string; scenarioJson: string };
+type Track = { id: string; name: string; scenario: string };
 
 type ScenarioEntry = {
   id: string;
   name: string;
   desc?: string;
-  scenarioJson: string;
+  scenario: string;
   theme: ScenarioTheme;
   tracks?: Track[];
 };
@@ -114,7 +114,7 @@ function normalizeWorldEntry(raw: any): WorldEntry | null {
       const sid = String(s.id ?? s.slug ?? `scenario-${idx}`);
       const sname = String(s.name ?? s.title ?? sid);
 
-      const scenarioJson = String(s.scenarioJson ?? s.on ?? "");
+      const scenario = String(s.scenarioJson ?? s.on ?? "");
 if (!scenarioJson) return null;
 
 
@@ -1283,7 +1283,7 @@ export default function App() {
 const [uiTick, forceRender] = useState(0);
   const [currentLayer, setCurrentLayer] = useState<number>(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-
+const [playerId, setPlayerId] = useState<string | null>(null);
   // reachability
 // ids you can move to in ONE step (direct neighbors of the current player)
 const reachable = useMemo(() => {
@@ -1529,7 +1529,7 @@ const reachable = useMemo(() => {
   ========================= */
 
   const [movesTaken, setMovesTaken] = useState(0);
-const [playerId, setPlayerId] = useState<string | null>(null);
+
   const [goalId, setGoalId] = useState<string | null>(null);
   const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
   const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
