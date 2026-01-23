@@ -1836,13 +1836,14 @@ console.log("CLICK", {
 });
 
 
-// only allow ONE-step neighbor moves
-if (pidBefore && id !== pidBefore) {
-  if (!reachable.has(id)) {
-    pushLog("Not a neighbor move.", "bad");
-    return;
-  }
-}
+// // only allow ONE-step neighbor moves
+// if (pidBefore && id !== pidBefore) {
+//   if (!reachable.has(id)) {
+//     pushLog("Not a neighbor move.", "bad");
+//     return;
+//   }
+// }
+
 
 
 
