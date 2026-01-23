@@ -1917,7 +1917,7 @@ setOptimalFromNow(computeOptimalFromReachMap(rm as any, goalId));
 
       pushLog("Moved to " + (pidAfter ?? id), "ok");
       if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
-    },
+        },
     [
       state,
       encounterActive,
@@ -1926,16 +1926,17 @@ setOptimalFromNow(computeOptimalFromReachMap(rm as any, goalId));
       goalId,
       pushLog,
       revealWholeLayer,
-      setReachMap(cloneReachMap(rm));,
+      setReachMap,
       findTriggerForHex,
     ]
   );
 
   const canGoDown = currentLayer - 1 >= 1;
   const canGoUp = currentLayer + 1 <= scenarioLayerCount;
-     /* =========================
+  /* =========================
      Render helpers/components
   ========================= */
+
 
   const layerRows = useMemo(() => ROW_LENS.length, []);
   const rows = useMemo(() => Array.from({ length: layerRows }, (_, i) => i), [layerRows]);
