@@ -1,93 +1,62 @@
 // src/engine/neighbors.ts
-import type { GameState, Pos } from "./types";
 import { ROW_LENS } from "./board";
 
-/**
- * Parse id format: "Lx-Ry-Cz"
- */
-function idToPos(id: string): Pos {
+type Coord = { layer: number; row: number; col: number };
+
+function idToCoord(id: string): Coord | null {
   const m = /^L(\d+)-R(\d+)-C(\d+)$/.exec(id);
-  if (!m) throw new Error(`Bad id: ${id}`);
+  if (!m) return null;
   return { layer: Number(m[1]), row: Number(m[2]), col: Number(m[3]) };
 }
 
-function rowLen(row: number): number {
-  if (row < 0 || row >= ROW_LENS.length) return 0;
-  return ROW_LENS[row];
+function coordToId(c: Coord): string {
+  return `L${c.layer}-R${c.row}-C${c.col}`;
 }
 
-function at(state: GameState, layer: number, row: number, col: number): string | null {
-  const layerRows = state.rows.get(layer);
-  if (!layerRows) return null;
-  const r = layerRows[row];
-  if (!r) return null;
-  if (col < 0 || col >= r.length) return null;
-  return r[col];
+function inBounds(row: number, col: number): boolean {
+  if (row < 0 || row >= ROW_LENS.length) return false;
+  const len = ROW_LENS[row] ?? 0;
+  return col >= 0 && col < len;
 }
 
-/**
- * Neighbors for your 7-6-7-6-7-6-7 ("7676767") board shape.
- *
- * This is NOT a rectangular odd-r grid. Rows alternate length, so the
- * "diagonal" neighbors depend on whether you're moving between a long row (7)
- * and a short row (6).
- *
- * Mapping used here (common for staggered rows):
- * - long(7) -> short(6): (col-1) and (col)
- * - short(6) -> long(7): (col) and (col+1)
- *
- * If your stagger is the opposite direction visually, swap those two cases.
- */
-export function neighborIdsSameLayer(state: GameState, id: string): string[] {
-  const { layer, row, col } = idToPos(id);
+export function neighborIdsSameLayer(a: any, b?: any): string[] {
+  const pid: string | null =
+    typeof a === "string" ? a :
+    typeof b === "string" ? b :
+    null;
 
-  const hereLen = rowLen(row);
-  if (!hereLen) return [];
+  if (!pid) return [];
+
+  const c = idToCoord(pid);
+  if (!c) return [];
+
+  const rowLen = ROW_LENS[c.row] ?? 0;
+
+  const deltas =
+    rowLen === 7
+      ? [
+          [-1, -1],
+          [-1, 0],
+          [0, -1],
+          [0, 1],
+          [1, -1],
+          [1, 0],
+        ]
+      : [
+          [-1, 0],
+          [-1, 1],
+          [0, -1],
+          [0, 1],
+          [1, 0],
+          [1, 1],
+        ];
 
   const out: string[] = [];
-
-  // Same-row neighbors
-  const left = at(state, layer, row, col - 1);
-  if (left) out.push(left);
-  const right = at(state, layer, row, col + 1);
-  if (right) out.push(right);
-
-  const hereIsLong = hereLen === 7;
-
-  const addRowNeighbors = (rr: number) => {
-    const targetLen = rowLen(rr);
-    if (!targetLen) return;
-
-    const targetIsLong = targetLen === 7;
-
-    if (hereIsLong && !targetIsLong) {
-      // long -> short
-      const a = at(state, layer, rr, col - 1);
-      const b = at(state, layer, rr, col);
-      if (a) out.push(a);
-      if (b) out.push(b);
-      return;
-    }
-
-    if (!hereIsLong && targetIsLong) {
-      // short -> long
-      const a = at(state, layer, rr, col);
-      const b = at(state, layer, rr, col + 1);
-      if (a) out.push(a);
-      if (b) out.push(b);
-      return;
-    }
-
-    // Same length (future-proof)
-    const a = at(state, layer, rr, col - 1);
-    const b = at(state, layer, rr, col);
-    if (a) out.push(a);
-    if (b) out.push(b);
-  };
-
-  // Up / Down neighbors
-  addRowNeighbors(row - 1);
-  addRowNeighbors(row + 1);
-
+  for (const [dr, dc] of deltas) {
+    const r2 = c.row + dr;
+    const c2 = c.col + dc;
+    if (!inBounds(r2, c2)) continue;
+    out.push(coordToId({ layer: c.layer, row: r2, col: c2 }));
+  }
   return out;
 }
