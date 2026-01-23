@@ -71,6 +71,7 @@ type ScenarioEntry = {
   tracks?: Track[];
 };
 
+
 type WorldEntry = {
   id: string;
   name: string;
@@ -114,7 +115,8 @@ function normalizeWorldEntry(raw: any): WorldEntry | null {
       const sname = String(s.name ?? s.title ?? sid);
 
       const scenarioJson = String(s.scenarioJson ?? s.json ?? "");
-      if (!scenarioJson) return null;
+if (!scenarioJson) return null;
+
 
       const theme: ScenarioTheme =
         s.theme ??
@@ -1833,12 +1835,7 @@ if (pidBefore && id !== pidBefore) {
     return;
   }
 }
-if (pidBefore && id !== pidBefore) {
-  if (!reachable.has(id)) {
-    pushLog("Not a neighbor move.", "bad");
-    return;
-  }
-}
+
 
 
 
@@ -1907,7 +1904,6 @@ setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
       goalId,
       pushLog,
       revealWholeLayer,
-      setReachMap,
       findTriggerForHex,
     ]
   );
