@@ -1708,7 +1708,6 @@ forceRender((n) => n + 1);
     }
 
     const rm = getReachability(nextState) as any;
-    const rm = getReachability(nextState) as any;
     setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
 
     pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
@@ -1766,17 +1765,17 @@ forceRender((n) => n + 1);
     enterLayer(st, layer);
     revealWholeLayer(st, layer);
 
-    const rm = getReachability(st) as any;
+ const rm = getReachability(st) as any;
 
-    setState(st);
-    setSelectedId(pid);
-    setCurrentLayer(layer);
-    setPlayerFacing("down");
+setState(st);
+setSelectedId(pid);
+setCurrentLayer(layer);
+setPlayerFacing("down");
 
-    const rm = getReachability(st) as any;
-    setMovesTaken(0);
-    setOptimalAtStart(computeOptimalFromReachMap(rm, gid));
-    setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
+setMovesTaken(0);
+setOptimalAtStart(computeOptimalFromReachMap(rm, gid));
+setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
+
 
     logNRef.current = 0;
     setLog([]);
@@ -1892,9 +1891,9 @@ forceRender((n) => n + 1);
         revealWholeLayer(nextState, nextLayer);
       }
 
-      const rm = getReachability(nextState) as any;
-ReachMap(rm));
-setOptimalFromNow(computeOptimalFromReachMap(rm as any, goalId));
+const rm = getReachability(nextState) as any;
+setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+
 
 
       pushLog("Moved to " + (pidAfter ?? id), "ok");
