@@ -1055,6 +1055,145 @@ flex: 0 0 var(--hexWMain);
     drop-shadow(0 12px 18px rgba(0,0,0,.40))
     drop-shadow(0 0 10px color-mix(in srgb, var(--hexGlow) 55%, transparent));
 }
+/* =========================================================
+   PORTAL TILE FX (uses destination color: --portalC)
+   (keeps your existing tile bg / marks / borders)
+========================================================= */
+
+.hex.portalUp,
+.hex.portalDown{
+  --portalC: var(--hexGlow); /* fallback */
+}
+
+.hex .hexInner .pAura,
+.hex .hexInner .pOrbs,
+.hex .hexInner .pRim,
+.hex .hexInner .pOval{
+  position:absolute;
+  pointer-events:none;
+  border-radius: 10px;
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+}
+
+/* glow framing (subtle so your existing look stays) */
+.hex.portalUp .hexInner,
+.hex.portalDown .hexInner{
+  border-color: color-mix(in srgb, var(--portalC) 55%, rgba(255,255,255,.12));
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.35),
+    0 0 0 3px color-mix(in srgb, var(--portalC) 16%, transparent),
+    0 0 16px color-mix(in srgb, var(--portalC) 22%, transparent);
+}
+
+/* aura bloom */
+.hex.portalUp .hexInner .pAura,
+.hex.portalDown .hexInner .pAura{
+  inset:-14%;
+  background:
+    radial-gradient(circle at 50% 50%,
+      color-mix(in srgb, var(--portalC) 70%, transparent),
+      transparent 60%);
+  filter: blur(14px) saturate(1.15);
+  opacity: .95;
+  animation: pBreathe 2.6s ease-in-out infinite;
+}
+@keyframes pBreathe{
+  0%,100%{ transform: scale(.99); opacity:.75; }
+  50%{ transform: scale(1.12); opacity:1; }
+}
+
+/* crisp floating orbs (same idea as your demo) */
+.hex.portalUp .hexInner .pOrbs,
+.hex.portalDown .hexInner .pOrbs{
+  inset: 0;
+  background:
+    radial-gradient(6px 5px at 20% 30%, rgba(255,255,255,0.18), transparent 58%),
+    radial-gradient(7px 6px at 35% 22%, color-mix(in srgb, var(--portalC) 35%, transparent), transparent 58%),
+    radial-gradient(6px 5px at 55% 18%, rgba(0,255,220,0.18), transparent 58%),
+    radial-gradient(7px 6px at 72% 26%, color-mix(in srgb, var(--portalC) 28%, transparent), transparent 58%);
+  mix-blend-mode: screen;
+  filter: blur(0.25px);
+  opacity: .95;
+  animation: pOrbs 3.2s ease-in-out infinite;
+}
+@keyframes pOrbs{
+  0%,100%{ transform: translateY(0); opacity:.75; }
+  50%{ transform: translateY(-6px); opacity:1; }
+}
+
+/* oval + rim twirl (centered on hex) */
+.hex.portalUp .hexInner .pOval,
+.hex.portalDown .hexInner .pOval,
+.hex.portalUp .hexInner .pRim,
+.hex.portalDown .hexInner .pRim{
+  left:50%;
+  top:50%;
+  width: 80%;
+  height: 46%;
+  transform:
+    translate(-50%,-50%)
+    rotate(-18deg)
+    skewX(-10deg)
+    perspective(800px)
+    rotateX(60deg);
+  border-radius: 999px;
+}
+
+.hex.portalUp .hexInner .pOval,
+.hex.portalDown .hexInner .pOval{
+  inset: auto;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 50% 50%,
+      rgba(0,0,0,0) 0 38%,
+      rgba(0,0,0,0.90) 70%),
+    radial-gradient(circle at 45% 50%,
+      color-mix(in srgb, var(--portalC) 35%, transparent),
+      transparent 65%);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
+}
+.hex.portalUp .hexInner .pOval::before,
+.hex.portalDown .hexInner .pOval::before{
+  content:"";
+  position:absolute;
+  inset:-32%;
+  background:
+    conic-gradient(
+      rgba(0,0,0,0) 0 14%,
+      color-mix(in srgb, var(--portalC) 95%, transparent) 22%,
+      rgba(0,255,220,0.20) 32%,
+      rgba(255,80,170,0.12) 44%,
+      color-mix(in srgb, var(--portalC) 60%, transparent) 58%,
+      rgba(0,0,0,0) 72% 100%);
+  mix-blend-mode: screen;
+  animation: pSpin 1.25s linear infinite;
+}
+@keyframes pSpin{ to{ transform: rotate(360deg); } }
+
+.hex.portalUp .hexInner .pRim,
+.hex.portalDown .hexInner .pRim{
+  inset:auto;
+  background:
+    conic-gradient(
+      transparent 0 18%,
+      rgba(255,255,255,0.22) 22%,
+      color-mix(in srgb, var(--portalC) 95%, transparent) 32%,
+      transparent 55% 100%);
+  filter: blur(0.6px);
+  mix-blend-mode: screen;
+  animation: pRim 1.55s linear infinite;
+}
+@keyframes pRim{
+  to{
+    transform:
+      translate(-50%,-50%)
+      rotate(-18deg)
+      skewX(-10deg)
+      perspective(800px)
+      rotateX(60deg)
+      rotate(360deg);
+  }
+}
 
 /* =========================================================
    HEX TEXT / MARKS
@@ -2334,6 +2473,14 @@ const isPlayer = isPlayerHere(id);
 const isStart = startHexId === id;
 // ✅ only highlight ONE-step neighbor targets (never the player tile)
 const isReach = !isPlayer && reachable.has(id);
+const isPortalUp = (hex as any)?.portal === "up";     // <-- your scenario/engine should set this
+const isPortalDown = (hex as any)?.portal === "down"; // optional
+
+const upLayer = Math.min(scenarioLayerCount, currentLayer + 1);
+const downLayer = Math.max(1, currentLayer - 1);
+
+const portalTargetLayer = isPortalUp ? upLayer : isPortalDown ? downLayer : null;
+const portalColor = portalTargetLayer ? layerCssVar(portalTargetLayer) : null;
 
 const isGoal = goalId === id;
 const isTrigger = !!findTriggerForHex(id);
@@ -2359,11 +2506,24 @@ const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
                           }}
 disabled={!state || blocked || missing || encounterActive}
 
-                          style={{ ["--hexGlow" as any]: layerCssVar(currentLayer) } as any}
+                          style={
+  {
+    ["--hexGlow" as any]: layerCssVar(currentLayer),     // keep your existing layer glow
+    ...(portalColor ? { ["--portalC" as any]: portalColor } : {}), // portal uses DESTINATION color
+  } as any
+}
                           title={id}
                         >
                           <div className="hexAnchor">
                             <div className="hexInner" style={tile ? { backgroundImage: tile } : undefined}>
+                               {(isPortalUp || isPortalDown) ? (
+  <>
+    <div className="pAura" />
+    <div className="pOrbs" />
+    <div className="pRim" />
+    <div className="pOval" />
+  </>
+) : null}
                                {isStart ? (
   <>
     <div className="pAura" />
