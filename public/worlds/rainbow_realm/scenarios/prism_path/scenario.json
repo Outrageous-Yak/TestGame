@@ -2,12 +2,15 @@
   "id": "demo_v01",
   "name": "Demo v0.1",
   "layers": 7,
+
   "objective": "Reach the goal hex.",
   "description": "A small demo showing fog, shifting layers, and transitions.",
+
   "notes": [
     "Shift+Click a hex to inspect it.",
     "Some layers shift after each turn."
   ],
+
   "villains": {
     "requiredRoll": 6,
     "triggers": [
@@ -17,10 +20,13 @@
       { "id": "bad4", "layer": 2, "row": 5 }
     ]
   },
+
   "start": { "layer": 1, "row": 3, "col": 1 },
   "goal": { "layer": 2, "row": 1, "col": 4 },
+
   "missing": [],
   "blocked": [],
+
   "movement": {
     "1": "NONE",
     "2": "SEVEN_LEFT_SIX_RIGHT",
@@ -30,6 +36,20 @@
     "6": "NONE",
     "7": "NONE"
   },
+
+  /* =====================================================
+     ✅ HEX FLAGS (UI-visible metadata)
+     This is the ONLY addition required
+     ===================================================== */
+  "hexFlags": {
+    "L1-R3-C5": {
+      "portal": "up"
+    }
+  },
+
+  /* =====================================================
+     Existing engine transitions (unchanged)
+     ===================================================== */
   "transitions": [
     {
       "type": "UP",
@@ -37,5 +57,6 @@
       "to": { "layer": 2, "row": 2, "col": 2 }
     }
   ],
+
   "revealOnEnterGuaranteedUp": false
 }
