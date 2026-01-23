@@ -152,16 +152,15 @@ if (!scenarioJson) return null;
       .filter(Boolean) as Track[])
   : undefined;
 
-    return {
+return {
   id: sid,
   name: sname,
   desc: s.desc,
-  scenarioJson,              // ✅ THIS is what you intended
+  scenarioJson,      // ✅ correct
   theme,
   tracks: tracks && tracks.length ? tracks : undefined,
 } as ScenarioEntry;
-    })
-    .filter(Boolean) as ScenarioEntry[];
+
 
   return {
     id,
