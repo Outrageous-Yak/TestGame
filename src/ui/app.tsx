@@ -1590,6 +1590,11 @@ const [startHexId, setStartHexId] = useState<string | null>(null);
     const pid = (state as any)?.playerHexId;
     return typeof pid === "string" ? pid : null;
   }, [state, uiTick]);
+  const playerCoord = useMemo(() => {
+    return playerId ? idToCoord(playerId) : null;
+  }, [playerId]);
+
+  const playerLayer = playerCoord?.layer ?? null;
 
   // reachability
   // ids you can move to in ONE step (direct neighbors of the current player)
@@ -2116,6 +2121,20 @@ setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
     (id: string) => {
       if (!state) return;
       if (encounterActive) return;
+      // ✅ Guard: if you're viewing a different layer than the player is actually on,
+      // clicking tiles on the viewed layer will never be a valid neighbor move.
+      // So: snap the view back to the player's layer and stop.
+      if (playerLayer && currentLayer !== playerLayer) {
+        setCurrentLayer(playerLayer);
+        enterLayer(state, playerLayer);
+        revealWholeLayer(state, playerLayer);
+        forceRender((n) => n + 1);
+        pushLog(
+          "You were viewing layer " + currentLayer + " but the player is on layer " + playerLayer + " — switched back.",
+          "info"
+        );
+        return;
+      }
 
       const hex = getHexFromState(state, id) as any;
       const { blocked, missing } = isBlockedOrMissing(hex);
@@ -2207,16 +2226,18 @@ setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
       pushLog("Moved to " + (pidAfter ?? id), "ok");
       if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
         },
-    [
+        [
       state,
       encounterActive,
       reachable,
       currentLayer,
+      playerLayer, // ✅ ADD THIS
       goalId,
       pushLog,
       revealWholeLayer,
       findTriggerForHex,
     ]
+
   );
 
   const canGoDown = currentLayer - 1 >= 1;
@@ -2628,12 +2649,20 @@ disabled={!state || blocked || missing || encounterActive}
             <span className="v">{chosenPlayer?.kind === "preset" ? chosenPlayer.name : chosenPlayer?.name ?? "—"}</span>
           </div>
 
-          <div className="miniRow">
-            <span className="k">Layer</span>
-            <span className="v">
-              {currentLayer} / {scenarioLayerCount}
-            </span>
-          </div>
+         <div className="miniRow">
+  <span className="k">Viewing</span>
+  <span className="v">
+    {currentLayer} / {scenarioLayerCount}
+  </span>
+</div>
+
+<div className="miniRow">
+  <span className="k">Player</span>
+  <span className="v">
+    {playerLayer ?? "—"}
+  </span>
+</div>
+
 
           <div className="miniRow">
             <span className="k">Moves</span>
