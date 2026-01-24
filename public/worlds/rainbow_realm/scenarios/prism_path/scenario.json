@@ -46,7 +46,7 @@
 
       "fromHexId": "L1-R3-C5",
       "toHexId": "L2-R2-C2"
-    }
+    },
 {
       "type": "UP",
       "from": { "layer": 2, "row": 3, "col": 5 },
@@ -54,7 +54,7 @@
 
       "fromHexId": "L2-R3-C5",
       "toHexId": "L3-R2-C2"
-    }
+    },
     {
       "type": "UP",
       "from": { "layer": 3, "row": 3, "col": 5 },
@@ -62,7 +62,7 @@
 
       "fromHexId": "L3-R3-C5",
       "toHexId": "L4-R2-C2"
-    }
+    },
     {
       "type": "UP",
       "from": { "layer": 4, "row": 3, "col": 5 },
