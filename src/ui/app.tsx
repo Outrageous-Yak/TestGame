@@ -2012,12 +2012,15 @@ forceRender((n) => n + 1);
 
     // layer ops after commit
     const c2 = pidAfter ? idToCoord(pidAfter) : null;
-    const nextLayer = c2?.layer ?? currentLayer;
-    if (nextLayer !== currentLayer) {
-      setCurrentLayer(nextLayer);
-      enterLayer(nextState, nextLayer);
-      revealWholeLayer(nextState, nextLayer);
-    }
+const nextLayer = c2?.layer ?? currentLayer;
+
+// ✅ ALWAYS re-apply active layer to the NEW engine state
+enterLayer(nextState, nextLayer);
+
+if (nextLayer !== currentLayer) {
+  setCurrentLayer(nextLayer);
+  revealWholeLayer(nextState, nextLayer);
+}
 
     const rm = getReachability(nextState) as any;
     setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
@@ -2208,13 +2211,19 @@ forceRender((n) => n + 1);
 
 
       // layer ops after commit
-      const c2 = pidAfter ? idToCoord(pidAfter) : null;
-      const nextLayer = c2?.layer ?? currentLayer;
-      if (nextLayer !== currentLayer) {
-        setCurrentLayer(nextLayer);
-        enterLayer(nextState, nextLayer);
-        revealWholeLayer(nextState, nextLayer);
-      }
+      // layer ops after commit
+const c2 = pidAfter ? idToCoord(pidAfter) : null;
+const nextLayer = c2?.layer ?? currentLayer;
+
+// ✅ ALWAYS re-apply active layer to the NEW engine state
+enterLayer(nextState, nextLayer);
+
+// ✅ Only change the UI layer + reveal when it actually changes
+if (nextLayer !== currentLayer) {
+  setCurrentLayer(nextLayer);
+  revealWholeLayer(nextState, nextLayer);
+}
+
 
 const rm = getReachability(nextState) as any;
 setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
