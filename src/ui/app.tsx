@@ -2112,11 +2112,6 @@ setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
   ========================= */
 
 
-if (playerLayer && clickedLayer && playerLayer !== clickedLayer) {
-  pushLog("You are viewing layer " + clickedLayer + " but the player is on layer " + playerLayer + ".", "bad");
-  return;
-}
-
   const tryMoveToId = useCallback(
     (id: string) => {
       if (!state) return;
