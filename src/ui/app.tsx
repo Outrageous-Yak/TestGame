@@ -359,6 +359,16 @@ function cloneReachMap(rm: any): ReachMap {
   return { ...(rm as any) } as any;
 }
 
+function getRowShiftUnits(st: any, layer: number, row: number): number {
+  const a =
+    st?.rowShifts?.[layer]?.[row] ??
+    st?.rowShifts?.["L" + layer]?.[row] ??
+    st?.shiftByLayer?.[layer]?.[row] ??
+    st?.layerRowShift?.[layer]?.[row] ??
+    0;
+  const n = Number(a);
+  return Number.isFinite(n) ? n : 0;
+}
 
 /* =========================================================
    CSS
