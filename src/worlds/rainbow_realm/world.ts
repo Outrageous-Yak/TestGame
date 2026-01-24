@@ -33,12 +33,12 @@ export default {
             "worlds/rainbow_realm/scenarios/prism_path/assets/villains",
 
 backgroundLayers: {
-  L1: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/bg-layer1.jpg",
-  L2: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/bg-layer2.jpg",
-  L3: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/bg-layer3.jpg",
-  L4: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/bg-layer4.jpg",
-  L5: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/bg-layer5.jpg",
-  L6: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/bg-layer6.jpg",
+  L1: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
+  L2: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
+  L3: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
+  L4: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
+  L5: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
+  L6: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
   L7: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/bg-layer7.jpg",
 },
 
