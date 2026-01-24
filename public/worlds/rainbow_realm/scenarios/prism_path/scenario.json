@@ -68,8 +68,8 @@
       "from": { "layer": 4, "row": 3, "col": 5 },
       "to": { "layer": 5, "row": 2, "col": 2 },
 
-      "fromHexId": "L1-R3-C5",
-      "toHexId": "L2-R2-C2"
+      "fromHexId": "L4-R3-C5",
+      "toHexId": "L5-R2-C2"
     }
 
 
