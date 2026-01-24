@@ -2562,9 +2562,15 @@ const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
 ].join(" ")}
 
                           onClick={() => {
-                            setSelectedId(id);
-                            tryMoveToId(id);
-                          }}
+  // If view doesn’t match player, don’t select that tile
+  if (playerLayer && currentLayer !== playerLayer) {
+    tryMoveToId(id);
+    return;
+  }
+  setSelectedId(id);
+  tryMoveToId(id);
+}}
+
 disabled={!state || blocked || missing || encounterActive}
 
                           style={
