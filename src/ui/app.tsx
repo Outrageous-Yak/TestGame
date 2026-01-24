@@ -2527,9 +2527,19 @@ forceRender((n) => n + 1);
             {rows.map((r) => {
               const cols = ROW_LENS[r] ?? 0;
               const isOffset = cols === 6; // ✅ 7676767: offset only the 6-wide rows
+const shift = getRowShiftUnits(state as any, currentLayer, r);
+const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
+
+// no template literals:
+const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
 
               return (
-                <div key={r} className={"hexRow" + (isOffset ? " offset" : "")}>
+             <div
+  key={r}
+  className="hexRow"
+  style={{ transform: "translateX(" + tx + ")" }}
+>
+
                   {Array.from({ length: cols }, (_, c) => {
                     const id = hexId(currentLayer, r, c);
                     const hex = getHexFromState(state, id) as any;
