@@ -773,10 +773,8 @@ body{
   box-shadow: var(--shadow2);
   overflow: hidden;           /* ✅ important: contain scroll/overlays */
   min-height: 0;
-
 --boardInset: calc((100% - (var(--barColW) * 2) - var(--boardW)) / 2);
-
-  display: grid;
+display: grid;
   grid-template-columns: var(--barColW) 1fr var(--barColW);
   align-items: stretch;       /* ✅ WAS center — this is the big bug */
 }
