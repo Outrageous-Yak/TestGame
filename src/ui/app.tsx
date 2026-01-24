@@ -2110,9 +2110,7 @@ setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
   /* =========================
      Movement (no hooks inside)
   ========================= */
-const pid = (state as any).playerHexId as string | null;
-const playerLayer = pid ? idToCoord(pid)?.layer : null;
-const clickedLayer = idToCoord(id)?.layer ?? null;
+
 
 if (playerLayer && clickedLayer && playerLayer !== clickedLayer) {
   pushLog("You are viewing layer " + clickedLayer + " but the player is on layer " + playerLayer + ".", "bad");
