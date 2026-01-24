@@ -8,7 +8,6 @@
     "Shift+Click a hex to inspect it.",
     "Some layers shift after each turn."
   ],
-
   "villains": {
     "requiredRoll": 6,
     "triggers": [
@@ -18,16 +17,10 @@
       { "id": "bad4", "layer": 2, "row": 5 }
     ]
   },
-
   "start": { "layer": 1, "row": 3, "col": 1 },
   "goal": { "layer": 2, "row": 1, "col": 4 },
-
-  "startHexId": "L1-R3-C1",
-  "goalHexId": "L2-R1-C4",
-
   "missing": [],
   "blocked": [],
-
   "movement": {
     "1": "NONE",
     "2": "SEVEN_LEFT_SIX_RIGHT",
@@ -37,44 +30,11 @@
     "6": "NONE",
     "7": "NONE"
   },
-
   "transitions": [
-    {
-      "type": "UP",
-      "from": { "layer": 1, "row": 3, "col": 5 },
-      "to": { "layer": 2, "row": 2, "col": 2 },
-
-      "fromHexId": "L1-R3-C5",
-      "toHexId": "L2-R2-C2"
-    },
-{
-      "type": "UP",
-      "from": { "layer": 2, "row": 3, "col": 5 },
-      "to": { "layer": 3, "row": 2, "col": 2 },
-
-      "fromHexId": "L2-R3-C5",
-      "toHexId": "L3-R2-C2"
-    },
-    {
-      "type": "UP",
-      "from": { "layer": 3, "row": 3, "col": 5 },
-      "to": { "layer": 4, "row": 2, "col": 2 },
-
-      "fromHexId": "L3-R3-C5",
-      "toHexId": "L4-R2-C2"
-    },
-    {
-      "type": "UP",
-      "from": { "layer": 4, "row": 3, "col": 5 },
-      "to": { "layer": 5, "row": 2, "col": 2 },
-
-      "fromHexId": "L4-R3-C5",
-      "toHexId": "L5-R2-C2"
-    }
-
-
-    
+    { "type": "UP", "from": { "layer": 1, "row": 3, "col": 5 }, "to": { "layer": 2, "row": 2, "col": 2 } },
+    { "type": "UP", "from": { "layer": 2, "row": 3, "col": 5 }, "to": { "layer": 3, "row": 2, "col": 2 } },
+    { "type": "UP", "from": { "layer": 3, "row": 3, "col": 5 }, "to": { "layer": 4, "row": 2, "col": 2 } },
+    { "type": "UP", "from": { "layer": 4, "row": 3, "col": 5 }, "to": { "layer": 5, "row": 2, "col": 2 } }
   ],
-
   "revealOnEnterGuaranteedUp": false
 }
