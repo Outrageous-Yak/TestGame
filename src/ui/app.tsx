@@ -2559,7 +2559,14 @@ const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
     r{r} shift:{shift}
   </div>
                   {Array.from({ length: cols }, (_, c) => {
-                    const id = hexId(currentLayer, r, c);
+                    const rowIds =
+  (state as any)?.rows?.get?.(currentLayer)?.[r] ??
+  (state as any)?.rows?.[currentLayer]?.[r] ??
+  null;
+
+const id = rowIds && rowIds[c]
+  ? String(rowIds[c])
+  : hexId(currentLayer, r, c);
                     const hex = getHexFromState(state, id) as any;
                     const { blocked, missing } = isBlockedOrMissing(hex);
 const portalDir = findPortalDirection(
