@@ -382,7 +382,7 @@ function derivedRowShiftUnits(
   st: any,
   layer: number,
   row: number,
-  movesTaken: number
+  : number
 ): number {
   const pat = getMovementPattern(st, layer);
   const cols = ROW_LENS[row] ?? 7;
@@ -390,7 +390,7 @@ function derivedRowShiftUnits(
   // Your working pattern:
   // 7-wide rows shift LEFT, 6-wide rows shift RIGHT, each move.
   if (pat === "SEVEN_LEFT_SIX_RIGHT") {
-    if (cols === 7) return -movesTaken;
+    if (cols === 7) return -;
     if (cols === 6) return +movesTaken;
     return 0;
   }
@@ -1701,6 +1701,10 @@ const [spriteXY, setSpriteXY] = useState<{ x: number; y: number } | null>(null);
   }, [playerId]);
 
   const playerLayer = playerCoord?.layer ?? null;
+   const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
+
+  
+  const [movesTaken, setMovesTaken] = useState(0);
 useLayoutEffect(() => {
   const btn = playerBtnRef.current;
   const board = boardRef.current;
@@ -1719,10 +1723,7 @@ useLayoutEffect(() => {
      Moves / optimal / log
      ✅ MUST be before reachable (because reachable depends on movesTaken)
   ========================= */
-const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
 
-  
-  const [movesTaken, setMovesTaken] = useState(0);
 const viewState = useMemo(() => {
   if (!state) return null;
 
