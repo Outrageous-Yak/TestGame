@@ -1632,6 +1632,17 @@ const [startHexId, setStartHexId] = useState<string | null>(null);
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
   const encounterActive = !!encounter;
+const pendingQuickStartRef = useRef(false);
+
+// ... define startScenario useCallback here ...
+
+useEffect(() => {
+  if (pendingQuickStartRef.current && scenarioEntry) {
+    pendingQuickStartRef.current = false;
+    startScenario();
+  }
+}, [scenarioEntry, startScenario]);
+
 
 
   /* =========================
@@ -2053,14 +2064,16 @@ if (nextLayer !== currentLayer) {
      Start scenario
   ========================= */
 
-  const startScenario = useCallback(async () => {
-    if (!scenarioEntry) return;
+const startScenario = useCallback(async () => {
+  if (!scenarioEntry) return;
 
-    const tracks = scenarioEntry.tracks ?? [];
-    const hasTracks = tracks.length > 1;
-    const chosenJson = hasTracks ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson : scenarioEntry.scenarioJson;
+  const tracks = scenarioEntry.tracks ?? [];
+  const hasTracks = tracks.length > 1;
+  const chosenJson = hasTracks
+    ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson
+    : scenarioEntry.scenarioJson;
 
-    const s = (await loadScenario(chosenJson)) as any;
+  const s = (await loadScenario(chosenJson)) as any;
 
     setVillainTriggers(parseVillainsFromScenario(s));
     setEncounter(null);
@@ -2407,20 +2420,21 @@ if (screen !== "game") {
             </button>
 
             <button
-              className="btn primary"
-              onClick={() => {
-                const w0 = worlds[0];
-                const s0 = w0?.scenarios?.[0];
-                if (w0 && s0) {
-                  setWorldId(w0.id);
-                  setScenarioId(s0.id);
-                  setTrackId(null);
-                  window.setTimeout(() => startScenario(), 0);
-                }
-              }}
-            >
-              Quick start (debug)
-            </button>
+  className="btn primary"
+  onClick={() => {
+    const w0 = worlds[0];
+    const s0 = w0?.scenarios?.[0];
+    if (w0 && s0) {
+      setWorldId(w0.id);
+      setScenarioId(s0.id);
+      setTrackId(null);
+      pendingQuickStartRef.current = true;
+    }
+  }}
+>
+  Quick start (debug)
+</button>
+
           </div>
         </div>
       </div>
