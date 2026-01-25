@@ -1868,33 +1868,16 @@ const pendingQuickStartRef = useRef(false);
 
     return [];
   }, []);
-  /* =========================
-     Moves / optimal / log
-  ========================= */
-const [state, setState] = useState<GameState | null>(null);
-const [uiTick, forceRender] = useState(0);
+/* =========================
+   Moves / optimal / log
+========================= */
 
-const [currentLayer, setCurrentLayer] = useState<number>(1);
-const [selectedId, setSelectedId] = useState<string | null>(null);
-const [startHexId, setStartHexId] = useState<string | null>(null);
-
-// ✅ MOVE THIS UP HERE
+// ✅ movesTaken MUST exist before reachable useMemo (because reachable depends on it)
 const [movesTaken, setMovesTaken] = useState(0);
 
-// playerId useMemo...
-const playerId = useMemo(...);
-
-// ✅ now reachable can safely use movesTaken
-const reachable = useMemo(() => {
-  ...
-}, [state, uiTick, playerId, movesTaken]);
-
-  const [movesTaken, setMovesTaken] = useState(0);
-
-  const [goalId, setGoalId] = useState<string | null>(null);
-  const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
-  const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
-
+const [goalId, setGoalId] = useState<string | null>(null);
+const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
+const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
 
 const computeOptimalFromReachMap = useCallback((rm: any, gid: string | null) => {
   if (!gid || !rm) return null;
@@ -1910,16 +1893,15 @@ const computeOptimalFromReachMap = useCallback((rm: any, gid: string | null) => 
   return info?.reachable ? (info.distance as number) : null;
 }, []);
 
+const [log, setLog] = useState<LogEntry[]>([]);
+const logNRef = useRef(0);
 
-
-  const [log, setLog] = useState<LogEntry[]>([]);
-  const logNRef = useRef(0);
-
-  const pushLog = useCallback((msg: string, kind: LogEntry["kind"] = "info") => {
-    logNRef.current += 1;
-    const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
-    setLog((prev) => [e, ...prev].slice(0, 24));
-  }, []);
+const pushLog = useCallback((msg: string, kind: LogEntry["kind"] = "info") => {
+  logNRef.current += 1;
+  const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
+  setLog((prev) => [e, ...prev].slice(0, 24));
+}, []);
+;
 
   /* =========================
      Reveal helpers
