@@ -2137,147 +2137,119 @@ setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
   }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog]);
 
   /* =========================
-     Movement (no hooks inside)
-  ========================= */
+   Movement (no hooks inside)
+========================= */
 
+const tryMoveToId = useCallback(
+  (id: string) => {
+    if (!state) return;
+    if (encounterActive) return;
 
-  const tryMoveToId = useCallback(
-    (id: string) => {
-      if (!state) return;
-      if (encounterActive) return;
-      // ✅ Guard: if you're viewing a different layer than the player is actually on,
-      // clicking tiles on the viewed layer will never be a valid neighbor move.
-      // So: snap the view back to the player's layer and stop.
-     pushLog("Moved to " + (pidAfter ?? id), "ok");
-      if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
-    },
-    [
-      state,
-      encounterActive,
-      reachable,
-      currentLayer,
-      playerLayer,
-      goalId,
-      pushLog,
-      revealWholeLayer,
-      findTriggerForHex,
-    ]
-  );
-        return;
-      }
+    // ✅ Guard: if you're viewing a different layer than the player is actually on,
+    // snap view back to player layer and stop.
+    if (playerLayer && currentLayer !== playerLayer) {
+      setCurrentLayer(playerLayer);
+      enterLayer(state, playerLayer);
+      revealWholeLayer(state, playerLayer);
+      forceRender((n) => n + 1);
+      pushLog(
+        "You were viewing layer " + currentLayer + " but the player is on layer " + playerLayer + " — switched back.",
+        "info"
+      );
+      return;
+    }
 
-      const hex = getHexFromState(state, id) as any;
-      const { blocked, missing } = isBlockedOrMissing(hex);
-      if (missing) {
-        pushLog("Missing tile.", "bad");
-        return;
-      }
-      if (blocked) {
-        pushLog("Blocked tile.", "bad");
-        return;
-      }
+    const hex = getHexFromState(state, id) as any;
+    const { blocked, missing } = isBlockedOrMissing(hex);
+    if (missing) {
+      pushLog("Missing tile.", "bad");
+      return;
+    }
+    if (blocked) {
+      pushLog("Blocked tile.", "bad");
+      return;
+    }
 
-const pidBefore = (state as any).playerHexId as string | null;
+    const pidBefore = (state as any).playerHexId as string | null;
 
-console.log("CLICK", {
-  pidBefore,
-  clicked: id,
-  reachableCount: reachable.size,
-  reachable: Array.from(reachable),
-});
+    console.log("CLICK", {
+      pidBefore,
+      clicked: id,
+      reachableCount: reachable.size,
+      reachable: Array.from(reachable),
+    });
 
+    // encounter gate BEFORE tryMove
+    const vk = findTriggerForHex(id);
+    if (vk) {
+      pendingEncounterMoveIdRef.current = id;
+      setEncounter((prev) => (prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }));
+      pushLog("Encounter: " + vk + " — roll a 6 to continue", "bad");
+      return;
+    }
 
-// // only allow ONE-step neighbor moves
-// if (pidBefore && id !== pidBefore) {
-//   if (!reachable.has(id)) {
-//     pushLog("Not a neighbor move.", "bad");
-//     return;
-//   }
-// }
+    const res: any = tryMove(state as any, id);
+    const nextState = unwrapNextState(res);
 
+    if (!nextState) {
+      const msg =
+        (res && typeof res === "object" && "reason" in res && String((res as any).reason)) || "Move failed.";
+      pushLog(msg, "bad");
+      return;
+    }
 
+    const pidAfter = (nextState as any).playerHexId as string | null;
 
+    const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
+    if (moved) {
+      setMovesTaken((n) => n + 1);
 
+      setIsWalking(true);
+      if (walkTimer.current) window.clearTimeout(walkTimer.current);
+      walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
 
-      // encounter gate BEFORE tryMove
-      const vk = findTriggerForHex(id);
-      if (vk) {
-        pendingEncounterMoveIdRef.current = id;
-        setEncounter((prev) => (prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }));
-        pushLog("Encounter: " + vk + " — roll a 6 to continue", "bad");
-        return;
-      }
+      setPlayerFacing(facingFromMove(pidBefore, pidAfter));
+    }
 
-      const res: any = tryMove(state as any, id);
-      const nextState = unwrapNextState(res);
+    // commit next state first
+    setState(nextState);
+    setSelectedId(pidAfter ?? id);
+    forceRender((n) => n + 1);
 
-      if (!nextState) {
-        const msg =
-          (res && typeof res === "object" && "reason" in res && String((res as any).reason)) || "Move failed.";
-        pushLog(msg, "bad");
-        return;
-      }
+    // layer ops after commit
+    const c2 = pidAfter ? idToCoord(pidAfter) : null;
+    const nextLayer = c2?.layer ?? currentLayer;
 
-      const pidAfter = (nextState as any).playerHexId as string | null;
+    enterLayer(nextState, nextLayer);
 
-      const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
-      if (moved) {
-        setMovesTaken((n) => n + 1);
+    if (nextLayer !== currentLayer) {
+      setCurrentLayer(nextLayer);
+      revealWholeLayer(nextState, nextLayer);
+    }
 
-        setIsWalking(true);
-        if (walkTimer.current) window.clearTimeout(walkTimer.current);
-        walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+    const rm = getReachability(nextState) as any;
+    setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
 
-        setPlayerFacing(facingFromMove(pidBefore, pidAfter));
-      }
+    pushLog("Moved to " + (pidAfter ?? id), "ok");
+    if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
+  },
+  [
+    state,
+    encounterActive,
+    reachable,
+    currentLayer,
+    playerLayer,
+    goalId,
+    pushLog,
+    revealWholeLayer,
+    findTriggerForHex,
+    computeOptimalFromReachMap,
+  ]
+);
 
-      // commit next state first
-  setState(nextState);
-setSelectedId(pidAfter ?? id);
+const canGoDown = currentLayer - 1 >= 1;
+const canGoUp = currentLayer + 1 <= scenarioLayerCount;
 
-forceRender((n) => n + 1);
-
-
-
-      // layer ops after commit
-      // layer ops after commit
-const c2 = pidAfter ? idToCoord(pidAfter) : null;
-const nextLayer = c2?.layer ?? currentLayer;
-
-// ✅ ALWAYS re-apply active layer to the NEW engine state
-enterLayer(nextState, nextLayer);
-
-// ✅ Only change the UI layer + reveal when it actually changes
-if (nextLayer !== currentLayer) {
-  setCurrentLayer(nextLayer);
-  revealWholeLayer(nextState, nextLayer);
-}
-
-
-const rm = getReachability(nextState) as any;
-setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
-
-
-
-      pushLog("Moved to " + (pidAfter ?? id), "ok");
-      if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
-        },
-        [
-      state,
-      encounterActive,
-      reachable,
-      currentLayer,
-      playerLayer, // ✅ ADD THIS
-      goalId,
-      pushLog,
-      revealWholeLayer,
-      findTriggerForHex,
-    ]
-
-  );
-
-  const canGoDown = currentLayer - 1 >= 1;
-  const canGoUp = currentLayer + 1 <= scenarioLayerCount;
   /* =========================
    Render helpers/components
 ========================= */
