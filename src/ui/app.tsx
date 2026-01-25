@@ -1633,17 +1633,6 @@ const pendingQuickStartRef = useRef(false);
   const [encounter, setEncounter] = useState<Encounter>(null);
   const encounterActive = !!encounter;
 
-// ... define startScenario useCallback here ...
-
-useEffect(() => {
-  if (pendingQuickStartRef.current && scenarioEntry) {
-    pendingQuickStartRef.current = false;
-    startScenario();
-  }
-}, [scenarioEntry, startScenario]);
-
-
-
   /* =========================
      Theme / assets (INSIDE App)
   ========================= */
