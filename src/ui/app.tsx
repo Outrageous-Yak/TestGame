@@ -2883,9 +2883,10 @@ forceRender((n) => n + 1);
 </div>
 
 <SideBar side="right" currentLayer={currentLayer} />
-</div> {/* end .boardWrap */}
 
-{/* RIGHT: sidebar */}
+
+      </div>
+
       {/* RIGHT: sidebar */}
       <div className="side">
         <div className="panelMini">
@@ -2893,22 +2894,23 @@ forceRender((n) => n + 1);
 
           <div className="miniRow">
             <span className="k">Player</span>
-            <span className="v">
-              {chosenPlayer?.kind === "preset" ? chosenPlayer.name : chosenPlayer?.name ?? "—"}
-            </span>
+            <span className="v">{chosenPlayer?.kind === "preset" ? chosenPlayer.name : chosenPlayer?.name ?? "—"}</span>
           </div>
 
-          <div className="miniRow">
-            <span className="k">Viewing</span>
-            <span className="v">
-              {currentLayer} / {scenarioLayerCount}
-            </span>
-          </div>
+         <div className="miniRow">
+  <span className="k">Viewing</span>
+  <span className="v">
+    {currentLayer} / {scenarioLayerCount}
+  </span>
+</div>
 
-          <div className="miniRow">
-            <span className="k">Player</span>
-            <span className="v">{playerLayer ?? "—"}</span>
-          </div>
+<div className="miniRow">
+  <span className="k">Player</span>
+  <span className="v">
+    {playerLayer ?? "—"}
+  </span>
+</div>
+
 
           <div className="miniRow">
             <span className="k">Moves</span>
@@ -2935,11 +2937,9 @@ forceRender((n) => n + 1);
               ))
             )}
           </div>
-        </div>
+        </div> 
       </div>
-      {/* end .side */}
     </div>
-    {/* end .gameLayout */}
 
     {/* encounter overlay */}
     {encounter ? (
@@ -2949,11 +2949,7 @@ forceRender((n) => n + 1);
           <div className="overlaySub">Roll a 6 to continue.</div>
 
           <div className="villainBox">
-            <img
-              className="villainImg"
-              src={villainImg(encounter.villainKey)}
-              alt={encounter.villainKey}
-            />
+            <img className="villainImg" src={villainImg(encounter.villainKey)} alt={encounter.villainKey} />
             <div className="villainMeta">
               <div className="hint">Tries: {encounter.tries}</div>
               <button className="btn primary" onClick={rollDice} disabled={diceRolling}>
@@ -2969,3 +2965,4 @@ forceRender((n) => n + 1);
   </div>
 );
 }
+   
