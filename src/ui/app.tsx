@@ -1904,7 +1904,7 @@ const pushLog = useCallback((msg: string, kind: LogEntry["kind"] = "info") => {
   const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
   setLog((prev) => [e, ...prev].slice(0, 24));
 }, []);
-;
+
 
   /* =========================
      Reveal helpers
