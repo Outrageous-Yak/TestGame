@@ -1587,15 +1587,15 @@ flex: 0 0 var(--hexWMain);
 /* =========================================================
    App
 ========================================================= */
-const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
-const [encounter, setEncounter] = useState<Encounter>(null);
-const pendingEncounterMoveIdRef = useRef<string | null>(null);
-const encounterActive = !!encounter;
+
 
 export default function App() {
   // navigation
   const [screen, setScreen] = useState<Screen>("start");
-
+const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
+const [encounter, setEncounter] = useState<Encounter>(null);
+const pendingEncounterMoveIdRef = useRef<string | null>(null);
+const encounterActive = !!encounter;
   // worlds
   const [worlds, setWorlds] = useState<WorldEntry[]>([]);
   const [worldId, setWorldId] = useState<string | null>(null);
@@ -1704,9 +1704,7 @@ export default function App() {
      ✅ now safe to depend on movesTaken
   ========================= */
 
-  const reachable = useMemo(() => {
-    const set = new Set<string>();
-    if (!state) return set;
+  
 
     const pid = playerId;
     if (!pid) return set;
@@ -1722,10 +1720,7 @@ export default function App() {
   }, [state, uiTick, playerId, movesTaken]);
 
   // refs
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const walkTimer = useRef<number | null>(null);
-  const pendingQuickStartRef = useRef(false);
-
+  
   /* =========================
      Theme / assets (INSIDE App)
   ========================= */
