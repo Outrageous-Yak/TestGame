@@ -106,7 +106,7 @@ function normalizeWorldEntry(raw: any): WorldEntry | null {
   if (!raw) return null;
   const w = raw.default ?? raw;
 
-   String(w.id ?? w.slug ?? w.key ?? "world");
+  const id = String(w.id ?? w.slug ?? w.key ?? "world");
   const name = String(w.name ?? w.title ?? id);
 
   const scenarios = Array.isArray(w.scenarios) ? w.scenarios : [];
@@ -2730,13 +2730,14 @@ forceRender((n) => n + 1);
       const cols = ROW_LENS[r] ?? 0;
       const isOffset = cols === 6;
 
+      // pick engine shift first, otherwise derived
       const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
       const shift =
         engineShift !== 0
           ? engineShift
           : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
 
-      // ✅ single calc only
+      // ✅ base must NOT contain calc(...) and we only use ONE calc below
       const base = isOffset ? "(var(--hexStepX) / -5)" : "0px";
       const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
 
@@ -2747,16 +2748,15 @@ forceRender((n) => n + 1);
           style={{
             transform: "translateX(" + tx + ")",
             transition: "transform 180ms ease",
-            position: "relative", // so debug text doesn't escape
+            position: "relative",
           }}
         >
-          {/* optional debug */}
           <div style={{ position: "absolute", left: 8, opacity: 0.35, fontSize: 12 }}>
             r{r} shift:{shift}
           </div>
 
           {Array.from({ length: cols }, (_, c) => {
-            // ✅ IDs stay stable (visual shift only)
+            // ✅ IMPORTANT: IDs must match the layer you're rendering
             const id = "L" + currentLayer + "-R" + r + "-C" + c;
 
             const hex = getHexFromState(viewState as any, id) as any;
@@ -2776,8 +2776,8 @@ forceRender((n) => n + 1);
             const isPlayer = isPlayerHere(id);
             const isStart = startHexId === id;
 
-            // ✅ IMPORTANT: only show reach on the player’s layer
-           const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
+            // ✅ Reachability should ONLY show on the player's layer
+            const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
 
             const upLayer = Math.min(scenarioLayerCount, currentLayer + 1);
             const downLayer = Math.max(1, currentLayer - 1);
@@ -2883,7 +2883,6 @@ forceRender((n) => n + 1);
 </div>
 
 <SideBar side="right" currentLayer={currentLayer} />
-
 
       </div>
 
