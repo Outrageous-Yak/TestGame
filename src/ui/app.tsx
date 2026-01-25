@@ -1642,7 +1642,9 @@ const encounterActive = !!encounter;
      Moves / optimal / log
      ✅ MUST be before reachable (because reachable depends on movesTaken)
   ========================= */
+const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
 
+  
   const [movesTaken, setMovesTaken] = useState(0);
 const viewState = useMemo(() => {
   if (!state) return null;
@@ -1760,8 +1762,6 @@ const reachable = useMemo(() => {
   const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
   const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "images/villains";
   const HEX_TILE = activeTheme?.assets.hexTile ?? "";
-
-  const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
 
   const themeVars = useMemo(() => {
     const p = palette;
