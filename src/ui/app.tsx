@@ -2745,184 +2745,158 @@ forceRender((n) => n + 1);
         />
 
         <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
+<div className="boardScroll" ref={scrollRef}>
+  <div className="board" ref={boardRef} key={currentLayer + "-" + uiTick}>
+    {rows.map((r) => {
+      const cols = ROW_LENS[r] ?? 0;
+      const isOffset = cols === 6;
 
-        <div className="boardScroll" ref={scrollRef}>
-<div className="board" ref={boardRef} key={currentLayer + "-" + uiTick}>
-  {rows.map((r) => {
-    const cols = ROW_LENS[r] ?? 0;
-    const isOffset = cols === 6;
+      const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
+      const shift =
+        engineShift !== 0
+          ? engineShift
+          : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
 
-    // shift for THIS row (engine first, otherwise derived)
-    const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
-    const shift =
-      engineShift !== 0
-        ? engineShift
-        : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
+      const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
 
-    // ✅ ONLY the 6-row "base offset". NO shift translation here.
-    const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
-
-    return (
-      <div
-        key={r}
-        className="hexRow"
-        style={{
-          transform: "translateX(" + base + ")",
-        }}
-      >
-        <div style={{ position: "absolute", left: 8, opacity: 0.35, fontSize: 12 }}>
-          r{r} shift:{shift}
-        </div>
-
-        {Array.from({ length: cols }, (_, c) => {
-          // ✅ SLOT -> ID mapping (this is what makes the row actually “move”)
-          const id = idAtSlot(currentLayer, r, c, shift);
-
-          const hex = getHexFromState(viewState as any, id) as any;
-          const { blocked, missing } = isBlockedOrMissing(hex);
-
-          const portalDir = findPortalDirection(
-            (viewState as any)?.scenario?.transitions,
-            id
-          );
-
-          // ... keep the rest of your per-hex code the same (portal flags, isReach, render button etc.)
-
-          if (missing) return <div key={id} className="hexSlot empty" />;
-
-          return (
-            <div key={id} className="hexSlot">
-              {/* your button + hexInner + sprite etc */}
-            </div>
-          );
-        })}
-      </div>
-    );
-  })}
-</div>
-
-const isPortalUp = portalDir === "up";
-const isPortalDown = portalDir === "down";
-
-
-
-if (missing) return <div key={id} className="hexSlot empty" />;
-
-const isSel = selectedId === id;
-const isPlayer = isPlayerHere(id);
-const isStart = startHexId === id;
-// ✅ only highlight ONE-step neighbor targets (never the player tile)
-const isReach = !isPlayer && reachable.has(id);
-
-
-const upLayer = Math.min(scenarioLayerCount, currentLayer + 1);
-const downLayer = Math.max(1, currentLayer - 1);
-
-const portalTargetLayer = isPortalUp ? upLayer : isPortalDown ? downLayer : null;
-const portalColor = portalTargetLayer ? layerCssVar(portalTargetLayer) : null;
-
-const isGoal = goalId === id;
-const isTrigger = !!findTriggerForHex(id);
-const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
-
-
-                    return (
-                      <div key={id} className="hexSlot">
-                        <button ref={isPlayer ? playerBtnRef : null}
-
-                          className={[
-  "hex",
-  isSel ? "sel" : "",
-  isReach ? "reach" : "",
-  blocked ? "blocked" : "",
-  isPlayer ? "player" : "",
-  isGoal ? "goal" : "",
-  isTrigger ? "trigger" : "",
-  isStart ? "portalStart" : "",
-  isPortalUp ? "portalUp" : "",
-  isPortalDown ? "portalDown" : "",
-].join(" ")}
-
-                          onClick={() => {
-  // If view doesn’t match player, don’t select that tile
-  if (playerLayer && currentLayer !== playerLayer) {
-    tryMoveToId(id);
-    return;
-  }
-  setSelectedId(id);
-  tryMoveToId(id);
-}}
-
-disabled={!state || blocked || missing || encounterActive}
-
-                          style={
-  {
-    ["--hexGlow" as any]: layerCssVar(currentLayer),     // keep your existing layer glow
-    ...(portalColor ? { ["--portalC" as any]: portalColor } : {}), // portal uses DESTINATION color
-  } as any
-}
-                          title={id}
-                        >
-                          <div className="hexAnchor">
-                            <div className="hexInner" style={tile ? { backgroundImage: tile } : undefined}>
-                               {(isPortalUp || isPortalDown) ? (
-  <>
-    <div className="pAura" />
-    <div className="pOrbs" />
-    <div className="pRim" />
-    <div className="pOval" />
-  </>
-) : null}
-                               {isStart ? (
-  <>
-    <div className="pAura" />
-    <div className="pRunes" />
-    <div className="pVortex" />
-    <div className="pWell" />
-    <div className="pShine" />
-  </>
-) : null}
-                              <div className="hexId">
-                                {r},{c}
-                              </div>
-                          <div className="hexMarks">
-  {isPortalUp ? <span className="mark">↑</span> : null}
-  {isPortalDown ? <span className="mark">↓</span> : null}
-
-  {isGoal ? <span className="mark g">G</span> : null}
-  {isTrigger ? <span className="mark t">!</span> : null}
-</div>
-
-                            </div>
-
-                            {isPlayer ? (
-                              <span
-                                className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
-                                style={
-                                  {
-                                    ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
-                                    ["--frameW" as any]: FRAME_W,
-                                    ["--frameH" as any]: FRAME_H,
-                                    ["--cols" as any]: SPRITE_COLS,
-                                    ["--rows" as any]: SPRITE_ROWS,
-                                    ["--frameX" as any]: walkFrame,
-                                    ["--frameY" as any]: facingRow(playerFacing),
-                                  } as any
-                                }
-                              />
-                            ) : null}
-                          </div>
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
+      return (
+        <div
+          key={r}
+          className="hexRow"
+          style={{
+            transform: "translateX(" + base + ")",
+          }}
+        >
+          <div style={{ position: "absolute", left: 8, opacity: 0.35, fontSize: 12 }}>
+            r{r} shift:{shift}
           </div>
-        </div>
 
-        <SideBar side="right" currentLayer={currentLayer} />
+          {Array.from({ length: cols }, (_, c) => {
+            const id = idAtSlot(currentLayer, r, c, shift);
+
+            const hex = getHexFromState(viewState as any, id) as any;
+            const { blocked, missing } = isBlockedOrMissing(hex);
+
+            const portalDir = findPortalDirection(
+              (viewState as any)?.scenario?.transitions,
+              id
+            );
+
+            const isPortalUp = portalDir === "up";
+            const isPortalDown = portalDir === "down";
+
+            if (missing) return <div key={id} className="hexSlot empty" />;
+
+            const isSel = selectedId === id;
+            const isPlayer = isPlayerHere(id);
+            const isStart = startHexId === id;
+            const isReach = !isPlayer && reachable.has(id);
+
+            const upLayer = Math.min(scenarioLayerCount, currentLayer + 1);
+            const downLayer = Math.max(1, currentLayer - 1);
+
+            const portalTargetLayer = isPortalUp ? upLayer : isPortalDown ? downLayer : null;
+            const portalColor = portalTargetLayer ? layerCssVar(portalTargetLayer) : null;
+
+            const isGoal = goalId === id;
+            const isTrigger = !!findTriggerForHex(id);
+            const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
+
+            return (
+              <div key={id} className="hexSlot">
+                <button
+                  ref={isPlayer ? playerBtnRef : null}
+                  className={[
+                    "hex",
+                    isSel ? "sel" : "",
+                    isReach ? "reach" : "",
+                    blocked ? "blocked" : "",
+                    isPlayer ? "player" : "",
+                    isGoal ? "goal" : "",
+                    isTrigger ? "trigger" : "",
+                    isStart ? "portalStart" : "",
+                    isPortalUp ? "portalUp" : "",
+                    isPortalDown ? "portalDown" : "",
+                  ].join(" ")}
+                  onClick={() => {
+                    if (playerLayer && currentLayer !== playerLayer) {
+                      tryMoveToId(id);
+                      return;
+                    }
+                    setSelectedId(id);
+                    tryMoveToId(id);
+                  }}
+                  disabled={!state || blocked || missing || encounterActive}
+                  style={
+                    {
+                      ["--hexGlow" as any]: layerCssVar(currentLayer),
+                      ...(portalColor ? { ["--portalC" as any]: portalColor } : {}),
+                    } as any
+                  }
+                  title={id}
+                >
+                  <div className="hexAnchor">
+                    <div className="hexInner" style={tile ? { backgroundImage: tile } : undefined}>
+                      {isPortalUp || isPortalDown ? (
+                        <>
+                          <div className="pAura" />
+                          <div className="pOrbs" />
+                          <div className="pRim" />
+                          <div className="pOval" />
+                        </>
+                      ) : null}
+
+                      {isStart ? (
+                        <>
+                          <div className="pAura" />
+                          <div className="pRunes" />
+                          <div className="pVortex" />
+                          <div className="pWell" />
+                          <div className="pShine" />
+                        </>
+                      ) : null}
+
+                      <div className="hexId">
+                        {r},{c}
+                      </div>
+
+                      <div className="hexMarks">
+                        {isPortalUp ? <span className="mark">↑</span> : null}
+                        {isPortalDown ? <span className="mark">↓</span> : null}
+                        {isGoal ? <span className="mark g">G</span> : null}
+                        {isTrigger ? <span className="mark t">!</span> : null}
+                      </div>
+                    </div>
+
+                    {isPlayer ? (
+                      <span
+                        className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
+                        style={
+                          {
+                            ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
+                            ["--frameW" as any]: FRAME_W,
+                            ["--frameH" as any]: FRAME_H,
+                            ["--cols" as any]: SPRITE_COLS,
+                            ["--rows" as any]: SPRITE_ROWS,
+                            ["--frameX" as any]: walkFrame,
+                            ["--frameY" as any]: facingRow(playerFacing),
+                          } as any
+                        }
+                      />
+                    ) : null}
+                  </div>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      );
+    })}
+  </div>
+</div>
+
+<SideBar side="right" currentLayer={currentLayer} />
+
       </div>
 
       {/* RIGHT: sidebar */}
