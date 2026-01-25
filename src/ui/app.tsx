@@ -1626,13 +1626,12 @@ const [startHexId, setStartHexId] = useState<string | null>(null);
   // refs
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const walkTimer = useRef<number | null>(null);
-
+const pendingQuickStartRef = useRef(false);
   // encounter flow
   const pendingEncounterMoveIdRef = useRef<string | null>(null);
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
   const encounterActive = !!encounter;
-const pendingQuickStartRef = useRef(false);
 
 // ... define startScenario useCallback here ...
 
@@ -2063,7 +2062,6 @@ if (nextLayer !== currentLayer) {
   /* =========================
      Start scenario
   ========================= */
-
 const startScenario = useCallback(async () => {
   if (!scenarioEntry) return;
 
@@ -2135,6 +2133,13 @@ setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
 
     setScreen("game");
   }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog]);
+// 3️⃣ effect that USES startScenario — MUST come after
+useEffect(() => {
+  if (pendingQuickStartRef.current && scenarioEntry) {
+    pendingQuickStartRef.current = false;
+    startScenario();
+  }
+}, [scenarioEntry, startScenario]);
 
   /* =========================
    Movement (no hooks inside)
