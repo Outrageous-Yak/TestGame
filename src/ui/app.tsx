@@ -369,6 +369,33 @@ function getRowShiftUnits(st: any, layer: number, row: number): number {
   const n = Number(a);
   return Number.isFinite(n) ? n : 0;
 }
+function getMovementPattern(st: any, layer: number): string {
+  const m = st?.scenario?.movement ?? st?.scenario?.movementByLayer ?? null;
+  if (!m) return "NONE";
+  const v = m[layer] ?? m[String(layer)] ?? m["L" + layer];
+  return typeof v === "string" ? v : "NONE";
+}
+
+function derivedRowShiftUnits(
+  st: any,
+  layer: number,
+  row: number,
+  movesTaken: number
+): number {
+  const pat = getMovementPattern(st, layer);
+  const cols = ROW_LENS[row] ?? 7;
+
+  // Your working pattern:
+  // 7-wide rows shift LEFT, 6-wide rows shift RIGHT, each move.
+  if (pat === "SEVEN_LEFT_SIX_RIGHT") {
+    if (cols === 7) return -movesTaken;
+    if (cols === 6) return +movesTaken;
+    return 0;
+  }
+
+  // fallback
+  return 0;
+}
 
 /* =========================================================
    CSS
@@ -2512,7 +2539,11 @@ forceRender((n) => n + 1);
             {rows.map((r) => {
               const cols = ROW_LENS[r] ?? 0;
               const isOffset = cols === 6; // ✅ 7676767: offset only the 6-wide rows
-const shift = getRowShiftUnits(state as any, currentLayer, r);
+const engineShift = getRowShiftUnits(state as any, currentLayer, r);
+const shift = engineShift !== 0
+  ? engineShift
+  : derivedRowShiftUnits(state as any, currentLayer, r, movesTaken);
+
 const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
 
 // no template literals:
@@ -2524,7 +2555,9 @@ const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
   className="hexRow"
   style={{ transform: "translateX(" + tx + ")" }}
 >
-
+ <div style={{ position: "absolute", left: 8, opacity: 0.35, fontSize: 12 }}>
+    r{r} shift:{shift}
+  </div>
                   {Array.from({ length: cols }, (_, c) => {
                     const id = hexId(currentLayer, r, c);
                     const hex = getHexFromState(state, id) as any;
