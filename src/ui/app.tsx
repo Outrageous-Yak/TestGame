@@ -2593,22 +2593,30 @@ forceRender((n) => n + 1);
 
             {rows.map((r) => {
               const cols = ROW_LENS[r] ?? 0;
-              const isOffset = cols === 6; // ✅ 7676767: offset only the 6-wide rows
+const isOffset = cols === 6;
+
+// pick engine shift first, otherwise derived
 const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
-const shift = engineShift !== 0
-  ? engineShift
-  : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
-const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
+const shift =
+  engineShift !== 0
+    ? engineShift
+    : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
 
-// no template literals:
+// ✅ FIX: base must NOT contain calc(...)
+const base = isOffset ? "(var(--hexStepX) / -5)" : "0px";
+
+// ✅ one single calc(...) only
 const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
-
-              return (
+   return (
              <div
   key={r}
   className="hexRow"
-  style={{ transform: "translateX(" + tx + ")" }}
+  style={{
+    transform: "translateX(" + tx + ")",
+    transition: "transform 180ms ease",
+  }}
 >
+
  <div style={{ position: "absolute", left: 8, opacity: 0.35, fontSize: 12 }}>
     r{r} shift:{shift}
   </div>
