@@ -333,20 +333,21 @@ function unwrapNextState(res: any): GameState | null {
   return null;
 }
 function getNeighborsSameLayer(st: any, pid: string): string[] {
-  // Try pid-only first (most common)
-  try {
-    const a = (neighborIdsSameLayer as any)(pid);
-    if (Array.isArray(a) && a.every((x) => typeof x === "string" && x.startsWith("L"))) return a;
-  } catch {}
-
-  // Then try (state, pid)
+  // ✅ FIRST: state-aware neighbors (respects shifting rows)
   try {
     const b = (neighborIdsSameLayer as any)(st, pid);
-    if (Array.isArray(b) && b.every((x) => typeof x === "string" && x.startsWith("L"))) return b;
+    if (Array.isArray(b)) return b;
+  } catch {}
+
+  // fallback: static neighbors (no shifting)
+  try {
+    const a = (neighborIdsSameLayer as any)(pid);
+    if (Array.isArray(a)) return a;
   } catch {}
 
   return [];
 }
+
 function cloneReachMap(rm: any): ReachMap {
   if (!rm) return {} as any;
 
