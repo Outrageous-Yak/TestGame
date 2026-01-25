@@ -2936,6 +2936,15 @@ forceRender((n) => n + 1);
     </div>
   </div>
 </div> {/* end .side */}
+{encounter ? (
+  <div className="overlay">
+    ...
+  </div>
+) : null}
 
+<style>{baseCss}</style>
+</div>
+);
+}
 
    
