@@ -1735,7 +1735,7 @@ const reachable = useMemo(() => {
   }
 
   return set;
-}, [viewState, uiTick, playerId]);
+}, [viewState, playerId]);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const walkTimer = useRef<number | null>(null);
@@ -2611,19 +2611,22 @@ const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
   </div>
                   {Array.from({ length: cols }, (_, c) => {
                     const rowIds =
-  (state as any)?.rows?.get?.(currentLayer)?.[r] ??
-  (state as any)?.rows?.[currentLayer]?.[r] ??
+  (viewState as any)?.rows?.get?.(currentLayer)?.[r] ??
+  (viewState as any)?.rows?.[currentLayer]?.[r] ??
   null;
+
 
 const id = rowIds && rowIds[c]
   ? String(rowIds[c])
   : hexId(currentLayer, r, c);
-                    const hex = getHexFromState(state, id) as any;
+                    const hex = getHexFromState(viewState as any, id) as any;
+
                     const { blocked, missing } = isBlockedOrMissing(hex);
 const portalDir = findPortalDirection(
-  (state as any)?.scenario?.transitions,
+  (viewState as any)?.scenario?.transitions,
   id
 );
+
 
 const isPortalUp = portalDir === "up";
 const isPortalDown = portalDir === "down";
