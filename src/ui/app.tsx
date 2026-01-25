@@ -1614,7 +1614,7 @@ export default function App() {
   // player (character selection only)
   const [chosenPlayer, setChosenPlayer] = useState<PlayerChoice | null>(null);
 
-    // game state
+       // game state
   const [state, setState] = useState<GameState | null>(null);
   const [uiTick, forceRender] = useState(0);
 
@@ -1667,6 +1667,33 @@ export default function App() {
     const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
     setLog((prev) => [e, ...prev].slice(0, 24));
   }, []);
+
+  /* =========================
+     Reachability (1-step neighbors)
+     ✅ now safe to depend on movesTaken
+  ========================= */
+
+  const reachable = useMemo(() => {
+    const set = new Set<string>();
+    if (!state) return set;
+
+    const pid = playerId;
+    if (!pid) return set;
+
+    const nbs = getNeighborsSameLayer(state as any, pid);
+    for (const nbId of nbs) {
+      const hex = getHexFromState(state, nbId) as any;
+      const { blocked, missing } = isBlockedOrMissing(hex);
+      if (!missing && !blocked) set.add(nbId);
+    }
+
+    return set;
+  }, [state, uiTick, playerId, movesTaken]);
+
+  // refs
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const walkTimer = useRef<number | null>(null);
+  const pendingQuickStartRef = useRef(false);
 
   /* =========================
      Reachability (1-step neighbors)
