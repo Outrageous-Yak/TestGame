@@ -456,6 +456,61 @@ function getShiftedNeighborsSameLayer(st: any, pid: string, movesTaken: number):
 
   return out;
 }
+function mod(n: number, m: number) {
+  return ((n % m) + m) % m;
+}
+
+// shift > 0 means row moved RIGHT by that many slots
+// shift < 0 means row moved LEFT
+function idAtSlot(layer: number, row: number, slotCol: number, shift: number) {
+  const len = ROW_LENS[row] ?? 7;
+  const origCol = mod(slotCol - shift, len); // inverse mapping
+  return "L" + layer + "-R" + row + "-C" + origCol;
+}
+
+function slotOfId(row: number, origCol: number, shift: number) {
+  const len = ROW_LENS[row] ?? 7;
+  return mod(origCol + shift, len); // forward mapping
+}
+
+// 7676767 neighbor slots (static grid), returns up to 6 slot coords
+function neighborSlots(row: number, col: number) {
+  const out: Array<{ r: number; c: number }> = [];
+
+  const len = ROW_LENS[row] ?? 7;
+
+  // horizontal
+  if (col - 1 >= 0) out.push({ r: row, c: col - 1 });
+  if (col + 1 < len) out.push({ r: row, c: col + 1 });
+
+  const up = row - 1;
+  const dn = row + 1;
+
+  const lenUp = up >= 0 ? (ROW_LENS[up] ?? 7) : 0;
+  const lenDn = dn < ROW_LENS.length ? (ROW_LENS[dn] ?? 7) : 0;
+
+  const curIs6 = (ROW_LENS[row] ?? 7) === 6;
+
+  // If current row is 7, adjacent 6-row sits "between" cols => neighbors use (c-1,c)
+  // If current row is 6, adjacent 7-row spans wider => neighbors use (c,c+1)
+  const upA = curIs6 ? col : col - 1;
+  const upB = curIs6 ? col + 1 : col;
+
+  const dnA = curIs6 ? col : col - 1;
+  const dnB = curIs6 ? col + 1 : col;
+
+  if (up >= 0) {
+    if (upA >= 0 && upA < lenUp) out.push({ r: up, c: upA });
+    if (upB >= 0 && upB < lenUp) out.push({ r: up, c: upB });
+  }
+
+  if (dn < ROW_LENS.length) {
+    if (dnA >= 0 && dnA < lenDn) out.push({ r: dn, c: dnA });
+    if (dnB >= 0 && dnB < lenDn) out.push({ r: dn, c: dnB });
+  }
+
+  return out;
+}
 
 /* =========================================================
    CSS
@@ -1799,20 +1854,45 @@ const viewState = useMemo(() => {
 
 const reachable = useMemo(() => {
   const set = new Set<string>();
-  if (!viewState) return set;
-  if (!playerId) return set;
+  if (!viewState || !playerId) return set;
 
-  // ✅ Use geometry-based neighbors so shifting changes reachability
-  const nbs = getShiftedNeighborsSameLayer(viewState as any, playerId, movesTaken);
+  const pc = idToCoord(playerId);
+  if (!pc) return set;
 
-  for (const nbId of nbs) {
+  const row = pc.row;
+  const origCol = pc.col;
+
+  // shift for the PLAYER’S row
+  const engineShift = getRowShiftUnits(viewState as any, currentLayer, row);
+  const shift =
+    engineShift !== 0
+      ? engineShift
+      : derivedRowShiftUnits(viewState as any, currentLayer, row, movesTaken);
+
+  // where the PLAYER ID lands on screen (slot col)
+  const slotCol = slotOfId(row, origCol, shift);
+
+  // get 6 neighbor slot coords in the static grid
+  const nSlots = neighborSlots(row, slotCol);
+
+  // map slot coords -> actual ids (considering each neighbor row's shift)
+  for (const ns of nSlots) {
+    const nEngineShift = getRowShiftUnits(viewState as any, currentLayer, ns.r);
+    const nShift =
+      nEngineShift !== 0
+        ? nEngineShift
+        : derivedRowShiftUnits(viewState as any, currentLayer, ns.r, movesTaken);
+
+    const nbId = idAtSlot(currentLayer, ns.r, ns.c, nShift);
+
     const hex = getHexFromState(viewState as any, nbId) as any;
     const { blocked, missing } = isBlockedOrMissing(hex);
     if (!missing && !blocked) set.add(nbId);
   }
 
   return set;
-}, [viewState, playerId, movesTaken]);
+}, [viewState, playerId, currentLayer, movesTaken]);
+
 
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -2668,55 +2748,58 @@ forceRender((n) => n + 1);
 
         <div className="boardScroll" ref={scrollRef}>
 <div className="board" ref={boardRef} key={currentLayer + "-" + uiTick}>
+  {rows.map((r) => {
+    const cols = ROW_LENS[r] ?? 0;
+    const isOffset = cols === 6;
 
+    // shift for THIS row (engine first, otherwise derived)
+    const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
+    const shift =
+      engineShift !== 0
+        ? engineShift
+        : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
 
-            {rows.map((r) => {
-              const cols = ROW_LENS[r] ?? 0;
-const isOffset = cols === 6;
+    // ✅ ONLY the 6-row "base offset". NO shift translation here.
+    const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
 
-// pick engine shift first, otherwise derived
-const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
-const shift =
-  engineShift !== 0
-    ? engineShift
-    : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
+    return (
+      <div
+        key={r}
+        className="hexRow"
+        style={{
+          transform: "translateX(" + base + ")",
+        }}
+      >
+        <div style={{ position: "absolute", left: 8, opacity: 0.35, fontSize: 12 }}>
+          r{r} shift:{shift}
+        </div>
 
-// ✅ FIX: base must NOT contain calc(...)
-const base = isOffset ? "(var(--hexStepX) / -5)" : "0px";
+        {Array.from({ length: cols }, (_, c) => {
+          // ✅ SLOT -> ID mapping (this is what makes the row actually “move”)
+          const id = idAtSlot(currentLayer, r, c, shift);
 
-// ✅ one single calc(...) only
-const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
-   return (
-             <div
-  key={r}
-  className="hexRow"
-  style={{
-    transform: "translateX(" + tx + ")",
-    transition: "transform 180ms ease",
-  }}
->
+          const hex = getHexFromState(viewState as any, id) as any;
+          const { blocked, missing } = isBlockedOrMissing(hex);
 
- <div style={{ position: "absolute", left: 8, opacity: 0.35, fontSize: 12 }}>
-    r{r} shift:{shift}
-  </div>
-                  {Array.from({ length: cols }, (_, c) => {
-                    const rowIds =
-  (viewState as any)?.rows?.get?.(currentLayer)?.[r] ??
-  (viewState as any)?.rows?.[currentLayer]?.[r] ??
-  null;
+          const portalDir = findPortalDirection(
+            (viewState as any)?.scenario?.transitions,
+            id
+          );
 
+          // ... keep the rest of your per-hex code the same (portal flags, isReach, render button etc.)
 
-const id = rowIds && rowIds[c]
-  ? String(rowIds[c])
-  : hexId(currentLayer, r, c);
-                    const hex = getHexFromState(viewState as any, id) as any;
+          if (missing) return <div key={id} className="hexSlot empty" />;
 
-                    const { blocked, missing } = isBlockedOrMissing(hex);
-const portalDir = findPortalDirection(
-  (viewState as any)?.scenario?.transitions,
-  id
-);
-
+          return (
+            <div key={id} className="hexSlot">
+              {/* your button + hexInner + sprite etc */}
+            </div>
+          );
+        })}
+      </div>
+    );
+  })}
+</div>
 
 const isPortalUp = portalDir === "up";
 const isPortalDown = portalDir === "down";
