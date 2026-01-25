@@ -2232,15 +2232,17 @@ const tryMoveToId = useCallback(
     const pidAfter = (nextState as any).playerHexId as string | null;
 
     const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
-    if (moved) {
-      setMovesTaken((n) => n + 1);
+if (moved) {
+  setMovesTaken((n) => n + 1);
 
-      setIsWalking(true);
-      if (walkTimer.current) window.clearTimeout(walkTimer.current);
-      walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+  setIsWalking(true);
 
-      setPlayerFacing(facingFromMove(pidBefore, pidAfter));
-    }
+  if (walkTimer.current) window.clearTimeout(walkTimer.current);
+  walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+
+  setPlayerFacing(facingFromMove(pidBefore, pidAfter));
+}
+
 
     // commit next state first
     setState(nextState);
