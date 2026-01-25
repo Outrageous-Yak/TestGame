@@ -2886,65 +2886,86 @@ forceRender((n) => n + 1);
 </div> {/* end .boardWrap */}
 
 {/* RIGHT: sidebar */}
-<div className="side">
-  <div className="panelMini">
-    <div className="miniTitle">Status</div>
+      {/* RIGHT: sidebar */}
+      <div className="side">
+        <div className="panelMini">
+          <div className="miniTitle">Status</div>
 
-    <div className="miniRow">
-      <span className="k">Player</span>
-      <span className="v">
-        {chosenPlayer?.kind === "preset" ? chosenPlayer.name : chosenPlayer?.name ?? "—"}
-      </span>
-    </div>
-
-    <div className="miniRow">
-      <span className="k">Viewing</span>
-      <span className="v">
-        {currentLayer} / {scenarioLayerCount}
-      </span>
-    </div>
-
-    <div className="miniRow">
-      <span className="k">Player</span>
-      <span className="v">{playerLayer ?? "—"}</span>
-    </div>
-
-    <div className="miniRow">
-      <span className="k">Moves</span>
-      <span className="v">{movesTaken}</span>
-    </div>
-
-    <div className="miniRow">
-      <span className="k">Optimal</span>
-      <span className="v">{optimalFromNow ?? "—"}</span>
-    </div>
-  </div>
-
-  <div className="panelMini">
-    <div className="miniTitle">Log</div>
-    <div className="log">
-      {log.length === 0 ? (
-        <div className="hint">No events yet.</div>
-      ) : (
-        log.map((e) => (
-          <div key={e.n} className={"logRow " + (e.kind ?? "info")}>
-            <div className="lt">{e.t}</div>
-            <div className="lm">{e.msg}</div>
+          <div className="miniRow">
+            <span className="k">Player</span>
+            <span className="v">
+              {chosenPlayer?.kind === "preset" ? chosenPlayer.name : chosenPlayer?.name ?? "—"}
+            </span>
           </div>
-        ))
-      )}
-    </div>
-  </div>
-</div> {/* end .side */}
-{encounter ? (
-  <div className="overlay">
-    ...
-  </div>
-) : null}
 
-<style>{baseCss}</style>
-</div>
+          <div className="miniRow">
+            <span className="k">Viewing</span>
+            <span className="v">
+              {currentLayer} / {scenarioLayerCount}
+            </span>
+          </div>
+
+          <div className="miniRow">
+            <span className="k">Player</span>
+            <span className="v">{playerLayer ?? "—"}</span>
+          </div>
+
+          <div className="miniRow">
+            <span className="k">Moves</span>
+            <span className="v">{movesTaken}</span>
+          </div>
+
+          <div className="miniRow">
+            <span className="k">Optimal</span>
+            <span className="v">{optimalFromNow ?? "—"}</span>
+          </div>
+        </div>
+
+        <div className="panelMini">
+          <div className="miniTitle">Log</div>
+          <div className="log">
+            {log.length === 0 ? (
+              <div className="hint">No events yet.</div>
+            ) : (
+              log.map((e) => (
+                <div key={e.n} className={"logRow " + (e.kind ?? "info")}>
+                  <div className="lt">{e.t}</div>
+                  <div className="lm">{e.msg}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+      {/* end .side */}
+    </div>
+    {/* end .gameLayout */}
+
+    {/* encounter overlay */}
+    {encounter ? (
+      <div className="overlay">
+        <div className="overlayCard">
+          <div className="overlayTitle">Encounter</div>
+          <div className="overlaySub">Roll a 6 to continue.</div>
+
+          <div className="villainBox">
+            <img
+              className="villainImg"
+              src={villainImg(encounter.villainKey)}
+              alt={encounter.villainKey}
+            />
+            <div className="villainMeta">
+              <div className="hint">Tries: {encounter.tries}</div>
+              <button className="btn primary" onClick={rollDice} disabled={diceRolling}>
+                Roll
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    ) : null}
+
+    <style>{baseCss}</style>
+  </div>
 );
 }
-
-   
