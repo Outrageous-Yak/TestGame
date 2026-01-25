@@ -382,22 +382,21 @@ function derivedRowShiftUnits(
   st: any,
   layer: number,
   row: number,
-  : number
+  movesTaken: number
 ): number {
   const pat = getMovementPattern(st, layer);
   const cols = ROW_LENS[row] ?? 7;
 
-  // Your working pattern:
   // 7-wide rows shift LEFT, 6-wide rows shift RIGHT, each move.
   if (pat === "SEVEN_LEFT_SIX_RIGHT") {
-    if (cols === 7) return -;
-    if (cols === 6) return +movesTaken;
+    if (cols === 7) return -movesTaken;
+    if (cols === 6) return movesTaken;
     return 0;
   }
 
-  // fallback
   return 0;
 }
+
 function posForHex(st: any, layer: number, row: number, col: number, movesTaken: number) {
   // MUST match your CSS numbers
   const STEP_X = 72; // --hexStepX
