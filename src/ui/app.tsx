@@ -2730,31 +2730,33 @@ forceRender((n) => n + 1);
       const cols = ROW_LENS[r] ?? 0;
       const isOffset = cols === 6;
 
-      // pick engine shift first, otherwise derived
       const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
       const shift =
         engineShift !== 0
           ? engineShift
           : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
 
-      // ✅ base must NOT contain calc(...) and we only use ONE calc below
-const base = isOffset ? "(var(--hexStepX) / -5)" : "0px";
-const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
+      // ✅ single calc only
+      const base = isOffset ? "(var(--hexStepX) / -5)" : "0px";
+      const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
 
-<div
-  key={r}
-  className="hexRow"
-  style={{
-    transform: "translateX(" + tx + ")",
-    transition: "transform 180ms ease",
-  }}
->
+      return (
+        <div
+          key={r}
+          className="hexRow"
+          style={{
+            transform: "translateX(" + tx + ")",
+            transition: "transform 180ms ease",
+            position: "relative", // so debug text doesn't escape
+          }}
+        >
+          {/* optional debug */}
           <div style={{ position: "absolute", left: 8, opacity: 0.35, fontSize: 12 }}>
             r{r} shift:{shift}
           </div>
 
           {Array.from({ length: cols }, (_, c) => {
-            // ✅ IMPORTANT: IDs must match the layer you're rendering
+            // ✅ IDs stay stable (visual shift only)
             const id = "L" + currentLayer + "-R" + r + "-C" + c;
 
             const hex = getHexFromState(viewState as any, id) as any;
@@ -2774,8 +2776,8 @@ const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
             const isPlayer = isPlayerHere(id);
             const isStart = startHexId === id;
 
-            // ✅ Reachability should ONLY show on the player's layer
-            const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
+            // ✅ IMPORTANT: only show reach on the player’s layer
+           const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
 
             const upLayer = Math.min(scenarioLayerCount, currentLayer + 1);
             const downLayer = Math.max(1, currentLayer - 1);
@@ -2881,6 +2883,7 @@ const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
 </div>
 
 <SideBar side="right" currentLayer={currentLayer} />
+
 
       </div>
 
