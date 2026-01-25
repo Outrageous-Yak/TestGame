@@ -2272,9 +2272,11 @@ const tryMoveToId = useCallback(
     const pidAfter = (nextState as any).playerHexId as string | null;
 
     const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
-if (moved) {
-  setMovesTaken((n) => n + 1);
 
+// ✅ this is the key: a move happened even if ids don’t change
+setMovesTaken((n) => n + 1);
+
+if (moved) {
   setIsWalking(true);
 
   if (walkTimer.current) window.clearTimeout(walkTimer.current);
@@ -2282,6 +2284,7 @@ if (moved) {
 
   setPlayerFacing(facingFromMove(pidBefore, pidAfter));
 }
+
 
 
     // commit next state first
