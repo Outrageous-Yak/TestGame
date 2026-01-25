@@ -1615,41 +1615,44 @@ export default function App() {
   const [chosenPlayer, setChosenPlayer] = useState<PlayerChoice | null>(null);
 
   // game state
-  const [state, setState] = useState<GameState | null>(null);
-  const [uiTick, forceRender] = useState(0);
+const [state, setState] = useState<GameState | null>(null);
+const [uiTick, forceRender] = useState(0);
 
-  const [currentLayer, setCurrentLayer] = useState<number>(1);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+const [currentLayer, setCurrentLayer] = useState<number>(1);
+const [selectedId, setSelectedId] = useState<string | null>(null);
 const [startHexId, setStartHexId] = useState<string | null>(null);
-  // ✅ single source of truth for player position (always follows engine)
-  const playerId = useMemo(() => {
-    const pid = (state as any)?.playerHexId;
-    return typeof pid === "string" ? pid : null;
-  }, [state, uiTick]);
-  const playerCoord = useMemo(() => {
-    return playerId ? idToCoord(playerId) : null;
-  }, [playerId]);
 
-  const playerLayer = playerCoord?.layer ?? null;
+  // ✅ single source of truth for player position (always follows engine)
+const playerId = useMemo(() => {
+  const pid = (state as any)?.playerHexId;
+  return typeof pid === "string" ? pid : null;
+}, [state, uiTick]);
+
+const playerCoord = useMemo(() => {
+  return playerId ? idToCoord(playerId) : null;
+}, [playerId]);
+
+const playerLayer = playerCoord?.layer ?? null;
+
 
   // reachability
-  // ids you can move to in ONE step (direct neighbors of the current player)
-  const reachable = useMemo(() => {
-    const set = new Set<string>();
-    if (!state) return set;
+const reachable = useMemo(() => {
+  const set = new Set<string>();
+  if (!state) return set;
 
-    const pid = playerId;
-    if (!pid) return set;
+  const pid = playerId;
+  if (!pid) return set;
 
-    const nbs = getNeighborsSameLayer(state as any, pid);
-    for (const nbId of nbs) {
-      const hex = getHexFromState(state, nbId) as any;
-      const { blocked, missing } = isBlockedOrMissing(hex);
-      if (!missing && !blocked) set.add(nbId);
-    }
+  const nbs = getNeighborsSameLayer(state as any, pid);
+  for (const nbId of nbs) {
+    const hex = getHexFromState(state, nbId) as any;
+    const { blocked, missing } = isBlockedOrMissing(hex);
+    if (!missing && !blocked) set.add(nbId);
+  }
 
-    return set;
-  }, [state, uiTick, playerId, movesTaken]);
+  return set;
+}, [state, uiTick, playerId, movesTaken]);
+
 
   // refs
   const scrollRef = useRef<HTMLDivElement | null>(null);
