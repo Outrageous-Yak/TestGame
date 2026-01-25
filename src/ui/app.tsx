@@ -2473,23 +2473,22 @@ forceRender((n) => n + 1);
         − Layer
       </button>
 
-      <button
-        className="btn"
-        disabled={!state || !canGoUp || encounterActive}
+<button
+  className="btn"
+  disabled={!state || !canGoUp || encounterActive}
   onClick={() => {
-  if (!state) return;
-  const next = Math.min(scenarioLayerCount, currentLayer + 1);
-  setCurrentLayer(next);
-  enterLayer(state, next);
-  revealWholeLayer(state, next);
-  
-  forceRender((n) => n + 1); // ✅ ADD THIS LINE
-  pushLog("Layer " + next, "info");
-}}
+    if (!state) return;
+    const next = Math.min(scenarioLayerCount, currentLayer + 1);
+    setCurrentLayer(next);
+    enterLayer(state, next);
+    revealWholeLayer(state, next);
 
-      >
-        + Layer
-      </button>
+    forceRender((n) => n + 1);
+    pushLog("Layer " + next, "info");
+  }}
+>
+  + Layer
+</button>
     </div>
 
     <div className="gameLayout">
