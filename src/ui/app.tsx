@@ -1614,55 +1614,86 @@ export default function App() {
   // player (character selection only)
   const [chosenPlayer, setChosenPlayer] = useState<PlayerChoice | null>(null);
 
-  // game state
-const [state, setState] = useState<GameState | null>(null);
-const [uiTick, forceRender] = useState(0);
+    // game state
+  const [state, setState] = useState<GameState | null>(null);
+  const [uiTick, forceRender] = useState(0);
 
-const [currentLayer, setCurrentLayer] = useState<number>(1);
-const [selectedId, setSelectedId] = useState<string | null>(null);
-const [startHexId, setStartHexId] = useState<string | null>(null);
+  const [currentLayer, setCurrentLayer] = useState<number>(1);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [startHexId, setStartHexId] = useState<string | null>(null);
 
   // ✅ single source of truth for player position (always follows engine)
-const playerId = useMemo(() => {
-  const pid = (state as any)?.playerHexId;
-  return typeof pid === "string" ? pid : null;
-}, [state, uiTick]);
+  const playerId = useMemo(() => {
+    const pid = (state as any)?.playerHexId;
+    return typeof pid === "string" ? pid : null;
+  }, [state, uiTick]);
 
-const playerCoord = useMemo(() => {
-  return playerId ? idToCoord(playerId) : null;
-}, [playerId]);
+  const playerCoord = useMemo(() => {
+    return playerId ? idToCoord(playerId) : null;
+  }, [playerId]);
 
-const playerLayer = playerCoord?.layer ?? null;
+  const playerLayer = playerCoord?.layer ?? null;
 
+  /* =========================
+     Moves / optimal / log
+     ✅ MUST be before reachable (because reachable depends on movesTaken)
+  ========================= */
 
-  // reachability
-const reachable = useMemo(() => {
-  const set = new Set<string>();
-  if (!state) return set;
+  const [movesTaken, setMovesTaken] = useState(0);
 
-  const pid = playerId;
-  if (!pid) return set;
+  const [goalId, setGoalId] = useState<string | null>(null);
+  const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
+  const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
 
-  const nbs = getNeighborsSameLayer(state as any, pid);
-  for (const nbId of nbs) {
-    const hex = getHexFromState(state, nbId) as any;
-    const { blocked, missing } = isBlockedOrMissing(hex);
-    if (!missing && !blocked) set.add(nbId);
-  }
+  const computeOptimalFromReachMap = useCallback((rm: any, gid: string | null) => {
+    if (!gid || !rm) return null;
 
-  return set;
-}, [state, uiTick, playerId, movesTaken]);
+    // Map case
+    if (typeof rm?.get === "function") {
+      const info = rm.get(gid);
+      return info?.reachable ? (info.distance as number) : null;
+    }
 
+    // Object case
+    const info = rm[gid];
+    return info?.reachable ? (info.distance as number) : null;
+  }, []);
+
+  const [log, setLog] = useState<LogEntry[]>([]);
+  const logNRef = useRef(0);
+
+  const pushLog = useCallback((msg: string, kind: LogEntry["kind"] = "info") => {
+    logNRef.current += 1;
+    const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
+    setLog((prev) => [e, ...prev].slice(0, 24));
+  }, []);
+
+  /* =========================
+     Reachability (1-step neighbors)
+     ✅ now safe to depend on movesTaken
+  ========================= */
+
+  const reachable = useMemo(() => {
+    const set = new Set<string>();
+    if (!state) return set;
+
+    const pid = playerId;
+    if (!pid) return set;
+
+    const nbs = getNeighborsSameLayer(state as any, pid);
+    for (const nbId of nbs) {
+      const hex = getHexFromState(state, nbId) as any;
+      const { blocked, missing } = isBlockedOrMissing(hex);
+      if (!missing && !blocked) set.add(nbId);
+    }
+
+    return set;
+  }, [state, uiTick, playerId, movesTaken]);
 
   // refs
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const walkTimer = useRef<number | null>(null);
-const pendingQuickStartRef = useRef(false);
-  // encounter flow
-  const pendingEncounterMoveIdRef = useRef<string | null>(null);
-  const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
-  const [encounter, setEncounter] = useState<Encounter>(null);
-  const encounterActive = !!encounter;
+  const pendingQuickStartRef = useRef(false);
 
   /* =========================
      Theme / assets (INSIDE App)
