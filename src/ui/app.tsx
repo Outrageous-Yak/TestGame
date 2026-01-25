@@ -1587,6 +1587,10 @@ flex: 0 0 var(--hexWMain);
 /* =========================================================
    App
 ========================================================= */
+const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
+const [encounter, setEncounter] = useState<Encounter>(null);
+const pendingEncounterMoveIdRef = useRef<string | null>(null);
+const encounterActive = !!encounter;
 
 export default function App() {
   // navigation
@@ -1929,39 +1933,7 @@ export default function App() {
 
     return [];
   }, []);
-/* =========================
-   Moves / optimal / log
-========================= */
 
-// ✅ movesTaken MUST exist before reachable useMemo (because reachable depends on it)
-const [movesTaken, setMovesTaken] = useState(0);
-
-const [goalId, setGoalId] = useState<string | null>(null);
-const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
-const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
-
-const computeOptimalFromReachMap = useCallback((rm: any, gid: string | null) => {
-  if (!gid || !rm) return null;
-
-  // Map case
-  if (typeof rm?.get === "function") {
-    const info = rm.get(gid);
-    return info?.reachable ? (info.distance as number) : null;
-  }
-
-  // Object case
-  const info = rm[gid];
-  return info?.reachable ? (info.distance as number) : null;
-}, []);
-
-const [log, setLog] = useState<LogEntry[]>([]);
-const logNRef = useRef(0);
-
-const pushLog = useCallback((msg: string, kind: LogEntry["kind"] = "info") => {
-  logNRef.current += 1;
-  const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
-  setLog((prev) => [e, ...prev].slice(0, 24));
-}, []);
 
 
   /* =========================
