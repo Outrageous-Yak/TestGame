@@ -1854,44 +1854,22 @@ const viewState = useMemo(() => {
 
 const reachable = useMemo(() => {
   const set = new Set<string>();
-  if (!viewState || !playerId) return set;
+  if (!viewState) return set;
+  if (!playerId) return set;
 
-  const pc = idToCoord(playerId);
-  if (!pc) return set;
+  // ✅ only compute when viewing the player's layer
+  if (playerLayer !== currentLayer) return set;
 
-  const row = pc.row;
-  const origCol = pc.col;
+  const nbs = getShiftedNeighborsSameLayer(viewState as any, playerId, movesTaken);
 
-  // shift for the PLAYER’S row
-  const engineShift = getRowShiftUnits(viewState as any, currentLayer, row);
-  const shift =
-    engineShift !== 0
-      ? engineShift
-      : derivedRowShiftUnits(viewState as any, currentLayer, row, movesTaken);
-
-  // where the PLAYER ID lands on screen (slot col)
-  const slotCol = slotOfId(row, origCol, shift);
-
-  // get 6 neighbor slot coords in the static grid
-  const nSlots = neighborSlots(row, slotCol);
-
-  // map slot coords -> actual ids (considering each neighbor row's shift)
-  for (const ns of nSlots) {
-    const nEngineShift = getRowShiftUnits(viewState as any, currentLayer, ns.r);
-    const nShift =
-      nEngineShift !== 0
-        ? nEngineShift
-        : derivedRowShiftUnits(viewState as any, currentLayer, ns.r, movesTaken);
-
-    const nbId = idAtSlot(currentLayer, ns.r, ns.c, nShift);
-
+  for (const nbId of nbs) {
     const hex = getHexFromState(viewState as any, nbId) as any;
     const { blocked, missing } = isBlockedOrMissing(hex);
     if (!missing && !blocked) set.add(nbId);
   }
 
   return set;
-}, [viewState, playerId, currentLayer, movesTaken]);
+}, [viewState, playerId, movesTaken, playerLayer, currentLayer]);
 
 
 
@@ -2744,27 +2722,33 @@ forceRender((n) => n + 1);
           }}
         />
 
-        <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
+<HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
+
 <div className="boardScroll" ref={scrollRef}>
   <div className="board" ref={boardRef} key={currentLayer + "-" + uiTick}>
     {rows.map((r) => {
       const cols = ROW_LENS[r] ?? 0;
       const isOffset = cols === 6;
 
+      // pick engine shift first, otherwise derived
       const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
       const shift =
         engineShift !== 0
           ? engineShift
           : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
 
-      const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
+      // ✅ base must NOT contain calc(...) and we only use ONE calc below
+      const base = isOffset ? "(var(--hexStepX) / -5)" : "0px";
+      const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
 
       return (
         <div
           key={r}
           className="hexRow"
           style={{
-            transform: "translateX(" + base + ")",
+            transform: "translateX(" + tx + ")",
+            transition: "transform 180ms ease",
+            position: "relative",
           }}
         >
           <div style={{ position: "absolute", left: 8, opacity: 0.35, fontSize: 12 }}>
@@ -2772,7 +2756,8 @@ forceRender((n) => n + 1);
           </div>
 
           {Array.from({ length: cols }, (_, c) => {
-            const id = idAtSlot(currentLayer, r, c, shift);
+            // ✅ IMPORTANT: IDs must match the layer you're rendering
+            const id = "L" + currentLayer + "-R" + r + "-C" + c;
 
             const hex = getHexFromState(viewState as any, id) as any;
             const { blocked, missing } = isBlockedOrMissing(hex);
@@ -2790,7 +2775,9 @@ forceRender((n) => n + 1);
             const isSel = selectedId === id;
             const isPlayer = isPlayerHere(id);
             const isStart = startHexId === id;
-            const isReach = !isPlayer && reachable.has(id);
+
+            // ✅ Reachability should ONLY show on the player's layer
+            const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
 
             const upLayer = Math.min(scenarioLayerCount, currentLayer + 1);
             const downLayer = Math.max(1, currentLayer - 1);
