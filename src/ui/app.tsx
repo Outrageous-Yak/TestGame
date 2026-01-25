@@ -397,6 +397,65 @@ function derivedRowShiftUnits(
   // fallback
   return 0;
 }
+function posForHex(st: any, layer: number, row: number, col: number, movesTaken: number) {
+  // MUST match your CSS numbers
+  const STEP_X = 72; // --hexStepX
+  const STEP_Y = 84; // --hexHMain (row height)
+
+  const cols = ROW_LENS[row] ?? 7;
+  const isOffset = cols === 6;
+  const base = isOffset ? (-STEP_X / 5) : 0;
+
+  const engineShift = getRowShiftUnits(st, layer, row);
+  const shift = engineShift !== 0
+    ? engineShift
+    : derivedRowShiftUnits(st, layer, row, movesTaken);
+
+  const x = base + (col * STEP_X) + (shift * STEP_X);
+  const y = row * STEP_Y;
+
+  return { x, y };
+}
+
+function getShiftedNeighborsSameLayer(st: any, pid: string, movesTaken: number): string[] {
+  const c0 = idToCoord(pid);
+  if (!c0) return [];
+
+  const { x: x0, y: y0 } = posForHex(st, c0.layer, c0.row, c0.col, movesTaken);
+
+  const candidates: Array<{ id: string; d: number }> = [];
+
+  for (let r = 0; r < ROW_LENS.length; r++) {
+    const len = ROW_LENS[r] ?? 7;
+    for (let col = 0; col < len; col++) {
+      const id = "L" + c0.layer + "-R" + r + "-C" + col;
+      if (id === pid) continue;
+
+      const hex = getHexFromState(st as any, id) as any;
+      if (!hex || hex.missing) continue; // skip missing tiles
+
+      const { x, y } = posForHex(st, c0.layer, r, col, movesTaken);
+      const dx = x - x0;
+      const dy = y - y0;
+      const d = Math.hypot(dx, dy);
+
+      candidates.push({ id, d });
+    }
+  }
+
+  // Neighbor distances are roughly 72 (horizontal), 84 (vertical), ~91 (diagonal)
+  // So accept anything within ~98px and take the closest 6.
+  candidates.sort((a, b) => a.d - b.d);
+
+  const out: string[] = [];
+  for (const it of candidates) {
+    if (it.d > 98) break;
+    out.push(it.id);
+    if (out.length >= 6) break;
+  }
+
+  return out;
+}
 
 /* =========================================================
    CSS
@@ -1723,11 +1782,11 @@ const viewState = useMemo(() => {
 const reachable = useMemo(() => {
   const set = new Set<string>();
   if (!viewState) return set;
+  if (!playerId) return set;
 
-  const pid = playerId;
-  if (!pid) return set;
+  // ✅ Use geometry-based neighbors so shifting changes reachability
+  const nbs = getShiftedNeighborsSameLayer(viewState as any, playerId, movesTaken);
 
-  const nbs = getNeighborsSameLayer(viewState as any, pid);
   for (const nbId of nbs) {
     const hex = getHexFromState(viewState as any, nbId) as any;
     const { blocked, missing } = isBlockedOrMissing(hex);
@@ -1735,7 +1794,8 @@ const reachable = useMemo(() => {
   }
 
   return set;
-}, [viewState, playerId]);
+}, [viewState, playerId, movesTaken]);
+
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const walkTimer = useRef<number | null>(null);
