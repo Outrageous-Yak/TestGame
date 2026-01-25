@@ -64,14 +64,20 @@ export function passTurn(state: GameState) {
 export function endTurn(state: GameState) {
   state.turn += 1;
 
-  const ph = state.hexesById.get(state.playerHexId);
-  if (!ph) return; // fail-safe: do not crash / loop
+  // Shift ALL layers according to scenario.movement
+  const movement = state.scenario.movement ?? {};
 
-  // Shift only the layer the player is currently on (simple v0.1)
-  const layer = ph.pos.layer;
-  const pat = getPatternForLayer(state.scenario.movement, layer);
-  applyShift(state, layer, pat);
+  // safest: use scenario.layers if present, otherwise fall back to state.rows size
+  const maxLayer =
+    Number((state.scenario as any)?.layers) ||
+    (state.rows && typeof state.rows.size === "number" ? state.rows.size : 1);
+
+  for (let layer = 1; layer <= maxLayer; layer++) {
+    const pat = getPatternForLayer(movement as any, layer);
+    applyShift(state, layer, pat);
+  }
 }
+
 
 export function getPatternForLayer(
   movement: Record<string, MovementPattern>,
