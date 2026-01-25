@@ -2135,15 +2135,21 @@ setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
       // ✅ Guard: if you're viewing a different layer than the player is actually on,
       // clicking tiles on the viewed layer will never be a valid neighbor move.
       // So: snap the view back to the player's layer and stop.
-      if (playerLayer && currentLayer !== playerLayer) {
-        setCurrentLayer(playerLayer);
-        enterLayer(state, playerLayer);
-        revealWholeLayer(state, playerLayer);
-        forceRender((n) => n + 1);
-        pushLog(
-          "You were viewing layer " + currentLayer + " but the player is on layer " + playerLayer + " — switched back.",
-          "info"
-        );
+     pushLog("Moved to " + (pidAfter ?? id), "ok");
+      if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
+    },
+    [
+      state,
+      encounterActive,
+      reachable,
+      currentLayer,
+      playerLayer,
+      goalId,
+      pushLog,
+      revealWholeLayer,
+      findTriggerForHex,
+    ]
+  );
         return;
       }
 
