@@ -1644,6 +1644,47 @@ const encounterActive = !!encounter;
   ========================= */
 
   const [movesTaken, setMovesTaken] = useState(0);
+const viewState = useMemo(() => {
+  if (!state) return null;
+
+  // If engine already provides rowShifts, keep it.
+  // (We detect "any non-zero" to avoid overriding real engine movement.)
+  const rs = (state as any).rowShifts;
+  let hasEngineShift = false;
+
+  if (rs && typeof rs === "object") {
+    for (const k of Object.keys(rs)) {
+      const rowsObj = rs[k];
+      if (!rowsObj || typeof rowsObj !== "object") continue;
+      for (const rKey of Object.keys(rowsObj)) {
+        const n = Number(rowsObj[rKey]);
+        if (Number.isFinite(n) && n !== 0) {
+          hasEngineShift = true;
+          break;
+        }
+      }
+      if (hasEngineShift) break;
+    }
+  }
+
+  if (hasEngineShift) return state;
+
+  // Otherwise inject derived rowShifts based on movesTaken
+  const injected: any = { ...(state as any) };
+  const rowShifts: any = {};
+
+  for (let layer = 1; layer <= scenarioLayerCount; layer++) {
+    const perRow: any = {};
+    for (let r = 0; r < ROW_LENS.length; r++) {
+      perRow[r] = derivedRowShiftUnits(state as any, layer, r, movesTaken);
+    }
+    rowShifts[layer] = perRow;
+    rowShifts["L" + layer] = perRow; // support both styles
+  }
+
+  injected.rowShifts = rowShifts;
+  return injected as any;
+}, [state, movesTaken, scenarioLayerCount]);
 
   const [goalId, setGoalId] = useState<string | null>(null);
   const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
@@ -1677,24 +1718,23 @@ const encounterActive = !!encounter;
      ✅ now safe to depend on movesTaken
   ========================= */
 
-  const reachable = useMemo(() => {
-    const set = new Set<string>();
-    if (!state) return set;
+const reachable = useMemo(() => {
+  const set = new Set<string>();
+  if (!viewState) return set;
 
-    const pid = playerId;
-    if (!pid) return set;
+  const pid = playerId;
+  if (!pid) return set;
 
-    const nbs = getNeighborsSameLayer(state as any, pid);
-    for (const nbId of nbs) {
-      const hex = getHexFromState(state, nbId) as any;
-      const { blocked, missing } = isBlockedOrMissing(hex);
-      if (!missing && !blocked) set.add(nbId);
-    }
+  const nbs = getNeighborsSameLayer(viewState as any, pid);
+  for (const nbId of nbs) {
+    const hex = getHexFromState(viewState as any, nbId) as any;
+    const { blocked, missing } = isBlockedOrMissing(hex);
+    if (!missing && !blocked) set.add(nbId);
+  }
 
-    return set;
-  }, [state, uiTick, playerId, movesTaken]);
+  return set;
+}, [viewState, uiTick, playerId]);
 
-  // refs
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const walkTimer = useRef<number | null>(null);
   const pendingQuickStartRef = useRef(false);
@@ -2551,11 +2591,10 @@ forceRender((n) => n + 1);
             {rows.map((r) => {
               const cols = ROW_LENS[r] ?? 0;
               const isOffset = cols === 6; // ✅ 7676767: offset only the 6-wide rows
-const engineShift = getRowShiftUnits(state as any, currentLayer, r);
+const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
 const shift = engineShift !== 0
   ? engineShift
-  : derivedRowShiftUnits(state as any, currentLayer, r, movesTaken);
-
+  : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
 const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
 
 // no template literals:
