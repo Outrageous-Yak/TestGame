@@ -1,5 +1,5 @@
 // src/ui/app.tsx 
-import React, { useLayoutEffect } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 
 import type { GameState, Scenario, Hex } from "../engine/types";
@@ -1663,21 +1663,7 @@ const encounterActive = !!encounter;
 
   const [scenarioId, setScenarioId] = useState<string | null>(null);
   const scenarioEntry = useMemo(() => world?.scenarios.find((s) => s.id === scenarioId) ?? null, [world, scenarioId]);
- useLayoutEffect(() => {
-  const btn = playerBtnRef.current;
-  const board = boardRef.current;
-  if (!btn || !board) return;
-
-  const b = board.getBoundingClientRect();
-  const r = btn.getBoundingClientRect();
-
-  // position sprite relative to the board
-  const x = (r.left - b.left) + (r.width / 2);
-  const y = (r.top - b.top) + (r.height * 0.86); // matches your old "top: 86%"
-
-  setSpriteXY({ x, y });
-}, [playerId, currentLayer, movesTaken, uiTick]);
-
+ 
   const [trackId, setTrackId] = useState<string | null>(null);
   const trackEntry = useMemo(() => {
     const tracks = scenarioEntry?.tracks;
@@ -1715,6 +1701,19 @@ const [spriteXY, setSpriteXY] = useState<{ x: number; y: number } | null>(null);
   }, [playerId]);
 
   const playerLayer = playerCoord?.layer ?? null;
+useLayoutEffect(() => {
+  const btn = playerBtnRef.current;
+  const board = boardRef.current;
+  if (!btn || !board) return;
+
+  const b = board.getBoundingClientRect();
+  const r = btn.getBoundingClientRect();
+
+  const x = (r.left - b.left) + (r.width / 2);
+  const y = (r.top - b.top) + (r.height * 0.86);
+
+  setSpriteXY({ x, y });
+}, [playerId, currentLayer, movesTaken, uiTick]);
 
   /* =========================
      Moves / optimal / log
