@@ -1699,25 +1699,7 @@ const encounterActive = !!encounter;
   const walkTimer = useRef<number | null>(null);
   const pendingQuickStartRef = useRef(false);
 
-  /* =========================
-     Reachability (1-step neighbors)
-     ✅ now safe to depend on movesTaken
-  ========================= */
 
-  
-
-    const pid = playerId;
-    if (!pid) return set;
-
-    const nbs = getNeighborsSameLayer(state as any, pid);
-    for (const nbId of nbs) {
-      const hex = getHexFromState(state, nbId) as any;
-      const { blocked, missing } = isBlockedOrMissing(hex);
-      if (!missing && !blocked) set.add(nbId);
-    }
-
-    return set;
-  }, [state, uiTick, playerId, movesTaken]);
 
   // refs
   
