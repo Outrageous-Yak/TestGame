@@ -25,8 +25,26 @@ export function getReachable(state: GameState): Set<string> {
 }
 
 export function tryMove(state: GameState, targetId: string) {
-  return attemptMove(state, targetId);
+  const res: any = attemptMove(state, targetId);
+
+  // If attemptMove returns { ok:false } or { reason }, don't end the turn
+  if (res && typeof res === "object") {
+    if ("ok" in res && res.ok === false) return res;
+    if ("reason" in res && !("state" in res)) return res;
+  }
+
+  // Find the state to apply passTurn to
+  const nextState =
+    res && typeof res === "object" && "state" in res ? (res.state as GameState) : (res as GameState);
+
+  // If we got a plausible nextState, advance the turn (this is where shifting usually happens)
+  if (nextState && typeof nextState === "object") {
+    passTurn(nextState);
+  }
+
+  return res;
 }
+
 
 export function endTurn(state: GameState) {
   passTurn(state);
