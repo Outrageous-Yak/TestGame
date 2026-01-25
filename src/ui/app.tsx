@@ -1871,6 +1871,23 @@ const pendingQuickStartRef = useRef(false);
   /* =========================
      Moves / optimal / log
   ========================= */
+const [state, setState] = useState<GameState | null>(null);
+const [uiTick, forceRender] = useState(0);
+
+const [currentLayer, setCurrentLayer] = useState<number>(1);
+const [selectedId, setSelectedId] = useState<string | null>(null);
+const [startHexId, setStartHexId] = useState<string | null>(null);
+
+// ✅ MOVE THIS UP HERE
+const [movesTaken, setMovesTaken] = useState(0);
+
+// playerId useMemo...
+const playerId = useMemo(...);
+
+// ✅ now reachable can safely use movesTaken
+const reachable = useMemo(() => {
+  ...
+}, [state, uiTick, playerId, movesTaken]);
 
   const [movesTaken, setMovesTaken] = useState(0);
 
