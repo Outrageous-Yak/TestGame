@@ -1649,7 +1649,7 @@ const [startHexId, setStartHexId] = useState<string | null>(null);
     }
 
     return set;
-  }, [state, uiTick, playerId]);
+  }, [state, uiTick, playerId, movesTaken]);
 
   // refs
   const scrollRef = useRef<HTMLDivElement | null>(null);
