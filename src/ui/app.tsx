@@ -2392,16 +2392,24 @@ const tryMoveToId = useCallback(
       return;
     }
 
-    const res: any = tryMove(viewState as any, targetId);
+    const res: any = tryMove(viewState as any, id);
+let nextState = unwrapNextState(res);
 
-    const nextState = unwrapNextState(res);
+// ✅ TEMP FALLBACK: if engine rejects but UI says reachable, force move
+if (!nextState) {
+  if (reachable.has(id) && viewState) {
+    const forced: any = { ...(viewState as any) };
+    forced.playerHexId = id;
+    nextState = forced as any;
+    pushLog("Force-moved (engine rejected)", "info");
+  } else {
+    const msg =
+      (res && typeof res === "object" && "reason" in res && String((res as any).reason)) || "Move failed.";
+    pushLog(msg, "bad");
+    return;
+  }
+}
 
-    if (!nextState) {
-      const msg =
-        (res && typeof res === "object" && "reason" in res && String((res as any).reason)) || "Move failed.";
-      pushLog(msg, "bad");
-      return;
-    }
 
     const pidAfter = (nextState as any).playerHexId as string | null;
 
