@@ -2623,14 +2623,14 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
       className="hexDeckOverlay"
       style={{ ["--cardGlow" as any]: props.glowVar } as any}
     >
-      <div className="hexDeckCol left">
-        <div className="hexDeckCard cosmic ccw slow" />
-        <div className="hexDeckCard risk ccw fast" />
+      <DeckCol left">
+        <DeckCard cosmic ccw slow" />
+        <DeckCard risk ccw fast" />
       </div>
 
-      <div className="hexDeckCol right">
-        <div className="hexDeckCard terrain cw slow" />
-        <div className="hexDeckCard shadow cw fast" />
+      <DeckCol right">
+        <DeckCard terrain cw slow" />
+        <DeckCard shadow cw fast" />
       </div>
     </div>
   );
@@ -2865,7 +2865,17 @@ forceRender((n) => n + 1);
                   <div key={"g-" + r + "-" + c} className="ghostSlot">
                     <div style={{ position: "relative", width: "100%", height: "100%", display: "grid", placeItems: "center" }}>
                       <div className="ghostHex" />
-                      <div className="ghostText">{r + "," + c}</div>
+                      const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
+const shift =
+  engineShift !== 0
+    ? engineShift
+    : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
+
+const logicalId = idAtSlot(currentLayer, r, c, shift);
+const lc = idToCoord(logicalId);
+
+<div className="ghostText">{r + "," + (lc ? lc.col : c)}</div>
+
                     </div>
                   </div>
                 ))}
@@ -2885,19 +2895,19 @@ forceRender((n) => n + 1);
             ? engineShift
             : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
 
-        const base = isOffset ? "(var(--hexStepX) / -5)" : "0px";
-        const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
+        const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
 
-        return (
-          <div
-            key={r}
-            className="hexRow"
-            style={{
-              transform: "translateX(" + tx + ")",
-              transition: "transform 180ms ease",
-              position: "relative",
-            }}
-          >
+return (
+  <div
+    key={r}
+    className="hexRow"
+    style={{
+      transform: "translateX(" + base + ")", // ✅ only 6-row base offset
+      transition: "transform 180ms ease",
+      position: "relative",
+    }}
+  >
+
             
 
 
@@ -2908,7 +2918,9 @@ forceRender((n) => n + 1);
 
       {Array.from({ length: cols }, (_, c) => {
             // ✅ IMPORTANT: IDs must match the layer you're rendering
-            const id = "L" + currentLayer + "-R" + r + "-C" + c;
+            // ✅ visual slot is (r,c), logical id is shifted
+const id = idAtSlot(currentLayer, r, c, shift);
+
 
             const hex = getHexFromState(viewState as any, id) as any;
             const { blocked, missing } = isBlockedOrMissing(hex);
@@ -2941,7 +2953,7 @@ forceRender((n) => n + 1);
             const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
 
             return (
-              <div key={id} className="hexSlot">
+              <div key={"v-" + r + "-" + c} className="hexSlot">
                 <button
                   ref={isPlayer ? playerBtnRef : null}
                   className={[
@@ -2973,8 +2985,8 @@ forceRender((n) => n + 1);
                   }
                   title={id}
                 >
-                  <div className="hexAnchor">
-                    <div className="hexInner" style={tile ? { backgroundImage: tile } : undefined}>
+                  <Anchor">
+                    <Inner" style={tile ? { backgroundImage: tile } : undefined}>
                       {isPortalUp || isPortalDown ? (
                         <>
                           <div className="pAura" />
@@ -2994,11 +3006,11 @@ forceRender((n) => n + 1);
                         </>
                       ) : null}
 
-                      <div className="hexId">
+                      <Id">
                         {r},{c}
                       </div>
 
-                      <div className="hexMarks">
+                      <Marks">
                         {isPortalUp ? <span className="mark">↑</span> : null}
                         {isPortalDown ? <span className="mark">↓</span> : null}
                         {isGoal ? <span className="mark g">G</span> : null}
