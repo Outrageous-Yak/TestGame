@@ -2833,73 +2833,74 @@ forceRender((n) => n + 1);
 
     <div className="gameLayout">
       {/* LEFT: board + bars + deck cards */}
-      <div className="boardWrap">
-        <SideBar side="left" currentLayer={currentLayer} />
+   <div className="boardWrap">
+  <SideBar side="left" currentLayer={currentLayer} />
 
-        <div
-          key={currentLayer}
-          className="boardLayerBg"
-          style={{
-            backgroundImage: BOARD_LAYER_ ? "url(" + toPublicUrl(BOARD_LAYER_) + ")" : undefined,
-          }}
-        />
+  <div
+    key={currentLayer}
+    className="boardLayerBg"
+    style={{
+      backgroundImage: BOARD_LAYER_ ? "url(" + toPublicUrl(BOARD_LAYER_) + ")" : undefined,
+    }}
+  />
 
-<HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
+  <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
 
-<div className="board" ref={boardRef} key={currentLayer + "-" + uiTick}>
-  {showGhost ? (
-    <div className="ghostGrid">
+  <div className="boardScroll" ref={scrollRef}>
+    <div className="board" ref={boardRef} key={currentLayer + "-" + uiTick}>
+      {showGhost ? (
+        <div className="ghostGrid">
+          {rows.map((r) => {
+            const cols = ROW_LENS[r] ?? 0;
+            const isOffset = cols === 6;
+            const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
+            return (
+              <div
+                key={"g-" + r}
+                className="ghostRow"
+                style={{ transform: "translateX(" + base + ")" }}
+              >
+                {Array.from({ length: cols }, (_, c) => (
+                  <div key={"g-" + r + "-" + c} className="ghostSlot">
+                    <div style={{ position: "relative", width: "100%", height: "100%", display: "grid", placeItems: "center" }}>
+                      <div className="ghostHex" />
+                      <div className="ghostText">{r + "," + c}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+
       {rows.map((r) => {
         const cols = ROW_LENS[r] ?? 0;
         const isOffset = cols === 6;
-        const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
+
+        const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
+        const shift =
+          engineShift !== 0
+            ? engineShift
+            : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
+
+        const base = isOffset ? "(var(--hexStepX) / -5)" : "0px";
+        const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
 
         return (
           <div
-            key={"g-" + r}
-            className="ghostRow"
-            style={{ transform: "translateX(" + base + ")" }}
+            key={r}
+            className="hexRow"
+            style={{
+              transform: "translateX(" + tx + ")",
+              transition: "transform 180ms ease",
+              position: "relative",
+            }}
           >
-            {Array.from({ length: cols }, (_, c) => (
-              <div key={"g-" + r + "-" + c} className="ghostSlot">
-                <div style={{ position: "relative", width: "100%", height: "100%", display: "grid", placeItems: "center" }}>
-                  <div className="ghostHex" />
-                  <div className="ghostText">{r + "," + c}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      })}
-    </div>
-  ) : null}
-
-  {rows.map((r) => {
- 
-
-  const cols = ROW_LENS[r] ?? 0;
-  const isOffset = cols === 6;
-
-  const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
-const shift =
-  engineShift !== 0
-    ? engineShift
-    : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
+            
 
 
-  const base = isOffset ? "(var(--hexStepX) / -5)" : "0px";
-  const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
 
-  return (
-    <div
-      key={r}
-      className="hexRow"
-      style={{
-        transform: "translateX(" + tx + ")",
-        transition: "transform 180ms ease",
-        position: "relative",
-      }}
-    >
       <div style={{ position: "absolute", left: 8, opacity: 0.35, fontSize: 12 }}>
         r{r} shift:{shift}
       </div>
