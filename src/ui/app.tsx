@@ -421,15 +421,14 @@ function getShiftedNeighborsSameLayer(st: any, pid: string, movesTaken: number):
   if (!c) return [];
 
   // shift for the player row
-  const colsCur = ROW_LENS[c.row] ?? 7;
   const engineShiftCur = getRowShiftUnits(st, c.layer, c.row);
   const shiftCur =
     engineShiftCur !== 0 ? engineShiftCur : derivedRowShiftUnits(st, c.layer, c.row, movesTaken);
 
-  // player's VISUAL slot column
+  // player’s visual slot column
   const slotC = slotOfId(c.row, c.col, shiftCur);
 
-  // get neighbor slots on the 7676767 grid
+  // neighbor slots on the 7676767 grid
   const slots = neighborSlots(c.row, slotC);
 
   const out: string[] = [];
@@ -440,8 +439,9 @@ function getShiftedNeighborsSameLayer(st: any, pid: string, movesTaken: number):
     const shift =
       engineShift !== 0 ? engineShift : derivedRowShiftUnits(st, c.layer, s.r, movesTaken);
 
-    // map that visual slot back to an actual hex id for that row
+    // ensure slot column is valid for that row length
     if (s.c < 0 || s.c >= cols) continue;
+
     const id = idAtSlot(c.layer, s.r, s.c, shift);
 
     const hex = getHexFromState(st, id) as any;
@@ -453,20 +453,23 @@ function getShiftedNeighborsSameLayer(st: any, pid: string, movesTaken: number):
   return out;
 }
 
-
-  // Neighbor distances are roughly 72 (horizontal), 84 (vertical), ~91 (diagonal)
-  // So accept anything within ~98px and take the closest 6.
-  candidates.sort((a, b) => a.d - b.d);
-
-  const out: string[] = [];
-  for (const it of candidates) {
-    if (it.d > 98) break;
-    out.push(it.id);
-    if (out.length >= 6) break;
-  }
-
-  return out;
+function mod(n: number, m: number) {
+  return ((n % m) + m) % m;
 }
+
+// shift > 0 means row moved RIGHT by that many slots
+// shift < 0 means row moved LEFT
+function idAtSlot(layer: number, row: number, slotCol: number, shift: number) {
+  const len = ROW_LENS[row] ?? 7;
+  const origCol = mod(slotCol - shift, len); // inverse mapping
+  return "L" + layer + "-R" + row + "-C" + origCol;
+}
+
+function slotOfId(row: number, origCol: number, shift: number) {
+  const len = ROW_LENS[row] ?? 7;
+  return mod(origCol + shift, len); // forward mapping
+}
+
 function mod(n: number, m: number) {
   return ((n % m) + m) % m;
 }
