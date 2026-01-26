@@ -884,7 +884,7 @@ body{
   background: rgba(0,0,0,.18);
   box-shadow: 0 18px 40px rgba(0,0,0,.35);
   display: flex;
-  flex-direction: column;
+  flex-direction: column; 
 }
 .barSeg{ height: var(--hexHMain); width: 100%; opacity: .95; }
 .barSeg[data-layer="7"]{ background: var(--L7); }
