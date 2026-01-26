@@ -3087,7 +3087,7 @@ const shift =
           </div>
         </div> 
       </div>
-    </div>
+    
 
     {/* encounter overlay */}
     {encounter ? (
