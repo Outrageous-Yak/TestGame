@@ -1423,7 +1423,7 @@ flex: 0 0 var(--hexWMain);
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 1.2;           /* behind real hexes (board content is z-index 3+) */
+  z-index: 2;           /* behind real hexes (board content is z-index 3+) */
   opacity: 0.35;
 }
 
@@ -2850,41 +2850,51 @@ forceRender((n) => n + 1);
   <div className="boardScroll" ref={scrollRef}>
   <div className="board" ref={boardRef}>
 
-      {showGhost ? (
-        <div className="ghostGrid">
-          {rows.map((r) => {
-            const cols = ROW_LENS[r] ?? 0;
-            const isOffset = cols === 6;
-            const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
+      {showGhost && viewState ? (
+  <div className="ghostGrid">
+    {rows.map((r) => {
+      const cols = ROW_LENS[r] ?? 0;
+      const isOffset = cols === 6;
+      const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
+
+      const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
+      const shift =
+        engineShift !== 0
+          ? engineShift
+          : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
+
+      return (
+        <div
+          key={"g-" + r}
+          className="ghostRow"
+          style={{ transform: "translateX(" + base + ")" }}
+        >
+          {Array.from({ length: cols }, (_, c) => {
+            const logicalId = idAtSlot(currentLayer, r, c, shift);
+            const lc = idToCoord(logicalId);
+
             return (
-              <div
-                key={"g-" + r}
-                className="ghostRow"
-                style={{ transform: "translateX(" + base + ")" }}
-              >
-                {Array.from({ length: cols }, (_, c) => (
-                  <div key={"g-" + r + "-" + c} className="ghostSlot">
-                    <div style={{ position: "relative", width: "100%", height: "100%", display: "grid", placeItems: "center" }}>
-                      <div className="ghostHex" />
-                      const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
-const shift =
-  engineShift !== 0
-    ? engineShift
-    : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
-
-const logicalId = idAtSlot(currentLayer, r, c, shift);
-const lc = idToCoord(logicalId);
-
-<div className="ghostText">{r + "," + (lc ? lc.col : c)}</div>
-
-                    </div>
-                  </div>
-                ))}
+              <div key={"g-" + r + "-" + c} className="ghostSlot">
+                <div
+                  style={{
+                    position: "relative",
+                    width: "100%",
+                    height: "100%",
+                    display: "grid",
+                    placeItems: "center",
+                  }}
+                >
+                  <div className="ghostHex" />
+                  <div className="ghostText">{r + "," + (lc ? lc.col : c)}</div>
+                </div>
               </div>
             );
           })}
         </div>
-      ) : null}
+      );
+    })}
+  </div>
+) : null}
 
       {rows.map((r) => {
         const cols = ROW_LENS[r] ?? 0;
