@@ -1756,6 +1756,16 @@ const [spriteXY, setSpriteXY] = useState<{ x: number; y: number } | null>(null);
 
   
   const [movesTaken, setMovesTaken] = useState(0);
+
+// ✅ per-layer movement counters
+const [layerMoves, setLayerMoves] = useState<Record<number, number>>({});
+const [layerMoveArmed, setLayerMoveArmed] = useState<Record<number, boolean>>({});
+
+// shifting only starts once a layer is "armed"
+function getLayerMoves(layer: number) {
+  return layerMoveArmed[layer] ? (layerMoves[layer] ?? 0) : 0;
+}
+
 useLayoutEffect(() => {
   const btn = playerBtnRef.current;
   const board = boardRef.current;
@@ -2310,6 +2320,18 @@ setPlayerFacing("down");
 
 
 setMovesTaken(0);
+   // ✅ reset per-layer movement state
+const initMoves: Record<number, number> = {};
+const initArmed: Record<number, boolean> = {};
+
+for (let L = 1; L <= layerCount; L++) {
+  initMoves[L] = 0;
+  initArmed[L] = (L === layer); // only starting layer armed
+}
+
+setLayerMoves(initMoves);
+setLayerMoveArmed(initArmed);
+
 setOptimalAtStart(computeOptimalFromReachMap(rm, gid));
 setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
 
@@ -2375,6 +2397,7 @@ const tryMoveToId = useCallback(
     }
 
     const pidBefore = (state as any).playerHexId as string | null;
+const fromLayer = pidBefore ? idToCoord(pidBefore)?.layer ?? null : null;
 
     console.log("CLICK", {
       pidBefore,
@@ -2432,11 +2455,29 @@ if (!nextState) {
 
 
     const pidAfter = (nextState as any).playerHexId as string | null;
+const toLayer = pidAfter ? idToCoord(pidAfter)?.layer ?? null : null;
 
     const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
 
 // ✅ this is the key: a move happened even if ids don’t change
+// global counter (optional, for UI only)
 setMovesTaken((n) => n + 1);
+
+// per-layer movement
+if (fromLayer) {
+  setLayerMoves((prev) => ({
+    ...prev,
+    [fromLayer]: (prev[fromLayer] ?? 0) + 1,
+  }));
+  setLayerMoveArmed((prev) => ({ ...prev, [fromLayer]: true }));
+}
+
+// if we entered a new layer, reset & disarm it
+if (toLayer && fromLayer && toLayer !== fromLayer) {
+  setLayerMoves((prev) => ({ ...prev, [toLayer]: 0 }));
+  setLayerMoveArmed((prev) => ({ ...prev, [toLayer]: false }));
+}
+
 
 if (moved) {
   setIsWalking(true);
