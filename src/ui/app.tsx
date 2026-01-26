@@ -2399,16 +2399,36 @@ let nextState = unwrapNextState(res);
 if (!nextState) {
   if (reachable.has(id) && viewState) {
     const forced: any = { ...(viewState as any) };
-    forced.playerHexId = id;
+
+    // ✅ if clicked a portal, force the destination layer too
+    const dir = findPortalDirection((viewState as any)?.scenario?.transitions, id);
+    if (dir === "up" || dir === "down") {
+      const c = idToCoord(id);
+      if (c) {
+        const targetLayer =
+          dir === "up"
+            ? Math.min(scenarioLayerCount, c.layer + 1)
+            : Math.max(1, c.layer - 1);
+
+        forced.playerHexId = "L" + targetLayer + "-R" + c.row + "-C" + c.col;
+      } else {
+        forced.playerHexId = id;
+      }
+    } else {
+      forced.playerHexId = id;
+    }
+
     nextState = forced as any;
     pushLog("Force-moved (engine rejected)", "info");
   } else {
     const msg =
-      (res && typeof res === "object" && "reason" in res && String((res as any).reason)) || "Move failed.";
+      (res && typeof res === "object" && "reason" in res && String((res as any).reason)) ||
+      "Move failed.";
     pushLog(msg, "bad");
     return;
   }
 }
+
 
 
     const pidAfter = (nextState as any).playerHexId as string | null;
