@@ -1176,17 +1176,16 @@ flex: 0 0 var(--hexWMain);
   100%{ transform: rotate(360deg); }
 }
 
-
 .hex.reach .hexInner{
-  border-color: rgba(255, 45, 161, .85);
-  background: #ff2da1 !important;          /* HOT PINK FILL */
-  background-image: none !important;       /* makes sure tile image doesn't cover it */
+  border-color: rgba(255, 45, 161, .65);
+  background: rgba(255, 45, 161, 0.45) !important; /* ← transparency here */
+  background-image: none !important;
   box-shadow:
     inset 0 0 0 1px rgba(0,0,0,.35),
-    0 0 0 3px rgba(255, 45, 161, .22),
-    0 0 16px rgba(255, 45, 161, .55);
-  animation: reachPulse 1.0s ease-in-out infinite;
+    0 0 0 3px rgba(255, 45, 161, .18),
+    0 0 12px rgba(255, 45, 161, .35);
 }
+
 
 @keyframes reachPulse{
   0%{ filter: brightness(1); }
