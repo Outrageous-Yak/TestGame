@@ -417,30 +417,42 @@ function posForHex(st: any, layer: number, row: number, col: number, movesTaken:
 }
 
 function getShiftedNeighborsSameLayer(st: any, pid: string, movesTaken: number): string[] {
-  const c0 = idToCoord(pid);
-  if (!c0) return [];
+  const c = idToCoord(pid);
+  if (!c) return [];
 
-  const { x: x0, y: y0 } = posForHex(st, c0.layer, c0.row, c0.col, movesTaken);
+  // shift for the player row
+  const colsCur = ROW_LENS[c.row] ?? 7;
+  const engineShiftCur = getRowShiftUnits(st, c.layer, c.row);
+  const shiftCur =
+    engineShiftCur !== 0 ? engineShiftCur : derivedRowShiftUnits(st, c.layer, c.row, movesTaken);
 
-  const candidates: Array<{ id: string; d: number }> = [];
+  // player's VISUAL slot column
+  const slotC = slotOfId(c.row, c.col, shiftCur);
 
-  for (let r = 0; r < ROW_LENS.length; r++) {
-    const len = ROW_LENS[r] ?? 7;
-    for (let col = 0; col < len; col++) {
-      const id = "L" + c0.layer + "-R" + r + "-C" + col;
-      if (id === pid) continue;
+  // get neighbor slots on the 7676767 grid
+  const slots = neighborSlots(c.row, slotC);
 
-      const hex = getHexFromState(st as any, id) as any;
-      if (!hex || hex.missing) continue; // skip missing tiles
+  const out: string[] = [];
+  for (const s of slots) {
+    const cols = ROW_LENS[s.r] ?? 7;
 
-      const { x, y } = posForHex(st, c0.layer, r, col, movesTaken);
-      const dx = x - x0;
-      const dy = y - y0;
-      const d = Math.hypot(dx, dy);
+    const engineShift = getRowShiftUnits(st, c.layer, s.r);
+    const shift =
+      engineShift !== 0 ? engineShift : derivedRowShiftUnits(st, c.layer, s.r, movesTaken);
 
-      candidates.push({ id, d });
-    }
+    // map that visual slot back to an actual hex id for that row
+    if (s.c < 0 || s.c >= cols) continue;
+    const id = idAtSlot(c.layer, s.r, s.c, shift);
+
+    const hex = getHexFromState(st, id) as any;
+    if (!hex || hex.missing) continue;
+
+    out.push(id);
   }
+
+  return out;
+}
+
 
   // Neighbor distances are roughly 72 (horizontal), 84 (vertical), ~91 (diagonal)
   // So accept anything within ~98px and take the closest 6.
@@ -2394,7 +2406,8 @@ const tryMoveToId = useCallback(
       return;
     }
 
-    const res: any = tryMove(state as any, id);
+    const res: any = tryMove(viewState as any, id);
+
     const nextState = unwrapNextState(res);
 
     if (!nextState) {
@@ -2444,18 +2457,20 @@ if (moved) {
     pushLog("Moved to " + (pidAfter ?? id), "ok");
     if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
   },
-  [
-    state,
-    encounterActive,
-    reachable,
-    currentLayer,
-    playerLayer,
-    goalId,
-    pushLog,
-    revealWholeLayer,
-    findTriggerForHex,
-    computeOptimalFromReachMap,
-  ]
+[
+  state,
+  viewState, // ✅ add this
+  encounterActive,
+  reachable,
+  currentLayer,
+  playerLayer,
+  goalId,
+  pushLog,
+  revealWholeLayer,
+  findTriggerForHex,
+  computeOptimalFromReachMap,
+]
+
 );
 
 const canGoDown = currentLayer - 1 >= 1;
