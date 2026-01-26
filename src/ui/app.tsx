@@ -3089,6 +3089,7 @@ forceRender((n) => n + 1);
         </div> 
       </div>
     
+    </div> {/* ✅ CLOSE gameLayout HERE */}
 
     {/* encounter overlay */}
     {encounter ? (
