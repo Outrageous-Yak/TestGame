@@ -105,9 +105,8 @@ function getRegisteredWorlds(): any[] {
 function normalizeWorldEntry(raw: any): WorldEntry | null {
   if (!raw) return null;
   const w = raw.default ?? raw;
-
-   String(w.id ?? w.slug ?? w.key ?? "world");
-  const name = String(w.name ?? w.title ?? id);
+const id = String(w.id ?? w.slug ?? w.key ?? "world");
+const name = String(w.name ?? w.title ?? id);
 
   const scenarios = Array.isArray(w.scenarios) ? w.scenarios : [];
 
