@@ -1817,7 +1817,8 @@ const viewState = useMemo(() => {
   for (let layer = 1; layer <= scenarioLayerCount; layer++) {
     const perRow: any = {};
     for (let r = 0; r < ROW_LENS.length; r++) {
-      perRow[r] = derivedRowShiftUnits(state as any, layer, r, movesTaken);
+      perRow[r] = derivedRowShiftUnits(state as any, layer, r, getLayerMoves(layer));
+
     }
     rowShifts[layer] = perRow;
     rowShifts["L" + layer] = perRow; // support both styles
@@ -1867,7 +1868,12 @@ const reachable = useMemo(() => {
   // ✅ only compute when viewing the player's layer
   if (playerLayer !== currentLayer) return set;
 
-  const nbs = getShiftedNeighborsSameLayer(viewState as any, playerId, movesTaken);
+  const nbs = getShiftedNeighborsSameLayer(
+  viewState as any,
+  playerId,
+  getLayerMoves(playerLayer ?? currentLayer)
+);
+
 
   for (const nbId of nbs) {
     const hex = getHexFromState(viewState as any, nbId) as any;
@@ -2800,10 +2806,11 @@ forceRender((n) => n + 1);
   const isOffset = cols === 6;
 
   const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
-  const shift =
-    engineShift !== 0
-      ? engineShift
-      : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
+const shift =
+  engineShift !== 0
+    ? engineShift
+    : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
+
 
   const base = isOffset ? "(var(--hexStepX) / -5)" : "0px";
   const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
