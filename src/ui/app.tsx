@@ -1318,7 +1318,7 @@ flex: 0 0 var(--hexWMain);
 .hex.portalUp .hexInner .pOval,
 .hex.portalDown .hexInner .pOval{
   inset: auto;
-  overflow:hidden;
+  overflow:visible;
   background:
     radial-gradient(circle at 50% 50%,
       rgba(0,0,0,0) 0 38%,
@@ -1423,7 +1423,7 @@ flex: 0 0 var(--hexWMain);
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 2;           /* behind real hexes (board content is z-index 3+) */
+  z-index: 1.2;           /* behind real hexes (board content is z-index 3+) */
   opacity: 0.35;
 }
 
