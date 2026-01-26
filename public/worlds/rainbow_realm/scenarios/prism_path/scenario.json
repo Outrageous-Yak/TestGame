@@ -21,15 +21,41 @@
   "goal": { "layer": 2, "row": 1, "col": 4 },
   "missing": [],
   "blocked": [],
-  "movement": {
-    "1": "NONE",
-    "2": "SEVEN_LEFT_SIX_RIGHT",
-    "3": "NONE",
-    "4": "NONE",
-    "5": "NONE",
-    "6": "NONE",
-    "7": "NONE"
-  },
+"movement": {
+  "1": "NONE",
+  "2": "SEVEN_LEFT_SIX_RIGHT",
+  "3": "NONE",
+  "4": "NONE",
+  "5": "NONE",
+  "6": "NONE",
+  "7": "NONE",
+
+  "L1": "NONE",
+  "L2": "SEVEN_LEFT_SIX_RIGHT",
+  "L3": "NONE",
+  "L4": "NONE",
+  "L5": "NONE",
+  "L6": "NONE",
+  "L7": "NONE"
+},
+"movementByLayer": {
+  "1": "NONE",
+  "2": "SEVEN_LEFT_SIX_RIGHT",
+  "3": "NONE",
+  "4": "NONE",
+  "5": "NONE",
+  "6": "NONE",
+  "7": "NONE",
+
+  "L1": "NONE",
+  "L2": "SEVEN_LEFT_SIX_RIGHT",
+  "L3": "NONE",
+  "L4": "NONE",
+  "L5": "NONE",
+  "L6": "NONE",
+  "L7": "NONE"
+}
+,
   "transitions": [
     { "type": "UP", "from": { "layer": 1, "row": 3, "col": 5 }, "to": { "layer": 2, "row": 2, "col": 2 } },
     { "type": "UP", "from": { "layer": 2, "row": 3, "col": 5 }, "to": { "layer": 3, "row": 2, "col": 2 } },
