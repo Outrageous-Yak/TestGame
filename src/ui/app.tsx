@@ -1416,6 +1416,48 @@ flex: 0 0 var(--hexWMain);
   color: rgba(255,122,209,.95);
   background: rgba(255,122,209,.10);
 }
+/* =========================================================
+   GHOST GRID (unshifted reference)
+========================================================= */
+.ghostGrid{
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;           /* behind real hexes (board content is z-index 3+) */
+  opacity: 0.35;
+}
+
+.ghostRow{
+  display: flex;
+  height: var(--hexHMain);
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.ghostSlot{
+  width: var(--hexStepX);
+  height: var(--hexHMain);
+  display: grid;
+  place-items: center;
+  flex: 0 0 var(--hexStepX);
+}
+
+.ghostHex{
+  width: var(--hexWMain);
+  height: var(--hexHMain);
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+  border: 1px dashed rgba(255,255,255,.35);
+  background: rgba(0,0,0,.12);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.25);
+}
+
+.ghostText{
+  position: absolute;
+  font-size: 10px;
+  color: rgba(255,255,255,.50);
+  transform: translateY(-2px);
+}
 
 /* =========================================================
    SPRITE (LARGER)
@@ -1740,6 +1782,7 @@ const [spriteXY, setSpriteXY] = useState<{ x: number; y: number } | null>(null);
   const [currentLayer, setCurrentLayer] = useState<number>(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [startHexId, setStartHexId] = useState<string | null>(null);
+const [showGhost, setShowGhost] = useState(false);
 
   // ✅ single source of truth for player position (always follows engine)
   const playerId = useMemo(() => {
@@ -2718,6 +2761,10 @@ return (
     />
 
     <div className="topbar">
+       <button className="btn" onClick={() => setShowGhost((v) => !v)}>
+  {showGhost ? "Hide ghost" : "Ghost grid"}
+</button>
+
       <div className={"dice3d " + (diceRolling ? "rolling" : "")}>
         <div className="cube" style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}>
           <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }} />
@@ -2799,9 +2846,37 @@ forceRender((n) => n + 1);
 
 <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
 
-<div className="boardScroll" ref={scrollRef}>
-  <div className="board" ref={boardRef} key={currentLayer + "-" + uiTick}>
-   {rows.map((r) => {
+<div className="board" ref={boardRef} key={currentLayer + "-" + uiTick}>
+  {showGhost ? (
+    <div className="ghostGrid">
+      {rows.map((r) => {
+        const cols = ROW_LENS[r] ?? 0;
+        const isOffset = cols === 6;
+        const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
+
+        return (
+          <div
+            key={"g-" + r}
+            className="ghostRow"
+            style={{ transform: "translateX(" + base + ")" }}
+          >
+            {Array.from({ length: cols }, (_, c) => (
+              <div key={"g-" + r + "-" + c} className="ghostSlot">
+                <div style={{ position: "relative", width: "100%", height: "100%", display: "grid", placeItems: "center" }}>
+                  <div className="ghostHex" />
+                  <div className="ghostText">{r + "," + c}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  ) : null}
+
+  {rows.map((r) => {
+ 
+
   const cols = ROW_LENS[r] ?? 0;
   const isOffset = cols === 6;
 
