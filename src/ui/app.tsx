@@ -2726,36 +2726,34 @@ forceRender((n) => n + 1);
 
 <div className="boardScroll" ref={scrollRef}>
   <div className="board" ref={boardRef} key={currentLayer + "-" + uiTick}>
-    {rows.map((r) => {
-      const cols = ROW_LENS[r] ?? 0;
-      const isOffset = cols === 6;
+   {rows.map((r) => {
+  const cols = ROW_LENS[r] ?? 0;
+  const isOffset = cols === 6;
 
-      // pick engine shift first, otherwise derived
-      const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
-      const shift =
-        engineShift !== 0
-          ? engineShift
-          : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
+  const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
+  const shift =
+    engineShift !== 0
+      ? engineShift
+      : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
 
-      // ✅ base must NOT contain calc(...) and we only use ONE calc below
-const base = isOffset ? "(var(--hexStepX) / -5)" : "0px";
-const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
+  const base = isOffset ? "(var(--hexStepX) / -5)" : "0px";
+  const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
 
-return (
-  <div
-    key={r}
-    className="hexRow"
-    style={{
-      transform: "translateX(" + tx + ")",
-      transition: "transform 180ms ease",
-      position: "relative",
-    }}
-  >
-          <div style={{ position: "absolute", left: 8, opacity: 0.35, fontSize: 12 }}>
-            r{r} shift:{shift}
-          </div>
+  return (
+    <div
+      key={r}
+      className="hexRow"
+      style={{
+        transform: "translateX(" + tx + ")",
+        transition: "transform 180ms ease",
+        position: "relative",
+      }}
+    >
+      <div style={{ position: "absolute", left: 8, opacity: 0.35, fontSize: 12 }}>
+        r{r} shift:{shift}
+      </div>
 
-          {Array.from({ length: cols }, (_, c) => {
+      {Array.from({ length: cols }, (_, c) => {
             // ✅ IMPORTANT: IDs must match the layer you're rendering
             const id = "L" + currentLayer + "-R" + r + "-C" + c;
 
