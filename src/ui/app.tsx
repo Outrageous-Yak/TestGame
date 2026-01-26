@@ -2623,18 +2623,19 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
       className="hexDeckOverlay"
       style={{ ["--cardGlow" as any]: props.glowVar } as any}
     >
-      <DeckCol left">
-        <DeckCard cosmic ccw slow" />
-        <DeckCard risk ccw fast" />
+      <div className="hexDeckCol left">
+        <div className="hexDeckCard cosmic ccw slow" />
+        <div className="hexDeckCard risk ccw fast" />
       </div>
 
-      <DeckCol right">
-        <DeckCard terrain cw slow" />
-        <DeckCard shadow cw fast" />
+      <div className="hexDeckCol right">
+        <div className="hexDeckCard terrain cw slow" />
+        <div className="hexDeckCard shadow cw fast" />
       </div>
     </div>
   );
 }
+
 
 const resetAll = useCallback(() => {
   setScreen("start");
