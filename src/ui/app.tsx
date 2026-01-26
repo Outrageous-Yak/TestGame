@@ -2392,7 +2392,7 @@ const tryMoveToId = useCallback(
       return;
     }
 
-    const res: any = tryMove(viewState as any, id);
+    const res: any = tryMove(viewState as any, targetId);
 
     const nextState = unwrapNextState(res);
 
