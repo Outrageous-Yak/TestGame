@@ -106,7 +106,7 @@ function normalizeWorldEntry(raw: any): WorldEntry | null {
   if (!raw) return null;
   const w = raw.default ?? raw;
 
-  const id = String(w.id ?? w.slug ?? w.key ?? "world");
+   String(w.id ?? w.slug ?? w.key ?? "world");
   const name = String(w.name ?? w.title ?? id);
 
   const scenarios = Array.isArray(w.scenarios) ? w.scenarios : [];
@@ -2738,19 +2738,19 @@ forceRender((n) => n + 1);
           : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
 
       // ✅ base must NOT contain calc(...) and we only use ONE calc below
-      const base = isOffset ? "(var(--hexStepX) / -5)" : "0px";
-      const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
+const base = isOffset ? "(var(--hexStepX) / -5)" : "0px";
+const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
 
-      return (
-        <div
-          key={r}
-          className="hexRow"
-          style={{
-            transform: "translateX(" + tx + ")",
-            transition: "transform 180ms ease",
-            position: "relative",
-          }}
-        >
+return (
+  <div
+    key={r}
+    className="hexRow"
+    style={{
+      transform: "translateX(" + tx + ")",
+      transition: "transform 180ms ease",
+      position: "relative",
+    }}
+  >
           <div style={{ position: "absolute", left: 8, opacity: 0.35, fontSize: 12 }}>
             r{r} shift:{shift}
           </div>
