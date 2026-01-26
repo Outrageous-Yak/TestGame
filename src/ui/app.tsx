@@ -1928,7 +1928,8 @@ const viewState = useMemo(() => {
   for (let layer = 1; layer <= scenarioLayerCount; layer++) {
     const perRow: any = {};
     for (let r = 0; r < ROW_LENS.length; r++) {
-      perRow[r] = derivedRowShiftUnits(state as any, layer, r, getLayerMoves(layer));
+      perRow[r] = derivedRowShiftUnits(state as any, layer, r, movesTaken);
+
 
     }
     rowShifts[layer] = perRow;
@@ -1982,7 +1983,7 @@ const reachable = useMemo(() => {
   const nbs = getShiftedNeighborsSameLayer(
   viewState as any,
   playerId,
-  getLayerMoves(playerLayer ?? currentLayer)
+  movesTaken
 );
 
 
@@ -2360,7 +2361,7 @@ forceRender((n) => n + 1);
     const c2 = pidAfter ? idToCoord(pidAfter) : null;
 const nextLayer = c2?.layer ?? currentLayer;
 
-// ✅ ALWAYS re-apply active layer to the NEW engine state
+// ✅ ALWAYS re- active layer to the NEW engine state
 enterLayer(nextState, nextLayer);
 
 if (nextLayer !== currentLayer) {
@@ -2940,7 +2941,8 @@ forceRender((n) => n + 1);
       const shift =
         engineShift !== 0
           ? engineShift
-          : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
+          : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
+
 
       return (
         <div
