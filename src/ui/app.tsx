@@ -2986,56 +2986,55 @@ const id = idAtSlot(currentLayer, r, c, shift);
                   }
                   title={id}
                 >
-                  <Anchor">
-                    <Inner" style={tile ? { backgroundImage: tile } : undefined}>
-                      {isPortalUp || isPortalDown ? (
-                        <>
-                          <div className="pAura" />
-                          <div className="pOrbs" />
-                          <div className="pRim" />
-                          <div className="pOval" />
-                        </>
-                      ) : null}
+                 <div className="hexAnchor">
+  <div className="hexInner" style={tile ? { backgroundImage: tile } : undefined}>
+    {isPortalUp || isPortalDown ? (
+      <>
+        <div className="pAura" />
+        <div className="pOrbs" />
+        <div className="pRim" />
+        <div className="pOval" />
+      </>
+    ) : null}
 
-                      {isStart ? (
-                        <>
-                          <div className="pAura" />
-                          <div className="pRunes" />
-                          <div className="pVortex" />
-                          <div className="pWell" />
-                          <div className="pShine" />
-                        </>
-                      ) : null}
+    {isStart ? (
+      <>
+        <div className="pAura" />
+        <div className="pRunes" />
+        <div className="pVortex" />
+        <div className="pWell" />
+        <div className="pShine" />
+      </>
+    ) : null}
 
-                      <Id">
-                        {r},{c}
-                      </div>
+    <div className="hexId">{r},{c}</div>
 
-                      <Marks">
-                        {isPortalUp ? <span className="mark">↑</span> : null}
-                        {isPortalDown ? <span className="mark">↓</span> : null}
-                        {isGoal ? <span className="mark g">G</span> : null}
-                        {isTrigger ? <span className="mark t">!</span> : null}
-                      </div>
-                    </div>
+    <div className="hexMarks">
+      {isPortalUp ? <span className="mark">↑</span> : null}
+      {isPortalDown ? <span className="mark">↓</span> : null}
+      {isGoal ? <span className="mark g">G</span> : null}
+      {isTrigger ? <span className="mark t">!</span> : null}
+    </div>
+  </div>
 
-                    {isPlayer ? (
-                      <span
-                        className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
-                        style={
-                          {
-                            ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
-                            ["--frameW" as any]: FRAME_W,
-                            ["--frameH" as any]: FRAME_H,
-                            ["--cols" as any]: SPRITE_COLS,
-                            ["--rows" as any]: SPRITE_ROWS,
-                            ["--frameX" as any]: walkFrame,
-                            ["--frameY" as any]: facingRow(playerFacing),
-                          } as any
-                        }
-                      />
-                    ) : null}
-                  </div>
+  {isPlayer ? (
+    <span
+      className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
+      style={
+        {
+          ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
+          ["--frameW" as any]: FRAME_W,
+          ["--frameH" as any]: FRAME_H,
+          ["--cols" as any]: SPRITE_COLS,
+          ["--rows" as any]: SPRITE_ROWS,
+          ["--frameX" as any]: walkFrame,
+          ["--frameY" as any]: facingRow(playerFacing),
+        } as any
+      }
+    />
+  ) : null}
+</div>
+
                 </button>
               </div>
             );
