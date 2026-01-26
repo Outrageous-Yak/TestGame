@@ -470,23 +470,6 @@ function slotOfId(row: number, origCol: number, shift: number) {
   return mod(origCol + shift, len); // forward mapping
 }
 
-function mod(n: number, m: number) {
-  return ((n % m) + m) % m;
-}
-
-// shift > 0 means row moved RIGHT by that many slots
-// shift < 0 means row moved LEFT
-function idAtSlot(layer: number, row: number, slotCol: number, shift: number) {
-  const len = ROW_LENS[row] ?? 7;
-  const origCol = mod(slotCol - shift, len); // inverse mapping
-  return "L" + layer + "-R" + row + "-C" + origCol;
-}
-
-function slotOfId(row: number, origCol: number, shift: number) {
-  const len = ROW_LENS[row] ?? 7;
-  return mod(origCol + shift, len); // forward mapping
-}
-
 // 7676767 neighbor slots (static grid), returns up to 6 slot coords
 function neighborSlots(row: number, col: number) {
   const out: Array<{ r: number; c: number }> = [];
