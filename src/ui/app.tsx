@@ -2847,7 +2847,8 @@ forceRender((n) => n + 1);
   <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
 
   <div className="boardScroll" ref={scrollRef}>
-    <div className="board" ref={boardRef} key={currentLayer + "-" + uiTick}>
+  <div className="board" ref={boardRef}>
+
       {showGhost ? (
         <div className="ghostGrid">
           {rows.map((r) => {
