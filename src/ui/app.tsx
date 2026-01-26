@@ -1550,6 +1550,7 @@ flex: 0 0 var(--hexWMain);
 /* =========================================================
    DECK CARDS (PINNED TO GUTTERS) + BORDER EFFECT
 ========================================================= */
+
 .hexDeckOverlay{
   position: absolute;
   inset: 0;
@@ -1560,6 +1561,7 @@ flex: 0 0 var(--hexWMain);
   --deckPadX: 14px;
   --deckPadY: 14px;
 }
+
 .hexDeckCol{ display: contents; }
 
 .hexDeckCard{
@@ -1571,6 +1573,8 @@ flex: 0 0 var(--hexWMain);
   aspect-ratio: 3 / 4;
   border-radius: 22px;
   overflow: hidden;
+
+  isolation: isolate; /* 🔑 keep blend modes inside card */
 
   border: 1px solid rgba(255,255,255,.18);
   background: linear-gradient(135deg, var(--a), var(--b));
@@ -1601,23 +1605,81 @@ flex: 0 0 var(--hexWMain);
   transform: translateX(100%);
 }
 
-.hexDeckCard::before{
+/* ------------------------------------------------------------------
+   INNER FX LAYER (requires <div class="deckFx" /> inside card)
+------------------------------------------------------------------ */
+
+.hexDeckCard .deckFx{
+  position:absolute;
+  inset:0;
+  border-radius: inherit;
+  pointer-events:none;
+  overflow:hidden;
+}
+
+/* glow + subtle hex pattern */
+.hexDeckCard .deckFx::before{
   content:"";
   position:absolute;
   inset:0;
+  border-radius: inherit;
   background:
-    radial-gradient(120% 90% at 40% 20%, rgba(255,255,255,.12), transparent 55%),
-    radial-gradient(90% 70% at 70% 80%, rgba(255,255,255,.08), transparent 60%);
-  opacity: .9;
-  pointer-events:none;
+    radial-gradient(120% 90% at 40% 20%,
+      color-mix(in srgb, var(--a) 35%, white 10%),
+      transparent 60%),
+    radial-gradient(90% 70% at 70% 80%,
+      color-mix(in srgb, var(--b) 35%, white 6%),
+      transparent 60%),
+    linear-gradient(90deg, rgba(255,255,255,.10) 1px, transparent 1px) 0 0 / 18px 16px,
+    linear-gradient(30deg, rgba(0,0,0,.20) 1px, transparent 1px) 0 0 / 18px 16px,
+    linear-gradient(150deg, rgba(255,255,255,.06) 1px, transparent 1px) 0 0 / 18px 16px;
+  opacity: .55;
+  mix-blend-mode: overlay;
 }
 
-/* single combined ::after (no duplicate blocks) */
+/* shimmer sweep */
+.hexDeckCard .deckFx::after{
+  content:"";
+  position:absolute;
+  inset:-20%;
+  border-radius: inherit;
+  background:
+    repeating-linear-gradient(
+      115deg,
+      rgba(255,255,255,0) 0px,
+      rgba(255,255,255,0) 10px,
+      rgba(255,255,255,.18) 14px,
+      rgba(255,255,255,0) 18px
+    ),
+    repeating-linear-gradient(
+      25deg,
+      rgba(0,0,0,0) 0px,
+      rgba(0,0,0,0) 12px,
+      color-mix(in srgb, var(--b) 25%, transparent) 16px,
+      rgba(0,0,0,0) 22px
+    );
+  background-size: 180% 180%;
+  opacity: .40;
+  mix-blend-mode: screen;
+  animation: deckShimmer 7s linear infinite;
+}
+
+@keyframes deckShimmer{
+  0%{ transform: translate3d(-6%,-6%,0); }
+  50%{ transform: translate3d(6%,2%,0); }
+  100%{ transform: translate3d(-6%,-6%,0); }
+}
+
+/* ------------------------------------------------------------------
+   EXISTING SPINNING BORDER (unchanged)
+------------------------------------------------------------------ */
+
 @property --spin { syntax: "<angle>"; inherits: false; initial-value: 0turn; }
 
 @keyframes spinCW { from{ --spin: 0turn; } to{ --spin: 1turn; } }
 @keyframes spinCCW{ from{ --spin: 1turn; } to{ --spin: 0turn; } }
-@keyframes twinkle {
+
+@keyframes twinkle{
   0%,100%{ filter: drop-shadow(0 0 10px var(--cardGlow)); opacity:.92; }
   50%{ filter: drop-shadow(0 0 16px var(--cardGlow)); opacity:1; }
 }
@@ -1662,6 +1724,13 @@ flex: 0 0 var(--hexWMain);
 .hexDeckCard.risk    { --a:#12090A; --b:#6E0F1B; }
 .hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; }
 .hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; }
+
+@media (prefers-reduced-motion: reduce){
+  .hexDeckCard .deckFx::after{
+    animation:none !important;
+  }
+}
+
 
 /* =========================================================
    OVERLAY / ENCOUNTER
@@ -2623,15 +2692,26 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
       className="hexDeckOverlay"
       style={{ ["--cardGlow" as any]: props.glowVar } as any}
     >
-      <div className="hexDeckCol left">
-        <div className="hexDeckCard cosmic ccw slow" />
-        <div className="hexDeckCard risk ccw fast" />
-      </div>
+   <div className="hexDeckCol left">
+  <div className="hexDeckCard cosmic ccw slow">
+    <div className="deckFx" />
+  </div>
 
-      <div className="hexDeckCol right">
-        <div className="hexDeckCard terrain cw slow" />
-        <div className="hexDeckCard shadow cw fast" />
-      </div>
+  <div className="hexDeckCard risk ccw fast">
+    <div className="deckFx" />
+  </div>
+</div>
+
+<div className="hexDeckCol right">
+  <div className="hexDeckCard terrain cw slow">
+    <div className="deckFx" />
+  </div>
+
+  <div className="hexDeckCard shadow cw fast">
+    <div className="deckFx" />
+  </div>
+</div>
+
     </div>
   );
 }
