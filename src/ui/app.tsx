@@ -3230,3 +3230,24 @@ for (let layer = 1; layer <= scenarioLayerCount; layer++) {
     </div>
   );
 })}
+                </div> {/* ✅ closes .board */}
+          </div>   {/* ✅ closes .boardScroll */}
+
+          <SideBar side="right" currentLayer={currentLayer} />
+        </div>     {/* ✅ closes .boardWrap */}
+
+        <div className="side">
+          {/* ... your Status + Log panels ... */}
+        </div>
+      </div>
+
+      {encounter ? (
+        <div className="overlay">
+          {/* ... */}
+        </div>
+      ) : null}
+
+      <style>{baseCss}</style>
+    </div>
+  );
+}
