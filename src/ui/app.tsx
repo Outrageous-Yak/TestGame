@@ -3179,6 +3179,8 @@ const base = "0px";
                       <div className="pOrbs" />
                       <div className="pRim" />
                       <div className="pOval" />
+                       <div className="pVortex" />
+                       <div className="pShine" />
                     </>
                   ) : null}
 
