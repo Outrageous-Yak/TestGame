@@ -398,12 +398,12 @@ function derivedRowShiftUnits(
 
 function posForHex(st: any, layer: number, row: number, col: number, movesTaken: number) {
   // MUST match your CSS numbers
-  const STEP_X = 72; // --hexStepX
+  const STEP_X = 72; // 
   const STEP_Y = 84; // --hexHMain (row height)
 
   const cols = ROW_LENS[row] ?? 7;
   const isOffset = cols === 6;
-  const base = isOffset ? (-STEP_X / 5) : 0;
+  const base = isOffset ? (-STEP_X / 2) : 0;
 
   const engineShift = getRowShiftUnits(st, layer, row);
   const shift = engineShift !== 0
