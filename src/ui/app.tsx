@@ -2058,7 +2058,7 @@ const reachable = useMemo(() => {
 
   // Sprite sheet info
   const SPRITE_COLS = 4;
-  const SPRITE_ROWS = 4; // set to 5 ONLY if your sheet has 5 direction rows
+  const SPRITE_ROWS = 5; // set to 5 ONLY if your sheet has 5 direction rows
 
   const FRAME_W = 128;
   const FRAME_H = 128;
