@@ -412,7 +412,8 @@ function posForHex(
   const base = isOffset ? (-stepX / 2) : 0;
 
   const engineShift = getRowShiftUnits(st, layer, row);
-  const shift = engineShift !== 0 ? engineShift : derivedRowShiftUnits(st, layer, row, movesTaken);
+ const mL = getLayerMoves(layer);
+const shift = engineShift !== 0 ? engineShift : derivedRowShiftUnits(st, layer, row, mL);
 
   const x = base + (col * stepX) + (shift * stepX);
   const y = row * stepY;
@@ -427,8 +428,9 @@ function getShiftedNeighborsSameLayer(st: any, pid: string, movesTaken: number):
 
   // shift for the player row
   const engineShiftCur = getRowShiftUnits(st, c.layer, c.row);
-  const shiftCur =
-    engineShiftCur !== 0 ? engineShiftCur : derivedRowShiftUnits(st, c.layer, c.row, movesTaken);
+const mL = getLayerMoves(c.layer);
+const shiftCur = engineShiftCur !== 0 ? engineShiftCur : derivedRowShiftUnits(st, c.layer, c.row, mL);
+
 
   // player’s visual slot column
   const slotC = slotOfId(c.row, c.col, shiftCur);
@@ -441,8 +443,10 @@ function getShiftedNeighborsSameLayer(st: any, pid: string, movesTaken: number):
     const cols = ROW_LENS[s.r] ?? 7;
 
     const engineShift = getRowShiftUnits(st, c.layer, s.r);
-    const shift =
-      engineShift !== 0 ? engineShift : derivedRowShiftUnits(st, c.layer, s.r, movesTaken);
+const mL2 = getLayerMoves(c.layer);
+const shift =
+  engineShift !== 0 ? engineShift : derivedRowShiftUnits(st, c.layer, s.r, mL2);
+
 
     // ensure slot column is valid for that row length
     if (s.c < 0 || s.c >= cols) continue;
@@ -1945,46 +1949,46 @@ export default function App() {
      ✅ MUST be before reachable (because reachable depends on movesTaken)
   ========================= */
 
-  const viewState = useMemo(() => {
-    if (!state) return null;
+const viewState = useMemo(() => {
+  if (!state) return null;
 
-    // If engine already provides rowShifts, keep it.
-    const rs = (state as any).rowShifts;
-    let hasEngineShift = false;
+  const rs = (state as any).rowShifts;
+  let hasEngineShift = false;
 
-    if (rs && typeof rs === "object") {
-      for (const k of Object.keys(rs)) {
-        const rowsObj = rs[k];
-        if (!rowsObj || typeof rowsObj !== "object") continue;
-        for (const rKey of Object.keys(rowsObj)) {
-          const n = Number(rowsObj[rKey]);
-          if (Number.isFinite(n) && n !== 0) {
-            hasEngineShift = true;
-            break;
-          }
-        }
-        if (hasEngineShift) break;
+  if (rs && typeof rs === "object") {
+    for (const k of Object.keys(rs)) {
+      const rowsObj = rs[k];
+      if (!rowsObj || typeof rowsObj !== "object") continue;
+      for (const rKey of Object.keys(rowsObj)) {
+        const n = Number(rowsObj[rKey]);
+        if (Number.isFinite(n) && n !== 0) { hasEngineShift = true; break; }
       }
+      if (hasEngineShift) break;
     }
+  }
 
-    if (hasEngineShift) return state;
+  if (hasEngineShift) return state;
 
-    // Otherwise inject derived rowShifts based on movesTaken
-    const injected: any = { ...(state as any) };
-    const rowShifts: any = {};
+  const injected: any = { ...(state as any) };
+  const rowShifts: any = {};
 
-    for (let layer = 1; layer <= scenarioLayerCount; layer++) {
-      const perRow: any = {};
-      for (let r = 0; r < ROW_LENS.length; r++) {
-        perRow[r] = derivedRowShiftUnits(state as any, layer, r, movesTaken);
-      }
-      rowShifts[layer] = perRow;
-      rowShifts["L" + layer] = perRow;
-    }
+for (let layer = 1; layer <= scenarioLayerCount; layer++) {
+  const perRow: any = {};
+  const mL = getLayerMoves(layer);
 
-    injected.rowShifts = rowShifts;
-    return injected as any;
-  }, [state, movesTaken, scenarioLayerCount]);
+  for (let r = 0; r < ROW_LENS.length; r++) {
+    perRow[r] = derivedRowShiftUnits(state as any, layer, r, mL);
+  }
+
+  rowShifts[layer] = perRow;
+  rowShifts["L" + layer] = perRow;
+}
+
+
+  injected.rowShifts = rowShifts;
+  return injected as any;
+}, [state, scenarioLayerCount, layerMoves, layerMoveArmed]); // ✅ deps
+
 
   const [goalId, setGoalId] = useState<string | null>(null);
   const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
@@ -2026,11 +2030,11 @@ export default function App() {
     // only compute when viewing the player's layer
     if (playerLayer !== currentLayer) return set;
 
-    const nbs = getShiftedNeighborsSameLayer(
-      viewState as any,
-      playerId,
-      movesTaken
-    );
+ const nbs = getShiftedNeighborsSameLayer(
+  viewState as any,
+  playerId,
+  getLayerMoves(playerLayer ?? currentLayer) // ✅ per-layer
+);
 
     for (const nbId of nbs) {
       const hex = getHexFromState(viewState as any, nbId) as any;
@@ -3010,15 +3014,15 @@ export default function App() {
                       currentLayer,
                       r
                     );
-                    const shift =
-                      engineShift !== 0
-                        ? engineShift
-                        : derivedRowShiftUnits(
-                            viewState as any,
-                            currentLayer,
-                            r,
-                            movesTaken
-                          );
+                   const shift =
+  engineShift !== 0
+    ? engineShift
+    : derivedRowShiftUnits(
+        viewState as any,
+        currentLayer,
+        r,
+        getLayerMoves(currentLayer)
+      );
 
                     return (
                       <div
@@ -3072,15 +3076,16 @@ export default function App() {
                   currentLayer,
                   r
                 );
-                const shift =
-                  engineShift !== 0
-                    ? engineShift
-                    : derivedRowShiftUnits(
-                        viewState as any,
-                        currentLayer,
-                        r,
-                        movesTaken
-                      );
+               const shift =
+  engineShift !== 0
+    ? engineShift
+    : derivedRowShiftUnits(
+        viewState as any,
+        currentLayer,
+        r,
+        getLayerMoves(currentLayer)
+      );
+
 
                 const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
