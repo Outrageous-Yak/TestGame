@@ -3181,7 +3181,7 @@ const base = "0px";
   ) : null}
 
   {/* CLIPPED TILE */}
-  <div className="hexInner" style={tile ? { backgroundImage: tile } : undefined}>
+  <div className="hexAnchor" style={tile ? { backgroundImage: tile } : undefined}>
     {isPortalUp || isPortalDown ? (
       <>
         <div className="pAura" />
