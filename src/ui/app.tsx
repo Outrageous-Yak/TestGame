@@ -859,7 +859,8 @@ body{
   grid-template-columns: 1fr var(--sideColW); /* ✅ only board + sidebar */
   gap: 14px;
   padding: 14px;
-  min-height: 0;
+  grid-template-rows: 1fr;     /* ✅ IMPORTANT */
+  min-height: 0;              /* ✅ keep */
   opacity: 1;
 }
 
@@ -922,22 +923,14 @@ body{
   background: rgba(0,0,0,.50);
   box-shadow: var(--shadow2);
   overflow: hidden;           /* ✅ important: contain scroll/overlays */
-  min-height: 0;
 --boardInset: calc((100% - (var(--barColW) * 2) - var(--boardW)) / 2);
 display: grid;
   grid-template-columns: var(--barColW) 1fr var(--barColW);
   align-items: stretch;       /* ✅ WAS center — this is the big bug */
   opacity: 1;
-    /* height of the whole game area (already effectively true), now define a computed row height */
-  --boardAvailH: calc(100% - var(--boardPadTop) - var(--boardPadBottom));
-  --hexHMain: calc(var(--boardAvailH) / 7);
 
-  /* keep hex proportions: width ≈ height / 0.866 (flat-top hex) */
-  --hexWMain: calc(var(--hexHMain) / 0.866);
-
-  /* correct honeycomb spacing */
-  --hexStepX: calc(var(--hexWMain) * 0.75);
-  height: 100%;
+   height: 100%;               /* ✅ IMPORTANT */
+  min-height: 0;
 }
 
 
@@ -3000,7 +2993,7 @@ forceRender((n) => n + 1);
             ? engineShift
             : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
 
-        const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
+        const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
 return (
   <div
