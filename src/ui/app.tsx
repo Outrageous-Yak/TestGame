@@ -1860,7 +1860,14 @@ const playerBtnRef = useRef<HTMLButtonElement | null>(null);
 
 // ✅ read real CSS hex steps from the board element
 const [hexStep, setHexStep] = useState({ stepX: 72, stepY: 84 });
+       // game state
+  const [state, setState] = useState<GameState | null>(null);
+  const [uiTick, forceRender] = useState(0);
 
+  const [currentLayer, setCurrentLayer] = useState<number>(1);
+// ✅ read real CSS hex steps from the board element
+const [hexStep, setHexStep] = useState({ stepX: 72, stepY: 84 });
+   
 useLayoutEffect(() => {
   const el = boardRef.current;
   if (!el) return;
@@ -1879,11 +1886,7 @@ useLayoutEffect(() => {
 
 const [spriteXY, setSpriteXY] = useState<{ x: number; y: number } | null>(null);
 
-       // game state
-  const [state, setState] = useState<GameState | null>(null);
-  const [uiTick, forceRender] = useState(0);
 
-  const [currentLayer, setCurrentLayer] = useState<number>(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [startHexId, setStartHexId] = useState<string | null>(null);
 const [showGhost, setShowGhost] = useState(false);
