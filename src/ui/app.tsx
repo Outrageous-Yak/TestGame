@@ -1270,7 +1270,7 @@ flex: 0 0 var(--hexWMain);
   pointer-events:none;
   border-radius: 10px;
   clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
-  z-index: 100;
+  
 }
 
 
@@ -1295,7 +1295,7 @@ flex: 0 0 var(--hexWMain);
   filter: blur(14px) saturate(1.15);
   opacity: .95;
   animation: pBreathe 2.6s ease-in-out infinite;
-    z-index: 100;
+    
 }
 @keyframes pBreathe{
   0%,100%{ transform: scale(.99); opacity:.75; }
