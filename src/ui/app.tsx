@@ -1588,22 +1588,22 @@ flex: 0 0 var(--hexWMain);
 .hexDeckCard.cosmic{
   left: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
   top: calc(var(--boardPadTop) + var(--deckPadY));
-  transform: translateX(-100%);
+  transform: translateX(-85%);
 }
 .hexDeckCard.risk{
   left: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
   bottom: calc(var(--boardPadBottom) + var(--deckPadY));
-  transform: translateX(-100%);
+  transform: translateX(-75%);
 }
 .hexDeckCard.terrain{
   right: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
   top: calc(var(--boardPadTop) + var(--deckPadY));
-  transform: translateX(100%);
+  transform: translateX(85%);
 }
 .hexDeckCard.shadow{
   right: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
   bottom: calc(var(--boardPadBottom) + var(--deckPadY));
-  transform: translateX(100%);
+  transform: translateX(75%);
 }
 
 /* ------------------------------------------------------------------
