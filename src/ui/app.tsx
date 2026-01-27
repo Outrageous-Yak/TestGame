@@ -1270,7 +1270,8 @@ flex: 0 0 var(--hexWMain);
   pointer-events:none;
   border-radius: 10px;
   clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
-  
+    overflow:visible;
+    z-index 50;
 }
 
 
