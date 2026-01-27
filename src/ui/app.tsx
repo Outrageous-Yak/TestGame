@@ -999,9 +999,7 @@ display: grid;
   justify-content: center;
   width: 100%;
 }
-.hexRow.offset{
-  transform: translateX(calc(var(--hexStepX) / -2));
-}
+
 
 /* =========================================================
    HEX SLOTS + HEX BUTTON
