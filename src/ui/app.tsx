@@ -1591,7 +1591,7 @@ flex: 0 0 var(--hexWMain);
 .hexDeckCard{
   position: absolute;
 
-  width: clamp(170px, 18vw, 260px);
+  width: clamp(187px, 18vw, 286px);
   max-width: max(150px, calc(var(--boardInset) - (var(--deckPadX) * 2)));
 
   aspect-ratio: 3 / 4;
