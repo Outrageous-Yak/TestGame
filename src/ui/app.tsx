@@ -579,7 +579,7 @@ body{
   z-index:0;
   background-size: cover;
   background-position: center;
-  opacity:.65;
+  opacity:1;
   filter: saturate(1.25) contrast(1.15) brightness(1.05);
 }
 
