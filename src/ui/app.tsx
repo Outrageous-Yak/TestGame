@@ -410,10 +410,12 @@ function posForHex(
 
   // ✅ correct offset for 6-wide rows
   const base = isOffset ? (-stepX / 2) : 0;
+const engineShift = getRowShiftUnits(st, layer, row);
+const shift =
+  engineShift !== 0
+    ? engineShift
+    : derivedRowShiftUnits(st, layer, row, movesTaken);
 
-  const engineShift = getRowShiftUnits(st, layer, row);
- const mL = getLayerMoves(layer);
-const shift = engineShift !== 0 ? engineShift : derivedRowShiftUnits(st, layer, row, mL);
 
   const x = base + (col * stepX) + (shift * stepX);
   const y = row * stepY;
@@ -427,9 +429,12 @@ function getShiftedNeighborsSameLayer(st: any, pid: string, movesTaken: number):
   if (!c) return [];
 
   // shift for the player row
-  const engineShiftCur = getRowShiftUnits(st, c.layer, c.row);
-const mL = getLayerMoves(c.layer);
-const shiftCur = engineShiftCur !== 0 ? engineShiftCur : derivedRowShiftUnits(st, c.layer, c.row, mL);
+const engineShiftCur = getRowShiftUnits(st, c.layer, c.row);
+const shiftCur =
+  engineShiftCur !== 0
+    ? engineShiftCur
+    : derivedRowShiftUnits(st, c.layer, c.row, movesTaken);
+
 
 
   // player’s visual slot column
@@ -441,11 +446,12 @@ const shiftCur = engineShiftCur !== 0 ? engineShiftCur : derivedRowShiftUnits(st
   const out: string[] = [];
   for (const s of slots) {
     const cols = ROW_LENS[s.r] ?? 7;
-
-    const engineShift = getRowShiftUnits(st, c.layer, s.r);
-const mL2 = getLayerMoves(c.layer);
+const engineShift = getRowShiftUnits(st, c.layer, s.r);
 const shift =
-  engineShift !== 0 ? engineShift : derivedRowShiftUnits(st, c.layer, s.r, mL2);
+  engineShift !== 0
+    ? engineShift
+    : derivedRowShiftUnits(st, c.layer, s.r, movesTaken);
+
 
 
     // ensure slot column is valid for that row length
