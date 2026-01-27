@@ -1282,6 +1282,7 @@ flex: 0 0 var(--hexWMain);
     inset 0 0 0 1px rgba(0,0,0,.35),
     0 0 0 3px color-mix(in srgb, var(--portalC) 16%, transparent),
     0 0 16px color-mix(in srgb, var(--portalC) 22%, transparent);
+    z-index: -2;
 }
 
 /* aura bloom */
@@ -1382,6 +1383,7 @@ flex: 0 0 var(--hexWMain);
   filter: blur(0.6px);
   mix-blend-mode: screen;
   animation: pRim 1.55s linear infinite;
+  
 }
 @keyframes pRim{
   to{
