@@ -1826,22 +1826,28 @@ flex: 0 0 var(--hexWMain);
    App
 ========================================================= */
 
-
 export default function App() {
   // navigation
   const [screen, setScreen] = useState<Screen>("start");
-const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
-const [encounter, setEncounter] = useState<Encounter>(null);
-const pendingEncounterMoveIdRef = useRef<string | null>(null);
-const encounterActive = !!encounter;
+  const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
+  const [encounter, setEncounter] = useState<Encounter>(null);
+  const pendingEncounterMoveIdRef = useRef<string | null>(null);
+  const encounterActive = !!encounter;
+
   // worlds
   const [worlds, setWorlds] = useState<WorldEntry[]>([]);
   const [worldId, setWorldId] = useState<string | null>(null);
-  const world = useMemo(() => worlds.find((w) => w.id === worldId) ?? null, [worlds, worldId]);
+  const world = useMemo(
+    () => worlds.find((w) => w.id === worldId) ?? null,
+    [worlds, worldId]
+  );
 
   const [scenarioId, setScenarioId] = useState<string | null>(null);
-  const scenarioEntry = useMemo(() => world?.scenarios.find((s) => s.id === scenarioId) ?? null, [world, scenarioId]);
- 
+  const scenarioEntry = useMemo(
+    () => world?.scenarios.find((s) => s.id === scenarioId) ?? null,
+    [world, scenarioId]
+  );
+
   const [trackId, setTrackId] = useState<string | null>(null);
   const trackEntry = useMemo(() => {
     const tracks = scenarioEntry?.tracks;
@@ -1855,37 +1861,45 @@ const encounterActive = !!encounter;
 
   // player (character selection only)
   const [chosenPlayer, setChosenPlayer] = useState<PlayerChoice | null>(null);
-const boardRef = useRef<HTMLDivElement | null>(null);
-const playerBtnRef = useRef<HTMLButtonElement | null>(null);
 
-// ✅ read real CSS hex steps from the board element
-const [hexStep, setHexStep] = useState({ stepX: 72, stepY: 84 });
-
-// ✅ read real CSS hex steps from the board element
-const [hexStep, setHexStep] = useState({ stepX: 72, stepY: 84 });
-   
-useLayoutEffect(() => {
-  const el = boardRef.current;
-  if (!el) return;
-
-  const update = () => {
-    setHexStep({
-      stepX: readPxVar(el, "--hexStepX", 72),
-      stepY: readPxVar(el, "--hexHMain", 84),
-    });
-  };
-
-  update();
-  window.addEventListener("resize", update);
-  return () => window.removeEventListener("resize", update);
-}, [currentLayer, uiTick]);
-
-const [spriteXY, setSpriteXY] = useState<{ x: number; y: number } | null>(null);
-
+  // ✅ IMPORTANT: declare these BEFORE any hook that references them
+  const [state, setState] = useState<GameState | null>(null);
+  const [uiTick, forceRender] = useState(0);
+  const [currentLayer, setCurrentLayer] = useState<number>(1);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [startHexId, setStartHexId] = useState<string | null>(null);
-const [showGhost, setShowGhost] = useState(false);
+  const [showGhost, setShowGhost] = useState(false);
+
+  const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
+
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  const playerBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  // ✅ read real CSS hex steps from the board element
+  const [hexStep, setHexStep] = useState({ stepX: 72, stepY: 84 });
+
+  // ✅ NOTE: this effect does not need currentLayer/uiTick,
+  // but if you want it to re-read after rerenders, uiTick is ok.
+  useLayoutEffect(() => {
+    const el = boardRef.current;
+    if (!el) return;
+
+    const update = () => {
+      setHexStep({
+        stepX: readPxVar(el, "--hexStepX", 72),
+        stepY: readPxVar(el, "--hexHMain", 84),
+      });
+    };
+
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [uiTick]);
+
+  const [spriteXY, setSpriteXY] = useState<{ x: number; y: number } | null>(
+    null
+  );
 
   // ✅ single source of truth for player position (always follows engine)
   const playerId = useMemo(() => {
@@ -1898,100 +1912,98 @@ const [showGhost, setShowGhost] = useState(false);
   }, [playerId]);
 
   const playerLayer = playerCoord?.layer ?? null;
-   const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
 
-  
   const [movesTaken, setMovesTaken] = useState(0);
 
-// ✅ per-layer movement counters
-const [layerMoves, setLayerMoves] = useState<Record<number, number>>({});
-const [layerMoveArmed, setLayerMoveArmed] = useState<Record<number, boolean>>({});
+  // ✅ per-layer movement counters
+  const [layerMoves, setLayerMoves] = useState<Record<number, number>>({});
+  const [layerMoveArmed, setLayerMoveArmed] = useState<Record<number, boolean>>(
+    {}
+  );
 
-// shifting only starts once a layer is "armed"
-function getLayerMoves(layer: number) {
-  return layerMoveArmed[layer] ? (layerMoves[layer] ?? 0) : 0;
-}
+  // shifting only starts once a layer is "armed"
+  function getLayerMoves(layer: number) {
+    return layerMoveArmed[layer] ? layerMoves[layer] ?? 0 : 0;
+  }
 
-useLayoutEffect(() => {
-  const btn = playerBtnRef.current;
-  const board = boardRef.current;
-  if (!btn || !board) return;
+  useLayoutEffect(() => {
+    const btn = playerBtnRef.current;
+    const board = boardRef.current;
+    if (!btn || !board) return;
 
-  const b = board.getBoundingClientRect();
-  const r = btn.getBoundingClientRect();
+    const b = board.getBoundingClientRect();
+    const r = btn.getBoundingClientRect();
 
-  const x = (r.left - b.left) + (r.width / 2);
-  const y = (r.top - b.top) + (r.height * 0.86);
+    const x = r.left - b.left + r.width / 2;
+    const y = r.top - b.top + r.height * 0.86;
 
-  setSpriteXY({ x, y });
-}, [playerId, currentLayer, movesTaken, uiTick]);
+    setSpriteXY({ x, y });
+  }, [playerId, currentLayer, movesTaken, uiTick]);
 
   /* =========================
      Moves / optimal / log
      ✅ MUST be before reachable (because reachable depends on movesTaken)
   ========================= */
 
-const viewState = useMemo(() => {
-  if (!state) return null;
+  const viewState = useMemo(() => {
+    if (!state) return null;
 
-  // If engine already provides rowShifts, keep it.
-  // (We detect "any non-zero" to avoid overriding real engine movement.)
-  const rs = (state as any).rowShifts;
-  let hasEngineShift = false;
+    // If engine already provides rowShifts, keep it.
+    const rs = (state as any).rowShifts;
+    let hasEngineShift = false;
 
-  if (rs && typeof rs === "object") {
-    for (const k of Object.keys(rs)) {
-      const rowsObj = rs[k];
-      if (!rowsObj || typeof rowsObj !== "object") continue;
-      for (const rKey of Object.keys(rowsObj)) {
-        const n = Number(rowsObj[rKey]);
-        if (Number.isFinite(n) && n !== 0) {
-          hasEngineShift = true;
-          break;
+    if (rs && typeof rs === "object") {
+      for (const k of Object.keys(rs)) {
+        const rowsObj = rs[k];
+        if (!rowsObj || typeof rowsObj !== "object") continue;
+        for (const rKey of Object.keys(rowsObj)) {
+          const n = Number(rowsObj[rKey]);
+          if (Number.isFinite(n) && n !== 0) {
+            hasEngineShift = true;
+            break;
+          }
         }
+        if (hasEngineShift) break;
       }
-      if (hasEngineShift) break;
     }
-  }
 
-  if (hasEngineShift) return state;
+    if (hasEngineShift) return state;
 
-  // Otherwise inject derived rowShifts based on movesTaken
-  const injected: any = { ...(state as any) };
-  const rowShifts: any = {};
+    // Otherwise inject derived rowShifts based on movesTaken
+    const injected: any = { ...(state as any) };
+    const rowShifts: any = {};
 
-  for (let layer = 1; layer <= scenarioLayerCount; layer++) {
-    const perRow: any = {};
-    for (let r = 0; r < ROW_LENS.length; r++) {
-      perRow[r] = derivedRowShiftUnits(state as any, layer, r, movesTaken);
-
-
+    for (let layer = 1; layer <= scenarioLayerCount; layer++) {
+      const perRow: any = {};
+      for (let r = 0; r < ROW_LENS.length; r++) {
+        perRow[r] = derivedRowShiftUnits(state as any, layer, r, movesTaken);
+      }
+      rowShifts[layer] = perRow;
+      rowShifts["L" + layer] = perRow;
     }
-    rowShifts[layer] = perRow;
-    rowShifts["L" + layer] = perRow; // support both styles
-  }
 
-  injected.rowShifts = rowShifts;
-  return injected as any;
-}, [state, movesTaken, scenarioLayerCount]);
+    injected.rowShifts = rowShifts;
+    return injected as any;
+  }, [state, movesTaken, scenarioLayerCount]);
 
   const [goalId, setGoalId] = useState<string | null>(null);
   const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
   const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
 
-  const computeOptimalFromReachMap = useCallback((rm: any, gid: string | null) => {
-    if (!gid || !rm) return null;
+  const computeOptimalFromReachMap = useCallback(
+    (rm: any, gid: string | null) => {
+      if (!gid || !rm) return null;
 
-    // Map case
-    if (typeof rm?.get === "function") {
-      const info = rm.get(gid);
+      if (typeof rm?.get === "function") {
+        const info = rm.get(gid);
+        return info?.reachable ? (info.distance as number) : null;
+      }
+
+      const info = rm[gid];
       return info?.reachable ? (info.distance as number) : null;
-    }
-
-    // Object case
-    const info = rm[gid];
-    return info?.reachable ? (info.distance as number) : null;
-  }, []);
+    },
+    []
+  );
 
   const [log, setLog] = useState<LogEntry[]>([]);
   const logNRef = useRef(0);
@@ -2004,43 +2016,35 @@ const viewState = useMemo(() => {
 
   /* =========================
      Reachability (1-step neighbors)
-     ✅ now safe to depend on movesTaken
   ========================= */
 
-const reachable = useMemo(() => {
-  const set = new Set<string>();
-  if (!viewState) return set;
-  if (!playerId) return set;
+  const reachable = useMemo(() => {
+    const set = new Set<string>();
+    if (!viewState) return set;
+    if (!playerId) return set;
 
-  // ✅ only compute when viewing the player's layer
-  if (playerLayer !== currentLayer) return set;
+    // only compute when viewing the player's layer
+    if (playerLayer !== currentLayer) return set;
 
-  const nbs = getShiftedNeighborsSameLayer(
-  viewState as any,
-  playerId,
-  movesTaken
-);
+    const nbs = getShiftedNeighborsSameLayer(
+      viewState as any,
+      playerId,
+      movesTaken
+    );
 
+    for (const nbId of nbs) {
+      const hex = getHexFromState(viewState as any, nbId) as any;
+      const bm = isBlockedOrMissing(hex);
+      if (!bm.missing && !bm.blocked) set.add(nbId);
+    }
 
-  for (const nbId of nbs) {
-    const hex = getHexFromState(viewState as any, nbId) as any;
-    const { blocked, missing } = isBlockedOrMissing(hex);
-    if (!missing && !blocked) set.add(nbId);
-  }
-
-  return set;
-}, [viewState, playerId, movesTaken, playerLayer, currentLayer]);
-
-
+    return set;
+  }, [viewState, playerId, movesTaken, playerLayer, currentLayer]);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const walkTimer = useRef<number | null>(null);
   const pendingQuickStartRef = useRef(false);
 
-
-
-  // refs
-  
   /* =========================
      Theme / assets (INSIDE App)
   ========================= */
@@ -2051,7 +2055,9 @@ const reachable = useMemo(() => {
   const GAME__URL = activeTheme?.assets.backgroundGame ?? "";
 
   // ✅ ABSOLUTELY NO TEMPLATE LITERALS
-  const backgroundLayers: any = (activeTheme && activeTheme.assets && activeTheme.assets.backgroundLayers) || {};
+  const backgroundLayers: any =
+    (activeTheme && activeTheme.assets && activeTheme.assets.backgroundLayers) ||
+    {};
   const BOARD_LAYER_ = backgroundLayers["L" + currentLayer] || "";
 
   const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "images/dice";
@@ -2089,9 +2095,8 @@ const reachable = useMemo(() => {
   const [playerFacing, setPlayerFacing] = useState<Facing>("down");
   const [isWalking, setIsWalking] = useState(false);
 
-  // Sprite sheet info
   const SPRITE_COLS = 4;
-  const SPRITE_ROWS = 5; // set to 5 ONLY if your sheet has 5 direction rows
+  const SPRITE_ROWS = 5;
 
   const FRAME_W = 128;
   const FRAME_H = 128;
@@ -2100,7 +2105,6 @@ const reachable = useMemo(() => {
     return toPublicUrl("images/players/sprite_sheet_20.png");
   }
 
-  // Animation state
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef(0);
   const [walkFrame, setWalkFrame] = useState(0);
@@ -2134,7 +2138,6 @@ const reachable = useMemo(() => {
     };
   }, [isWalking, FRAME_DURATION]);
 
-  // cleanup: if a move timer is still pending, clear it on unmount
   useEffect(() => {
     return () => {
       if (walkTimer.current) window.clearTimeout(walkTimer.current);
@@ -2151,7 +2154,10 @@ const reachable = useMemo(() => {
 
   const [diceValue, setDiceValue] = useState<number>(2);
   const [diceRolling, setDiceRolling] = useState(false);
-  const [diceRot, setDiceRot] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [diceRot, setDiceRot] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
   const diceTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -2230,7 +2236,9 @@ const reachable = useMemo(() => {
           row: Number(t.row),
           cols: t.cols ?? "any",
         }))
-        .filter((t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row));
+        .filter(
+          (t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row)
+        );
     }
 
     if (Array.isArray(s?.villains?.triggers)) {
@@ -2241,13 +2249,13 @@ const reachable = useMemo(() => {
           row: Number(t.row),
           cols: "any" as const,
         }))
-        .filter((t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row));
+        .filter(
+          (t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row)
+        );
     }
 
     return [];
   }, []);
-
-
 
   /* =========================
      Reveal helpers
@@ -2296,7 +2304,11 @@ const reachable = useMemo(() => {
       const it = items.find((x) => x.id === id);
       if (!it || it.charges <= 0) return;
 
-      setItems((prev) => prev.map((x) => (x.id === id ? { ...x, charges: Math.max(0, x.charges - 1) } : x)));
+      setItems((prev) =>
+        prev.map((x) =>
+          x.id === id ? { ...x, charges: Math.max(0, x.charges - 1) } : x
+        )
+      );
 
       if (id === "reroll") {
         rollDice();
@@ -2308,12 +2320,12 @@ const reachable = useMemo(() => {
       const pid = (state as any).playerHexId ?? null;
       if (!pid) return;
 
-    if (id === "revealRing") {
-  revealRing(state, pid);
-  forceRender((n) => n + 1);
-  pushLog("Used: Reveal (ring)", "ok");
-  return;
-}
+      if (id === "revealRing") {
+        revealRing(state, pid);
+        forceRender((n) => n + 1);
+        pushLog("Used: Reveal (ring)", "ok");
+        return;
+      }
 
       if (id === "peek") {
         const up = Math.min(scenarioLayerCount, currentLayer + 1);
@@ -2325,7 +2337,6 @@ const reachable = useMemo(() => {
         revealRing(state, upId);
         revealRing(state, dnId);
 
-        
         forceRender((n) => n + 1);
         pushLog("Used: Peek (above/below ring)", "info");
         return;
@@ -2335,7 +2346,7 @@ const reachable = useMemo(() => {
   );
 
   /* =========================
-     Encounter resolution (✅ single effect, correct scope)
+     Encounter resolution
   ========================= */
 
   const prevRollingRef = useRef(false);
@@ -2345,18 +2356,14 @@ const reachable = useMemo(() => {
 
     if (!encounter) return;
     if (diceRolling) return;
-    if (!wasRolling) return; // only when roll just ended
+    if (!wasRolling) return;
 
-    // count attempt
     setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
-
-    // only succeed on 6
     if (diceValue !== 6) return;
 
     const targetId = pendingEncounterMoveIdRef.current;
     pendingEncounterMoveIdRef.current = null;
 
-    // close overlay
     setEncounter(null);
 
     if (!state || !targetId) return;
@@ -2366,43 +2373,40 @@ const reachable = useMemo(() => {
 
     if (!nextState) {
       const msg =
-        (res && typeof res === "object" && "reason" in res && String((res as any).reason)) || "Move failed.";
+        (res &&
+          typeof res === "object" &&
+          "reason" in res &&
+          String((res as any).reason)) ||
+        "Move failed.";
       pushLog(msg, "bad");
       return;
     }
 
     const pidBefore = (state as any)?.playerHexId as string | null;
     const pidAfter = (nextState as any).playerHexId as string | null;
-console.log("MOVE RESULT", { pidBefore, pidAfter, moved: pidAfter && pidBefore !== pidAfter });
-
 
     const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
     if (moved) {
       setIsWalking(true);
-
       if (walkTimer.current) window.clearTimeout(walkTimer.current);
       walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-
       setPlayerFacing(facingFromMove(pidBefore, pidAfter));
     }
-setMovesTaken((n) => n + 1);
-    // commit state first
-setState(nextState);
-forceRender((n) => n + 1);
 
+    setMovesTaken((n) => n + 1);
 
+    setState(nextState);
+    forceRender((n) => n + 1);
 
-    // layer ops after commit
     const c2 = pidAfter ? idToCoord(pidAfter) : null;
-const nextLayer = c2?.layer ?? currentLayer;
+    const nextLayer = c2?.layer ?? currentLayer;
 
-// ✅ ALWAYS re- active layer to the NEW engine state
-enterLayer(nextState, nextLayer);
+    enterLayer(nextState, nextLayer);
 
-if (nextLayer !== currentLayer) {
-  setCurrentLayer(nextLayer);
-  revealWholeLayer(nextState, nextLayer);
-}
+    if (nextLayer !== currentLayer) {
+      setCurrentLayer(nextLayer);
+      revealWholeLayer(nextState, nextLayer);
+    }
 
     const rm = getReachability(nextState) as any;
     setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
@@ -2424,16 +2428,17 @@ if (nextLayer !== currentLayer) {
   /* =========================
      Start scenario
   ========================= */
-const startScenario = useCallback(async () => {
-  if (!scenarioEntry) return;
 
-  const tracks = scenarioEntry.tracks ?? [];
-  const hasTracks = tracks.length > 1;
-  const chosenJson = hasTracks
-    ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson
-    : scenarioEntry.scenarioJson;
+  const startScenario = useCallback(async () => {
+    if (!scenarioEntry) return;
 
-  const s = (await loadScenario(chosenJson)) as any;
+    const tracks = scenarioEntry.tracks ?? [];
+    const hasTracks = tracks.length > 1;
+    const chosenJson = hasTracks
+      ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson
+      : scenarioEntry.scenarioJson;
+
+    const s = (await loadScenario(chosenJson)) as any;
 
     setVillainTriggers(parseVillainsFromScenario(s));
     setEncounter(null);
@@ -2459,35 +2464,30 @@ const startScenario = useCallback(async () => {
     const gid = findGoalId(s, layer);
     setGoalId(gid);
 
-    // IMPORTANT ORDER: enter + reveal before reachability
     enterLayer(st, layer);
     revealWholeLayer(st, layer);
 
- const rm = getReachability(st) as any;
+    const rm = getReachability(st) as any;
 
-setState(st);
-setSelectedId(pid);
-setStartHexId(pid);
-setCurrentLayer(layer);
-setPlayerFacing("down");
+    setState(st);
+    setSelectedId(pid);
+    setStartHexId(pid);
+    setCurrentLayer(layer);
+    setPlayerFacing("down");
 
+    setMovesTaken(0);
 
-setMovesTaken(0);
-   // ✅ reset per-layer movement state
-const initMoves: Record<number, number> = {};
-const initArmed: Record<number, boolean> = {};
+    const initMoves: Record<number, number> = {};
+    const initArmed: Record<number, boolean> = {};
+    for (let L = 1; L <= layerCount; L++) {
+      initMoves[L] = 0;
+      initArmed[L] = L === layer;
+    }
+    setLayerMoves(initMoves);
+    setLayerMoveArmed(initArmed);
 
-for (let L = 1; L <= layerCount; L++) {
-  initMoves[L] = 0;
-  initArmed[L] = (L === layer); // only starting layer armed
-}
-
-setLayerMoves(initMoves);
-setLayerMoveArmed(initArmed);
-
-setOptimalAtStart(computeOptimalFromReachMap(rm, gid));
-setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
-
+    setOptimalAtStart(computeOptimalFromReachMap(rm, gid));
+    setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
 
     logNRef.current = 0;
     setLog([]);
@@ -2506,752 +2506,836 @@ setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
     }, 0);
 
     setScreen("game");
-  }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog]);
-// 3️⃣ effect that USES startScenario — MUST come after
-useEffect(() => {
-  if (pendingQuickStartRef.current && scenarioEntry) {
-    pendingQuickStartRef.current = false;
-    startScenario();
-  }
-}, [scenarioEntry, startScenario]);
-
-  /* =========================
-   Movement (no hooks inside)
-========================= */
-
-const tryMoveToId = useCallback(
-  (id: string) => {
-    if (!state) return;
-    if (encounterActive) return;
-
-    // ✅ Guard: if you're viewing a different layer than the player is actually on,
-    // snap view back to player layer and stop.
-    if (playerLayer && currentLayer !== playerLayer) {
-      setCurrentLayer(playerLayer);
-      enterLayer(state, playerLayer);
-      revealWholeLayer(state, playerLayer);
-      forceRender((n) => n + 1);
-      pushLog(
-        "You were viewing layer " + currentLayer + " but the player is on layer " + playerLayer + " — switched back.",
-        "info"
-      );
-      return;
-    }
-
-    const hex = getHexFromState(state, id) as any;
-    const { blocked, missing } = isBlockedOrMissing(hex);
-    if (missing) {
-      pushLog("Missing tile.", "bad");
-      return;
-    }
-    if (blocked) {
-      pushLog("Blocked tile.", "bad");
-      return;
-    }
-
-    const pidBefore = (state as any).playerHexId as string | null;
-const fromLayer = pidBefore ? idToCoord(pidBefore)?.layer ?? null : null;
-
-    console.log("CLICK", {
-      pidBefore,
-      clicked: id,
-      reachableCount: reachable.size,
-      reachable: Array.from(reachable),
-    });
-
-    // encounter gate BEFORE tryMove
-    const vk = findTriggerForHex(id);
-    if (vk) {
-      pendingEncounterMoveIdRef.current = id;
-      setEncounter((prev) => (prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }));
-      pushLog("Encounter: " + vk + " — roll a 6 to continue", "bad");
-      return;
-    }
-
-    const res: any = tryMove(viewState as any, id);
-let nextState = unwrapNextState(res);
-
-// ✅ TEMP FALLBACK: if engine rejects but UI says reachable, force move
-if (!nextState) {
-  if (reachable.has(id) && viewState) {
-    const forced: any = { ...(viewState as any) };
-
-    // ✅ if clicked a portal, force the destination layer too
-    const dir = findPortalDirection((viewState as any)?.scenario?.transitions, id);
-    if (dir === "up" || dir === "down") {
-      const c = idToCoord(id);
-      if (c) {
-        const targetLayer =
-          dir === "up"
-            ? Math.min(scenarioLayerCount, c.layer + 1)
-            : Math.max(1, c.layer - 1);
-
-        forced.playerHexId = "L" + targetLayer + "-R" + c.row + "-C" + c.col;
-      } else {
-        forced.playerHexId = id;
-      }
-    } else {
-      forced.playerHexId = id;
-    }
-
-    nextState = forced as any;
-    pushLog("Force-moved (engine rejected)", "info");
-  } else {
-    const msg =
-      (res && typeof res === "object" && "reason" in res && String((res as any).reason)) ||
-      "Move failed.";
-    pushLog(msg, "bad");
-    return;
-  }
-}
-
-
-
-    const pidAfter = (nextState as any).playerHexId as string | null;
-const toLayer = pidAfter ? idToCoord(pidAfter)?.layer ?? null : null;
-
-    const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
-
-// ✅ this is the key: a move happened even if ids don’t change
-// global counter (optional, for UI only)
-setMovesTaken((n) => n + 1);
-
-// per-layer movement
-if (fromLayer) {
-  setLayerMoves((prev) => ({
-    ...prev,
-    [fromLayer]: (prev[fromLayer] ?? 0) + 1,
-  }));
-  setLayerMoveArmed((prev) => ({ ...prev, [fromLayer]: true }));
-}
-
-// if we entered a new layer, reset & disarm it
-if (toLayer && fromLayer && toLayer !== fromLayer) {
-  setLayerMoves((prev) => ({ ...prev, [toLayer]: 0 }));
-  setLayerMoveArmed((prev) => ({ ...prev, [toLayer]: true }));
-}
-
-
-if (moved) {
-  setIsWalking(true);
-
-  if (walkTimer.current) window.clearTimeout(walkTimer.current);
-  walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-
-  setPlayerFacing(facingFromMove(pidBefore, pidAfter));
-}
-
-
-
-    // commit next state first
-    setState(nextState);
-    setSelectedId(pidAfter ?? id);
-    forceRender((n) => n + 1);
-
-    // layer ops after commit
-    const c2 = pidAfter ? idToCoord(pidAfter) : null;
-    const nextLayer = c2?.layer ?? currentLayer;
-
-    enterLayer(nextState, nextLayer);
-
-    if (nextLayer !== currentLayer) {
-      setCurrentLayer(nextLayer);
-      revealWholeLayer(nextState, nextLayer);
-    }
-
-    const rm = getReachability(nextState) as any;
-    setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
-
-    pushLog("Moved to " + (pidAfter ?? id), "ok");
-    if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
-  },
-[
-  state,
-  viewState, // ✅ add this
-  encounterActive,
-  reachable,
-  currentLayer,
-  playerLayer,
-  goalId,
-  pushLog,
-  revealWholeLayer,
-  findTriggerForHex,
-  computeOptimalFromReachMap,
-]
-
-);
-
-const canGoDown = currentLayer - 1 >= 1;
-const canGoUp = currentLayer + 1 <= scenarioLayerCount;
-
-  /* =========================
-   Render helpers/components
-========================= */
-
-const layerRows = useMemo(() => ROW_LENS.length, []);
-const rows = useMemo(() => Array.from({ length: layerRows }, (_, i) => i), [layerRows]);
-
-function hexId(layer: number, r: number, c: number) {
-  return "L" + layer + "-R" + r + "-C" + c;
-}
-
-function isPlayerHere(id: string) {
-  return !!playerId && playerId === id;
-}
-
-function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
-  const segments = [7, 6, 5, 4, 3, 2, 1];
-  const { side, currentLayer } = props;
-
-  return (
-    <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")}>
-      <div className="layerBar">
-        {segments.map((layerVal) => {
-          const active = layerVal === currentLayer;
-          return (
-            <div
-              key={layerVal}
-              className={"barSeg" + (active ? " isActive" : "")}
-              data-layer={layerVal}
-            />
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function HexDeckCardsOverlay(props: { glowVar: string }) {
-  return (
-    <div
-      className="hexDeckOverlay"
-      style={{ ["--cardGlow" as any]: props.glowVar } as any}
-    >
-   <div className="hexDeckCol left">
-  <div className="hexDeckCard cosmic ccw slow">
-    <div className="deckFx" />
-  </div>
-
-  <div className="hexDeckCard risk ccw fast">
-    <div className="deckFx" />
-  </div>
-</div>
-
-<div className="hexDeckCol right">
-  <div className="hexDeckCard terrain cw slow">
-    <div className="deckFx" />
-  </div>
-
-  <div className="hexDeckCard shadow cw fast">
-    <div className="deckFx" />
-  </div>
-</div>
-
-    </div>
-  );
-}
-
-
-const resetAll = useCallback(() => {
-  setScreen("start");
-  setWorldId(null);
-  setScenarioId(null);
-  setTrackId(null);
-  setChosenPlayer(null);
-
-  setState(null);
-  setCurrentLayer(1);
-  setSelectedId(null);
-setStartHexId(null);
-  setVillainTriggers([]);
-  setEncounter(null);
-  pendingEncounterMoveIdRef.current = null;
-
-  setGoalId(null);
-  setOptimalAtStart(null);
-  setOptimalFromNow(null);
-  setMovesTaken(0);
-
-  logNRef.current = 0;
-  setLog([]);
-
-  setItems([
-    { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
-    { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
-    { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
+  }, [
+    scenarioEntry,
+    trackEntry,
+    parseVillainsFromScenario,
+    revealWholeLayer,
+    computeOptimalFromReachMap,
+    pushLog,
   ]);
-}, []);
 
-const PLAYER_PRESETS: Array<{ id: string; name: string }> = [
-  { id: "p1", name: "Aeris" },
-  { id: "p2", name: "Devlan" },
-];
-
-/* =========================
-   Screens
-========================= */
-
-if (screen === "start") {
-  return (
-    <div className="appRoot" style={themeVars}>
-      <div className="screen center">
-        <div className="panel">
-          <div className="title">Hex Game</div>
-          <div className="sub">Start → World → Character → Scenario → Game</div>
-
-          <div className="row">
-            <button className="btn primary" onClick={() => setScreen("world")}>
-              Start
-            </button>
-            <button className="btn" onClick={resetAll}>
-              Reset
-            </button>
-          </div>
-
-          <div className="hint">
-            Worlds loaded: <b>{worlds.length}</b>
-          </div>
-        </div>
-      </div>
-
-      <style>{baseCss}</style>
-    </div>
-  );
-}
-
-if (screen !== "game") {
-  return (
-    <div className="appRoot" style={themeVars}>
-      <div className="screen center">
-        <div className="panel">
-          <div className="title">Not in game yet</div>
-          <div className="sub">Screen: {screen}</div>
-
-          <div className="hint" style={{ marginTop: 12 }}>
-            Pick a world / character / scenario (screens not pasted here yet),
-            then start the scenario.
-          </div>
-
-          <div className="row">
-            <button className="btn" onClick={resetAll}>
-              Back
-            </button>
-
-            <button
-  className="btn primary"
-  onClick={() => {
-    const w0 = worlds[0];
-    const s0 = w0?.scenarios?.[0];
-    if (w0 && s0) {
-      setWorldId(w0.id);
-      setScenarioId(s0.id);
-      setTrackId(null);
-      pendingQuickStartRef.current = true;
+  useEffect(() => {
+    if (pendingQuickStartRef.current && scenarioEntry) {
+      pendingQuickStartRef.current = false;
+      startScenario();
     }
-  }}
->
-  Quick start (debug)
-</button>
+  }, [scenarioEntry, startScenario]);
 
-          </div>
-        </div>
-      </div>
+  /* =========================
+     Movement
+  ========================= */
 
-      <style>{baseCss}</style>
-    </div>
-  );
-}
+  const tryMoveToId = useCallback(
+    (id: string) => {
+      if (!state) return;
+      if (encounterActive) return;
 
-/* =========================
-   GAME screen
-========================= */
-
-
-return (
-  <div className="appRoot game" style={themeVars}>
-    <div
-      className="gameBg"
-      style={{
-        backgroundImage: GAME__URL ? "url(" + toPublicUrl(GAME__URL) + ")" : undefined,
-      }}
-    />
-
-    <div className="topbar">
-       <button className="btn" onClick={() => setShowGhost((v) => !v)}>
-  {showGhost ? "Hide ghost" : "Ghost grid"}
-</button>
-
-      <div className={"dice3d " + (diceRolling ? "rolling" : "")}>
-        <div className="cube" style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}>
-          <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }} />
-          <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }} />
-          <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }} />
-          <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }} />
-          <div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }} />
-          <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }} />
-        </div>
-
-        {DICE_BORDER_IMG ? (
-          <div className="diceBorder" style={{ backgroundImage: "url(" + toPublicUrl(DICE_BORDER_IMG) + ")" }} />
-        ) : null}
-      </div>
-
-      <div className="items">
-        {items.map((it) => (
-          <button
-            key={it.id}
-            className={"itemBtn " + (it.charges <= 0 ? "off" : "")}
-            disabled={it.charges <= 0 || !state || (encounterActive && it.id !== "reroll")}
-            onClick={() => useItem(it.id)}
-            title={it.name + " (" + it.charges + ")"}
-          >
-            <span className="itemIcon">{it.icon}</span>
-            <span className="itemName">{it.name}</span>
-            <span className="itemCharges">{it.charges}</span>
-          </button>
-        ))}
-      </div>
-
-      <button
-        className="btn"
-        disabled={!state || !canGoDown || encounterActive}
-        onClick={() => {
-          if (!state) return;
-          const next = Math.max(1, currentLayer - 1);
-          setCurrentLayer(next);
-          enterLayer(state, next);
-revealWholeLayer(state, next);
-
-forceRender((n) => n + 1);
-          pushLog("Layer " + next, "info");
-        }}
-      >
-        − Layer
-      </button>
-
-<button
-  className="btn"
-  disabled={!state || !canGoUp || encounterActive}
-  onClick={() => {
-    if (!state) return;
-    const next = Math.min(scenarioLayerCount, currentLayer + 1);
-    setCurrentLayer(next);
-    enterLayer(state, next);
-    revealWholeLayer(state, next);
-
-    forceRender((n) => n + 1);
-    pushLog("Layer " + next, "info");
-  }}
->
-  + Layer
-</button>
-    </div>
-
-    <div className="gameLayout">
-      {/* LEFT: board + bars + deck cards */}
-   <div className="boardWrap">
-  <SideBar side="left" currentLayer={currentLayer} />
-
-  <div
-    key={currentLayer}
-    className="boardLayerBg"
-    style={{
-      backgroundImage: BOARD_LAYER_ ? "url(" + toPublicUrl(BOARD_LAYER_) + ")" : undefined,
-    }}
-  />
-
-  <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
-
-  <div className="boardScroll" ref={scrollRef}>
-  <div className="board" ref={boardRef}>
-
-      {showGhost && viewState ? (
-  <div className="ghostGrid">
-    {rows.map((r) => {
-      const cols = ROW_LENS[r] ?? 0;
-      const isOffset = cols === 6;
-      const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
-
-      const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
-      const shift =
-        engineShift !== 0
-          ? engineShift
-          : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
-
-
-      return (
-        <div
-          key={"g-" + r}
-          className="ghostRow"
-          style={{ transform: "translateX(" + base + ")" }}
-        >
-          {Array.from({ length: cols }, (_, c) => {
-            const logicalId = idAtSlot(currentLayer, r, c, shift);
-            const lc = idToCoord(logicalId);
-
-            return (
-              <div key={"g-" + r + "-" + c} className="ghostSlot">
-                <div
-                  style={{
-                    position: "relative",
-                    width: "100%",
-                    height: "100%",
-                    display: "grid",
-                    placeItems: "center",
-                  }}
-                >
-                  <div className="ghostHex" />
-                  <div className="ghostText">{r + "," + (lc ? lc.col : c)}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      );
-    })}
-  </div>
-) : null}
-
-      {rows.map((r) => {
-        const cols = ROW_LENS[r] ?? 0;
-        const isOffset = cols === 6;
-
-        const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
-        const shift =
-          engineShift !== 0
-            ? engineShift
-            : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
-
-        const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
-
-return (
-  <div
-    key={r}
-    className="hexRow"
-    style={{
-      transform: "translateX(" + base + ")", // ✅ only 6-row base offset
-      transition: "transform 180ms ease",
-      position: "relative",
-    }}
-  >
-
-            
-
-
-
-      <div style={{ position: "absolute", left: 8, opacity: 0.35, fontSize: 12 }}>
-        r{r} shift:{shift}
-      </div>
-
-      {Array.from({ length: cols }, (_, c) => {
-            // ✅ IMPORTANT: IDs must match the layer you're rendering
-            // ✅ visual slot is (r,c), logical id is shifted
-const id = idAtSlot(currentLayer, r, c, shift);
-
-
-            const hex = getHexFromState(viewState as any, id) as any;
-            const { blocked, missing } = isBlockedOrMissing(hex);
-
-            const portalDir = findPortalDirection(
-              (viewState as any)?.scenario?.transitions,
-              id
-            );
-
-            const isPortalUp = portalDir === "up";
-            const isPortalDown = portalDir === "down";
-
-            if (missing) return <div key={id} className="hexSlot empty" />;
-
-            const isSel = selectedId === id;
-            const isPlayer = isPlayerHere(id);
-            const isStart = startHexId === id;
-
-            // ✅ Reachability should ONLY show on the player's layer
-            const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
-
-            const upLayer = Math.min(scenarioLayerCount, currentLayer + 1);
-            const downLayer = Math.max(1, currentLayer - 1);
-
-            const portalTargetLayer = isPortalUp ? upLayer : isPortalDown ? downLayer : null;
-            const portalColor = portalTargetLayer ? layerCssVar(portalTargetLayer) : null;
-
-            const isGoal = goalId === id;
-            const isTrigger = !!findTriggerForHex(id);
-            const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
-
-            return (
-              <div key={"v-" + r + "-" + c} className="hexSlot">
-                <button
-                  ref={isPlayer ? playerBtnRef : null}
-                  className={[
-                    "hex",
-                    isSel ? "sel" : "",
-                    isReach ? "reach" : "",
-                    blocked ? "blocked" : "",
-                    isPlayer ? "player" : "",
-                    isGoal ? "goal" : "",
-                    isTrigger ? "trigger" : "",
-                    isStart ? "portalStart" : "",
-                    isPortalUp ? "portalUp" : "",
-                    isPortalDown ? "portalDown" : "",
-                  ].join(" ")}
-                  onClick={() => {
-                    if (playerLayer && currentLayer !== playerLayer) {
-                      tryMoveToId(id);
-                      return;
-                    }
-                    setSelectedId(id);
-                    tryMoveToId(id);
-                  }}
-                  disabled={!state || blocked || missing || encounterActive}
-                  style={
-                    {
-                      ["--hexGlow" as any]: layerCssVar(currentLayer),
-                      ...(portalColor ? { ["--portalC" as any]: portalColor } : {}),
-                    } as any
-                  }
-                  title={id}
-                >
-                 <div className="hexAnchor">
-  <div className="hexInner" style={tile ? { backgroundImage: tile } : undefined}>
-    {isPortalUp || isPortalDown ? (
-      <>
-        <div className="pAura" />
-        <div className="pOrbs" />
-        <div className="pRim" />
-        <div className="pOval" />
-      </>
-    ) : null}
-
-    {isStart ? (
-      <>
-        <div className="pAura" />
-        <div className="pRunes" />
-        <div className="pVortex" />
-        <div className="pWell" />
-        <div className="pShine" />
-      </>
-    ) : null}
-
-    <div className="hexId">{r},{c}</div>
-
-    <div className="hexMarks">
-      {isPortalUp ? <span className="mark">↑</span> : null}
-      {isPortalDown ? <span className="mark">↓</span> : null}
-      {isGoal ? <span className="mark g">G</span> : null}
-      {isTrigger ? <span className="mark t">!</span> : null}
-    </div>
-  </div>
-
-  {isPlayer ? (
-    <span
-      className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
-      style={
-        {
-          ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
-          ["--frameW" as any]: FRAME_W,
-          ["--frameH" as any]: FRAME_H,
-          ["--cols" as any]: SPRITE_COLS,
-          ["--rows" as any]: SPRITE_ROWS,
-          ["--frameX" as any]: walkFrame,
-          ["--frameY" as any]: facingRow(playerFacing),
-        } as any
+      // if viewing another layer, snap back
+      if (playerLayer && currentLayer !== playerLayer) {
+        setCurrentLayer(playerLayer);
+        enterLayer(state, playerLayer);
+        revealWholeLayer(state, playerLayer);
+        forceRender((n) => n + 1);
+        pushLog(
+          "You were viewing layer " +
+            currentLayer +
+            " but the player is on layer " +
+            playerLayer +
+            " — switched back.",
+          "info"
+        );
+        return;
       }
-    />
-  ) : null}
-</div>
 
-                </button>
-              </div>
+      const hex = getHexFromState(state, id) as any;
+      const bm = isBlockedOrMissing(hex);
+      if (bm.missing) {
+        pushLog("Missing tile.", "bad");
+        return;
+      }
+      if (bm.blocked) {
+        pushLog("Blocked tile.", "bad");
+        return;
+      }
+
+      const pidBefore = (state as any).playerHexId as string | null;
+      const fromLayer = pidBefore ? idToCoord(pidBefore)?.layer ?? null : null;
+
+      const vk = findTriggerForHex(id);
+      if (vk) {
+        pendingEncounterMoveIdRef.current = id;
+        setEncounter((prev) =>
+          prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }
+        );
+        pushLog("Encounter: " + vk + " — roll a 6 to continue", "bad");
+        return;
+      }
+
+      const res: any = tryMove(viewState as any, id);
+      let nextState = unwrapNextState(res);
+
+      // TEMP fallback: if engine rejects but UI says reachable, force move
+      if (!nextState) {
+        if (reachable.has(id) && viewState) {
+          const forced: any = { ...(viewState as any) };
+
+          const dir = findPortalDirection(
+            (viewState as any)?.scenario?.transitions,
+            id
+          );
+          if (dir === "up" || dir === "down") {
+            const c = idToCoord(id);
+            if (c) {
+              const targetLayer =
+                dir === "up"
+                  ? Math.min(scenarioLayerCount, c.layer + 1)
+                  : Math.max(1, c.layer - 1);
+
+              forced.playerHexId =
+                "L" + targetLayer + "-R" + c.row + "-C" + c.col;
+            } else {
+              forced.playerHexId = id;
+            }
+          } else {
+            forced.playerHexId = id;
+          }
+
+          nextState = forced as any;
+          pushLog("Force-moved (engine rejected)", "info");
+        } else {
+          const msg =
+            (res &&
+              typeof res === "object" &&
+              "reason" in res &&
+              String((res as any).reason)) ||
+            "Move failed.";
+          pushLog(msg, "bad");
+          return;
+        }
+      }
+
+      const pidAfter = (nextState as any).playerHexId as string | null;
+      const toLayer = pidAfter ? idToCoord(pidAfter)?.layer ?? null : null;
+
+      const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
+
+      setMovesTaken((n) => n + 1);
+
+      if (fromLayer) {
+        setLayerMoves((prev) => ({
+          ...prev,
+          [fromLayer]: (prev[fromLayer] ?? 0) + 1,
+        }));
+        setLayerMoveArmed((prev) => ({ ...prev, [fromLayer]: true }));
+      }
+
+      if (toLayer && fromLayer && toLayer !== fromLayer) {
+        setLayerMoves((prev) => ({ ...prev, [toLayer]: 0 }));
+        setLayerMoveArmed((prev) => ({ ...prev, [toLayer]: true }));
+      }
+
+      if (moved) {
+        setIsWalking(true);
+        if (walkTimer.current) window.clearTimeout(walkTimer.current);
+        walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+        setPlayerFacing(facingFromMove(pidBefore, pidAfter));
+      }
+
+      setState(nextState);
+      setSelectedId(pidAfter ?? id);
+      forceRender((n) => n + 1);
+
+      const c2 = pidAfter ? idToCoord(pidAfter) : null;
+      const nextLayer = c2?.layer ?? currentLayer;
+
+      enterLayer(nextState, nextLayer);
+
+      if (nextLayer !== currentLayer) {
+        setCurrentLayer(nextLayer);
+        revealWholeLayer(nextState, nextLayer);
+      }
+
+      const rm = getReachability(nextState) as any;
+      setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+
+      pushLog("Moved to " + (pidAfter ?? id), "ok");
+      if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
+    },
+    [
+      state,
+      viewState,
+      encounterActive,
+      reachable,
+      currentLayer,
+      playerLayer,
+      goalId,
+      pushLog,
+      revealWholeLayer,
+      computeOptimalFromReachMap,
+      scenarioLayerCount,
+      findTriggerForHex,
+    ]
+  );
+
+  const canGoDown = currentLayer - 1 >= 1;
+  const canGoUp = currentLayer + 1 <= scenarioLayerCount;
+
+  /* =========================
+     Render helpers/components
+  ========================= */
+
+  const layerRows = useMemo(() => ROW_LENS.length, []);
+  const rows = useMemo(
+    () => Array.from({ length: layerRows }, (_, i) => i),
+    [layerRows]
+  );
+
+  function isPlayerHere(id: string) {
+    return !!playerId && playerId === id;
+  }
+
+  function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
+    const segments = [7, 6, 5, 4, 3, 2, 1];
+    const side = props.side;
+    const currentLayerLocal = props.currentLayer;
+
+    return (
+      <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")}>
+        <div className="layerBar">
+          {segments.map((layerVal) => {
+            const active = layerVal === currentLayerLocal;
+            return (
+              <div
+                key={layerVal}
+                className={"barSeg" + (active ? " isActive" : "")}
+                data-layer={layerVal}
+              />
             );
           })}
         </div>
-      );
-    })}
-  </div>
-</div>
-
-<SideBar side="right" currentLayer={currentLayer} />
-
       </div>
+    );
+  }
 
-      {/* RIGHT: sidebar */}
-      <div className="side">
-        <div className="panelMini">
-          <div className="miniTitle">Status</div>
-
-          <div className="miniRow">
-            <span className="k">Player</span>
-            <span className="v">{chosenPlayer?.kind === "preset" ? chosenPlayer.name : chosenPlayer?.name ?? "—"}</span>
+  function HexDeckCardsOverlay(props: { glowVar: string }) {
+    return (
+      <div
+        className="hexDeckOverlay"
+        style={{ ["--cardGlow" as any]: props.glowVar } as any}
+      >
+        <div className="hexDeckCol left">
+          <div className="hexDeckCard cosmic ccw slow">
+            <div className="deckFx" />
           </div>
 
-         <div className="miniRow">
-  <span className="k">Viewing</span>
-  <span className="v">
-    {currentLayer} / {scenarioLayerCount}
-  </span>
-</div>
-
-<div className="miniRow">
-  <span className="k">Player</span>
-  <span className="v">
-    {playerLayer ?? "—"}
-  </span>
-</div>
-
-
-          <div className="miniRow">
-            <span className="k">Moves</span>
-            <span className="v">{movesTaken}</span>
-          </div>
-
-          <div className="miniRow">
-            <span className="k">Optimal</span>
-            <span className="v">{optimalFromNow ?? "—"}</span>
+          <div className="hexDeckCard risk ccw fast">
+            <div className="deckFx" />
           </div>
         </div>
 
-        <div className="panelMini">
-          <div className="miniTitle">Log</div>
-          <div className="log">
-            {log.length === 0 ? (
-              <div className="hint">No events yet.</div>
-            ) : (
-              log.map((e) => (
-                <div key={e.n} className={"logRow " + (e.kind ?? "info")}>
-                  <div className="lt">{e.t}</div>
-                  <div className="lm">{e.msg}</div>
-                </div>
-              ))
-            )}
+        <div className="hexDeckCol right">
+          <div className="hexDeckCard terrain cw slow">
+            <div className="deckFx" />
           </div>
-        </div> 
+
+          <div className="hexDeckCard shadow cw fast">
+            <div className="deckFx" />
+          </div>
+        </div>
       </div>
-    
-    </div> {/* ✅ CLOSE gameLayout HERE */}
+    );
+  }
 
-    {/* encounter overlay */}
-    {encounter ? (
-      <div className="overlay">
-        <div className="overlayCard">
-          <div className="overlayTitle">Encounter</div>
-          <div className="overlaySub">Roll a 6 to continue.</div>
+  const resetAll = useCallback(() => {
+    setScreen("start");
+    setWorldId(null);
+    setScenarioId(null);
+    setTrackId(null);
+    setChosenPlayer(null);
 
-          <div className="villainBox">
-            <img className="villainImg" src={villainImg(encounter.villainKey)} alt={encounter.villainKey} />
-            <div className="villainMeta">
-              <div className="hint">Tries: {encounter.tries}</div>
-              <button className="btn primary" onClick={rollDice} disabled={diceRolling}>
-                Roll
+    setState(null);
+    setCurrentLayer(1);
+    setSelectedId(null);
+    setStartHexId(null);
+
+    setVillainTriggers([]);
+    setEncounter(null);
+    pendingEncounterMoveIdRef.current = null;
+
+    setGoalId(null);
+    setOptimalAtStart(null);
+    setOptimalFromNow(null);
+    setMovesTaken(0);
+
+    logNRef.current = 0;
+    setLog([]);
+
+    setItems([
+      { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
+      { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
+      { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
+    ]);
+  }, []);
+
+  const PLAYER_PRESETS: Array<{ id: string; name: string }> = [
+    { id: "p1", name: "Aeris" },
+    { id: "p2", name: "Devlan" },
+  ];
+
+  /* =========================
+     Screens
+  ========================= */
+
+  if (screen === "start") {
+    return (
+      <div className="appRoot" style={themeVars}>
+        <div className="screen center">
+          <div className="panel">
+            <div className="title">Hex Game</div>
+            <div className="sub">Start → World → Character → Scenario → Game</div>
+
+            <div className="row">
+              <button className="btn primary" onClick={() => setScreen("world")}>
+                Start
+              </button>
+              <button className="btn" onClick={resetAll}>
+                Reset
+              </button>
+            </div>
+
+            <div className="hint">
+              Worlds loaded: <b>{worlds.length}</b>
+            </div>
+          </div>
+        </div>
+
+        <style>{baseCss}</style>
+      </div>
+    );
+  }
+
+  if (screen !== "game") {
+    return (
+      <div className="appRoot" style={themeVars}>
+        <div className="screen center">
+          <div className="panel">
+            <div className="title">Not in game yet</div>
+            <div className="sub">Screen: {screen}</div>
+
+            <div className="hint" style={{ marginTop: 12 }}>
+              Pick a world / character / scenario (screens not pasted here yet),
+              then start the scenario.
+            </div>
+
+            <div className="row">
+              <button className="btn" onClick={resetAll}>
+                Back
+              </button>
+
+              <button
+                className="btn primary"
+                onClick={() => {
+                  const w0 = worlds[0];
+                  const s0 = w0?.scenarios?.[0];
+                  if (w0 && s0) {
+                    setWorldId(w0.id);
+                    setScenarioId(s0.id);
+                    setTrackId(null);
+                    pendingQuickStartRef.current = true;
+                  }
+                }}
+              >
+                Quick start (debug)
               </button>
             </div>
           </div>
         </div>
-      </div>
-    ) : null}
 
-    <style>{baseCss}</style>
-  </div>
-);
+        <style>{baseCss}</style>
+      </div>
+    );
+  }
+
+  /* =========================
+     GAME screen
+  ========================= */
+
+  return (
+    <div className="appRoot game" style={themeVars}>
+      <div
+        className="gameBg"
+        style={{
+          backgroundImage: GAME__URL
+            ? "url(" + toPublicUrl(GAME__URL) + ")"
+            : undefined,
+        }}
+      />
+
+      <div className="topbar">
+        <button className="btn" onClick={() => setShowGhost((v) => !v)}>
+          {showGhost ? "Hide ghost" : "Ghost grid"}
+        </button>
+
+        <div className={"dice3d " + (diceRolling ? "rolling" : "")}>
+          <div
+            className="cube"
+            style={{
+              transform:
+                "rotateX(" +
+                diceRot.x +
+                "deg) rotateY(" +
+                diceRot.y +
+                "deg)",
+            }}
+          >
+            <div
+              className="face face-front"
+              style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}
+            />
+            <div
+              className="face face-back"
+              style={{ backgroundImage: "url(" + diceImg(5) + ")" }}
+            />
+            <div
+              className="face face-right"
+              style={{ backgroundImage: "url(" + diceImg(3) + ")" }}
+            />
+            <div
+              className="face face-left"
+              style={{ backgroundImage: "url(" + diceImg(4) + ")" }}
+            />
+            <div
+              className="face face-top"
+              style={{ backgroundImage: "url(" + diceImg(1) + ")" }}
+            />
+            <div
+              className="face face-bottom"
+              style={{ backgroundImage: "url(" + diceImg(6) + ")" }}
+            />
+          </div>
+
+          {DICE_BORDER_IMG ? (
+            <div
+              className="diceBorder"
+              style={{
+                backgroundImage: "url(" + toPublicUrl(DICE_BORDER_IMG) + ")",
+              }}
+            />
+          ) : null}
+        </div>
+
+        <div className="items">
+          {items.map((it) => (
+            <button
+              key={it.id}
+              className={"itemBtn " + (it.charges <= 0 ? "off" : "")}
+              disabled={
+                it.charges <= 0 ||
+                !state ||
+                (encounterActive && it.id !== "reroll")
+              }
+              onClick={() => useItem(it.id)}
+              title={it.name + " (" + it.charges + ")"}
+            >
+              <span className="itemIcon">{it.icon}</span>
+              <span className="itemName">{it.name}</span>
+              <span className="itemCharges">{it.charges}</span>
+            </button>
+          ))}
+        </div>
+
+        <button
+          className="btn"
+          disabled={!state || !canGoDown || encounterActive}
+          onClick={() => {
+            if (!state) return;
+            const next = Math.max(1, currentLayer - 1);
+            setCurrentLayer(next);
+            enterLayer(state, next);
+            revealWholeLayer(state, next);
+            forceRender((n) => n + 1);
+            pushLog("Layer " + next, "info");
+          }}
+        >
+          − Layer
+        </button>
+
+        <button
+          className="btn"
+          disabled={!state || !canGoUp || encounterActive}
+          onClick={() => {
+            if (!state) return;
+            const next = Math.min(scenarioLayerCount, currentLayer + 1);
+            setCurrentLayer(next);
+            enterLayer(state, next);
+            revealWholeLayer(state, next);
+            forceRender((n) => n + 1);
+            pushLog("Layer " + next, "info");
+          }}
+        >
+          + Layer
+        </button>
+      </div>
+
+      <div className="gameLayout">
+        <div className="boardWrap">
+          <SideBar side="left" currentLayer={currentLayer} />
+
+          <div
+            key={currentLayer}
+            className="boardLayerBg"
+            style={{
+              backgroundImage: BOARD_LAYER_
+                ? "url(" + toPublicUrl(BOARD_LAYER_) + ")"
+                : undefined,
+            }}
+          />
+
+          <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
+
+          <div className="boardScroll" ref={scrollRef}>
+            <div className="board" ref={boardRef}>
+              {showGhost && viewState ? (
+                <div className="ghostGrid">
+                  {rows.map((r) => {
+                    const cols = ROW_LENS[r] ?? 0;
+                    const isOffset = cols === 6;
+                    const base = isOffset
+                      ? "calc(var(--hexStepX) / -2)"
+                      : "0px";
+
+                    const engineShift = getRowShiftUnits(
+                      viewState as any,
+                      currentLayer,
+                      r
+                    );
+                    const shift =
+                      engineShift !== 0
+                        ? engineShift
+                        : derivedRowShiftUnits(
+                            viewState as any,
+                            currentLayer,
+                            r,
+                            movesTaken
+                          );
+
+                    return (
+                      <div
+                        key={"g-" + r}
+                        className="ghostRow"
+                        style={{ transform: "translateX(" + base + ")" }}
+                      >
+                        {Array.from({ length: cols }, (_, c) => {
+                          const logicalId = idAtSlot(
+                            currentLayer,
+                            r,
+                            c,
+                            shift
+                          );
+                          const lc = idToCoord(logicalId);
+
+                          return (
+                            <div
+                              key={"g-" + r + "-" + c}
+                              className="ghostSlot"
+                            >
+                              <div
+                                style={{
+                                  position: "relative",
+                                  width: "100%",
+                                  height: "100%",
+                                  display: "grid",
+                                  placeItems: "center",
+                                }}
+                              >
+                                <div className="ghostHex" />
+                                <div className="ghostText">
+                                  {r + "," + (lc ? lc.col : c)}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+
+              {rows.map((r) => {
+                const cols = ROW_LENS[r] ?? 0;
+                const isOffset = cols === 6;
+
+                const engineShift = getRowShiftUnits(
+                  viewState as any,
+                  currentLayer,
+                  r
+                );
+                const shift =
+                  engineShift !== 0
+                    ? engineShift
+                    : derivedRowShiftUnits(
+                        viewState as any,
+                        currentLayer,
+                        r,
+                        movesTaken
+                      );
+
+                const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+
+                return (
+                  <div
+                    key={r}
+                    className="hexRow"
+                    style={{
+                      transform: "translateX(" + base + ")",
+                      transition: "transform 180ms ease",
+                      position: "relative",
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: 8,
+                        opacity: 0.35,
+                        fontSize: 12,
+                      }}
+                    >
+                      r{r} shift:{shift}
+                    </div>
+
+                    {Array.from({ length: cols }, (_, c) => {
+                      const id = idAtSlot(currentLayer, r, c, shift);
+
+                      const hex = getHexFromState(viewState as any, id) as any;
+                      const bm = isBlockedOrMissing(hex);
+
+                      const portalDir = findPortalDirection(
+                        (viewState as any)?.scenario?.transitions,
+                        id
+                      );
+
+                      const isPortalUp = portalDir === "up";
+                      const isPortalDown = portalDir === "down";
+
+                      if (bm.missing)
+                        return <div key={id} className="hexSlot empty" />;
+
+                      const isSel = selectedId === id;
+                      const isPlayer = isPlayerHere(id);
+                      const isStart = startHexId === id;
+
+                      const isReach =
+                        playerLayer === currentLayer &&
+                        !isPlayer &&
+                        reachable.has(id);
+
+                      const upLayer = Math.min(
+                        scenarioLayerCount,
+                        currentLayer + 1
+                      );
+                      const downLayer = Math.max(1, currentLayer - 1);
+
+                      const portalTargetLayer = isPortalUp
+                        ? upLayer
+                        : isPortalDown
+                        ? downLayer
+                        : null;
+
+                      const portalColor = portalTargetLayer
+                        ? layerCssVar(portalTargetLayer)
+                        : null;
+
+                      const isGoal = goalId === id;
+                      const isTrigger = !!findTriggerForHex(id);
+                      const tile = HEX_TILE
+                        ? "url(" + toPublicUrl(HEX_TILE) + ")"
+                        : "";
+
+                      return (
+                        <div
+                          key={"v-" + r + "-" + c}
+                          className="hexSlot"
+                        >
+                          <button
+                            ref={isPlayer ? playerBtnRef : null}
+                            className={[
+                              "hex",
+                              isSel ? "sel" : "",
+                              isReach ? "reach" : "",
+                              bm.blocked ? "blocked" : "",
+                              isPlayer ? "player" : "",
+                              isGoal ? "goal" : "",
+                              isTrigger ? "trigger" : "",
+                              isStart ? "portalStart" : "",
+                              isPortalUp ? "portalUp" : "",
+                              isPortalDown ? "portalDown" : "",
+                            ].join(" ")}
+                            onClick={() => {
+                              if (playerLayer && currentLayer !== playerLayer) {
+                                tryMoveToId(id);
+                                return;
+                              }
+                              setSelectedId(id);
+                              tryMoveToId(id);
+                            }}
+                            disabled={!state || bm.blocked || bm.missing || encounterActive}
+                            style={
+                              {
+                                ["--hexGlow" as any]: layerCssVar(currentLayer),
+                                ...(portalColor
+                                  ? { ["--portalC" as any]: portalColor }
+                                  : {}),
+                              } as any
+                            }
+                            title={id}
+                          >
+                            <div className="hexAnchor">
+                              <div
+                                className="hexInner"
+                                style={tile ? { backgroundImage: tile } : undefined}
+                              >
+                                {isPortalUp || isPortalDown ? (
+                                  <>
+                                    <div className="pAura" />
+                                    <div className="pOrbs" />
+                                    <div className="pRim" />
+                                    <div className="pOval" />
+                                  </>
+                                ) : null}
+
+                                {isStart ? (
+                                  <>
+                                    <div className="pAura" />
+                                    <div className="pRunes" />
+                                    <div className="pVortex" />
+                                    <div className="pWell" />
+                                    <div className="pShine" />
+                                  </>
+                                ) : null}
+
+                                <div className="hexId">{r},{c}</div>
+
+                                <div className="hexMarks">
+                                  {isPortalUp ? <span className="mark">↑</span> : null}
+                                  {isPortalDown ? <span className="mark">↓</span> : null}
+                                  {isGoal ? <span className="mark g">G</span> : null}
+                                  {isTrigger ? <span className="mark t">!</span> : null}
+                                </div>
+                              </div>
+
+                              {isPlayer ? (
+                                <span
+                                  className={
+                                    "playerSpriteSheet " + (isWalking ? "walking" : "")
+                                  }
+                                  style={
+                                    {
+                                      ["--spriteImg" as any]:
+                                        "url(" + spriteSheetUrl() + ")",
+                                      ["--frameW" as any]: FRAME_W,
+                                      ["--frameH" as any]: FRAME_H,
+                                      ["--cols" as any]: SPRITE_COLS,
+                                      ["--rows" as any]: SPRITE_ROWS,
+                                      ["--frameX" as any]: walkFrame,
+                                      ["--frameY" as any]: facingRow(playerFacing),
+                                    } as any
+                                  }
+                                />
+                              ) : null}
+                            </div>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <SideBar side="right" currentLayer={currentLayer} />
+        </div>
+
+        <div className="side">
+          <div className="panelMini">
+            <div className="miniTitle">Status</div>
+
+            <div className="miniRow">
+              <span className="k">Player</span>
+              <span className="v">
+                {chosenPlayer?.kind === "preset"
+                  ? chosenPlayer.name
+                  : chosenPlayer?.name ?? "—"}
+              </span>
+            </div>
+
+            <div className="miniRow">
+              <span className="k">Viewing</span>
+              <span className="v">
+                {currentLayer} / {scenarioLayerCount}
+              </span>
+            </div>
+
+            <div className="miniRow">
+              <span className="k">Player</span>
+              <span className="v">{playerLayer ?? "—"}</span>
+            </div>
+
+            <div className="miniRow">
+              <span className="k">Moves</span>
+              <span className="v">{movesTaken}</span>
+            </div>
+
+            <div className="miniRow">
+              <span className="k">Optimal</span>
+              <span className="v">{optimalFromNow ?? "—"}</span>
+            </div>
+          </div>
+
+          <div className="panelMini">
+            <div className="miniTitle">Log</div>
+            <div className="log">
+              {log.length === 0 ? (
+                <div className="hint">No events yet.</div>
+              ) : (
+                log.map((e) => (
+                  <div key={e.n} className={"logRow " + (e.kind ?? "info")}>
+                    <div className="lt">{e.t}</div>
+                    <div className="lm">{e.msg}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {encounter ? (
+        <div className="overlay">
+          <div className="overlayCard">
+            <div className="overlayTitle">Encounter</div>
+            <div className="overlaySub">Roll a 6 to continue.</div>
+
+            <div className="villainBox">
+              <img
+                className="villainImg"
+                src={villainImg(encounter.villainKey)}
+                alt={encounter.villainKey}
+              />
+              <div className="villainMeta">
+                <div className="hint">Tries: {encounter.tries}</div>
+                <button className="btn primary" onClick={rollDice} disabled={diceRolling}>
+                  Roll
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <style>{baseCss}</style>
+    </div>
+  );
 }
-   
