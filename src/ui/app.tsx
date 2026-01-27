@@ -396,25 +396,30 @@ function derivedRowShiftUnits(
   return 0;
 }
 
-function posForHex(st: any, layer: number, row: number, col: number, movesTaken: number) {
-  // MUST match your CSS numbers
-  const STEP_X = 72; // 
-  const STEP_Y = 84; // --hexHMain (row height)
-
+function posForHex(
+  st: any,
+  layer: number,
+  row: number,
+  col: number,
+  movesTaken: number,
+  stepX: number,
+  stepY: number
+) {
   const cols = ROW_LENS[row] ?? 7;
   const isOffset = cols === 6;
-  const base = isOffset ? (-STEP_X / 2) : 0;
+
+  // ✅ correct offset for 6-wide rows
+  const base = isOffset ? (-stepX / 2) : 0;
 
   const engineShift = getRowShiftUnits(st, layer, row);
-  const shift = engineShift !== 0
-    ? engineShift
-    : derivedRowShiftUnits(st, layer, row, movesTaken);
+  const shift = engineShift !== 0 ? engineShift : derivedRowShiftUnits(st, layer, row, movesTaken);
 
-  const x = base + (col * STEP_X) + (shift * STEP_X);
-  const y = row * STEP_Y;
+  const x = base + (col * stepX) + (shift * stepX);
+  const y = row * stepY;
 
   return { x, y };
 }
+
 
 function getShiftedNeighborsSameLayer(st: any, pid: string, movesTaken: number): string[] {
   const c = idToCoord(pid);
@@ -507,6 +512,12 @@ function neighborSlots(row: number, col: number) {
   }
 
   return out;
+}
+function readPxVar(el: HTMLElement | null, name: string, fallback: number) {
+  if (!el) return fallback;
+  const v = getComputedStyle(el).getPropertyValue(name).trim(); // e.g. "72px"
+  const n = Number(v.replace("px", ""));
+  return Number.isFinite(n) ? n : fallback;
 }
 
 /* =========================================================
@@ -1846,6 +1857,25 @@ const encounterActive = !!encounter;
   const [chosenPlayer, setChosenPlayer] = useState<PlayerChoice | null>(null);
 const boardRef = useRef<HTMLDivElement | null>(null);
 const playerBtnRef = useRef<HTMLButtonElement | null>(null);
+
+// ✅ read real CSS hex steps from the board element
+const [hexStep, setHexStep] = useState({ stepX: 72, stepY: 84 });
+
+useLayoutEffect(() => {
+  const el = boardRef.current;
+  if (!el) return;
+
+  const update = () => {
+    setHexStep({
+      stepX: readPxVar(el, "--hexStepX", 72),
+      stepY: readPxVar(el, "--hexHMain", 84),
+    });
+  };
+
+  update();
+  window.addEventListener("resize", update);
+  return () => window.removeEventListener("resize", update);
+}, [currentLayer, uiTick]);
 
 const [spriteXY, setSpriteXY] = useState<{ x: number; y: number } | null>(null);
 
