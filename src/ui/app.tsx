@@ -928,6 +928,16 @@ display: grid;
   grid-template-columns: var(--barColW) 1fr var(--barColW);
   align-items: stretch;       /* ✅ WAS center — this is the big bug */
   opacity: 1;
+    /* height of the whole game area (already effectively true), now define a computed row height */
+  --boardAvailH: calc(100% - var(--boardPadTop) - var(--boardPadBottom));
+  --hexHMain: calc(var(--boardAvailH) / 7);
+
+  /* keep hex proportions: width ≈ height / 0.866 (flat-top hex) */
+  --hexWMain: calc(var(--hexHMain) / 0.866);
+
+  /* correct honeycomb spacing */
+  --hexStepX: calc(var(--hexWMain) * 0.75);
+  height: 100%;
 }
 
 
@@ -962,6 +972,7 @@ display: grid;
   margin: 0 auto;
   padding: var(--boardPadTop) 0 var(--boardPadBottom);
  position: relative; /* ADD THIS */
+   height: var(--hexFieldH); /* ✅ add here */
 }
 
 /* =========================================================
@@ -975,7 +986,7 @@ display: grid;
   width: 100%;
 }
 .hexRow.offset{
-  transform: translateX(calc(var(--hexStepX) / -5));
+  transform: translateX(calc(var(--hexStepX) / -2));
 }
 
 /* =========================================================
@@ -2937,7 +2948,7 @@ forceRender((n) => n + 1);
     {rows.map((r) => {
       const cols = ROW_LENS[r] ?? 0;
       const isOffset = cols === 6;
-      const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
+      const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
       const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
       const shift =
