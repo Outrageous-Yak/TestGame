@@ -3171,21 +3171,24 @@ const base = "0px";
               }
               title={id}
             >
-              <div className="hexAnchor">
-                <div
-                  className="hexInner"
-                  style={tile ? { backgroundImage: tile } : undefined}
-                >
-                  {isPortalUp || isPortalDown ? (
-                    <>
-                      <div className="pAura" />
-                      <div className="pOrbs" />
-                      <div className="pRim" />
-                      <div className="pOval" />
-                       <div className="pVortex" />
-                       <div className="pShine" />
-                    </>
-                  ) : null}
+             <div className="hexAnchor">
+  {/* OUTSIDE-CLIP PORTAL DISC */}
+  {isPortalUp || isPortalDown ? (
+    <div className="portalOuter">
+      <div className="pRim" />
+      <div className="pOval" />
+    </div>
+  ) : null}
+
+  {/* CLIPPED TILE */}
+  <div className="hexInner" style={tile ? { backgroundImage: tile } : undefined}>
+    {isPortalUp || isPortalDown ? (
+      <>
+        <div className="pAura" />
+        <div className="pOrbs" />
+        {/* keep these inside if you want them clipped */}
+      </>
+    ) : null}
 
                   {isStart ? (
                     <>
