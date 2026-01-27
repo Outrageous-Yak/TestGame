@@ -1018,7 +1018,7 @@ display: grid;
   width: var(--hexWMain);
   height: var(--hexHMain);
 
-  padding: 15;
+  padding: 50;
   border: none;
   background: rgba(0,0,0,0);
   cursor: pointer;
