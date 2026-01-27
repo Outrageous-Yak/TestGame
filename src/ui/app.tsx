@@ -3008,9 +3008,7 @@ for (let layer = 1; layer <= scenarioLayerCount; layer++) {
   <div className="ghostGrid">
     {rows.map((r) => {
       const cols = ROW_LENS[r] ?? 0;
-      const isOffset = cols === 6;
-
-      const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+     const base = "0px";
 
       const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
       const shift =
@@ -3063,9 +3061,7 @@ for (let layer = 1; layer <= scenarioLayerCount; layer++) {
 
             {rows.map((r) => {
   const cols = ROW_LENS[r] ?? 0;
-  const isOffset = cols === 6;
-
-  const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+const base = "0px";
 
   const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
   const shift =
