@@ -3237,7 +3237,44 @@ for (let layer = 1; layer <= scenarioLayerCount; layer++) {
         </div>     {/* ✅ closes .boardWrap */}
 
         <div className="side">
-          {/* ... your Status + Log panels ... */}
+          <div className="side">
+  <div className="panelMini">
+    <div className="miniTitle">Status</div>
+
+    <div className="miniRow">
+      <span className="k">Layer</span>
+      <span className="v">{currentLayer}/{scenarioLayerCount}</span>
+    </div>
+
+    <div className="miniRow">
+      <span className="k">Moves</span>
+      <span className="v">{movesTaken}</span>
+    </div>
+
+    <div className="miniRow">
+      <span className="k">Optimal (start)</span>
+      <span className="v">{optimalAtStart ?? "-"}</span>
+    </div>
+
+    <div className="miniRow">
+      <span className="k">Optimal (now)</span>
+      <span className="v">{optimalFromNow ?? "-"}</span>
+    </div>
+  </div>
+
+  <div className="panelMini">
+    <div className="miniTitle">Log</div>
+    <div className="log">
+      {log.map((e) => (
+        <div key={e.n} className={"logRow " + (e.kind ?? "")}>
+          <div className="lt">{e.t}</div>
+          <div className="lm">{e.msg}</div>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+
         </div>
       </div>
 
