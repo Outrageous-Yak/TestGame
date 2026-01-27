@@ -1612,11 +1612,13 @@ flex: 0 0 var(--hexWMain);
   left: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
   top: calc(var(--boardPadTop) + var(--deckPadY));
   transform: translateX(-65%);
+  transform: translateY(-65%);
 }
 .hexDeckCard.risk{
   left: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
   bottom: calc(var(--boardPadBottom) + var(--deckPadY));
   transform: translateX(-50%);
+  transform: translateY(-65%);
 }
 .hexDeckCard.terrain{
   right: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
