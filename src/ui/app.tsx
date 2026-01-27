@@ -2350,7 +2350,7 @@ console.log("MOVE RESULT", { pidBefore, pidAfter, moved: pidAfter && pidBefore !
 
       setPlayerFacing(facingFromMove(pidBefore, pidAfter));
     }
-
+setMovesTaken((n) => n + 1);
     // commit state first
 setState(nextState);
 forceRender((n) => n + 1);
@@ -2593,7 +2593,7 @@ if (fromLayer) {
 // if we entered a new layer, reset & disarm it
 if (toLayer && fromLayer && toLayer !== fromLayer) {
   setLayerMoves((prev) => ({ ...prev, [toLayer]: 0 }));
-  setLayerMoveArmed((prev) => ({ ...prev, [toLayer]: false }));
+  setLayerMoveArmed((prev) => ({ ...prev, [toLayer]: true }));
 }
 
 
@@ -2985,7 +2985,7 @@ forceRender((n) => n + 1);
         const shift =
           engineShift !== 0
             ? engineShift
-            : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
+            : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
 
         const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
 
