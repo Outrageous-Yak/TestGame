@@ -933,7 +933,7 @@ display: grid;
   position:absolute; inset:0;
   background-size: cover;
   background-position: center;
-  opacity: .28;
+  opacity: 1;
   transform: scale(1.02);
   animation: bgFadeIn 220ms ease;
   z-index: 1;
