@@ -359,7 +359,7 @@ function facingFromMoveVisual(
 
   // prefer horizontal when it's clearly horizontal
   if (Math.abs(dx) >= Math.abs(dRow) * 0.5) {
-    return dx > 0 ? "right" : dx < 0 ? "left" : "down";
+    return dx > 0 ? "left" : dx < 0 ? "right" : "down";
   }
   return dRow > 0 ? "down" : "up";
 }
@@ -2200,7 +2200,7 @@ const IDLE_FPS = 4;
   }, []);
 
   function facingRow(f: Facing) {
-    return f === "down" ? 0 : f === "left" ? 1 : f === "right" ? 2 : 3;
+    return f === "down" ? 0 : f === "left" ? 2 : f === "right" ? 1 : 3;
   }
 
   /* =========================
