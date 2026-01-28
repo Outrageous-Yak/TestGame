@@ -477,29 +477,7 @@ const shiftCur =
     ? engineShiftCur
     : derivedRowShiftUnits(st, c.layer, c.row, movesTaken);
 
-// Layer transition overlay (flash + text, blocks input)
-const [layerFx, setLayerFx] = useState<null | { layer: number; color: string; key: number }>(null);
-const layerFxTimer = useRef<number | null>(null);
 
-const LAYER_COLORS: Record<number, string> = {
-  1: "rgba(140, 180, 255, 0.45)", // example
-  2: "rgba(255, 140, 40, 0.55)",  // orange
-  3: "rgba(120, 255, 210, 0.45)",
-};
-
-const triggerLayerFx = useCallback((layer: number) => {
-  // clear any existing timer
-  if (layerFxTimer.current != null) window.clearTimeout(layerFxTimer.current);
-
-  const color = LAYER_COLORS[layer] ?? "rgba(255,255,255,0.35)";
-  setLayerFx({ layer, color, key: Date.now() });
-
-  // hide after 3s
-  layerFxTimer.current = window.setTimeout(() => {
-    setLayerFx(null);
-    layerFxTimer.current = null;
-  }, 3000);
-}, []);
 
 
   // player’s visual slot column
