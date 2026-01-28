@@ -3081,29 +3081,32 @@ const IDLE_FPS = 4;
             <div className="board" ref={boardRef}>
               {showGhost && viewState ? (
   <div className="ghostGrid">
-    {rows.map((r) => {
+ {rows.map((r) => {
   const cols = ROW_LENS[r] ?? 0;
-const base = cols === 6 ? "calc(var(--hexStepX) / -2)" : "0px";
+  const isOffset = cols === 6;
 
-      const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
-      const shift =
-        engineShift !== 0
-          ? engineShift
-          : derivedRowShiftUnits(
-              viewState as any,
-              currentLayer,
-              r,
-              getLayerMoves(currentLayer)
-            );
+  const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
-      const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
+  const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
+  const shift =
+    engineShift !== 0
+      ? engineShift
+      : derivedRowShiftUnits(
+          viewState as any,
+          currentLayer,
+          r,
+          getLayerMoves(currentLayer)
+        );
 
-      return (
-        <div
-          key={"g-" + r}
-          className="ghostRow"
-          style={{ transform: "translateX(" + tx + ")" }}
-        >
+  const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
+
+  return (
+    <div
+      key={"g-" + r}
+      className="ghostRow"
+      style={{ transform: "translateX(" + tx + ")" }}
+    >
+
           {Array.from({ length: cols }, (_, c) => {
             const logicalId = idAtSlot(currentLayer, r, c, shift);
             const lc = idToCoord(logicalId);
@@ -3133,11 +3136,11 @@ const base = cols === 6 ? "calc(var(--hexStepX) / -2)" : "0px";
   </div>
 ) : null}
 
+{rows.map((r) => {
+  const cols = ROW_LENS[r] ?? 0;
+  const isOffset = cols === 6;
 
-            {rows.map((r) => {
-const cols = ROW_LENS[r] ?? 0;
-const base = cols === 6 ? "calc(var(--hexStepX) / -2)" : "0px";
-
+  const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
   const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
   const shift =
@@ -3158,6 +3161,7 @@ const base = cols === 6 ? "calc(var(--hexStepX) / -2)" : "0px";
       className="hexRow"
       style={{ transform: "translateX(" + tx + ")" }}
     >
+
       <div
         style={{
           position: "absolute",
