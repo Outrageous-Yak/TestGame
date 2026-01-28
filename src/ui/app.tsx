@@ -321,49 +321,50 @@ function facingFromMoveVisual(
   st: any,
   fromId: string | null,
   toId: string | null,
-  layer: number,
+  _layer: number,
   movesTakenForLayer: number
 ): "down" | "up" | "left" | "right" {
   const a = fromId ? idToCoord(fromId) : null;
   const b = toId ? idToCoord(toId) : null;
   if (!a || !b) return "down";
 
-  // different layer: you can choose a rule; keep "down"
+  // different layer: keep "down" (or choose your own rule)
   if (a.layer !== b.layer) return "down";
 
-  // compute current visual shift for each row
-  const shiftAEngine = getRowShiftUnits(st, layer, a.row);
-  const shiftA =
-    shiftAEngine !== 0 ? shiftAEngine : derivedRowShiftUnits(st, layer, a.row, movesTakenForLayer);
-
-  const shiftBEngine = getRowShiftUnits(st, layer, b.row);
-  const shiftB =
-    shiftBEngine !== 0 ? shiftBEngine : derivedRowShiftUnits(st, layer, b.row, movesTakenForLayer);
-
-  // convert original col -> visual slot col
-  const slotA = slotOfId(a.row, a.col, shiftA);
-  const slotB = slotOfId(b.row, b.col, shiftB);
-
-  // turn slot col into visual X (include 6-row half offset)
   const lenA = ROW_LENS[a.row] ?? 7;
   const lenB = ROW_LENS[b.row] ?? 7;
 
-  const baseA = lenA === 6 ? -0.5 : 0; // measured in "hexStepX units"
-  const baseB = lenB === 6 ? -0.5 : 0;
+  // shifts for each row (engine if non-zero else derived)
+  const sAeng = getRowShiftUnits(st, a.layer, a.row);
+  const sAraw = sAeng !== 0 ? sAeng : derivedRowShiftUnits(st, a.layer, a.row, movesTakenForLayer);
+  const sA = normalizeRowShift(sAraw, lenA).visual;
 
-  const xA = (baseA + slotA);
-  const xB = (baseB + slotB);
+  const sBeng = getRowShiftUnits(st, b.layer, b.row);
+  const sBraw = sBeng !== 0 ? sBeng : derivedRowShiftUnits(st, b.layer, b.row, movesTakenForLayer);
+  const sB = normalizeRowShift(sBraw, lenB).visual;
 
-  const dx = xB - xA;
+  // slot columns (already modulo)
+  const slotA = slotOfId(a.row, a.col, sA);
+  const slotB = slotOfId(b.row, b.col, sB);
+
+  // compute dx in "slot units" and choose the shortest circular direction when same row
+  let dxSlots = slotB - slotA;
+  if (a.row === b.row) {
+    const len = lenA;
+    // wrap dx to [-len/2, len/2]
+    dxSlots = ((dxSlots + len / 2) % len) - len / 2;
+  }
+
   const dRow = b.row - a.row;
 
-  // prefer horizontal when it's clearly horizontal
-if (Math.abs(dx) >= Math.abs(dRow) * 0.5) {
-  return dx > 0 ? "right" : dx < 0 ? "left" : "down";
-}
+  // prefer horizontal if it dominates
+  if (Math.abs(dxSlots) >= Math.abs(dRow) * 0.5) {
+    return dxSlots > 0 ? "right" : dxSlots < 0 ? "left" : "down";
+  }
 
   return dRow > 0 ? "down" : "up";
 }
+
 
 function unwrapNextState(res: any): GameState | null {
   if (!res) return null;
@@ -569,6 +570,16 @@ function readPxVar(el: HTMLElement | null, name: string, fallback: number) {
   const v = getComputedStyle(el).getPropertyValue(name).trim(); // e.g. "72px"
   const n = Number(v.replace("px", ""));
   return Number.isFinite(n) ? n : fallback;
+}
+function normalizeRowShift(rawShift: number, rowLen: number) {
+  // wrap to 0..len-1
+  let wrapped = ((rawShift % rowLen) + rowLen) % rowLen;
+
+  // convert to a small signed shift so translateX doesn't drift forever
+  let visual = wrapped;
+  if (visual > rowLen / 2) visual = visual - rowLen; // e.g. 6 -> -1 for len=7
+
+  return { wrapped, visual };
 }
 
 /* =========================================================
@@ -2455,7 +2466,7 @@ const IDLE_FPS = 4;
     pidBefore,
     pidAfter,
     currentLayer,
-  getLayerMoves(currentLayer))
+  getLayerMoves((pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer)
 );
 
     }
@@ -2715,7 +2726,7 @@ const IDLE_FPS = 4;
     pidBefore,
     pidAfter,
     currentLayer,
-getLayerMoves(currentLayer))
+getLayerMoves((pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer)
 );
 
 
@@ -3078,31 +3089,34 @@ getLayerMoves(currentLayer))
              {showGhost && viewState ? (
   <div className="ghostGrid">
     {rows.map((r) => {
-      const cols = ROW_LENS[r] ?? 0;
-      const isOffset = cols === 6;
+   const cols = ROW_LENS[r] ?? 0;
+const isOffset = cols === 6;
+const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
-      const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
-
-      // ✅ use viewState + currentLayer + r + getLayerMoves()
-     const engineShiftRaw =
+const engineShiftRaw =
   (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
   (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
 
-const hasEngine = engineShiftRaw !== undefined && engineShiftRaw !== null;
 const engineShift = Number(engineShiftRaw ?? 0);
 
-const shift = hasEngine
-  ? (Number.isFinite(engineShift) ? engineShift : 0)
-  : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
+// ✅ IMPORTANT: only trust engine shift if it's NON-ZERO.
+// otherwise fall back to derived (so "0" doesn't kill movement)
+const rawShift =
+  Number.isFinite(engineShift) && engineShift !== 0
+    ? engineShift
+    : derivedRowShiftUnits(
+        viewState as any,
+        currentLayer,
+        r,
+        getLayerMoves(currentLayer)
+      );
 
+// ✅ wrap for correct visuals + mapping
+const ns = normalizeRowShift(rawShift, cols);
+const shift = ns.visual;
 
-      const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
+const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
 
-      return (
-        <div
-          key={"g-" + r}
-          className="ghostRow"
-          style={{ transform: "translateX(" + tx + ")" }}
         >
           {Array.from({ length: cols }, (_, c) => {
             const logicalId = idAtSlot(currentLayer, r, c, shift);
@@ -3135,31 +3149,32 @@ const shift = hasEngine
 
 
 {rows.map((r) => {
-  const cols = ROW_LENS[r] ?? 0;
-  const isOffset = cols === 6;
-
-  const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+const cols = ROW_LENS[r] ?? 0;
+const isOffset = cols === 6;
+const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
 const engineShiftRaw =
   (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
   (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
 
-const hasEngine = engineShiftRaw !== undefined && engineShiftRaw !== null;
 const engineShift = Number(engineShiftRaw ?? 0);
 
-const shift = hasEngine
-  ? (Number.isFinite(engineShift) ? engineShift : 0)
-  : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
+const rawShift =
+  Number.isFinite(engineShift) && engineShift !== 0
+    ? engineShift
+    : derivedRowShiftUnits(
+        viewState as any,
+        currentLayer,
+        r,
+        getLayerMoves(currentLayer)
+      );
+
+const ns = normalizeRowShift(rawShift, cols);
+const shift = ns.visual;
+
+const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
 
 
-
-  const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
-
-  return (
-    <div
-      key={"r-" + r}
-      className="hexRow"
-      style={{ transform: "translateX(" + tx + ")" }}
     >
 
       <div
