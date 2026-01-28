@@ -3187,6 +3187,10 @@ const base = "0px";
         <div className="pAura" />
         <div className="pOrbs" />
         {/* keep these inside if you want them clipped */}
+         <div className="pRunes" />
+                      <div className="pVortex" />
+                      <div className="pWell" />
+                      <div className="pShine" />
       </>
     ) : null}
 
