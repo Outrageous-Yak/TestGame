@@ -1316,7 +1316,8 @@ flex: 0 0 var(--hexWMain);
   border-radius: 10px;
   clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
     overflow:visible;
-    z-index 50;
+    z-index: 50;
+
 }
 
 
@@ -3074,35 +3075,35 @@ getLayerMoves(currentLayer))
 
           <div className="boardScroll" ref={scrollRef}>
             <div className="board" ref={boardRef}>
-              {showGhost && viewState ? (
+             {showGhost && viewState ? (
   <div className="ghostGrid">
- {rows.map((r) => {
-  const cols = ROW_LENS[r] ?? 0;
-  const isOffset = cols === 6;
+    {rows.map((r) => {
+      const cols = ROW_LENS[r] ?? 0;
+      const isOffset = cols === 6;
 
-  const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+      const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
-const engineShiftRaw =
-  (st as any)?.rowShifts?.[layer]?.[row] ??
-  (st as any)?.rowShifts?.["L" + layer]?.[row];
+      // ✅ use viewState + currentLayer + r + getLayerMoves()
+     const engineShiftRaw =
+  (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
+  (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
 
 const hasEngine = engineShiftRaw !== undefined && engineShiftRaw !== null;
 const engineShift = Number(engineShiftRaw ?? 0);
 
 const shift = hasEngine
   ? (Number.isFinite(engineShift) ? engineShift : 0)
-  : derivedRowShiftUnits(st, layer, row, movesTakenForThatLayer);
+  : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
 
 
-  const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
+      const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
 
-  return (
-    <div
-      key={"g-" + r}
-      className="ghostRow"
-      style={{ transform: "translateX(" + tx + ")" }}
-    >
-
+      return (
+        <div
+          key={"g-" + r}
+          className="ghostRow"
+          style={{ transform: "translateX(" + tx + ")" }}
+        >
           {Array.from({ length: cols }, (_, c) => {
             const logicalId = idAtSlot(currentLayer, r, c, shift);
             const lc = idToCoord(logicalId);
@@ -3132,6 +3133,7 @@ const shift = hasEngine
   </div>
 ) : null}
 
+
 {rows.map((r) => {
   const cols = ROW_LENS[r] ?? 0;
   const isOffset = cols === 6;
@@ -3139,15 +3141,16 @@ const shift = hasEngine
   const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
 const engineShiftRaw =
-  (st as any)?.rowShifts?.[layer]?.[row] ??
-  (st as any)?.rowShifts?.["L" + layer]?.[row];
+  (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
+  (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
 
 const hasEngine = engineShiftRaw !== undefined && engineShiftRaw !== null;
 const engineShift = Number(engineShiftRaw ?? 0);
 
 const shift = hasEngine
   ? (Number.isFinite(engineShift) ? engineShift : 0)
-  : derivedRowShiftUnits(st, layer, row, movesTakenForThatLayer);
+  : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
+
 
 
   const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
