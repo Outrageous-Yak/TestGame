@@ -2797,10 +2797,11 @@ useEffect(() => {
       }
 
       if (toLayer && fromLayer && toLayer !== fromLayer) {
-        setLayerMoves((prev) => ({ ...prev, [toLayer]: 0 }));
-        setLayerMoveArmed((prev) => ({ ...prev, [toLayer]: true }));
-         triggerLayerFx(nextLayer)          // 👈 add this
-, [triggerLayerFx]);}
+  setLayerMoves((prev) => ({ ...prev, [toLayer]: 0 }));
+  setLayerMoveArmed((prev) => ({ ...prev, [toLayer]: true }));
+  triggerLayerFx(toLayer);
+}
+
       
 
       if (moved) {
@@ -2854,6 +2855,7 @@ useEffect(() => {
       scenarioLayerCount,
       findTriggerForHex,
       getLayerMoves,
+       triggerLayerFx,
     ]
   );
 
@@ -3422,21 +3424,19 @@ useEffect(() => {
                                       ["--frameY" as any]: facingRow(playerFacing),
                                     } as any
                                   }
-                             {layerFx && (
+                         {layerFx ? (
   <div
     key={layerFx.key}
     className="layerFxOverlay"
-    style={{ ["--layerFxColor" as any]: layerFx.color }}
+    style={{ ["--layerFxColor" as any]: layerFx.color } as any}
     aria-live="polite"
   >
     <div className="layerFxCard">
       <div className="layerFxTitle">Layer {layerFx.layer}</div>
     </div>
   </div>
-)}
-      
-                                />
-                              ) : null}
+) : null}
+
                             </div>
                           </button>
                         </div>
