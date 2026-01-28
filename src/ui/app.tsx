@@ -2200,7 +2200,7 @@ const IDLE_FPS = 4;
   }, []);
 
   function facingRow(f: Facing) {
-    return f === "down" ? 0 : f === "left" ? 2 : f === "right" ? 1 : 3;
+    return f === "down" ? 0 : f === "left" ? 1 : f === "right" ? 2 : 3;
   }
 
   /* =========================
