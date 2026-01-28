@@ -2645,30 +2645,8 @@ useEffect(() => {
       }
 
       const pidBefore = (state as any)?.playerHexId as string | null;
-const pidAfter = (nextState as any).playerHexId as string | null;
 
-const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
-
-if (moved) {
-  setIsWalking(true);
-  if (walkTimer.current) window.clearTimeout(walkTimer.current);
-  walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-
-  const fromLayer =
-    (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
-
-  setPlayerFacing(
-    facingFromMoveVisual(
-      viewState as any,
-      pidBefore,
-      pidAfter,
-      fromLayer,
-      getLayerMoves(fromLayer)
-    )
-  );
-}
-
-
+      // encounters block movement until you roll a 6
       const vk = findTriggerForHex(id);
       if (vk) {
         pendingEncounterMoveIdRef.current = id;
@@ -2723,6 +2701,10 @@ if (moved) {
       }
 
       const pidAfter = (nextState as any).playerHexId as string | null;
+
+      const fromLayer =
+        (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
+
       const toLayer = pidAfter ? idToCoord(pidAfter)?.layer ?? null : null;
 
       const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
@@ -2743,16 +2725,20 @@ if (moved) {
       }
 
       if (moved) {
-  setIsWalking(true);
-  if (walkTimer.current) window.clearTimeout(walkTimer.current);
+        setIsWalking(true);
+        if (walkTimer.current) window.clearTimeout(walkTimer.current);
+        walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
 
-  // stop walking after a short time (so future moves re-trigger it cleanly)
-  walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-
-
-
-
-}
+        setPlayerFacing(
+          facingFromMoveVisual(
+            viewState as any,
+            pidBefore,
+            pidAfter,
+            fromLayer,
+            getLayerMoves(fromLayer)
+          )
+        );
+      }
 
       setState(nextState);
       setSelectedId(pidAfter ?? id);
@@ -2787,6 +2773,7 @@ if (moved) {
       computeOptimalFromReachMap,
       scenarioLayerCount,
       findTriggerForHex,
+      getLayerMoves,
     ]
   );
 
