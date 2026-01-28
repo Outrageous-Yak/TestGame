@@ -2122,34 +2122,30 @@ for (let layer = 1; layer <= scenarioLayerCount; layer++) {
   const lastRef = useRef(0);
   const [walkFrame, setWalkFrame] = useState(0);
 
-  const SPRITE_FPS = 10;
-  const FRAME_DURATION = 1000 / SPRITE_FPS;
+const WALK_FPS = 10;
+const IDLE_FPS = 4;
 
-  useEffect(() => {
-    if (!isWalking) {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-      setWalkFrame(0);
-      return;
+ useEffect(() => {
+  const fps = isWalking ? WALK_FPS : IDLE_FPS;
+  const frameDuration = 1000 / fps;
+
+  lastRef.current = performance.now();
+
+  const tick = (t: number) => {
+    if (t - lastRef.current >= frameDuration) {
+      setWalkFrame((f) => (f + 1) % SPRITE_COLS);
+      lastRef.current = t;
     }
-
-    lastRef.current = performance.now();
-
-    const tick = (t: number) => {
-      if (t - lastRef.current >= FRAME_DURATION) {
-        setWalkFrame((f) => (f + 1) % SPRITE_COLS);
-        lastRef.current = t;
-      }
-      rafRef.current = requestAnimationFrame(tick);
-    };
-
     rafRef.current = requestAnimationFrame(tick);
+  };
 
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    };
-  }, [isWalking, FRAME_DURATION]);
+  rafRef.current = requestAnimationFrame(tick);
+
+  return () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+  };
+}, [isWalking]);
 
   useEffect(() => {
     return () => {
@@ -2649,11 +2645,14 @@ for (let layer = 1; layer <= scenarioLayerCount; layer++) {
       }
 
       if (moved) {
-        setIsWalking(true);
-        if (walkTimer.current) window.clearTimeout(walkTimer.current);
-        
-        setPlayerFacing(facingFromMove(pidBefore, pidAfter));
-      }
+  setIsWalking(true);
+  if (walkTimer.current) window.clearTimeout(walkTimer.current);
+
+  // stop walking after a short time (so future moves re-trigger it cleanly)
+  walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+
+  setPlayerFacing(facingFromMove(pidBefore, pidAfter));
+}
 
       setState(nextState);
       setSelectedId(pidAfter ?? id);
