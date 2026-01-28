@@ -2651,7 +2651,7 @@ for (let layer = 1; layer <= scenarioLayerCount; layer++) {
       if (moved) {
         setIsWalking(true);
         if (walkTimer.current) window.clearTimeout(walkTimer.current);
-        walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+        l
         setPlayerFacing(facingFromMove(pidBefore, pidAfter));
       }
 
