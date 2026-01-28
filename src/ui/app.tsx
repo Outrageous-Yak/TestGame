@@ -2416,8 +2416,8 @@ const IDLE_FPS = 4;
   );
 
 /* =========================
-     Encounter resolution
-  ========================= */
+   Encounter resolution
+========================= */
 
 const prevRollingRef = useRef(false);
 useEffect(() => {
@@ -2467,7 +2467,7 @@ useEffect(() => {
 
     setPlayerFacing(
       facingFromMoveVisual(
-        viewState as any, // use the same state you used to render/move
+        viewState as any,
         pidBefore,
         pidAfter,
         fromLayer,
@@ -2502,6 +2502,7 @@ useEffect(() => {
   diceValue,
   state,
   currentLayer,
+  viewState,
   goalId,
   revealWholeLayer,
   computeOptimalFromReachMap,
@@ -2748,14 +2749,7 @@ if (moved) {
   // stop walking after a short time (so future moves re-trigger it cleanly)
   walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
 
-  setPlayerFacing(
-  facingFromMoveVisual(
-    viewState as any,
-    pidBefore,
-    pidAfter,
-    currentLayer,
-getLayerMoves((pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer)
-);
+
 
 
 }
