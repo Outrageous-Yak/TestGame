@@ -2800,7 +2800,7 @@ useEffect(() => {
         setLayerMoves((prev) => ({ ...prev, [toLayer]: 0 }));
         setLayerMoveArmed((prev) => ({ ...prev, [toLayer]: true }));
          triggerLayerFx(nextLayer)          // 👈 add this
-, [triggerLayerFx])};
+, [triggerLayerFx]);}
       
 
       if (moved) {
