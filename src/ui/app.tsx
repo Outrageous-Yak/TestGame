@@ -2643,10 +2643,29 @@ useEffect(() => {
         return;
       }
 
-      const pidBefore = (state as any).playerHexId as string | null;
-      const fromLayer = pidBefore ? idToCoord(pidBefore)?.layer ?? null : null;
-const fromLayer =
-  (pidBefore ? (idToCoord(pidBefore)?.layer ?? currentLayer) : currentLayer);
+      const pidBefore = (state as any)?.playerHexId as string | null;
+const pidAfter = (nextState as any).playerHexId as string | null;
+
+const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
+
+if (moved) {
+  setIsWalking(true);
+  if (walkTimer.current) window.clearTimeout(walkTimer.current);
+  walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+
+  const fromLayer =
+    (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
+
+  setPlayerFacing(
+    facingFromMoveVisual(
+      viewState as any,
+      pidBefore,
+      pidAfter,
+      fromLayer,
+      getLayerMoves(fromLayer)
+    )
+  );
+}
 
 
       const vk = findTriggerForHex(id);
