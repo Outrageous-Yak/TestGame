@@ -1037,8 +1037,12 @@ display: grid;
   display: flex;
   height: var(--hexHMain);
   align-items: center;
-  justify-content: center;
-  width: 100%;
+
+  /* ✅ this is the centering fix */
+  width: fit-content;
+  margin: 0 auto;
+
+  position: relative;
 }
 
 
@@ -1499,8 +1503,12 @@ flex: 0 0 var(--hexWMain);
   display: flex;
   height: var(--hexHMain);
   align-items: center;
-  justify-content: center;
-  width: 100%;
+
+  /* ✅ this is the centering fix */
+  width: fit-content;
+  margin: 0 auto;
+
+  position: relative;
 }
 
 .ghostSlot{
