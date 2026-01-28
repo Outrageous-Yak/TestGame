@@ -2829,8 +2829,8 @@ useEffect(() => {
       if (nextLayer !== currentLayer) {
         setCurrentLayer(nextLayer);
         revealWholeLayer(nextState, nextLayer);
-      triggerLayerFx(nextLayer);            // 👈 add this
-}, [triggerLayerFx]);   
+      triggerLayerFx(nextLayer);    
+       , [triggerLayerFx]);   
       }
 
       const rm = getReachability(nextState) as any;
