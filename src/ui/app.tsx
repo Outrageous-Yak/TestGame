@@ -2415,93 +2415,99 @@ const IDLE_FPS = 4;
     [items, rollDice, pushLog, state, revealRing, scenarioLayerCount, currentLayer]
   );
 
-  /* =========================
+/* =========================
      Encounter resolution
   ========================= */
 
-  const prevRollingRef = useRef(false);
-  useEffect(() => {
-    const wasRolling = prevRollingRef.current;
-    prevRollingRef.current = diceRolling;
+const prevRollingRef = useRef(false);
+useEffect(() => {
+  const wasRolling = prevRollingRef.current;
+  prevRollingRef.current = diceRolling;
 
-    if (!encounter) return;
-    if (diceRolling) return;
-    if (!wasRolling) return;
+  if (!encounter) return;
+  if (diceRolling) return;
+  if (!wasRolling) return;
 
-    setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
-    if (diceValue !== 6) return;
+  setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
+  if (diceValue !== 6) return;
 
-    const targetId = pendingEncounterMoveIdRef.current;
-    pendingEncounterMoveIdRef.current = null;
+  const targetId = pendingEncounterMoveIdRef.current;
+  pendingEncounterMoveIdRef.current = null;
 
-    setEncounter(null);
+  setEncounter(null);
 
-    if (!state || !targetId) return;
+  if (!state || !targetId) return;
 
-    const res: any = tryMove(state as any, targetId);
-    const nextState = unwrapNextState(res);
+  const res: any = tryMove(state as any, targetId);
+  const nextState = unwrapNextState(res);
 
-    if (!nextState) {
-      const msg =
-        (res &&
-          typeof res === "object" &&
-          "reason" in res &&
-          String((res as any).reason)) ||
-        "Move failed.";
-      pushLog(msg, "bad");
-      return;
-    }
+  if (!nextState) {
+    const msg =
+      (res &&
+        typeof res === "object" &&
+        "reason" in res &&
+        String((res as any).reason)) ||
+      "Move failed.";
+    pushLog(msg, "bad");
+    return;
+  }
 
-    const pidBefore = (state as any)?.playerHexId as string | null;
-    const pidAfter = (nextState as any).playerHexId as string | null;
+  const pidBefore = (state as any)?.playerHexId as string | null;
+  const pidAfter = (nextState as any).playerHexId as string | null;
 
-    const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
-    if (moved) {
-      setIsWalking(true);
-      if (walkTimer.current) window.clearTimeout(walkTimer.current);
-      walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-      setPlayerFacing(
-  facingFromMoveVisual(
-    viewState as any,                  // use the same state you used to render/move
-    pidBefore,
-    pidAfter,
-    currentLayer,
-  getLayerMoves((pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer)
-);
+  const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
 
-    }
+  if (moved) {
+    setIsWalking(true);
+    if (walkTimer.current) window.clearTimeout(walkTimer.current);
+    walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
 
-    setMovesTaken((n) => n + 1);
+    const fromLayer =
+      (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
 
-    setState(nextState);
-    forceRender((n) => n + 1);
+    setPlayerFacing(
+      facingFromMoveVisual(
+        viewState as any, // use the same state you used to render/move
+        pidBefore,
+        pidAfter,
+        fromLayer,
+        getLayerMoves(fromLayer)
+      )
+    );
+  }
 
-    const c2 = pidAfter ? idToCoord(pidAfter) : null;
-    const nextLayer = c2?.layer ?? currentLayer;
+  setMovesTaken((n) => n + 1);
 
-    enterLayer(nextState, nextLayer);
+  setState(nextState);
+  forceRender((n) => n + 1);
 
-    if (nextLayer !== currentLayer) {
-      setCurrentLayer(nextLayer);
-      revealWholeLayer(nextState, nextLayer);
-    }
+  const c2 = pidAfter ? idToCoord(pidAfter) : null;
+  const nextLayer = c2?.layer ?? currentLayer;
 
-    const rm = getReachability(nextState) as any;
-    setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+  enterLayer(nextState, nextLayer);
 
-    pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
-    if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
-  }, [
-    encounter,
-    diceRolling,
-    diceValue,
-    state,
-    currentLayer,
-    goalId,
-    revealWholeLayer,
-    computeOptimalFromReachMap,
-    pushLog,
-  ]);
+  if (nextLayer !== currentLayer) {
+    setCurrentLayer(nextLayer);
+    revealWholeLayer(nextState, nextLayer);
+  }
+
+  const rm = getReachability(nextState) as any;
+  setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+
+  pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
+  if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
+}, [
+  encounter,
+  diceRolling,
+  diceValue,
+  state,
+  currentLayer,
+  goalId,
+  revealWholeLayer,
+  computeOptimalFromReachMap,
+  pushLog,
+]);
+
 
   /* =========================
      Start scenario
@@ -2639,6 +2645,9 @@ const IDLE_FPS = 4;
 
       const pidBefore = (state as any).playerHexId as string | null;
       const fromLayer = pidBefore ? idToCoord(pidBefore)?.layer ?? null : null;
+const fromLayer =
+  (pidBefore ? (idToCoord(pidBefore)?.layer ?? currentLayer) : currentLayer);
+
 
       const vk = findTriggerForHex(id);
       if (vk) {
