@@ -2799,7 +2799,9 @@ useEffect(() => {
       if (toLayer && fromLayer && toLayer !== fromLayer) {
         setLayerMoves((prev) => ({ ...prev, [toLayer]: 0 }));
         setLayerMoveArmed((prev) => ({ ...prev, [toLayer]: true }));
-      }
+         triggerLayerFx(nextLayer)          // 👈 add this
+, [triggerLayerFx])};
+      
 
       if (moved) {
         setIsWalking(true);
@@ -2829,9 +2831,8 @@ useEffect(() => {
       if (nextLayer !== currentLayer) {
         setCurrentLayer(nextLayer);
         revealWholeLayer(nextState, nextLayer);
-      triggerLayerFx(nextLayer);    
-       , [triggerLayerFx]);   
-      }
+    
+      };
 
       const rm = getReachability(nextState) as any;
       setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
