@@ -2454,8 +2454,7 @@ const IDLE_FPS = 4;
     pidBefore,
     pidAfter,
     currentLayer,
-    movesTaken        // important: use per-layer moves
-  )
+  getLayerMoves(currentLayer))
 );
 
     }
@@ -2715,8 +2714,7 @@ const IDLE_FPS = 4;
     pidBefore,
     pidAfter,
     currentLayer,
-    movesTaken
-  )
+getLayerMoves(currentLayer))
 );
 
 
@@ -3085,15 +3083,15 @@ const IDLE_FPS = 4;
   const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
 const engineShiftRaw =
-  (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
-  (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
+  (st as any)?.rowShifts?.[layer]?.[row] ??
+  (st as any)?.rowShifts?.["L" + layer]?.[row];
 
 const hasEngine = engineShiftRaw !== undefined && engineShiftRaw !== null;
 const engineShift = Number(engineShiftRaw ?? 0);
 
 const shift = hasEngine
   ? (Number.isFinite(engineShift) ? engineShift : 0)
-  : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
+  : derivedRowShiftUnits(st, layer, row, movesTakenForThatLayer);
 
 
   const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
@@ -3141,15 +3139,15 @@ const shift = hasEngine
   const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
 const engineShiftRaw =
-  (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
-  (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
+  (st as any)?.rowShifts?.[layer]?.[row] ??
+  (st as any)?.rowShifts?.["L" + layer]?.[row];
 
 const hasEngine = engineShiftRaw !== undefined && engineShiftRaw !== null;
 const engineShift = Number(engineShiftRaw ?? 0);
 
 const shift = hasEngine
   ? (Number.isFinite(engineShift) ? engineShift : 0)
-  : derivedRowShiftUnits(viewState as any, currentLayer, r, movesTaken);
+  : derivedRowShiftUnits(st, layer, row, movesTakenForThatLayer);
 
 
   const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
