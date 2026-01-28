@@ -358,9 +358,10 @@ function facingFromMoveVisual(
   const dRow = b.row - a.row;
 
   // prefer horizontal when it's clearly horizontal
-  if (Math.abs(dx) >= Math.abs(dRow) * 0.5) {
-    return dx > 0 ? "left" : dx < 0 ? "right" : "down";
-  }
+if (Math.abs(dx) >= Math.abs(dRow) * 0.5) {
+  return dx > 0 ? "right" : dx < 0 ? "left" : "down";
+}
+
   return dRow > 0 ? "down" : "up";
 }
 
@@ -433,11 +434,16 @@ function derivedRowShiftUnits(
   const cols = ROW_LENS[row] ?? 7;
 
   // 7-wide rows shift LEFT, 6-wide rows shift RIGHT, each move.
-  if (pat === "SEVEN_LEFT_SIX_RIGHT") {
-    if (cols === 7) return -movesTaken;
-    if (cols === 6) return movesTaken;
-    return 0;
-  }
+if (pat === "SEVEN_LEFT_SIX_RIGHT") {
+  let raw = 0;
+  if (cols === 7) raw = -movesTaken;   // 7-wide left
+  else if (cols === 6) raw = movesTaken; // 6-wide right
+
+  // ✅ alternate per layer: L2 opposite of L1, L4 opposite of L3, etc.
+  if (layer % 2 === 0) raw = -raw;
+
+  return raw;
+}
 
   return 0;
 }
@@ -2708,13 +2714,14 @@ const IDLE_FPS = 4;
 
   setPlayerFacing(
   facingFromMoveVisual(
-    state as any,
+    viewState as any,
     pidBefore,
     pidAfter,
     currentLayer,
     getLayerMoves(currentLayer)
   )
 );
+
 
 }
 
@@ -3075,9 +3082,8 @@ const IDLE_FPS = 4;
               {showGhost && viewState ? (
   <div className="ghostGrid">
     {rows.map((r) => {
-    const cols = ROW_LENS[r] ?? 0;
-const isOffset = cols === 6;
-const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+  const cols = ROW_LENS[r] ?? 0;
+const base = cols === 6 ? "calc(var(--hexStepX) / -2)" : "0px";
 
       const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
       const shift =
@@ -3129,9 +3135,8 @@ const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
 
             {rows.map((r) => {
-  const cols = ROW_LENS[r] ?? 0;
-const isOffset = cols === 6;
-const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+const cols = ROW_LENS[r] ?? 0;
+const base = cols === 6 ? "calc(var(--hexStepX) / -2)" : "0px";
 
 
   const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
