@@ -477,6 +477,29 @@ const shiftCur =
     ? engineShiftCur
     : derivedRowShiftUnits(st, c.layer, c.row, movesTaken);
 
+// Layer transition overlay (flash + text, blocks input)
+const [layerFx, setLayerFx] = useState<null | { layer: number; color: string; key: number }>(null);
+const layerFxTimer = useRef<number | null>(null);
+
+const LAYER_COLORS: Record<number, string> = {
+  1: "rgba(140, 180, 255, 0.45)", // example
+  2: "rgba(255, 140, 40, 0.55)",  // orange
+  3: "rgba(120, 255, 210, 0.45)",
+};
+
+const triggerLayerFx = useCallback((layer: number) => {
+  // clear any existing timer
+  if (layerFxTimer.current != null) window.clearTimeout(layerFxTimer.current);
+
+  const color = LAYER_COLORS[layer] ?? "rgba(255,255,255,0.35)";
+  setLayerFx({ layer, color, key: Date.now() });
+
+  // hide after 3s
+  layerFxTimer.current = window.setTimeout(() => {
+    setLayerFx(null);
+    layerFxTimer.current = null;
+  }, 3000);
+}, []);
 
 
   // player’s visual slot column
@@ -1874,6 +1897,59 @@ flex: 0 0 var(--hexWMain);
   background: rgba(0,0,0,.25);
 }
 .villainMeta{ display:grid; gap: 10px; }
+.layerFxOverlay{
+  position: absolute;
+  inset: 0;
+  z-index: 999;               /* higher than board + pieces */
+  pointer-events: auto;       /* blocks clicks */
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+/* Flash */
+.layerFxOverlay::before{
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background: var(--layerFxColor, rgba(255,255,255,.35));
+  animation: layerFlash 3s ease-out forwards;
+}
+
+/* Center textbox */
+.layerFxCard{
+  position: relative;
+  z-index: 1;
+  padding: 18px 22px;
+  border-radius: 16px;
+  background: rgba(10,12,18,.72);
+  border: 1px solid rgba(255,255,255,.18);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 18px 60px rgba(0,0,0,.45);
+  animation: layerCardPop 3s ease-out forwards;
+}
+
+.layerFxTitle{
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  color: rgba(255,255,255,.92);
+}
+
+@keyframes layerFlash{
+  0%   { opacity: 0; transform: scale(1.02); }
+  8%   { opacity: 1; }
+  55%  { opacity: .65; }
+  100% { opacity: 0; transform: scale(1.06); }
+}
+
+@keyframes layerCardPop{
+  0%   { opacity: 0; transform: translateY(10px) scale(.98); }
+  10%  { opacity: 1; transform: translateY(0) scale(1); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-6px) scale(.99); }
+}
 
 /* =========================================================
    SCROLLBARS
@@ -1946,6 +2022,29 @@ export default function App() {
   const [showGhost, setShowGhost] = useState(false);
 
   const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
+// Layer transition overlay (flash + text, blocks input)
+const [layerFx, setLayerFx] = useState<null | { layer: number; color: string; key: number }>(null);
+const layerFxTimer = useRef<number | null>(null);
+
+const LAYER_COLORS: Record<number, string> = {
+  1: "rgba(140, 180, 255, 0.45)", // example
+  2: "rgba(255, 140, 40, 0.55)",  // orange
+  3: "rgba(120, 255, 210, 0.45)",
+};
+
+const triggerLayerFx = useCallback((layer: number) => {
+  // clear any existing timer
+  if (layerFxTimer.current != null) window.clearTimeout(layerFxTimer.current);
+
+  const color = LAYER_COLORS[layer] ?? "rgba(255,255,255,0.35)";
+  setLayerFx({ layer, color, key: Date.now() });
+
+  // hide after 3s
+  layerFxTimer.current = window.setTimeout(() => {
+    setLayerFx(null);
+    layerFxTimer.current = null;
+  }, 3000);
+}, []);
 
   const boardRef = useRef<HTMLDivElement | null>(null);
   const playerBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -2752,6 +2851,8 @@ useEffect(() => {
       if (nextLayer !== currentLayer) {
         setCurrentLayer(nextLayer);
         revealWholeLayer(nextState, nextLayer);
+      triggerLayerFx(nextLayer);            // 👈 add this
+}, [triggerLayerFx]);   
       }
 
       const rm = getReachability(nextState) as any;
@@ -3342,6 +3443,19 @@ useEffect(() => {
                                       ["--frameY" as any]: facingRow(playerFacing),
                                     } as any
                                   }
+                             {layerFx && (
+  <div
+    key={layerFx.key}
+    className="layerFxOverlay"
+    style={{ ["--layerFxColor" as any]: layerFx.color }}
+    aria-live="polite"
+  >
+    <div className="layerFxCard">
+      <div className="layerFxTitle">Layer {layerFx.layer}</div>
+    </div>
+  </div>
+)}
+      
                                 />
                               ) : null}
                             </div>
