@@ -317,6 +317,52 @@ function facingFromMove(fromId: string | null, toId: string | null): "down" | "u
   if (Math.abs(dCol) >= Math.abs(dRow)) return dCol > 0 ? "right" : dCol < 0 ? "left" : "down";
   return dRow > 0 ? "down" : "up";
 }
+function facingFromMoveVisual(
+  st: any,
+  fromId: string | null,
+  toId: string | null,
+  layer: number,
+  movesTakenForLayer: number
+): "down" | "up" | "left" | "right" {
+  const a = fromId ? idToCoord(fromId) : null;
+  const b = toId ? idToCoord(toId) : null;
+  if (!a || !b) return "down";
+
+  // different layer: you can choose a rule; keep "down"
+  if (a.layer !== b.layer) return "down";
+
+  // compute current visual shift for each row
+  const shiftAEngine = getRowShiftUnits(st, layer, a.row);
+  const shiftA =
+    shiftAEngine !== 0 ? shiftAEngine : derivedRowShiftUnits(st, layer, a.row, movesTakenForLayer);
+
+  const shiftBEngine = getRowShiftUnits(st, layer, b.row);
+  const shiftB =
+    shiftBEngine !== 0 ? shiftBEngine : derivedRowShiftUnits(st, layer, b.row, movesTakenForLayer);
+
+  // convert original col -> visual slot col
+  const slotA = slotOfId(a.row, a.col, shiftA);
+  const slotB = slotOfId(b.row, b.col, shiftB);
+
+  // turn slot col into visual X (include 6-row half offset)
+  const lenA = ROW_LENS[a.row] ?? 7;
+  const lenB = ROW_LENS[b.row] ?? 7;
+
+  const baseA = lenA === 6 ? -0.5 : 0; // measured in "hexStepX units"
+  const baseB = lenB === 6 ? -0.5 : 0;
+
+  const xA = (baseA + slotA);
+  const xB = (baseB + slotB);
+
+  const dx = xB - xA;
+  const dRow = b.row - a.row;
+
+  // prefer horizontal when it's clearly horizontal
+  if (Math.abs(dx) >= Math.abs(dRow) * 0.5) {
+    return dx > 0 ? "right" : dx < 0 ? "left" : "down";
+  }
+  return dRow > 0 ? "down" : "up";
+}
 
 function unwrapNextState(res: any): GameState | null {
   if (!res) return null;
@@ -2399,7 +2445,16 @@ const IDLE_FPS = 4;
       setIsWalking(true);
       if (walkTimer.current) window.clearTimeout(walkTimer.current);
       walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-      setPlayerFacing(facingFromMove(pidBefore, pidAfter));
+      setPlayerFacing(
+  facingFromMoveVisual(
+    viewState as any,                  // use the same state you used to render/move
+    pidBefore,
+    pidAfter,
+    currentLayer,
+    getLayerMoves(currentLayer)        // important: use per-layer moves
+  )
+);
+
     }
 
     setMovesTaken((n) => n + 1);
@@ -2651,7 +2706,16 @@ const IDLE_FPS = 4;
   // stop walking after a short time (so future moves re-trigger it cleanly)
   walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
 
-  setPlayerFacing(facingFromMove(pidBefore, pidAfter));
+  setPlayerFacing(
+  facingFromMoveVisual(
+    state as any,
+    pidBefore,
+    pidAfter,
+    currentLayer,
+    getLayerMoves(currentLayer)
+  )
+);
+
 }
 
       setState(nextState);
