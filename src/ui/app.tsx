@@ -3108,295 +3108,307 @@ if (moved) {
 
           <div className="boardScroll" ref={scrollRef}>
             <div className="board" ref={boardRef}>
-             {showGhost && viewState ? (
-  <div className="ghostGrid">
-    {rows.map((r) => {
-   const cols = ROW_LENS[r] ?? 0;
-const isOffset = cols === 6;
-const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+              {showGhost && viewState ? (
+                <div className="ghostGrid">
+                  {rows.map((r) => {
+                    const cols = ROW_LENS[r] ?? 0;
+                    const isOffset = cols === 6;
+                    const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
-const engineShiftRaw =
-  (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
-  (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
+                    const engineShiftRaw =
+                      (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
+                      (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
 
-const engineShift = Number(engineShiftRaw ?? 0);
+                    const engineShift = Number(engineShiftRaw ?? 0);
 
-// ✅ IMPORTANT: only trust engine shift if it's NON-ZERO.
-// otherwise fall back to derived (so "0" doesn't kill movement)
-const rawShift =
-  Number.isFinite(engineShift) && engineShift !== 0
-    ? engineShift
-    : derivedRowShiftUnits(
-        viewState as any,
-        currentLayer,
-        r,
-        getLayerMoves(currentLayer)
-      );
+                    const rawShift =
+                      Number.isFinite(engineShift) && engineShift !== 0
+                        ? engineShift
+                        : derivedRowShiftUnits(
+                            viewState as any,
+                            currentLayer,
+                            r,
+                            getLayerMoves(currentLayer)
+                          );
 
-// ✅ wrap for correct visuals + mapping
-const ns = normalizeRowShift(rawShift, cols);
-const shift = ns.visual;
+                    const ns = normalizeRowShift(rawShift, cols);
+                    const shift = ns.visual;
 
-const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
+                    const tx =
+                      "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
 
-        >
-          {Array.from({ length: cols }, (_, c) => {
-            const logicalId = idAtSlot(currentLayer, r, c, shift);
-            const lc = idToCoord(logicalId);
+                    return (
+                      <div
+                        key={"ghost-row-" + r}
+                        className="ghostRow"
+                        style={{ transform: "translateX(" + tx + ")" }}
+                      >
+                        {Array.from({ length: cols }, (_, c) => {
+                          const logicalId = idAtSlot(currentLayer, r, c, shift);
+                          const lc = idToCoord(logicalId);
 
-            return (
-              <div key={"g-" + r + "-" + c} className="ghostSlot">
-                <div
-                  style={{
-                    position: "relative",
-                    width: "100%",
-                    height: "100%",
-                    display: "grid",
-                    placeItems: "center",
-                  }}
-                >
-                  <div className="ghostHex" />
-                  <div className="ghostText">
-                    {r + "," + (lc ? lc.col : c)}
-                  </div>
+                          return (
+                            <div key={"g-" + r + "-" + c} className="ghostSlot">
+                              <div
+                                style={{
+                                  position: "relative",
+                                  width: "100%",
+                                  height: "100%",
+                                  display: "grid",
+                                  placeItems: "center",
+                                }}
+                              >
+                                <div className="ghostHex" />
+                                <div className="ghostText">
+                                  {r + "," + (lc ? lc.col : c)}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      );
-    })}
-  </div>
-) : null}
+              ) : null}
 
+              {rows.map((r) => {
+                const cols = ROW_LENS[r] ?? 0;
+                const isOffset = cols === 6;
+                const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
-{rows.map((r) => {
-const cols = ROW_LENS[r] ?? 0;
-const isOffset = cols === 6;
-const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+                const engineShiftRaw =
+                  (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
+                  (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
 
-const engineShiftRaw =
-  (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
-  (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
+                const engineShift = Number(engineShiftRaw ?? 0);
 
-const engineShift = Number(engineShiftRaw ?? 0);
+                const rawShift =
+                  Number.isFinite(engineShift) && engineShift !== 0
+                    ? engineShift
+                    : derivedRowShiftUnits(
+                        viewState as any,
+                        currentLayer,
+                        r,
+                        getLayerMoves(currentLayer)
+                      );
 
-const rawShift =
-  Number.isFinite(engineShift) && engineShift !== 0
-    ? engineShift
-    : derivedRowShiftUnits(
-        viewState as any,
-        currentLayer,
-        r,
-        getLayerMoves(currentLayer)
-      );
+                const ns = normalizeRowShift(rawShift, cols);
+                const shift = ns.visual;
 
-const ns = normalizeRowShift(rawShift, cols);
-const shift = ns.visual;
+                const tx =
+                  "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
 
-const tx = "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
+                return (
+                  <div
+                    key={"row-" + r}
+                    className="hexRow"
+                    style={{ transform: "translateX(" + tx + ")" }}
+                  >
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: 8,
+                        opacity: 0.35,
+                        fontSize: 12,
+                      }}
+                    >
+                      r{r} shift:{shift}
+                    </div>
 
+                    {Array.from({ length: cols }, (_, c) => {
+                      const id = idAtSlot(currentLayer, r, c, shift);
 
-    >
+                      const hex = getHexFromState(viewState as any, id) as any;
+                      const bm = isBlockedOrMissing(hex);
 
-      <div
-        style={{
-          position: "absolute",
-          left: 8,
-          opacity: 0.35,
-          fontSize: 12,
-        }}
-      >
-        r{r} shift:{shift}
-      </div>
+                      const portalDir = findPortalDirection(
+                        (viewState as any)?.scenario?.transitions,
+                        id
+                      );
 
-      {Array.from({ length: cols }, (_, c) => {
-        const id = idAtSlot(currentLayer, r, c, shift);
+                      const isPortalUp = portalDir === "up";
+                      const isPortalDown = portalDir === "down";
 
-        const hex = getHexFromState(viewState as any, id) as any;
-        const bm = isBlockedOrMissing(hex);
+                      if (bm.missing) return <div key={id} className="hexSlot empty" />;
 
-        const portalDir = findPortalDirection(
-          (viewState as any)?.scenario?.transitions,
-          id
-        );
+                      const isSel = selectedId === id;
+                      const isPlayer = isPlayerHere(id);
+                      const isStart = startHexId === id;
 
-        const isPortalUp = portalDir === "up";
-        const isPortalDown = portalDir === "down";
+                      const isReach =
+                        playerLayer === currentLayer && !isPlayer && reachable.has(id);
 
-        if (bm.missing) return <div key={id} className="hexSlot empty" />;
+                      const upLayer = Math.min(scenarioLayerCount, currentLayer + 1);
+                      const downLayer = Math.max(1, currentLayer - 1);
 
-        const isSel = selectedId === id;
-        const isPlayer = isPlayerHere(id);
-        const isStart = startHexId === id;
+                      const portalTargetLayer = isPortalUp
+                        ? upLayer
+                        : isPortalDown
+                        ? downLayer
+                        : null;
 
-        const isReach =
-          playerLayer === currentLayer && !isPlayer && reachable.has(id);
+                      const portalColor = portalTargetLayer
+                        ? layerCssVar(portalTargetLayer)
+                        : null;
 
-        const upLayer = Math.min(scenarioLayerCount, currentLayer + 1);
-        const downLayer = Math.max(1, currentLayer - 1);
+                      const isGoal = goalId === id;
+                      const isTrigger = !!findTriggerForHex(id);
+                      const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
 
-        const portalTargetLayer = isPortalUp
-          ? upLayer
-          : isPortalDown
-          ? downLayer
-          : null;
+                      return (
+                        <div key={"v-" + r + "-" + c} className="hexSlot">
+                          <button
+                            ref={isPlayer ? playerBtnRef : null}
+                            className={[
+                              "hex",
+                              isSel ? "sel" : "",
+                              isReach ? "reach" : "",
+                              bm.blocked ? "blocked" : "",
+                              isPlayer ? "player" : "",
+                              isGoal ? "goal" : "",
+                              isTrigger ? "trigger" : "",
+                              isStart ? "portalStart" : "",
+                              isPortalUp ? "portalUp" : "",
+                              isPortalDown ? "portalDown" : "",
+                            ].join(" ")}
+                            onClick={() => {
+                              if (playerLayer && currentLayer !== playerLayer) {
+                                tryMoveToId(id);
+                                return;
+                              }
+                              setSelectedId(id);
+                              tryMoveToId(id);
+                            }}
+                            disabled={!state || bm.blocked || bm.missing || encounterActive}
+                            style={
+                              {
+                                ["--hexGlow" as any]: layerCssVar(currentLayer),
+                                ...(portalColor
+                                  ? { ["--portalC" as any]: portalColor }
+                                  : {}),
+                              } as any
+                            }
+                            title={id}
+                          >
+                            <div className="hexAnchor">
+                              {/* OUTSIDE-CLIP PORTAL DISC */}
+                              {isPortalUp || isPortalDown ? (
+                                <div className="portalOuter">
+                                  <div className="pRim" />
+                                  <div className="pOval" />
+                                </div>
+                              ) : null}
 
-        const portalColor = portalTargetLayer
-          ? layerCssVar(portalTargetLayer)
-          : null;
+                              {/* CLIPPED TILE */}
+                              <div
+                                className="hexInner"
+                                style={tile ? { backgroundImage: tile } : undefined}
+                              >
+                                {isPortalUp || isPortalDown ? (
+                                  <>
+                                    <div className="pAura" />
+                                    <div className="pOrbs" />
+                                    <div className="pRunes" />
+                                    <div className="pVortex" />
+                                    <div className="pWell" />
+                                    <div className="pShine" />
+                                  </>
+                                ) : null}
 
-        const isGoal = goalId === id;
-        const isTrigger = !!findTriggerForHex(id);
-        const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
+                                {isStart ? (
+                                  <>
+                                    <div className="pAura" />
+                                    <div className="pRunes" />
+                                    <div className="pVortex" />
+                                    <div className="pWell" />
+                                    <div className="pShine" />
+                                  </>
+                                ) : null}
 
-        return (
-          <div key={"v-" + r + "-" + c} className="hexSlot">
-            <button
-              ref={isPlayer ? playerBtnRef : null}
-              className={[
-                "hex",
-                isSel ? "sel" : "",
-                isReach ? "reach" : "",
-                bm.blocked ? "blocked" : "",
-                isPlayer ? "player" : "",
-                isGoal ? "goal" : "",
-                isTrigger ? "trigger" : "",
-                isStart ? "portalStart" : "",
-                isPortalUp ? "portalUp" : "",
-                isPortalDown ? "portalDown" : "",
-              ].join(" ")}
-              onClick={() => {
-                if (playerLayer && currentLayer !== playerLayer) {
-                  tryMoveToId(id);
-                  return;
-                }
-                setSelectedId(id);
-                tryMoveToId(id);
-              }}
-              disabled={!state || bm.blocked || bm.missing || encounterActive}
-              style={
-                {
-                  ["--hexGlow" as any]: layerCssVar(currentLayer),
-                  ...(portalColor ? { ["--portalC" as any]: portalColor } : {}),
-                } as any
-              }
-              title={id}
-            >
-             <div className="hexAnchor">
-  {/* OUTSIDE-CLIP PORTAL DISC */}
-  {isPortalUp || isPortalDown ? (
-    <div className="portalOuter">
-      <div className="pRim" />
-      <div className="pOval" />
-    </div>
-  ) : null}
+                                <div className="hexId">
+                                  {r},{c}
+                                </div>
 
-  {/* CLIPPED TILE */}
-  <div className="hexInner" style={tile ? { backgroundImage: tile } : undefined}>
-    {isPortalUp || isPortalDown ? (
-      <>
-        <div className="pAura" />
-        <div className="pOrbs" />
-        {/* keep these inside if you want them clipped */}
-         <div className="pRunes" />
-                      <div className="pVortex" />
-                      <div className="pWell" />
-                      <div className="pShine" />
-      </>
-    ) : null}
+                                <div className="hexMarks">
+                                  {isPortalUp ? <span className="mark">↑</span> : null}
+                                  {isPortalDown ? <span className="mark">↓</span> : null}
+                                  {isGoal ? <span className="mark g">G</span> : null}
+                                  {isTrigger ? <span className="mark t">!</span> : null}
+                                </div>
+                              </div>
 
-                  {isStart ? (
-                    <>
-                      <div className="pAura" />
-                      <div className="pRunes" />
-                      <div className="pVortex" />
-                      <div className="pWell" />
-                      <div className="pShine" />
-                    </>
-                  ) : null}
-
-                  <div className="hexId">
-                    {r},{c}
+                              {isPlayer ? (
+                                <span
+                                  className={
+                                    "playerSpriteSheet " + (isWalking ? "walking" : "")
+                                  }
+                                  style={
+                                    {
+                                      ["--spriteImg" as any]:
+                                        "url(" + spriteSheetUrl() + ")",
+                                      ["--frameW" as any]: FRAME_W,
+                                      ["--frameH" as any]: FRAME_H,
+                                      ["--cols" as any]: SPRITE_COLS,
+                                      ["--rows" as any]: SPRITE_ROWS,
+                                      ["--frameX" as any]: walkFrame,
+                                      ["--frameY" as any]: facingRow(playerFacing),
+                                    } as any
+                                  }
+                                />
+                              ) : null}
+                            </div>
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
-
-                  <div className="hexMarks">
-                    {isPortalUp ? <span className="mark">↑</span> : null}
-                    {isPortalDown ? <span className="mark">↓</span> : null}
-                    {isGoal ? <span className="mark g">G</span> : null}
-                    {isTrigger ? <span className="mark t">!</span> : null}
-                  </div>
-                </div>
-
-                {isPlayer ? (
-                  <span
-                    className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
-                    style={
-                      {
-                        ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
-                        ["--frameW" as any]: FRAME_W,
-                        ["--frameH" as any]: FRAME_H,
-                        ["--cols" as any]: SPRITE_COLS,
-                        ["--rows" as any]: SPRITE_ROWS,
-                        ["--frameX" as any]: walkFrame,
-                        ["--frameY" as any]: facingRow(playerFacing),
-                      } as any
-                    }
-                  />
-                ) : null}
-              </div>
-            </button>
+                );
+              })}
+            </div>
           </div>
-        );
-      })}
-    </div>
-  );
-})}
-                </div> {/* ✅ closes .board */}
-          </div>   {/* ✅ closes .boardScroll */}
 
           <SideBar side="right" currentLayer={currentLayer} />
-        </div>     {/* ✅ closes .boardWrap */}
+        </div>
 
         <div className="side">
-          <div className="side">
-  <div className="panelMini">
-    <div className="miniTitle">Status</div>
+          <div className="panelMini">
+            <div className="miniTitle">Status</div>
 
-    <div className="miniRow">
-      <span className="k">Layer</span>
-      <span className="v">{currentLayer}/{scenarioLayerCount}</span>
-    </div>
+            <div className="miniRow">
+              <span className="k">Layer</span>
+              <span className="v">
+                {currentLayer}/{scenarioLayerCount}
+              </span>
+            </div>
 
-    <div className="miniRow">
-      <span className="k">Moves</span>
-      <span className="v">{movesTaken}</span>
-    </div>
+            <div className="miniRow">
+              <span className="k">Moves</span>
+              <span className="v">{movesTaken}</span>
+            </div>
 
-    <div className="miniRow">
-      <span className="k">Optimal (start)</span>
-      <span className="v">{optimalAtStart ?? "-"}</span>
-    </div>
+            <div className="miniRow">
+              <span className="k">Optimal (start)</span>
+              <span className="v">{optimalAtStart ?? "-"}</span>
+            </div>
 
-    <div className="miniRow">
-      <span className="k">Optimal (now)</span>
-      <span className="v">{optimalFromNow ?? "-"}</span>
-    </div>
-  </div>
+            <div className="miniRow">
+              <span className="k">Optimal (now)</span>
+              <span className="v">{optimalFromNow ?? "-"}</span>
+            </div>
+          </div>
 
-  <div className="panelMini">
-    <div className="miniTitle">Log</div>
-    <div className="log">
-      {log.map((e) => (
-        <div key={e.n} className={"logRow " + (e.kind ?? "")}>
-          <div className="lt">{e.t}</div>
-          <div className="lm">{e.msg}</div>
-        </div>
-      ))}
-    </div>
-  </div>
-</div>
-
+          <div className="panelMini">
+            <div className="miniTitle">Log</div>
+            <div className="log">
+              {log.map((e) => (
+                <div key={e.n} className={"logRow " + (e.kind ?? "")}>
+                  <div className="lt">{e.t}</div>
+                  <div className="lm">{e.msg}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
