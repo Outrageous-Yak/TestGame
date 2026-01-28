@@ -3075,8 +3075,9 @@ const IDLE_FPS = 4;
               {showGhost && viewState ? (
   <div className="ghostGrid">
     {rows.map((r) => {
-      const cols = ROW_LENS[r] ?? 0;
-     const base = "0px";
+    const cols = ROW_LENS[r] ?? 0;
+const isOffset = cols === 6;
+const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
       const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
       const shift =
@@ -3129,7 +3130,9 @@ const IDLE_FPS = 4;
 
             {rows.map((r) => {
   const cols = ROW_LENS[r] ?? 0;
-const base = "0px";
+const isOffset = cols === 6;
+const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+
 
   const engineShift = getRowShiftUnits(viewState as any, currentLayer, r);
   const shift =
