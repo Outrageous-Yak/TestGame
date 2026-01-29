@@ -1038,8 +1038,8 @@ display: grid;
   width: var(--boardW);
   margin: 0 auto;
   padding: var(--boardPadTop) 0 var(--boardPadBottom);
- position: relative; /* ADD THIS */
-   height: var(--hexFieldH); /* ✅ add here */
+  position: relative;
+  height: var(--hexFieldH);
 }
 
 /* =========================================================
