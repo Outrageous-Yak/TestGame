@@ -1047,13 +1047,9 @@ display: grid;
 ========================================================= */
 .hexRow{
   display: flex;
-  height: var(--hexHMain);
   align-items: center;
-
-  /* ✅ this is the centering fix */
   width: fit-content;
   margin: 0 auto;
-
   position: relative;
 }
 
