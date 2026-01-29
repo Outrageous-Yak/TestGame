@@ -1002,7 +1002,7 @@ display: grid;
   grid-template-columns: var(--barColW) 1fr var(--barColW);
   align-items: stretch;       /* ✅ WAS center — this is the big bug */
   opacity: 1;
-width:720px;
+width:810px;
    height: 100%;               /* ✅ IMPORTANT */
   min-height: 0;
 }
@@ -1035,7 +1035,7 @@ width:720px;
 .barWrap.barLeft{ grid-column: 1; }
 .barWrap.barRight{ grid-column: 3; }
 .board{
-  width:720px;
+  width:810px;
   margin: 0 auto;
   padding: var(--boardPadTop) 0 var(--boardPadBottom);
   position: relative;
