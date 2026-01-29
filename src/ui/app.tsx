@@ -1030,6 +1030,7 @@ width:810px;
   min-height: 0;
   overflow: auto;
   padding: 0 10px;
+   width:810px;
 }
 
 .barWrap.barLeft{ grid-column: 1; }
