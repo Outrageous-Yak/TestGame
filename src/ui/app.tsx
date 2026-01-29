@@ -1035,7 +1035,7 @@ width:1110px;
 .barWrap.barLeft{ grid-column: 1; }
 .barWrap.barRight{ grid-column: 3; }
 .board{
-  width: var(--boardW);
+  width:1110px;
   margin: 0 auto;
   padding: var(--boardPadTop) 0 var(--boardPadBottom);
   position: relative;
