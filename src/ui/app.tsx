@@ -2744,26 +2744,47 @@ useEffect(() => {
         if (reachable.has(id) && viewState) {
           const forced: any = { ...(viewState as any) };
 
-          const dir = findPortalDirection(
-            (viewState as any)?.scenario?.transitions,
-            id
-          );
-          if (dir === "up" || dir === "down") {
-            const c = idToCoord(id);
-            if (c) {
-              const targetLayer =
-                dir === "up"
-                  ? Math.min(scenarioLayerCount, c.layer + 1)
-                  : Math.max(1, c.layer - 1);
+    function findPortalTransition(
+  transitions: any[] | undefined,
+  id: string
+): null | { type: "UP" | "DOWN"; to: { layer: number; row: number; col: number } } {
+  if (!transitions) return null;
 
-              forced.playerHexId =
-                "L" + targetLayer + "-R" + c.row + "-C" + c.col;
-            } else {
-              forced.playerHexId = id;
-            }
-          } else {
-            forced.playerHexId = id;
-          }
+  const c = idToCoord(id);
+  if (!c) return null;
+
+  for (const t of transitions) {
+    const from = t?.from;
+    if (!from) continue;
+
+    if (
+      Number(from.layer) === c.layer &&
+      Number(from.row) === c.row &&
+      Number(from.col) === c.col
+    ) {
+      const type = t?.type === "DOWN" ? "DOWN" : "UP";
+      const to = t?.to;
+
+      // ✅ If scenario provides "to", use it. Otherwise fallback to straight up/down.
+      if (to && typeof to === "object") {
+        return {
+          type,
+          to: {
+            layer: Number(to.layer),
+            row: Number(to.row),
+            col: Number(to.col),
+          },
+        };
+      }
+
+      const fallbackLayer = type === "UP" ? c.layer + 1 : c.layer - 1;
+      return { type, to: { layer: fallbackLayer, row: c.row, col: c.col } };
+    }
+  }
+
+  return null;
+}
+
 
           nextState = forced as any;
           pushLog("Force-moved (engine rejected)", "info");
