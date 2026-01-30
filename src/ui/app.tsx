@@ -2998,47 +2998,152 @@ useEffect(() => {
     );
   }
 
-  if (screen !== "game") {
-    return (
-      <div className="appRoot" style={themeVars}>
-        <div className="screen center">
-          <div className="panel">
-            <div className="title">Not in game yet</div>
-            <div className="sub">Screen: {screen}</div>
+ if (screen !== "game") {
+  return (
+    <div className="appRoot" style={themeVars}>
+      <div className="screen center">
+        <div className="panel wide">
+          <div className="title">Choose your run</div>
+          <div className="sub">
+            Pick a world, then a scenario, then (optionally) a track.
+          </div>
 
+          {/* WORLD PICKER */}
+          <div className="grid" style={{ marginTop: 14 }}>
+            {worlds.map((w) => {
+              const active = w.id === worldId;
+              return (
+                <button
+                  key={w.id}
+                  className={"card " + (active ? "active" : "")}
+                  onClick={() => {
+                    setWorldId(w.id);
+
+                    // default scenario
+                    const s0 = w.scenarios && w.scenarios.length ? w.scenarios[0] : null;
+                    setScenarioId(s0 ? s0.id : null);
+
+                    // default track (if any)
+                    const t0 = s0 && s0.tracks && s0.tracks.length ? s0.tracks[0] : null;
+                    setTrackId(t0 ? t0.id : null);
+
+                    setScreen("scenario");
+                  }}
+                >
+                  <div className="cardTitle">{w.name}</div>
+                  <div className="cardDesc">{w.desc ?? ""}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* SCENARIO PICKER */}
+          {world ? (
+            <div style={{ marginTop: 16 }}>
+              <div className="tracksTitle">Scenarios</div>
+              <div className="grid">
+                {world.scenarios.map((s) => {
+                  const active = s.id === scenarioId;
+                  return (
+                    <button
+                      key={s.id}
+                      className={"card " + (active ? "active" : "")}
+                      onClick={() => {
+                        setScenarioId(s.id);
+
+                        // default track (if any)
+                        const t0 = s.tracks && s.tracks.length ? s.tracks[0] : null;
+                        setTrackId(t0 ? t0.id : null);
+
+                        setScreen("scenario");
+                      }}
+                    >
+                      <div className="cardTitle">{s.name}</div>
+                      <div className="cardDesc">{s.desc ?? ""}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {/* TRACK PICKER */}
+          {scenarioEntry && scenarioEntry.tracks && scenarioEntry.tracks.length > 1 ? (
+            <div className="tracks">
+              <div className="tracksTitle">Tracks</div>
+              <div className="tracksRow">
+                {scenarioEntry.tracks.map((t) => {
+                  const active = t.id === trackId;
+                  return (
+                    <button
+                      key={t.id}
+                      className={"chip " + (active ? "active" : "")}
+                      onClick={() => setTrackId(t.id)}
+                    >
+                      {t.name}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="hint">
+                Selected: <b>{trackEntry ? trackEntry.name : "—"}</b>
+              </div>
+            </div>
+          ) : scenarioEntry ? (
             <div className="hint" style={{ marginTop: 12 }}>
-              Pick a world / character / scenario (screens not pasted here yet),
-              then start the scenario.
+              {scenarioEntry.tracks && scenarioEntry.tracks.length === 1
+                ? "Only one track available."
+                : "No tracks for this scenario (it will start normally)."}
             </div>
+          ) : null}
 
-            <div className="row">
-              <button className="btn" onClick={resetAll}>
-                Back
-              </button>
+          <div className="row">
+            <button className="btn" onClick={resetAll}>
+              Back
+            </button>
 
-              <button
-                className="btn primary"
-                onClick={() => {
-                  const w0 = worlds[0];
-                  const s0 = w0?.scenarios?.[0];
-                  if (w0 && s0) {
-                    setWorldId(w0.id);
-                    setScenarioId(s0.id);
-                    setTrackId(null);
-                    pendingQuickStartRef.current = true;
-                  }
-                }}
-              >
-                Quick start (debug)
-              </button>
-            </div>
+            <button
+              className="btn primary"
+              disabled={!scenarioEntry}
+              onClick={startScenario}
+            >
+              Start
+            </button>
+
+            <button
+              className="btn"
+              onClick={() => {
+                const w0 = worlds[0];
+                const s0 = w0 && w0.scenarios ? w0.scenarios[0] : null;
+
+                if (w0 && s0) {
+                  setWorldId(w0.id);
+                  setScenarioId(s0.id);
+
+                  const t0 = s0.tracks && s0.tracks.length ? s0.tracks[0] : null;
+                  setTrackId(t0 ? t0.id : null);
+
+                  pendingQuickStartRef.current = true;
+                }
+              }}
+            >
+              Quick start (debug)
+            </button>
+          </div>
+
+          <div className="hint" style={{ marginTop: 10 }}>
+            World: <b>{world ? world.name : "—"}</b> · Scenario:{" "}
+            <b>{scenarioEntry ? scenarioEntry.name : "—"}</b>
           </div>
         </div>
-
-        <style>{baseCss}</style>
       </div>
-    );
-  }
+
+      <style>{baseCss}</style>
+    </div>
+  );
+}
+
 /* =========================
    GAME screen (complete)
 ========================= */
