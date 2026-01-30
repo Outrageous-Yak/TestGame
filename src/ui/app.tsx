@@ -3259,8 +3259,9 @@ return (
 
               {rows.map((r) => {
                 const cols = ROW_LENS[r] ?? 0;
-                const isOffset = cols === 6;
-                const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+const isOffset = cols === 6;
+
+              
 
                 const engineShiftRaw =
                   (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
@@ -3281,8 +3282,7 @@ return (
                 const ns = normalizeRowShift(rawShift, cols);
                 const shift = ns.visual;
 
-                const tx =
-                  "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
+                const tx = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
                 return (
                   <div
@@ -3302,7 +3302,7 @@ return (
                     </div>
 
                     {Array.from({ length: cols }, (_, c) => {
-                      const id = idAtSlot(currentLayer, r, c, shift);
+                      const id = "L" + currentLayer + "-R" + r + "-C" + c;
 
                       const hex = getHexFromState(viewState as any, id) as any;
                       const bm = isBlockedOrMissing(hex);
