@@ -3198,7 +3198,7 @@ return (
                   {rows.map((r) => {
                     const cols = ROW_LENS[r] ?? 0;
                     const isOffset = cols === 6;
-                    const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+                    const base = isOffset ? "calc(var(--hexStepX) / 5)" : "0px";
 
                     const engineShiftRaw =
                       (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
@@ -3282,7 +3282,7 @@ const isOffset = cols === 6;
                 const ns = normalizeRowShift(rawShift, cols);
                 const shift = ns.visual;
 
-                const tx = isOffset ? "calc(var(--hexStepX) / 6)" : "0px";
+                const tx = isOffset ? "calc(var(--hexStepX) / 5)" : "0px";
 
                 return (
                   <div
