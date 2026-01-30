@@ -3282,7 +3282,7 @@ const isOffset = cols === 6;
                 const ns = normalizeRowShift(rawShift, cols);
                 const shift = ns.visual;
 
-                const tx = isOffset ? "calc(var(--hexStepX) / 4)" : "0px";
+                const tx = isOffset ? "calc(var(--hexStepX) / 5)" : "0px";
 
                 return (
                   <div
