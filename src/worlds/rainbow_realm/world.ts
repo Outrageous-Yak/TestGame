@@ -1,5 +1,6 @@
 // src/worlds/rainbow_realm/world.ts
-export default { 
+
+export default {
   id: "rainbow_realm",
   name: "Rainbow Realm",
   desc: "Bright, magical rainbow world",
@@ -10,7 +11,8 @@ export default {
       id: "prism_path",
       name: "Prism Path",
       desc: "First rainbow scenario",
-      scenarioJson: "worlds/rainbow_realm/scenarios/prism_path/scenario.json",
+      scenarioJson:
+        "worlds/rainbow_realm/scenarios/prism_path/scenario.json",
 
       theme: {
         palette: {
@@ -25,25 +27,43 @@ export default {
         assets: {
           backgroundGame:
             "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
+
           diceFacesBase:
             "worlds/rainbow_realm/scenarios/prism_path/assets/dice/faces",
+
           diceCornerBorder:
             "worlds/rainbow_realm/scenarios/prism_path/assets/dice/borders/corner_flame_red.png",
+
           villainsBase:
             "worlds/rainbow_realm/scenarios/prism_path/assets/villains",
 
-backgroundLayers: {
-  L1: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
-  L2: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
-  L3: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
-  L4: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
-  L5: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
-  L6: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
-  L7: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/bg-layer7.jpg",
-},
-
+          backgroundLayers: {
+            L1: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
+            L2: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
+            L3: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
+            L4: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
+            L5: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
+            L6: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
+            L7: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/bg-layer7.jpg",
+          },
         },
       },
+
+      // ✅ TRACKS (same theme, different JSON boards)
+      tracks: [
+        {
+          id: "t1",
+          name: "Track 1",
+          scenarioJson:
+            "worlds/rainbow_realm/scenarios/prism_path/scenario.json",
+        },
+        {
+          id: "t2",
+          name: "Track 2",
+          scenarioJson:
+            "worlds/rainbow_realm/scenarios/prism_path/scenario2.json",
+        },
+      ],
     },
   ],
 } as const;
