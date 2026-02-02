@@ -2499,94 +2499,119 @@ const IDLE_FPS = 4;
 ========================= */
 
 const prevRollingRef = useRef(false);
+
 useEffect(() => {
   const wasRolling = prevRollingRef.current;
   prevRollingRef.current = diceRolling;
 
+  // only resolve when an encounter is active AND a roll just finished
   if (!encounter) return;
   if (diceRolling) return;
   if (!wasRolling) return;
 
-  setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
-  if (diceValue !== 6) return;
+  try {
+    // increment tries each finished roll
+    setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
 
-  const targetId = pendingEncounterMoveIdRef.current;
-  pendingEncounterMoveIdRef.current = null;
+    // only succeed on a 6
+    if (diceValue !== 6) return;
 
-  setEncounter(null);
+    const targetId = pendingEncounterMoveIdRef.current;
+    if (!targetId) {
+      pushLog("Encounter error: missing pending move target.", "bad");
+      return;
+    }
 
-  if (!state || !targetId) return;
+    // IMPORTANT: use viewState (matches what the UI shows)
+    if (!viewState) {
+      pushLog("Encounter error: viewState missing.", "bad");
+      return;
+    }
 
-  const res: any = tryMove(state as any, targetId);
-  const nextState = unwrapNextState(res);
+    const pidBefore = (viewState as any)?.playerHexId as string | null;
 
-  if (!nextState) {
-    const msg =
-      (res &&
-        typeof res === "object" &&
-        "reason" in res &&
-        String((res as any).reason)) ||
-      "Move failed.";
-    pushLog(msg, "bad");
-    return;
+    const res: any = tryMove(viewState as any, targetId);
+    const nextState = unwrapNextState(res);
+
+    if (!nextState) {
+      const msg =
+        (res &&
+          typeof res === "object" &&
+          "reason" in res &&
+          String((res as any).reason)) ||
+        "Move failed after rolling a 6.";
+      pushLog(msg, "bad");
+      return; // keep encounter open so user isn't soft-locked
+    }
+
+    const pidAfter = (nextState as any).playerHexId as string | null;
+
+    // close the encounter ONLY after we know we have a valid nextState
+    pendingEncounterMoveIdRef.current = null;
+    setEncounter(null);
+
+    // walking / facing
+    const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
+    if (moved) {
+      setIsWalking(true);
+      if (walkTimer.current) window.clearTimeout(walkTimer.current);
+      walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+
+      const fromLayer =
+        (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
+
+      setPlayerFacing(
+        facingFromMoveVisual(
+          viewState as any,
+          pidBefore,
+          pidAfter,
+          fromLayer,
+          getLayerMoves(fromLayer)
+        )
+      );
+    }
+
+    setMovesTaken((n) => n + 1);
+
+    setState(nextState);
+    forceRender((n) => n + 1);
+
+    const c2 = pidAfter ? idToCoord(pidAfter) : null;
+    const nextLayer = c2?.layer ?? currentLayer;
+
+    // guard: nextLayer must be a real number
+    if (Number.isFinite(nextLayer)) {
+      enterLayer(nextState, nextLayer);
+      if (nextLayer !== currentLayer) {
+        setCurrentLayer(nextLayer);
+        revealWholeLayer(nextState, nextLayer);
+      }
+    }
+
+    const rm = getReachability(nextState) as any;
+    setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+
+    pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
+    if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
+  } catch (err: any) {
+    // Prevent white-screen crashes
+    console.error("Encounter resolution crashed:", err);
+    pushLog("Encounter crashed: " + String(err?.message ?? err), "bad");
+    // keep encounter open so player can retry
   }
-
-  const pidBefore = (state as any)?.playerHexId as string | null;
-  const pidAfter = (nextState as any).playerHexId as string | null;
-
-  const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
-
-  if (moved) {
-    setIsWalking(true);
-    if (walkTimer.current) window.clearTimeout(walkTimer.current);
-    walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-
-    const fromLayer =
-      (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
-
-    setPlayerFacing(
-      facingFromMoveVisual(
-        viewState as any,
-        pidBefore,
-        pidAfter,
-        fromLayer,
-        getLayerMoves(fromLayer)
-      )
-    );
-  }
-
-  setMovesTaken((n) => n + 1);
-
-  setState(nextState);
-  forceRender((n) => n + 1);
-
-  const c2 = pidAfter ? idToCoord(pidAfter) : null;
-  const nextLayer = c2?.layer ?? currentLayer;
-
-  enterLayer(nextState, nextLayer);
-
-  if (nextLayer !== currentLayer) {
-    setCurrentLayer(nextLayer);
-    revealWholeLayer(nextState, nextLayer);
-  }
-
-  const rm = getReachability(nextState) as any;
-  setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
-
-  pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
-  if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
 }, [
   encounter,
   diceRolling,
   diceValue,
-  state,
-  currentLayer,
   viewState,
+  currentLayer,
   goalId,
   revealWholeLayer,
   computeOptimalFromReachMap,
   pushLog,
+  getLayerMoves,
 ]);
+
 
 
   /* =========================
