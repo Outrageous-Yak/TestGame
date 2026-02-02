@@ -2299,114 +2299,79 @@ const IDLE_FPS = 4;
     return f === "down" ? 0 : f === "left" ? 1 : f === "right" ? 2 : 3;
   }
 
-  /* =========================
-     Dice
-  ========================= */
+ /* =========================
+   Dice
+========================= */
 
-  const [diceValue, setDiceValue] = useState<number>(2);
-  const [diceRolling, setDiceRolling] = useState(false);
-  const [diceRot, setDiceRot] = useState<{ x: number; y: number }>({
-    x: 0,
-    y: 0,
-  });
-  const diceTimer = useRef<number | null>(null);
+const [diceValue, setDiceValue] = useState<number>(2);
+const [diceRolling, setDiceRolling] = useState(false);
+const [diceRot, setDiceRot] = useState<{ x: number; y: number }>({
+  x: 0,
+  y: 0,
+});
+const diceTimer = useRef<number | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (diceTimer.current) window.clearTimeout(diceTimer.current);
-    };
-  }, []);
+// ✅ IMPORTANT: always remember the *final* roll value (not the flickers)
+const lastRollValueRef = useRef<number>(2);
 
-  function rotForRoll(n: number) {
-    switch (n) {
-      case 1:
-        return { x: -90, y: 0 };
-      case 2:
-        return { x: 0, y: 0 };
-      case 3:
-        return { x: 0, y: -90 };
-      case 4:
-        return { x: 0, y: 90 };
-      case 5:
-        return { x: 0, y: 180 };
-      case 6:
-        return { x: 90, y: 0 };
-      default:
-        return { x: 0, y: 0 };
-    }
+useEffect(() => {
+  return () => {
+    if (diceTimer.current) window.clearTimeout(diceTimer.current);
+  };
+}, []);
+
+function rotForRoll(n: number) {
+  switch (n) {
+    case 1:
+      return { x: -90, y: 0 };
+    case 2:
+      return { x: 0, y: 0 };
+    case 3:
+      return { x: 0, y: -90 };
+    case 4:
+      return { x: 0, y: 90 };
+    case 5:
+      return { x: 0, y: 180 };
+    case 6:
+      return { x: 90, y: 0 };
+    default:
+      return { x: 0, y: 0 };
   }
+}
 
-  const rollDice = useCallback(() => {
-    if (diceRolling) return;
-    setDiceRolling(true);
+const rollDice = useCallback(() => {
+  if (diceRolling) return;
 
-    const start = performance.now();
-    const duration = 650;
+  setDiceRolling(true);
 
-    const tick = () => {
-      const elapsed = performance.now() - start;
-      const flicker = 1 + Math.floor(Math.random() * 6);
-      setDiceValue(flicker);
-      setDiceRot(rotForRoll(flicker));
+  const start = performance.now();
+  const duration = 650;
 
-      if (elapsed < duration) {
-        diceTimer.current = window.setTimeout(tick, 55);
-      } else {
-        const final = 1 + Math.floor(Math.random() * 6);
-        setDiceValue(final);
-        setDiceRot(rotForRoll(final));
-        setDiceRolling(false);
-      }
-    };
+  const tick = () => {
+    const elapsed = performance.now() - start;
 
-    tick();
-  }, [diceRolling]);
+    // flicker values during roll
+    const flicker = 1 + Math.floor(Math.random() * 6);
+    setDiceValue(flicker);
+    setDiceRot(rotForRoll(flicker));
 
-  /* =========================
-     Villain trigger helpers
-  ========================= */
+    if (elapsed < duration) {
+      diceTimer.current = window.setTimeout(tick, 55);
+    } else {
+      // ✅ final value
+      const final = 1 + Math.floor(Math.random() * 6);
 
-  function findTriggerForHex(id: string): VillainKey | null {
-    const c = idToCoord(id);
-    if (!c) return null;
-    for (const t of villainTriggers) {
-      if (t.layer !== c.layer) continue;
-      if (t.row !== c.row) continue;
-      if (!t.cols || t.cols === "any") return t.key;
-      if (Array.isArray(t.cols) && t.cols.includes(c.col)) return t.key;
+      lastRollValueRef.current = final; // ✅ use this in encounter resolution
+      setDiceValue(final);
+      setDiceRot(rotForRoll(final));
+
+      setDiceRolling(false);
     }
-    return null;
-  }
+  };
 
-  const parseVillainsFromScenario = useCallback((s: any): VillainTrigger[] => {
-    if (Array.isArray(s?.villainTriggers)) {
-      return s.villainTriggers
-        .map((t: any) => ({
-          key: t.key as VillainKey,
-          layer: Number(t.layer),
-          row: Number(t.row),
-          cols: t.cols ?? "any",
-        }))
-        .filter(
-          (t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row)
-        );
-    }
+  tick();
+}, [diceRolling]);
 
-    if (Array.isArray(s?.villains?.triggers)) {
-      return s.villains.triggers
-        .map((t: any) => ({
-          key: String(t.id) as VillainKey,
-          layer: Number(t.layer),
-          row: Number(t.row),
-          cols: "any" as const,
-        }))
-        .filter(
-          (t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row)
-        );
-    }
-
-    return [];
-  }, []);
 
   /* =========================
      Reveal helpers
@@ -2497,7 +2462,7 @@ const IDLE_FPS = 4;
   );
 
 /* =========================
-   Encounter resolution  ✅ FIXED
+   Encounter resolution  ✅ FIXED (uses lastRollValueRef)
 ========================= */
 
 const prevRollingRef = useRef(false);
@@ -2515,8 +2480,9 @@ useEffect(() => {
     // increment tries each finished roll
     setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
 
-    // only succeed on a 6
-    if (diceValue !== 6) return;
+    // ✅ only succeed on the FINAL roll result (not a stale diceValue)
+    const rolled = lastRollValueRef.current;
+    if (rolled !== 6) return;
 
     const targetId = pendingEncounterMoveIdRef.current;
     if (!targetId) {
@@ -2534,7 +2500,7 @@ useEffect(() => {
     const pendingHex = getHexFromState(viewState as any, targetId) as any;
     if (!pendingHex || pendingHex.missing || pendingHex.blocked) {
       pushLog("Encounter target is invalid now — click another tile.", "bad");
-      pendingEncounterMoveIdRef.current = null; // ✅ prevents deadlock
+      pendingEncounterMoveIdRef.current = null; // prevents deadlock
       return;
     }
 
@@ -2554,7 +2520,7 @@ useEffect(() => {
 
       pushLog(msg, "bad");
 
-      // ✅ Clear target so player can choose a new one while encounter stays open
+      // Clear target so player can choose a new one while encounter stays open
       pendingEncounterMoveIdRef.current = null;
 
       return;
@@ -2562,7 +2528,7 @@ useEffect(() => {
 
     const pidAfter = (nextState as any).playerHexId as string | null;
 
-    // ✅ close encounter ONLY after we know we have a valid nextState
+    // close encounter ONLY after we know we have a valid nextState
     pendingEncounterMoveIdRef.current = null;
     setEncounter(null);
 
@@ -2617,8 +2583,8 @@ useEffect(() => {
 }, [
   encounter,
   diceRolling,
-  diceValue,
   viewState,
+  diceValue, // ok to leave; not relied on for success anymore
   currentLayer,
   goalId,
   revealWholeLayer,
@@ -2626,6 +2592,7 @@ useEffect(() => {
   pushLog,
   getLayerMoves,
 ]);
+
   /* =========================
      Start scenario
   ========================= */
