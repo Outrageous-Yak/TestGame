@@ -2098,8 +2098,7 @@ const triggerLayerFx = useCallback((layer: number) => {
      ✅ MUST be before reachable (because reachable depends on movesTaken)
   ========================= */
 
-const viewState = useMemo(() => {
-  if (!state) return null;
+const viewState = state;
 
   const rs = (state as any).rowShifts;
   let hasEngineShift = false;
@@ -2495,7 +2494,7 @@ const IDLE_FPS = 4;
   );
 
 /* =========================
-   Encounter resolution
+   Encounter resolution  ✅ FIXED
 ========================= */
 
 const prevRollingRef = useRef(false);
@@ -2504,7 +2503,7 @@ useEffect(() => {
   const wasRolling = prevRollingRef.current;
   prevRollingRef.current = diceRolling;
 
-  // only resolve when an encounter is active AND a roll just finished
+  // Only resolve when an encounter is active AND a roll just finished
   if (!encounter) return;
   if (diceRolling) return;
   if (!wasRolling) return;
@@ -2528,8 +2527,17 @@ useEffect(() => {
       return;
     }
 
+    // Guard: pending tile might now be invalid (blocked/missing) after shifts
+    const pendingHex = getHexFromState(viewState as any, targetId) as any;
+    if (!pendingHex || pendingHex.missing || pendingHex.blocked) {
+      pushLog("Encounter target is invalid now — click another tile.", "bad");
+      pendingEncounterMoveIdRef.current = null; // ✅ prevents deadlock
+      return;
+    }
+
     const pidBefore = (viewState as any)?.playerHexId as string | null;
 
+    // ✅ Use viewState here (NOT state)
     const res: any = tryMove(viewState as any, targetId);
     const nextState = unwrapNextState(res);
 
@@ -2539,14 +2547,19 @@ useEffect(() => {
           typeof res === "object" &&
           "reason" in res &&
           String((res as any).reason)) ||
-        "Move failed after rolling a 6.";
+        "Move failed after rolling a 6 — click another tile and roll again.";
+
       pushLog(msg, "bad");
-      return; // keep encounter open so user isn't soft-locked
+
+      // ✅ Clear target so player can choose a new one while encounter stays open
+      pendingEncounterMoveIdRef.current = null;
+
+      return;
     }
 
     const pidAfter = (nextState as any).playerHexId as string | null;
 
-    // close the encounter ONLY after we know we have a valid nextState
+    // ✅ close encounter ONLY after we know we have a valid nextState
     pendingEncounterMoveIdRef.current = null;
     setEncounter(null);
 
@@ -2579,9 +2592,9 @@ useEffect(() => {
     const c2 = pidAfter ? idToCoord(pidAfter) : null;
     const nextLayer = c2?.layer ?? currentLayer;
 
-    // guard: nextLayer must be a real number
     if (Number.isFinite(nextLayer)) {
       enterLayer(nextState, nextLayer);
+
       if (nextLayer !== currentLayer) {
         setCurrentLayer(nextLayer);
         revealWholeLayer(nextState, nextLayer);
@@ -2594,7 +2607,6 @@ useEffect(() => {
     pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
     if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
   } catch (err: any) {
-    // Prevent white-screen crashes
     console.error("Encounter resolution crashed:", err);
     pushLog("Encounter crashed: " + String(err?.message ?? err), "bad");
     // keep encounter open so player can retry
@@ -2611,9 +2623,6 @@ useEffect(() => {
   pushLog,
   getLayerMoves,
 ]);
-
-
-
   /* =========================
      Start scenario
   ========================= */
