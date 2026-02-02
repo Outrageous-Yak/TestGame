@@ -2098,7 +2098,8 @@ const triggerLayerFx = useCallback((layer: number) => {
      ✅ MUST be before reachable (because reachable depends on movesTaken)
   ========================= */
 
-const viewState = state;
+const viewState = useMemo(() => {
+  if (!state) return null;
 
   const rs = (state as any).rowShifts;
   let hasEngineShift = false;
@@ -2109,7 +2110,10 @@ const viewState = state;
       if (!rowsObj || typeof rowsObj !== "object") continue;
       for (const rKey of Object.keys(rowsObj)) {
         const n = Number(rowsObj[rKey]);
-        if (Number.isFinite(n) && n !== 0) { hasEngineShift = true; break; }
+        if (Number.isFinite(n) && n !== 0) {
+          hasEngineShift = true;
+          break;
+        }
       }
       if (hasEngineShift) break;
     }
@@ -2120,22 +2124,21 @@ const viewState = state;
   const injected: any = { ...(state as any) };
   const rowShifts: any = {};
 
-for (let layer = 1; layer <= scenarioLayerCount; layer++) {
-  const perRow: any = {};
-  const mL = getLayerMoves(layer);
+  for (let layer = 1; layer <= scenarioLayerCount; layer++) {
+    const perRow: any = {};
+    const mL = getLayerMoves(layer);
 
-  for (let r = 0; r < ROW_LENS.length; r++) {
-    perRow[r] = derivedRowShiftUnits(state as any, layer, r, mL);
+    for (let r = 0; r < ROW_LENS.length; r++) {
+      perRow[r] = derivedRowShiftUnits(state as any, layer, r, mL);
+    }
+
+    rowShifts[layer] = perRow;
+    rowShifts["L" + layer] = perRow;
   }
-
-  rowShifts[layer] = perRow;
-  rowShifts["L" + layer] = perRow;
-}
-
 
   injected.rowShifts = rowShifts;
   return injected as any;
-}, [state, scenarioLayerCount, layerMoves, layerMoveArmed]); // ✅ deps
+}, [state, scenarioLayerCount, layerMoves, layerMoveArmed]);
 
 
   const [goalId, setGoalId] = useState<string | null>(null);
