@@ -3647,10 +3647,66 @@ const isOffset = cols === 6;
     </div>
 
     {encounter ? (
-      <div className="overlay">
-        {/* ... */}
+  <div className="overlay" role="dialog" aria-modal="true">
+    <div className="overlayCard">
+      <div className="overlayTitle">Encounter!</div>
+      <div className="overlaySub">
+        A villain blocks your path. Roll a <b>6</b> to break through.
+        <span style={{ display: "inline-block", marginLeft: 10, opacity: 0.8 }}>
+          Tries: <b>{encounter.tries}</b>
+        </span>
       </div>
-    ) : null}
+
+      <div className="villainBox">
+        <img
+          className="villainImg"
+          src={villainImg(encounter.villainKey)}
+          alt={encounter.villainKey}
+        />
+
+        <div className="villainMeta">
+          <div style={{ fontWeight: 900, fontSize: 14 }}>
+            {encounter.villainKey.toUpperCase()}
+          </div>
+
+          <div style={{ color: "rgba(255,255,255,.78)", fontSize: 13, lineHeight: 1.35 }}>
+            Click <b>Roll</b> (or use the <b>Reroll</b> item). If the die lands on <b>6</b>,
+            you will automatically continue to the tile you clicked.
+          </div>
+
+          <div className="row" style={{ justifyContent: "flex-start", marginTop: 8 }}>
+            <button
+              className="btn primary"
+              disabled={diceRolling}
+              onClick={() => rollDice()}
+              title="Roll the die"
+            >
+              {diceRolling ? "Rolling…" : "Roll"}
+            </button>
+
+            <button
+              className="btn"
+              disabled={diceRolling}
+              onClick={() => {
+                // optional escape hatch (prevents soft-lock during debugging)
+                pendingEncounterMoveIdRef.current = null;
+                setEncounter(null);
+                pushLog("Encounter dismissed (debug)", "info");
+              }}
+              title="Debug: dismiss encounter"
+            >
+              Dismiss
+            </button>
+          </div>
+
+          <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
+            Current die: <b>{diceValue}</b>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+) : null}
 
     <style>{baseCss}</style>
   </div>
