@@ -1952,6 +1952,107 @@ flex: 0 0 var(--hexWMain);
 }
 
 `;
+  /* =========================
+     Render helpers/components
+  ========================= */
+
+  const layerRows = useMemo(() => ROW_LENS.length, []);
+  const rows = useMemo(
+    () => Array.from({ length: layerRows }, (_, i) => i),
+    [layerRows]
+  );
+
+  function isPlayerHere(id: string) {
+    return !!playerId && playerId === id;
+  }
+
+  function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
+    const segments = [7, 6, 5, 4, 3, 2, 1];
+    const side = props.side;
+    const currentLayerLocal = props.currentLayer;
+
+    return (
+      <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")}>
+        <div className="layerBar">
+          {segments.map((layerVal) => {
+            const active = layerVal === currentLayerLocal;
+            return (
+              <div
+                key={layerVal}
+                className={"barSeg" + (active ? " isActive" : "")}
+                data-layer={layerVal}
+              />
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  function HexDeckCardsOverlay(props: { glowVar: string }) {
+    return (
+      <div
+        className="hexDeckOverlay"
+        style={{ ["--cardGlow" as any]: props.glowVar } as any}
+      >
+        <div className="hexDeckCol left">
+          <div className="hexDeckCard cosmic ccw slow">
+            <div className="deckFx" />
+          </div>
+
+          <div className="hexDeckCard risk ccw fast">
+            <div className="deckFx" />
+          </div>
+        </div>
+
+        <div className="hexDeckCol right">
+          <div className="hexDeckCard terrain cw slow">
+            <div className="deckFx" />
+          </div>
+
+          <div className="hexDeckCard shadow cw fast">
+            <div className="deckFx" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const resetAll = useCallback(() => {
+    setScreen("start");
+    setWorldId(null);
+    setScenarioId(null);
+    setTrackId(null);
+    setChosenPlayer(null);
+
+    setState(null);
+    setCurrentLayer(1);
+    setSelectedId(null);
+    setStartHexId(null);
+
+    setVillainTriggers([]);
+    setEncounter(null);
+    pendingEncounterMoveIdRef.current = null;
+
+    setGoalId(null);
+    setOptimalAtStart(null);
+    setOptimalFromNow(null);
+    setMovesTaken(0);
+
+    logNRef.current = 0;
+    setLog([]);
+
+    setItems([
+      { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
+      { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
+      { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
+    ]);
+  }, []);
+
+  const PLAYER_PRESETS: Array<{ id: string; name: string }> = [
+    { id: "p1", name: "Aeris" },
+    { id: "p2", name: "Devlan" },
+  ];
 /* =========================================================
    App
 ========================================================= */
@@ -2929,107 +3030,7 @@ function parseVillainsFromScenario(s: any): VillainTrigger[] {
   const canGoDown = currentLayer - 1 >= 1;
   const canGoUp = currentLayer + 1 <= scenarioLayerCount;
 
-  /* =========================
-     Render helpers/components
-  ========================= */
 
-  const layerRows = useMemo(() => ROW_LENS.length, []);
-  const rows = useMemo(
-    () => Array.from({ length: layerRows }, (_, i) => i),
-    [layerRows]
-  );
-
-  function isPlayerHere(id: string) {
-    return !!playerId && playerId === id;
-  }
-
-  function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
-    const segments = [7, 6, 5, 4, 3, 2, 1];
-    const side = props.side;
-    const currentLayerLocal = props.currentLayer;
-
-    return (
-      <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")}>
-        <div className="layerBar">
-          {segments.map((layerVal) => {
-            const active = layerVal === currentLayerLocal;
-            return (
-              <div
-                key={layerVal}
-                className={"barSeg" + (active ? " isActive" : "")}
-                data-layer={layerVal}
-              />
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  function HexDeckCardsOverlay(props: { glowVar: string }) {
-    return (
-      <div
-        className="hexDeckOverlay"
-        style={{ ["--cardGlow" as any]: props.glowVar } as any}
-      >
-        <div className="hexDeckCol left">
-          <div className="hexDeckCard cosmic ccw slow">
-            <div className="deckFx" />
-          </div>
-
-          <div className="hexDeckCard risk ccw fast">
-            <div className="deckFx" />
-          </div>
-        </div>
-
-        <div className="hexDeckCol right">
-          <div className="hexDeckCard terrain cw slow">
-            <div className="deckFx" />
-          </div>
-
-          <div className="hexDeckCard shadow cw fast">
-            <div className="deckFx" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const resetAll = useCallback(() => {
-    setScreen("start");
-    setWorldId(null);
-    setScenarioId(null);
-    setTrackId(null);
-    setChosenPlayer(null);
-
-    setState(null);
-    setCurrentLayer(1);
-    setSelectedId(null);
-    setStartHexId(null);
-
-    setVillainTriggers([]);
-    setEncounter(null);
-    pendingEncounterMoveIdRef.current = null;
-
-    setGoalId(null);
-    setOptimalAtStart(null);
-    setOptimalFromNow(null);
-    setMovesTaken(0);
-
-    logNRef.current = 0;
-    setLog([]);
-
-    setItems([
-      { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
-      { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
-      { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
-    ]);
-  }, []);
-
-  const PLAYER_PRESETS: Array<{ id: string; name: string }> = [
-    { id: "p1", name: "Aeris" },
-    { id: "p2", name: "Devlan" },
-  ];
 
   /* =========================
      Screens
