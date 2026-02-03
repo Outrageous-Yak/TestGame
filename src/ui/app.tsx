@@ -1991,10 +1991,8 @@ flex: 0 0 var(--hexWMain);
 
   function HexDeckCardsOverlay(props: { glowVar: string }) {
     return (
-      <div
-        className="hexDeckOverlay"
-        style={{ ["--cardGlow" as any]: props.glowVar } as any}
-      >
+   <div className="hexDeckOverlay" style={{ ["--cardGlow"]: props.glowVar } as unknown as React.CSSProperties} />
+
         <div className="hexDeckCol left">
           <div className="hexDeckCard cosmic ccw slow">
             <div className="deckFx" />
