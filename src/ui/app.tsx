@@ -419,19 +419,25 @@ function getRowShiftUnits(st: any, layer: number, row: number): number {
   return Number.isFinite(n) ? n : 0;
 }
 function getMovementPattern(st: any, layer: number): string {
-  const m = st?.scenario?.movement ?? st?.scenario?.movementByLayer ?? null;
+  // st can be a GameState (st.scenario) OR a Scenario (st itself)
+  const sc = st?.scenario ?? st;
+
+  const m = sc?.movement ?? sc?.movementByLayer ?? null;
   if (!m) return "NONE";
+
   const v = m[layer] ?? m[String(layer)] ?? m["L" + layer];
   return typeof v === "string" ? v : "NONE";
 }
 
 function derivedRowShiftUnits(st: any, layer: number, row: number, movesTaken: number): number {
+  if (!st) return 0;
+
   const pat = getMovementPattern(st, layer);
   const cols = ROW_LENS[row] ?? 7;
 
   if (pat === "SEVEN_LEFT_SIX_RIGHT") {
-    if (cols === 7) return -movesTaken; // 7-wide left
-    if (cols === 6) return movesTaken;  // 6-wide right
+    if (cols === 7) return -movesTaken;
+    if (cols === 6) return movesTaken;
   }
 
   return 0;
