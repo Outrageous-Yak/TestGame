@@ -2592,7 +2592,47 @@ useEffect(() => {
   pushLog,
   getLayerMoves,
 ]);
+// ---------------------------
+// Villain triggers parser
+// ---------------------------
 
+function parseVillainsFromScenario(s: any): VillainTrigger[] {
+  // support a few possible scenario shapes
+  const src =
+    (Array.isArray(s?.villains) && s.villains) ||
+    (Array.isArray(s?.villainTriggers) && s.villainTriggers) ||
+    (Array.isArray(s?.encounters) && s.encounters) ||
+    (Array.isArray(s?.triggers) && s.triggers) ||
+    [];
+
+  const allowed: VillainKey[] = ["bad1", "bad2", "bad3", "bad4"];
+
+  const out: VillainTrigger[] = [];
+
+  for (const raw of src) {
+    if (!raw || typeof raw !== "object") continue;
+
+    const keyRaw = String(raw.key ?? raw.villainKey ?? raw.id ?? "bad1");
+    const key = (allowed.includes(keyRaw as any) ? keyRaw : "bad1") as VillainKey;
+
+    const layer = Number(raw.layer ?? raw.L ?? raw.fromLayer ?? 1);
+    const row = Number(raw.row ?? raw.r ?? 0);
+
+    // cols can be: "any" OR number[] OR single number
+    let cols: "any" | number[] | undefined = undefined;
+
+    const c = raw.cols ?? raw.col ?? raw.c;
+    if (c === "any") cols = "any";
+    else if (Array.isArray(c)) cols = c.map((n: any) => Number(n)).filter((n: any) => Number.isFinite(n));
+    else if (Number.isFinite(Number(c))) cols = [Number(c)];
+
+    if (!Number.isFinite(layer) || !Number.isFinite(row)) continue;
+
+    out.push({ key, layer, row, cols });
+  }
+
+  return out;
+}
   /* =========================
      Start scenario
   ========================= */
