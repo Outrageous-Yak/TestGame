@@ -2132,6 +2132,27 @@ export default function App() {
   function setUiTickSafe(setter: React.Dispatch<React.SetStateAction<number>>) {
     setter((n) => n + 1);
   }
+  // ---------------------------
+  // Villain trigger lookup
+  // ---------------------------
+  const findTriggerForHex = useCallback(
+    (id: string): VillainKey | null => {
+      const c = idToCoord(id);
+      if (!c) return null;
+
+      for (const v of villainTriggers) {
+        if (v.layer !== c.layer) continue;
+        if (v.row !== c.row) continue;
+
+        // cols: "any" OR list
+        if (v.cols === "any" || !v.cols) return v.key;
+        if (Array.isArray(v.cols) && v.cols.includes(c.col)) return v.key;
+      }
+
+      return null;
+    },
+    [villainTriggers]
+  );
 
   /* =========================
      Render helpers/components (INSIDE App)
