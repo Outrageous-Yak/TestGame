@@ -1955,14 +1955,15 @@ flex: 0 0 var(--hexWMain);
 
 `;
   /* =========================
-     Render helpers/components
+     Render helpers/components (INSIDE App)
   ========================= */
 
-
-
-  function isPlayerHere(id: string) {
-    return !!playerId && playerId === id;
-  }
+  const isPlayerHere = useCallback(
+    (id: string) => {
+      return !!playerId && playerId === id;
+    },
+    [playerId]
+  );
 
   function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
     const segments = [7, 6, 5, 4, 3, 2, 1];
@@ -1987,33 +1988,31 @@ flex: 0 0 var(--hexWMain);
     );
   }
 
-function HexDeckCardsOverlay(props: { glowVar: string }) {
-  const overlayStyle = { ["--cardGlow" as any]: props.glowVar } as React.CSSProperties;
+  function HexDeckCardsOverlay(props: { glowVar: string }) {
+    const overlayStyle = { ["--cardGlow" as any]: props.glowVar } as React.CSSProperties;
 
-  return (
-    <div className="hexDeckOverlay" style={overlayStyle}>
-      <div className="hexDeckCol left">
-        <div className="hexDeckCard cosmic ccw slow">
-          <div className="deckFx" />
+    return (
+      <div className="hexDeckOverlay" style={overlayStyle}>
+        <div className="hexDeckCol left">
+          <div className="hexDeckCard cosmic ccw slow">
+            <div className="deckFx" />
+          </div>
+          <div className="hexDeckCard risk ccw fast">
+            <div className="deckFx" />
+          </div>
         </div>
 
-        <div className="hexDeckCard risk ccw fast">
-          <div className="deckFx" />
+        <div className="hexDeckCol right">
+          <div className="hexDeckCard terrain cw slow">
+            <div className="deckFx" />
+          </div>
+          <div className="hexDeckCard shadow cw fast">
+            <div className="deckFx" />
+          </div>
         </div>
       </div>
-
-      <div className="hexDeckCol right">
-        <div className="hexDeckCard terrain cw slow">
-          <div className="deckFx" />
-        </div>
-
-        <div className="hexDeckCard shadow cw fast">
-          <div className="deckFx" />
-        </div>
-      </div>
-    </div>
-  );
-}
+    );
+  }
 
 
 
@@ -2180,10 +2179,10 @@ const triggerLayerFx = useCallback((layer: number) => {
   );
 
   // ✅ single source of truth for player position (always follows engine)
-  const playerId = useMemo(() => {
-    const pid = (state as any)?.playerHexId;
-    return typeof pid === "string" ? pid : null;
-  }, [state, uiTick]);
+ const playerId = useMemo(() => {
+  const pid = (state as any)?.playerHexId;
+  return typeof pid === "string" ? pid : null;
+}, [state, uiTick]);
 
   const playerCoord = useMemo(() => {
     return playerId ? idToCoord(playerId) : null;
