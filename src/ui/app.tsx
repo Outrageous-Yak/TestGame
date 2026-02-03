@@ -1989,32 +1989,36 @@ flex: 0 0 var(--hexWMain);
     );
   }
 
-  function HexDeckCardsOverlay(props: { glowVar: string }) {
-    return (
-   <div className="hexDeckOverlay" style={{ ["--cardGlow"]: props.glowVar } as unknown as React.CSSProperties} />
+function HexDeckCardsOverlay(props: { glowVar: string }) {
+  const overlayStyle = useMemo(() => {
+    return { ["--cardGlow" as any]: props.glowVar } as React.CSSProperties;
+  }, [props.glowVar]);
 
-        <div className="hexDeckCol left">
-          <div className="hexDeckCard cosmic ccw slow">
-            <div className="deckFx" />
-          </div>
-
-          <div className="hexDeckCard risk ccw fast">
-            <div className="deckFx" />
-          </div>
+  return (
+    <div className="hexDeckOverlay" style={overlayStyle}>
+      <div className="hexDeckCol left">
+        <div className="hexDeckCard cosmic ccw slow">
+          <div className="deckFx" />
         </div>
 
-        <div className="hexDeckCol right">
-          <div className="hexDeckCard terrain cw slow">
-            <div className="deckFx" />
-          </div>
-
-          <div className="hexDeckCard shadow cw fast">
-            <div className="deckFx" />
-          </div>
+        <div className="hexDeckCard risk ccw fast">
+          <div className="deckFx" />
         </div>
       </div>
-    );
-  }
+
+      <div className="hexDeckCol right">
+        <div className="hexDeckCard terrain cw slow">
+          <div className="deckFx" />
+        </div>
+
+        <div className="hexDeckCard shadow cw fast">
+          <div className="deckFx" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
   const resetAll = useCallback(() => {
     setScreen("start");
