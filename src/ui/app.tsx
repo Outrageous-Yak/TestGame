@@ -2718,9 +2718,7 @@ useEffect(() => {
 // ---------------------------
 // Villain triggers parser
 // ---------------------------
-
 function parseVillainsFromScenario(s: any): VillainTrigger[] {
-  // support a few possible scenario shapes
   const src =
     (Array.isArray(s?.villains) && s.villains) ||
     (Array.isArray(s?.villainTriggers) && s.villainTriggers) ||
@@ -2729,25 +2727,39 @@ function parseVillainsFromScenario(s: any): VillainTrigger[] {
     [];
 
   const allowed: VillainKey[] = ["bad1", "bad2", "bad3", "bad4"];
-
   const out: VillainTrigger[] = [];
+
+  // If the data looks 1-based, convert to 0-based.
+  const toZeroBasedRow = (r: number) => (r >= 1 && r <= 7 ? r - 1 : r);
+  const toZeroBasedCol = (c: number) => (c >= 1 && c <= 7 ? c - 1 : c);
 
   for (const raw of src) {
     if (!raw || typeof raw !== "object") continue;
 
-    const keyRaw = String(raw.key ?? raw.villainKey ?? raw.id ?? "bad1");
+    // allow nesting: { from:{layer,row,col}, key:"bad1" }
+    const base = raw.from && typeof raw.from === "object" ? raw.from : raw;
+
+    const keyRaw = String(raw.key ?? raw.villainKey ?? raw.id ?? base.key ?? "bad1");
     const key = (allowed.includes(keyRaw as any) ? keyRaw : "bad1") as VillainKey;
 
-    const layer = Number(raw.layer ?? raw.L ?? raw.fromLayer ?? 1);
-    const row = Number(raw.row ?? raw.r ?? 0);
+    const layer = Number(base.layer ?? base.L ?? raw.layer ?? raw.L ?? 1);
+
+    let row = Number(base.row ?? base.r ?? raw.row ?? raw.r ?? 0);
+    row = toZeroBasedRow(row);
 
     // cols can be: "any" OR number[] OR single number
     let cols: "any" | number[] | undefined = undefined;
+    const c = base.cols ?? base.col ?? base.c ?? raw.cols ?? raw.col ?? raw.c;
 
-    const c = raw.cols ?? raw.col ?? raw.c;
-    if (c === "any") cols = "any";
-    else if (Array.isArray(c)) cols = c.map((n: any) => Number(n)).filter((n: any) => Number.isFinite(n));
-    else if (Number.isFinite(Number(c))) cols = [Number(c)];
+    if (c === "any") {
+      cols = "any";
+    } else if (Array.isArray(c)) {
+      cols = c
+        .map((n: any) => toZeroBasedCol(Number(n)))
+        .filter((n: any) => Number.isFinite(n));
+    } else if (Number.isFinite(Number(c))) {
+      cols = [toZeroBasedCol(Number(c))];
+    }
 
     if (!Number.isFinite(layer) || !Number.isFinite(row)) continue;
 
@@ -2756,20 +2768,27 @@ function parseVillainsFromScenario(s: any): VillainTrigger[] {
 
   return out;
 }
-  /* =========================
-     Start scenario
-  ========================= */
 
-  const startScenario = useCallback(async () => {
-    if (!scenarioEntry) return;
+/* =========================
+   Start scenario
+========================= */
 
-    const tracks = scenarioEntry.tracks ?? [];
-    const hasTracks = tracks.length > 1;
-    const chosenJson = hasTracks
-      ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson
-      : scenarioEntry.scenarioJson;
+const startScenario = useCallback(async () => {
+  if (!scenarioEntry) return;
 
-    const s = (await loadScenario(chosenJson)) as any;
+  const tracks = scenarioEntry.tracks ?? [];
+  const hasTracks = tracks.length > 1;
+  const chosenJson = hasTracks
+    ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson
+    : scenarioEntry.scenarioJson;
+
+  // ✅ load FIRST
+  const s = (await loadScenario(chosenJson)) as any;
+
+  // ✅ then parse + log
+  const vts = parseVillainsFromScenario(s);
+  setVillainTriggers(vts);
+  pushLog("Villain triggers loaded: " + vts.length, "info");
 
     setVillainTriggers(parseVillainsFromScenario(s));
     setEncounter(null);
