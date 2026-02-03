@@ -1958,11 +1958,7 @@ flex: 0 0 var(--hexWMain);
      Render helpers/components
   ========================= */
 
-  const layerRows = useMemo(() => ROW_LENS.length, []);
-  const rows = useMemo(
-    () => Array.from({ length: layerRows }, (_, i) => i),
-    [layerRows]
-  );
+
 
   function isPlayerHere(id: string) {
     return !!playerId && playerId === id;
@@ -1992,9 +1988,7 @@ flex: 0 0 var(--hexWMain);
   }
 
 function HexDeckCardsOverlay(props: { glowVar: string }) {
-  const overlayStyle = useMemo(() => {
-    return { ["--cardGlow" as any]: props.glowVar } as React.CSSProperties;
-  }, [props.glowVar]);
+  const overlayStyle = { ["--cardGlow" as any]: props.glowVar } as React.CSSProperties;
 
   return (
     <div className="hexDeckOverlay" style={overlayStyle}>
@@ -2022,6 +2016,27 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
 }
 
 
+
+
+/* =========================================================
+   App
+========================================================= */
+
+export default function App() {
+  // navigation
+  const [screen, setScreen] = useState<Screen>("start");
+  const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
+  const [encounter, setEncounter] = useState<Encounter>(null);
+  const pendingEncounterMoveIdRef = useRef<string | null>(null);
+  const encounterActive = !!encounter;
+
+  // worlds
+  const [worlds, setWorlds] = useState<WorldEntry[]>([]);
+  const [worldId, setWorldId] = useState<string | null>(null);
+  const world = useMemo(
+    () => worlds.find((w) => w.id === worldId) ?? null,
+    [worlds, worldId]
+  );
   const resetAll = useCallback(() => {
     setScreen("start");
     setWorldId(null);
@@ -2057,26 +2072,6 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
     { id: "p1", name: "Aeris" },
     { id: "p2", name: "Devlan" },
   ];
-/* =========================================================
-   App
-========================================================= */
-
-export default function App() {
-  // navigation
-  const [screen, setScreen] = useState<Screen>("start");
-  const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
-  const [encounter, setEncounter] = useState<Encounter>(null);
-  const pendingEncounterMoveIdRef = useRef<string | null>(null);
-  const encounterActive = !!encounter;
-
-  // worlds
-  const [worlds, setWorlds] = useState<WorldEntry[]>([]);
-  const [worldId, setWorldId] = useState<string | null>(null);
-  const world = useMemo(
-    () => worlds.find((w) => w.id === worldId) ?? null,
-    [worlds, worldId]
-  );
-
   const [scenarioId, setScenarioId] = useState<string | null>(null);
   const scenarioEntry = useMemo(
     () => world?.scenarios.find((s) => s.id === scenarioId) ?? null,
@@ -2105,7 +2100,8 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [startHexId, setStartHexId] = useState<string | null>(null);
   const [showGhost, setShowGhost] = useState(false);
-
+const layerRows = ROW_LENS.length;
+const rows = useMemo(() => Array.from({ length: layerRows }, (_, i) => i), [layerRows]);
   const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
 // Layer transition overlay (flash + text, blocks input)
 const [layerFx, setLayerFx] = useState<null | { layer: number; color: string; key: number }>(null);
