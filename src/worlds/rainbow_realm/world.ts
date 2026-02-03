@@ -63,6 +63,12 @@ export default {
           scenarioJson:
             "worlds/rainbow_realm/scenarios/prism_path/scenario2.json",
         },
+        {
+          id: "t3",
+          name: "Track 3",
+          scenarioJson:
+            "worlds/rainbow_realm/scenarios/prism_path/scenario3.json",
+        },
       ],
     },
   ],
