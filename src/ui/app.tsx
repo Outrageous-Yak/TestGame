@@ -2029,6 +2029,26 @@ export default function App() {
   const [encounter, setEncounter] = useState<Encounter>(null);
   const pendingEncounterMoveIdRef = useRef<string | null>(null);
   const encounterActive = !!encounter;
+const findTriggerForHex = useCallback(
+  (id: string): VillainKey | null => {
+    const c = idToCoord(id);
+    if (!c) return null;
+
+    for (const tr of villainTriggers) {
+      if (tr.layer !== c.layer) continue;
+      if (tr.row !== c.row) continue;
+
+      // cols: undefined => treat as any
+      if (!tr.cols || tr.cols === "any") return tr.key;
+
+      // cols: number[]
+      if (Array.isArray(tr.cols) && tr.cols.includes(c.col)) return tr.key;
+    }
+
+    return null;
+  },
+  [villainTriggers]
+);
 
   // worlds
   const [worlds, setWorlds] = useState<WorldEntry[]>([]);
