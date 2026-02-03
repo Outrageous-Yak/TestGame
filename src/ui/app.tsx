@@ -2020,6 +2020,8 @@ export default function App() {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const playerBtnRef = useRef<HTMLButtonElement | null>(null);
+  // ✅ used by "Quick start (debug)" + auto-start effect
+  const pendingQuickStartRef = useRef(false);
 
   /* =========================
      Per-layer move counters (for shifting)
