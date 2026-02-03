@@ -1954,66 +1954,7 @@ flex: 0 0 var(--hexWMain);
 }
 
 `;
-  /* =========================
-     Render helpers/components (INSIDE App)
-  ========================= */
-
-  const isPlayerHere = useCallback(
-    (id: string) => {
-      return !!playerId && playerId === id;
-    },
-    [playerId]
-  );
-
-  function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
-    const segments = [7, 6, 5, 4, 3, 2, 1];
-    const side = props.side;
-    const currentLayerLocal = props.currentLayer;
-
-    return (
-      <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")}>
-        <div className="layerBar">
-          {segments.map((layerVal) => {
-            const active = layerVal === currentLayerLocal;
-            return (
-              <div
-                key={layerVal}
-                className={"barSeg" + (active ? " isActive" : "")}
-                data-layer={layerVal}
-              />
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  function HexDeckCardsOverlay(props: { glowVar: string }) {
-    const overlayStyle = { ["--cardGlow" as any]: props.glowVar } as React.CSSProperties;
-
-    return (
-      <div className="hexDeckOverlay" style={overlayStyle}>
-        <div className="hexDeckCol left">
-          <div className="hexDeckCard cosmic ccw slow">
-            <div className="deckFx" />
-          </div>
-          <div className="hexDeckCard risk ccw fast">
-            <div className="deckFx" />
-          </div>
-        </div>
-
-        <div className="hexDeckCol right">
-          <div className="hexDeckCard terrain cw slow">
-            <div className="deckFx" />
-          </div>
-          <div className="hexDeckCard shadow cw fast">
-            <div className="deckFx" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  /
 /* =========================================================
    App
 ========================================================= */
