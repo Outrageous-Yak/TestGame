@@ -1320,19 +1320,21 @@ flex: 0 0 var(--hexWMain);
   --portalC: var(--hexGlow); /* fallback */
 }
 
-.hex .hexInner .pAura,
-.hex .hexInner .pOrbs,
-.hex .hexInner .pRim,
-.hex .hexInner .pOval{
+.hex.portalUp .hexInner .pAura,
+.hex.portalDown .hexInner .pAura,
+.hex.portalUp .hexInner .pOrbs,
+.hex.portalDown .hexInner .pOrbs,
+.hex.portalUp .hexInner .pRim,
+.hex.portalDown .hexInner .pRim,
+.hex.portalUp .hexInner .pOval,
+.hex.portalDown .hexInner .pOval{
   position:absolute;
   inset:0;
   pointer-events:none;
   border-radius: 10px;
   clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
-    overflow:visible;
-    z-index: 50;
-
 }
+
 
 
 /* glow framing (subtle so your existing look stays) */
@@ -2108,7 +2110,11 @@ export default function App() {
 // Layer transition overlay (flash + text, blocks input)
 const [layerFx, setLayerFx] = useState<null | { layer: number; color: string; key: number }>(null);
 const layerFxTimer = useRef<number | null>(null);
-
+const layerFxStyle = useMemo(() => {
+  return layerFx
+    ? ({ ["--layerFxColor" as any]: layerFx.color } as React.CSSProperties)
+    : undefined;
+}, [layerFx]);
 const LAYER_COLORS: Record<number, string> = {
   1: "rgba(140, 180, 255, 0.45)", // example
   2: "rgba(255, 140, 40, 0.55)",  // orange
@@ -3353,18 +3359,18 @@ return (
             {/* ✅ ONE stable centering wrapper */}
             <div className="hexGrid">
               {/* ✅ LAYER FLASH OVERLAY (one per board) */}
-              {layerFx ? (
-                <div
-                  key={layerFx.key}
-                  className="layerFxOverlay"
-                  style={{ ["--layerFxColor" as any]: layerFx.color } as any}
-                  aria-live="polite"
-                >
-                  <div className="layerFxCard">
-                    <div className="layerFxTitle">Layer {layerFx.layer}</div>
-                  </div>
-                </div>
-              ) : null}
+           {layerFx ? (
+  <div
+    key={layerFx.key}
+    className="layerFxOverlay"
+    style={layerFxStyle}
+    aria-live="polite"
+  >
+    <div className="layerFxCard">
+      <div className="layerFxTitle">Layer {layerFx.layer}</div>
+    </div>
+  </div>
+) : null}
 
               {showGhost && viewState ? (
                 <div className="ghostGrid">
@@ -3565,29 +3571,20 @@ const isOffset = cols === 6;
                             title={id}
                           >
                             <div className="hexAnchor">
-                              {isPortalUp || isPortalDown ? (
-                                <div className="portalOuter">
-                                  <div className="pRim" />
-                                  <div className="pOval" />
-                                </div>
-                              ) : null}
+                              
 
-                              <div
-                                className="hexInner"
-                                style={
-                                  tile ? { backgroundImage: tile } : undefined
-                                }
-                              >
-                                {isPortalUp || isPortalDown ? (
-                                  <>
-                                    <div className="pAura" />
-                                    <div className="pOrbs" />
-                                    <div className="pRunes" />
-                                    <div className="pVortex" />
-                                    <div className="pWell" />
-                                    <div className="pShine" />
-                                  </>
-                                ) : null}
+                           <div
+  className="hexInner"
+  style={tile ? { backgroundImage: tile } : undefined}
+>
+  {isPortalUp || isPortalDown ? (
+    <>
+      <div className="pAura" />
+      <div className="pOrbs" />
+      <div className="pRim" />
+      <div className="pOval" />
+    </>
+  ) : null}
 
                                 {isStart ? (
                                   <>
