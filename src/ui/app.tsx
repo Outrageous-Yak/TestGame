@@ -422,12 +422,14 @@ function getMovementPattern(st: any, layer: number): string {
   // st can be a GameState (st.scenario) OR a Scenario (st itself)
   const sc = st?.scenario ?? st;
 
+function getMovementPattern(st: any, layer: number): string {
+  const sc = st?.scenario ?? st;
   const m = sc?.movement ?? sc?.movementByLayer ?? null;
   if (!m) return "NONE";
-
   const v = m[layer] ?? m[String(layer)] ?? m["L" + layer];
   return typeof v === "string" ? v : "NONE";
 }
+
 
 function derivedRowShiftUnits(st: any, layer: number, row: number, movesTaken: number): number {
   if (!st) return 0;
