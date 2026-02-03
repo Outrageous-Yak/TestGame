@@ -2014,83 +2014,32 @@ flex: 0 0 var(--hexWMain);
     );
   }
 
-
-
-
 /* =========================================================
    App
 ========================================================= */
 
 export default function App() {
-  // navigation
+  /* =========================
+     Navigation / overlays
+  ========================= */
   const [screen, setScreen] = useState<Screen>("start");
+
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
   const pendingEncounterMoveIdRef = useRef<string | null>(null);
   const encounterActive = !!encounter;
-const findTriggerForHex = useCallback(
-  (id: string): VillainKey | null => {
-    const c = idToCoord(id);
-    if (!c) return null;
 
-    for (const tr of villainTriggers) {
-      if (tr.layer !== c.layer) continue;
-      if (tr.row !== c.row) continue;
-
-      // cols: undefined => treat as any
-      if (!tr.cols || tr.cols === "any") return tr.key;
-
-      // cols: number[]
-      if (Array.isArray(tr.cols) && tr.cols.includes(c.col)) return tr.key;
-    }
-
-    return null;
-  },
-  [villainTriggers]
-);
-
-  // worlds
+  /* =========================
+     Worlds
+  ========================= */
   const [worlds, setWorlds] = useState<WorldEntry[]>([]);
   const [worldId, setWorldId] = useState<string | null>(null);
+
   const world = useMemo(
     () => worlds.find((w) => w.id === worldId) ?? null,
     [worlds, worldId]
   );
-  const resetAll = useCallback(() => {
-    setScreen("start");
-    setWorldId(null);
-    setScenarioId(null);
-    setTrackId(null);
-    setChosenPlayer(null);
 
-    setState(null);
-    setCurrentLayer(1);
-    setSelectedId(null);
-    setStartHexId(null);
-
-    setVillainTriggers([]);
-    setEncounter(null);
-    pendingEncounterMoveIdRef.current = null;
-
-    setGoalId(null);
-    setOptimalAtStart(null);
-    setOptimalFromNow(null);
-    setMovesTaken(0);
-
-    logNRef.current = 0;
-    setLog([]);
-
-    setItems([
-      { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
-      { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
-      { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
-    ]);
-  }, []);
-
-  const PLAYER_PRESETS: Array<{ id: string; name: string }> = [
-    { id: "p1", name: "Aeris" },
-    { id: "p2", name: "Devlan" },
-  ];
   const [scenarioId, setScenarioId] = useState<string | null>(null);
   const scenarioEntry = useMemo(
     () => world?.scenarios.find((s) => s.id === scenarioId) ?? null,
@@ -2108,81 +2057,85 @@ const findTriggerForHex = useCallback(
     setWorlds(loadWorlds());
   }, []);
 
-  // player (character selection only)
+  /* =========================
+     Player selection (optional)
+  ========================= */
   const [chosenPlayer, setChosenPlayer] = useState<PlayerChoice | null>(null);
 
-  // ✅ IMPORTANT: declare these BEFORE any hook that references them
+  /* =========================
+     Core game state
+  ========================= */
   const [state, setState] = useState<GameState | null>(null);
   const [uiTick, forceRender] = useState(0);
+
   const [currentLayer, setCurrentLayer] = useState<number>(1);
+  const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [startHexId, setStartHexId] = useState<string | null>(null);
+
   const [showGhost, setShowGhost] = useState(false);
-const layerRows = ROW_LENS.length;
-const rows = useMemo(() => Array.from({ length: layerRows }, (_, i) => i), [layerRows]);
-  const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
-// Layer transition overlay (flash + text, blocks input)
-const [layerFx, setLayerFx] = useState<null | { layer: number; color: string; key: number }>(null);
-const layerFxTimer = useRef<number | null>(null);
-const layerFxStyle = useMemo(() => {
-  return layerFx
-    ? ({ ["--layerFxColor" as any]: layerFx.color } as React.CSSProperties)
-    : undefined;
-}, [layerFx]);
-const LAYER_COLORS: Record<number, string> = {
-  1: "rgba(140, 180, 255, 0.45)", // example
-  2: "rgba(255, 140, 40, 0.55)",  // orange
-  3: "rgba(120, 255, 210, 0.45)",
-};
-
-const triggerLayerFx = useCallback((layer: number) => {
-  // clear any existing timer
-  if (layerFxTimer.current != null) window.clearTimeout(layerFxTimer.current);
-
-  const color = LAYER_COLORS[layer] ?? "rgba(255,255,255,0.35)";
-  setLayerFx({ layer, color, key: Date.now() });
-
-  // hide after 3s
-  layerFxTimer.current = window.setTimeout(() => {
-    setLayerFx(null);
-    layerFxTimer.current = null;
-  }, 3000);
-}, []);
 
   const boardRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const playerBtnRef = useRef<HTMLButtonElement | null>(null);
 
-  // ✅ read real CSS hex steps from the board element
-  const [hexStep, setHexStep] = useState({ stepX: 72, stepY: 84 });
-
-  // ✅ NOTE: this effect does not need currentLayer/uiTick,
-  // but if you want it to re-read after rerenders, uiTick is ok.
-  useLayoutEffect(() => {
-    const el = boardRef.current;
-    if (!el) return;
-
-    const update = () => {
-      setHexStep({
-        stepX: readPxVar(el, "--hexStepX", 72),
-        stepY: readPxVar(el, "--hexHMain", 84),
-      });
-    };
-
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, [uiTick]);
-
-  const [spriteXY, setSpriteXY] = useState<{ x: number; y: number } | null>(
-    null
+  /* =========================
+     Per-layer move counters (for shifting)
+  ========================= */
+  const [layerMoves, setLayerMoves] = useState<Record<number, number>>({});
+  const [layerMoveArmed, setLayerMoveArmed] = useState<Record<number, boolean>>(
+    {}
   );
 
-  // ✅ single source of truth for player position (always follows engine)
- const playerId = useMemo(() => {
-  const pid = (state as any)?.playerHexId;
-  return typeof pid === "string" ? pid : null;
-}, [state, uiTick]);
+  const getLayerMoves = useCallback(
+    (layer: number) => {
+      const n = layerMoves[layer];
+      return Number.isFinite(n) ? (n as number) : 0;
+    },
+    [layerMoves]
+  );
+
+  /* =========================
+     Layer flash overlay
+  ========================= */
+  const [layerFx, setLayerFx] = useState<null | { key: number; layer: number }>(
+    null
+  );
+  const layerFxTimerRef = useRef<number | null>(null);
+
+  const triggerLayerFx = useCallback((layer: number) => {
+    if (layerFxTimerRef.current) window.clearTimeout(layerFxTimerRef.current);
+
+    const key = Date.now();
+    setLayerFx({ key, layer });
+
+    layerFxTimerRef.current = window.setTimeout(() => {
+      setLayerFx(null);
+      layerFxTimerRef.current = null;
+    }, 3000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (layerFxTimerRef.current) window.clearTimeout(layerFxTimerRef.current);
+    };
+  }, []);
+
+  const layerFxStyle = useMemo(() => {
+    if (!layerFx) return {} as React.CSSProperties;
+    return {
+      ["--layerFxColor" as any]: layerCssVar(layerFx.layer),
+    } as React.CSSProperties;
+  }, [layerFx]);
+
+  /* =========================
+     Player id / coord
+  ========================= */
+  const playerId = useMemo(() => {
+    const pid = (state as any)?.playerHexId;
+    return typeof pid === "string" ? pid : null;
+  }, [state, uiTick]);
 
   const playerCoord = useMemo(() => {
     return playerId ? idToCoord(playerId) : null;
@@ -2190,99 +2143,138 @@ const triggerLayerFx = useCallback((layer: number) => {
 
   const playerLayer = playerCoord?.layer ?? null;
 
-  const [movesTaken, setMovesTaken] = useState(0);
+  /* =========================
+     Reset
+  ========================= */
+  const resetAll = useCallback(() => {
+    setEncounter(null);
+    pendingEncounterMoveIdRef.current = null;
 
-  // ✅ per-layer movement counters
-  const [layerMoves, setLayerMoves] = useState<Record<number, number>>({});
-  const [layerMoveArmed, setLayerMoveArmed] = useState<Record<number, boolean>>(
-    {}
-  );
+    setVillainTriggers([]);
+    setChosenPlayer(null);
 
-  // shifting only starts once a layer is "armed"
-  function getLayerMoves(layer: number) {
-    return layerMoveArmed[layer] ? layerMoves[layer] ?? 0 : 0;
+    setWorldId(null);
+    setScenarioId(null);
+    setTrackId(null);
+
+    setState(null);
+    setUiTickSafe(forceRender);
+
+    setCurrentLayer(1);
+    setScenarioLayerCount(1);
+    setSelectedId(null);
+    setStartHexId(null);
+
+    setMovesTaken(0);
+    setLayerMoves({});
+    setLayerMoveArmed({});
+
+    setGoalId(null);
+    setOptimalAtStart(null);
+    setOptimalFromNow(null);
+
+    logNRef.current = 0;
+    setLog([]);
+
+    setItems([
+      { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
+      { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
+      { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
+    ]);
+
+    setLayerFx(null);
+    setScreen("start");
+  }, []);
+
+  function setUiTickSafe(setter: React.Dispatch<React.SetStateAction<number>>) {
+    setter((n) => n + 1);
   }
 
-  useLayoutEffect(() => {
-    const btn = playerBtnRef.current;
-    const board = boardRef.current;
-    if (!btn || !board) return;
+  /* =========================
+     Render helpers/components (INSIDE App)
+     ✅ AFTER playerId exists
+  ========================= */
 
-    const b = board.getBoundingClientRect();
-    const r = btn.getBoundingClientRect();
+  const isPlayerHere = useCallback(
+    (id: string) => {
+      return !!playerId && playerId === id;
+    },
+    [playerId]
+  );
 
-    const x = r.left - b.left + r.width / 2;
-    const y = r.top - b.top + r.height * 0.86;
+  function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
+    const segments = [7, 6, 5, 4, 3, 2, 1];
+    const side = props.side;
+    const currentLayerLocal = props.currentLayer;
 
-    setSpriteXY({ x, y });
-  }, [playerId, currentLayer, movesTaken, uiTick]);
+    return (
+      <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")}>
+        <div className="layerBar">
+          {segments.map((layerVal) => {
+            const active = layerVal === currentLayerLocal;
+            return (
+              <div
+                key={layerVal}
+                className={"barSeg" + (active ? " isActive" : "")}
+                data-layer={layerVal}
+              />
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  function HexDeckCardsOverlay(props: { glowVar: string }) {
+    const overlayStyle = {
+      ["--cardGlow" as any]: props.glowVar,
+    } as React.CSSProperties;
+
+    return (
+      <div className="hexDeckOverlay" style={overlayStyle}>
+        <div className="hexDeckCol left">
+          <div className="hexDeckCard cosmic ccw slow">
+            <div className="deckFx" />
+          </div>
+          <div className="hexDeckCard risk ccw fast">
+            <div className="deckFx" />
+          </div>
+        </div>
+
+        <div className="hexDeckCol right">
+          <div className="hexDeckCard terrain cw slow">
+            <div className="deckFx" />
+          </div>
+          <div className="hexDeckCard shadow cw fast">
+            <div className="deckFx" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   /* =========================
      Moves / optimal / log
-     ✅ MUST be before reachable (because reachable depends on movesTaken)
+     ✅ MUST be before reachable (reachable depends on per-layer moves)
   ========================= */
 
-const viewState = useMemo(() => {
-  if (!state) return null;
-
-  const rs = (state as any).rowShifts;
-  let hasEngineShift = false;
-
-  if (rs && typeof rs === "object") {
-    for (const k of Object.keys(rs)) {
-      const rowsObj = rs[k];
-      if (!rowsObj || typeof rowsObj !== "object") continue;
-      for (const rKey of Object.keys(rowsObj)) {
-        const n = Number(rowsObj[rKey]);
-        if (Number.isFinite(n) && n !== 0) {
-          hasEngineShift = true;
-          break;
-        }
-      }
-      if (hasEngineShift) break;
-    }
-  }
-
-  if (hasEngineShift) return state;
-
-  const injected: any = { ...(state as any) };
-  const rowShifts: any = {};
-
-  for (let layer = 1; layer <= scenarioLayerCount; layer++) {
-    const perRow: any = {};
-    const mL = getLayerMoves(layer);
-
-    for (let r = 0; r < ROW_LENS.length; r++) {
-      perRow[r] = derivedRowShiftUnits(state as any, layer, r, mL);
-    }
-
-    rowShifts[layer] = perRow;
-    rowShifts["L" + layer] = perRow;
-  }
-
-  injected.rowShifts = rowShifts;
-  return injected as any;
-}, [state, scenarioLayerCount, layerMoves, layerMoveArmed]);
-
+  const [movesTaken, setMovesTaken] = useState(0);
 
   const [goalId, setGoalId] = useState<string | null>(null);
   const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
   const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
 
-  const computeOptimalFromReachMap = useCallback(
-    (rm: any, gid: string | null) => {
-      if (!gid || !rm) return null;
+  const computeOptimalFromReachMap = useCallback((rm: any, gid: string | null) => {
+    if (!gid || !rm) return null;
 
-      if (typeof rm?.get === "function") {
-        const info = rm.get(gid);
-        return info?.reachable ? (info.distance as number) : null;
-      }
-
-      const info = rm[gid];
+    if (typeof rm?.get === "function") {
+      const info = rm.get(gid);
       return info?.reachable ? (info.distance as number) : null;
-    },
-    []
-  );
+    }
+
+    const info = rm[gid];
+    return info?.reachable ? (info.distance as number) : null;
+  }, []);
 
   const [log, setLog] = useState<LogEntry[]>([]);
   const logNRef = useRef(0);
@@ -2292,6 +2284,52 @@ const viewState = useMemo(() => {
     const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
     setLog((prev) => [e, ...prev].slice(0, 24));
   }, []);
+
+  const rows = useMemo(() => {
+    return Array.from({ length: ROW_LENS.length }, (_, i) => i);
+  }, []);
+
+  const viewState = useMemo(() => {
+    if (!state) return null;
+
+    const rs = (state as any).rowShifts;
+    let hasEngineShift = false;
+
+    if (rs && typeof rs === "object") {
+      for (const k of Object.keys(rs)) {
+        const rowsObj = rs[k];
+        if (!rowsObj || typeof rowsObj !== "object") continue;
+        for (const rKey of Object.keys(rowsObj)) {
+          const n = Number(rowsObj[rKey]);
+          if (Number.isFinite(n) && n !== 0) {
+            hasEngineShift = true;
+            break;
+          }
+        }
+        if (hasEngineShift) break;
+      }
+    }
+
+    if (hasEngineShift) return state;
+
+    const injected: any = { ...(state as any) };
+    const rowShifts: any = {};
+
+    for (let layer = 1; layer <= scenarioLayerCount; layer++) {
+      const perRow: any = {};
+      const mL = getLayerMoves(layer);
+
+      for (let r = 0; r < ROW_LENS.length; r++) {
+        perRow[r] = derivedRowShiftUnits(state as any, layer, r, mL);
+      }
+
+      rowShifts[layer] = perRow;
+      rowShifts["L" + layer] = perRow;
+    }
+
+    injected.rowShifts = rowShifts;
+    return injected as any;
+  }, [state, scenarioLayerCount, getLayerMoves, layerMoves, layerMoveArmed]);
 
   /* =========================
      Reachability (1-step neighbors)
@@ -2305,11 +2343,11 @@ const viewState = useMemo(() => {
     // only compute when viewing the player's layer
     if (playerLayer !== currentLayer) return set;
 
- const nbs = getShiftedNeighborsSameLayer(
-  viewState as any,
-  playerId,
-  getLayerMoves(playerLayer ?? currentLayer) // ✅ per-layer
-);
+    const nbs = getShiftedNeighborsSameLayer(
+      viewState as any,
+      playerId,
+      getLayerMoves(playerLayer ?? currentLayer)
+    );
 
     for (const nbId of nbs) {
       const hex = getHexFromState(viewState as any, nbId) as any;
@@ -2318,14 +2356,10 @@ const viewState = useMemo(() => {
     }
 
     return set;
-  }, [viewState, playerId, movesTaken, playerLayer, currentLayer]);
-
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const walkTimer = useRef<number | null>(null);
-  const pendingQuickStartRef = useRef(false);
+  }, [viewState, playerId, playerLayer, currentLayer, getLayerMoves]);
 
   /* =========================
-     Theme / assets (INSIDE App)
+     Theme / assets
   ========================= */
 
   const activeTheme = scenarioEntry?.theme ?? null;
@@ -2335,8 +2369,7 @@ const viewState = useMemo(() => {
 
   // ✅ ABSOLUTELY NO TEMPLATE LITERALS
   const backgroundLayers: any =
-    (activeTheme && activeTheme.assets && activeTheme.assets.backgroundLayers) ||
-    {};
+    (activeTheme && activeTheme.assets && activeTheme.assets.backgroundLayers) || {};
   const BOARD_LAYER_ = backgroundLayers["L" + currentLayer] || "";
 
   const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "images/dice";
@@ -2388,31 +2421,32 @@ const viewState = useMemo(() => {
   const lastRef = useRef(0);
   const [walkFrame, setWalkFrame] = useState(0);
 
-const WALK_FPS = 10;
-const IDLE_FPS = 4;
+  const WALK_FPS = 10;
+  const IDLE_FPS = 4;
 
- useEffect(() => {
-  const fps = isWalking ? WALK_FPS : IDLE_FPS;
-  const frameDuration = 1000 / fps;
+  useEffect(() => {
+    const fps = isWalking ? WALK_FPS : IDLE_FPS;
+    const frameDuration = 1000 / fps;
 
-  lastRef.current = performance.now();
+    lastRef.current = performance.now();
 
-  const tick = (t: number) => {
-    if (t - lastRef.current >= frameDuration) {
-      setWalkFrame((f) => (f + 1) % SPRITE_COLS);
-      lastRef.current = t;
-    }
+    const tick = (t: number) => {
+      if (t - lastRef.current >= frameDuration) {
+        setWalkFrame((f) => (f + 1) % SPRITE_COLS);
+        lastRef.current = t;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
     rafRef.current = requestAnimationFrame(tick);
-  };
 
-  rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [isWalking]);
 
-  return () => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
-  };
-}, [isWalking]);
-
+  const walkTimer = useRef<number | null>(null);
   useEffect(() => {
     return () => {
       if (walkTimer.current) window.clearTimeout(walkTimer.current);
@@ -2422,6 +2456,7 @@ const IDLE_FPS = 4;
   function facingRow(f: Facing) {
     return f === "down" ? 0 : f === "left" ? 1 : f === "right" ? 2 : 3;
   }
+
 
  /* =========================
    Dice
