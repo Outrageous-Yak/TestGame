@@ -422,14 +422,12 @@ function getMovementPattern(st: any, layer: number): string {
   // st can be a GameState (st.scenario) OR a Scenario (st itself)
   const sc = st?.scenario ?? st;
 
-function getMovementPattern(st: any, layer: number): string {
-  const sc = st?.scenario ?? st;
   const m = sc?.movement ?? sc?.movementByLayer ?? null;
   if (!m) return "NONE";
+
   const v = m[layer] ?? m[String(layer)] ?? m["L" + layer];
   return typeof v === "string" ? v : "NONE";
 }
-
 
 function derivedRowShiftUnits(st: any, layer: number, row: number, movesTaken: number): number {
   if (!st) return 0;
@@ -2737,28 +2735,14 @@ function parseVillainsFromScenario(s: any): VillainTrigger[] {
   const allowed: VillainKey[] = ["bad1", "bad2", "bad3", "bad4"];
   const out: VillainTrigger[] = [];
 
-  // ---- detect indexing (0-based vs 1-based) ----
-  // If any row/col is 7 (or higher), it’s almost certainly 1-based.
-  let seemsOneBased = false;
-  for (const raw of src) {
-    if (!raw || typeof raw !== "object") continue;
-    const base = raw.from && typeof raw.from === "object" ? raw.from : raw;
-
-    const r = Number(base.row ?? base.r ?? raw.row ?? raw.r);
-    const c = Number(base.col ?? base.c ?? raw.col ?? raw.c);
-
-    if ((Number.isFinite(r) && r >= 7) || (Number.isFinite(c) && c >= 7)) {
-      seemsOneBased = true;
-      break;
-    }
-  }
-
-  const toRow = (r: number) => (seemsOneBased ? r - 1 : r);
-  const toCol = (c: number) => (seemsOneBased ? c - 1 : c);
+  // If the data looks 1-based, convert to 0-based.
+  const toZeroBasedRow = (r: number) => (r >= 1 && r <= 7 ? r - 1 : r);
+  const toZeroBasedCol = (c: number) => (c >= 1 && c <= 7 ? c - 1 : c);
 
   for (const raw of src) {
     if (!raw || typeof raw !== "object") continue;
 
+    // allow nesting: { from:{layer,row,col}, key:"bad1" }
     const base = raw.from && typeof raw.from === "object" ? raw.from : raw;
 
     const keyRaw = String(raw.key ?? raw.villainKey ?? raw.id ?? base.key ?? "bad1");
@@ -2767,7 +2751,7 @@ function parseVillainsFromScenario(s: any): VillainTrigger[] {
     const layer = Number(base.layer ?? base.L ?? raw.layer ?? raw.L ?? 1);
 
     let row = Number(base.row ?? base.r ?? raw.row ?? raw.r ?? 0);
-    row = toRow(row);
+    row = toZeroBasedRow(row);
 
     // cols can be: "any" OR number[] OR single number
     let cols: "any" | number[] | undefined = undefined;
@@ -2777,10 +2761,10 @@ function parseVillainsFromScenario(s: any): VillainTrigger[] {
       cols = "any";
     } else if (Array.isArray(c)) {
       cols = c
-        .map((n: any) => toCol(Number(n)))
+        .map((n: any) => toZeroBasedCol(Number(n)))
         .filter((n: any) => Number.isFinite(n));
     } else if (Number.isFinite(Number(c))) {
-      cols = [toCol(Number(c))];
+      cols = [toZeroBasedCol(Number(c))];
     }
 
     if (!Number.isFinite(layer) || !Number.isFinite(row)) continue;
@@ -2790,7 +2774,6 @@ function parseVillainsFromScenario(s: any): VillainTrigger[] {
 
   return out;
 }
-
 
 /* =========================
    Start scenario
