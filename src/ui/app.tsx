@@ -1970,7 +1970,7 @@ export default function App() {
      Navigation / overlays
   ========================= */
   const [screen, setScreen] = useState<Screen>("start");
-const SHOW_GHOST_TOGGLE = false;
+const SHOW_GHOST_TOGGLE = false; // set true for debugging
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
   const pendingEncounterMoveIdRef = useRef<string | null>(null);
@@ -3272,7 +3272,7 @@ return (
       }}
     />
 
-  {SHOW_GHOST_TOGGLE && (
+    {SHOW_GHOST_TOGGLE && (
   <button className="btn" onClick={() => setShowGhost((v) => !v)}>
     {showGhost ? "Hide ghost" : "Ghost grid"}
   </button>
