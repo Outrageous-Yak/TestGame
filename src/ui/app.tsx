@@ -736,58 +736,121 @@ body{
 }
 
 .card{
-  text-align:left;
+  text-align: left;
   padding: 14px;
-  border-radius: 16px;
   border: 1px solid var(--stroke);
   background: rgba(0,0,0,.22);
   color: var(--text);
-  cursor:pointer;
-  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+  cursor: pointer;
+
+  position: relative;
+  border-radius: 22px;
+  overflow: hidden;
+
+  /* keep hover transform working while still helping GPU edges */
+  backface-visibility: hidden;
+  transform: translateZ(0);
+
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease;
 }
+
+.card::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+
+  /* your effect layer (adjust if you want) */
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(255,255,255,0.10) 0px,
+    rgba(255,255,255,0.10) 8px,
+    rgba(255,255,255,0.02) 8px,
+    rgba(255,255,255,0.02) 16px
+  );
+  opacity: 0.35;
+
+  will-change: transform;
+  animation: cardStripeMove 2.5s linear infinite;
+}
+
+@keyframes cardStripeMove{
+  from { transform: translate3d(-30px, -30px, 0); }
+  to   { transform: translate3d( 30px,  30px, 0); }
+}
+
 .card:hover{
-  transform: translateY(-1px);
+  transform: translateY(-1px) translateZ(0);
   border-color: rgba(120,220,255,.35);
   background: rgba(0,0,0,.30);
   box-shadow: 0 14px 40px rgba(0,0,0,.32);
 }
+
 .card.active{
   border-color: rgba(120,255,210,.45);
   box-shadow: 0 0 0 3px rgba(120,255,210,.12), 0 16px 45px rgba(0,0,0,.42);
 }
+
 .cardTitle{ font-weight: 900; }
 .cardDesc{ margin-top: 6px; color: var(--muted); font-size: 13px; }
 
-.customBox{ margin-top: 14px; display:grid; gap: 10px; }
+.customBox{ margin-top: 14px; display: grid; gap: 10px; }
 .lbl{ font-size: 12px; color: var(--muted); }
+
 .inp{
-  width:100%;
-  padding: 12px 12px;
+  width: 100%;
+  padding: 12px;
   border-radius: 12px;
   border: 1px solid var(--stroke);
   background: rgba(0,0,0,.24);
   color: var(--text);
-  outline:none;
+  outline: none;
 }
+
 .portrait{
-  width:120px; height:120px; border-radius: 18px;
+  width: 120px;
+  height: 120px;
+  border-radius: 18px;
   object-fit: cover;
   border: 1px solid rgba(255,255,255,.12);
   background: rgba(0,0,0,.25);
   box-shadow: 0 14px 40px rgba(0,0,0,.28);
 }
 
-.tracks{ margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.08); }
-.tracksTitle{ font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
-.tracksRow{ margin-top: 10px; display:flex; flex-wrap: wrap; gap: 10px; }
+.tracks{
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.tracksTitle{
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+
+.tracksRow{
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .chip{
   padding: 10px 12px;
   border-radius: 999px;
   border: 1px solid var(--stroke);
   background: rgba(0,0,0,.22);
   color: var(--text);
-  cursor:pointer;
+  cursor: pointer;
 }
+
 .chip.active{
   border-color: rgba(120,255,210,.45);
   box-shadow: 0 0 0 3px rgba(120,255,210,.12);
