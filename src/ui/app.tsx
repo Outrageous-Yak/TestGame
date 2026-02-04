@@ -992,6 +992,25 @@ body{
   opacity: .55;
   pointer-events:none;
 }
+/* LEFT BAR: row shift labels */
+.rowShiftBar{
+  position: relative;
+}
+
+.rowShiftBar .rowSeg{
+  display: grid;
+  place-items: center; /* ✅ centers text in each row block */
+  background: rgba(255,255,255,.03); /* subtle; optional */
+}
+
+.rowShiftLabel{
+  font-weight: 1000;
+  font-size: 12px;
+  letter-spacing: .35px;
+  color: rgba(255,255,255,.88);
+  text-shadow: 0 2px 10px rgba(0,0,0,.45);
+  user-select: none;
+}
 
 /* =========================================================
    BOARD WRAP
@@ -2172,11 +2191,13 @@ export default function App() {
     [playerId]
   );
 
-  function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
-    const segments = [7, 6, 5, 4, 3, 2, 1];
-    const side = props.side;
-    const currentLayerLocal = props.currentLayer;
+function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
+  const side = props.side;
+  const currentLayerLocal = props.currentLayer;
 
+  // RIGHT BAR: keep your existing layer indicator (7..1)
+  if (side === "right") {
+    const segments = [7, 6, 5, 4, 3, 2, 1];
     return (
       <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")}>
         <div className="layerBar">
@@ -2194,6 +2215,48 @@ export default function App() {
       </div>
     );
   }
+
+  // LEFT BAR: show row shifts for the CURRENT layer (r0..r6)
+  return (
+    <div className="barWrap barLeft">
+      <div className="layerBar rowShiftBar">
+        {rows.map((r) => {
+          const cols = ROW_LENS[r] ?? 7;
+
+          const engineShiftRaw =
+            (viewState as any)?.rowShifts?.[currentLayerLocal]?.[r] ??
+            (viewState as any)?.rowShifts?.["L" + currentLayerLocal]?.[r];
+
+          const engineShift = Number(engineShiftRaw ?? 0);
+
+          const rawShift =
+            Number.isFinite(engineShift) && engineShift !== 0
+              ? engineShift
+              : derivedRowShiftUnits(
+                  viewState as any,
+                  currentLayerLocal,
+                  r,
+                  getLayerMoves(currentLayerLocal)
+                );
+
+          const ns = normalizeRowShift(rawShift, cols);
+          const shift = ns.visual; // signed, small (-3..3 etc)
+
+          // ✅ label rules: -1 => L1, +1 => R1, 0 => show nothing
+          const label =
+            shift === 0 ? "" : shift < 0 ? "L" + Math.abs(shift) : "R" + shift;
+
+          return (
+            <div key={"rowSeg-" + r} className="barSeg rowSeg">
+              {label ? <span className="rowShiftLabel">{label}</span> : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+}
 
   function HexDeckCardsOverlay(props: { glowVar: string }) {
     const overlayStyle = {
@@ -3506,16 +3569,7 @@ const isOffset = cols === 6;
                     className="hexRow"
                     style={{ transform: "translateX(" + tx + ")" }}
                   >
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: 8,
-                        opacity: 0.35,
-                        fontSize: 12,
-                      }}
-                    >
-                      r{r} shift:{shift}
-                    </div>
+             
 
                     {Array.from({ length: cols }, (_, c) => {
                       const id = "L" + currentLayer + "-R" + r + "-C" + c;
