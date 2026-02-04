@@ -10,7 +10,7 @@
   ],
   
   "start": { "layer": 1, "row": 3, "col": 1 },
-  "goal": { "layer": 5, "row": 6, "col": 6 },
+  "goal": { "layer": 5, "row": 6, "col": 1 },
   "missing": [],
   "blocked": [],
   "movement": {
