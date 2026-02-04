@@ -16,7 +16,7 @@
   "movement": {
     "1": "NONE",
     "2": "SEVEN_LEFT_SIX_RIGHT",
-    "3": "SEVEN_RIGHT_SIX_LEFT",
+    "3": "SEVEN_LEFT_SIX_RIGHT",
     "4": "SEVEN_LEFT_SIX_RIGHT",
     "5": "SEVEN_LEFT_SIX_RIGHT",
     "6": "NONE",
