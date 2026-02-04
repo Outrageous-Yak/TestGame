@@ -2256,7 +2256,7 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
     </div>
   );
 }
-}
+
 
   function HexDeckCardsOverlay(props: { glowVar: string }) {
     const overlayStyle = {
