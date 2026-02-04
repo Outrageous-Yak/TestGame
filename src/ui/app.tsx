@@ -3271,7 +3271,112 @@ return (
           : undefined,
       }}
     />
+<div className="topbar">
+      {SHOW_GHOST_TOGGLE && (
+        <button className="btn" onClick={() => setShowGhost((v) => !v)}>
+          {showGhost ? "Hide ghost" : "Ghost grid"}
+        </button>
+      )}
 
+      <div className={"dice3d " + (diceRolling ? "rolling" : "")}>
+        <div
+          className="cube"
+          style={{
+            transform:
+              "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)",
+          }}
+        >
+          <div
+            className="face face-front"
+            style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}
+          />
+          <div
+            className="face face-back"
+            style={{ backgroundImage: "url(" + diceImg(5) + ")" }}
+          />
+          <div
+            className="face face-right"
+            style={{ backgroundImage: "url(" + diceImg(3) + ")" }}
+          />
+          <div
+            className="face face-left"
+            style={{ backgroundImage: "url(" + diceImg(4) + ")" }}
+          />
+          <div
+            className="face face-top"
+            style={{ backgroundImage: "url(" + diceImg(1) + ")" }}
+          />
+          <div
+            className="face face-bottom"
+            style={{ backgroundImage: "url(" + diceImg(6) + ")" }}
+          />
+        </div>
+
+        {DICE_BORDER_IMG ? (
+          <div
+            className="diceBorder"
+            style={{
+              backgroundImage: "url(" + toPublicUrl(DICE_BORDER_IMG) + ")",
+            }}
+          />
+        ) : null}
+      </div>
+
+      <div className="items">
+        {items.map((it) => (
+          <button
+            key={it.id}
+            className={"itemBtn " + (it.charges <= 0 ? "off" : "")}
+            disabled={
+              it.charges <= 0 ||
+              !state ||
+              (encounterActive && it.id !== "reroll") ||
+              layerFx !== null
+            }
+            onClick={() => useItem(it.id)}
+            title={it.name + " (" + it.charges + ")"}
+          >
+            <span className="itemIcon">{it.icon}</span>
+            <span className="itemName">{it.name}</span>
+            <span className="itemCharges">{it.charges}</span>
+          </button>
+        ))}
+      </div>
+
+      <button
+        className="btn"
+        disabled={!state || !canGoDown || encounterActive || layerFx !== null}
+        onClick={() => {
+          if (!state) return;
+          const next = Math.max(1, currentLayer - 1);
+          setCurrentLayer(next);
+          enterLayer(state, next);
+          revealWholeLayer(state, next);
+          forceRender((n) => n + 1);
+          pushLog("Layer " + next, "info");
+          triggerLayerFx(next);
+        }}
+      >
+        − Layer
+      </button>
+
+      <button
+        className="btn"
+        disabled={!state || !canGoUp || encounterActive || layerFx !== null}
+        onClick={() => {
+          if (!state) return;
+          const next = Math.min(scenarioLayerCount, currentLayer + 1);
+          setCurrentLayer(next);
+          enterLayer(state, next);
+          revealWholeLayer(state, next);
+          forceRender((n) => n + 1);
+          pushLog("Layer " + next, "info");
+          triggerLayerFx(next);
+        }}
+      >
+        + Layer
+      </button>
+    </div>
     {SHOW_GHOST_TOGGLE && (
   <button className="btn" onClick={() => setShowGhost((v) => !v)}>
     {showGhost ? "Hide ghost" : "Ghost grid"}
