@@ -1738,7 +1738,8 @@ flex: 0 0 var(--hexWMain);
 .logRow.info .lm{ color: rgba(119,168,255,.92); }
 
 /* =========================================================
-   DECK CARDS (PINNED TO GUTTERS) + BORDER EFFECT
+   DECK CARDS (PINNED TO GUTTERS)
+   Continuous layer-colored border + constant inner motion
 ========================================================= */
 
 .hexDeckOverlay{
@@ -1754,6 +1755,10 @@ flex: 0 0 var(--hexWMain);
 
 .hexDeckCol{ display: contents; }
 
+/* =========================================================
+   BASE CARD
+========================================================= */
+
 .hexDeckCard{
   position: absolute;
 
@@ -1764,9 +1769,9 @@ flex: 0 0 var(--hexWMain);
   border-radius: 22px;
   overflow: hidden;
 
-  isolation: isolate;          /* keep blend modes inside card */
-  backface-visibility: hidden; /* reduce edge shimmer */
-  transform: translateZ(0);    /* promote to its own layer */
+  isolation: isolate;
+  transform: translateZ(0);
+  backface-visibility: hidden;
   will-change: transform;
 
   border: 1px solid rgba(255,255,255,.18);
@@ -1776,18 +1781,19 @@ flex: 0 0 var(--hexWMain);
     0 0 0 1px rgba(255,255,255,.06) inset;
 }
 
-/* positions */
+/* =========================================================
+   CARD POSITIONS
+========================================================= */
+
 .hexDeckCard.cosmic{
   left: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
   top: calc(var(--boardPadTop) + var(--deckPadY));
   transform: translateX(-45%);
-
 }
 .hexDeckCard.risk{
   left: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
   bottom: calc(var(--boardPadBottom) + var(--deckPadY));
   transform: translateX(-45%);
-
 }
 .hexDeckCard.terrain{
   right: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
@@ -1800,9 +1806,9 @@ flex: 0 0 var(--hexWMain);
   transform: translateX(45%);
 }
 
-/* ------------------------------------------------------------------
-   INNER FX LAYER (requires <div class="deckFx" /> inside card)
------------------------------------------------------------------- */
+/* =========================================================
+   INNER FX LAYER (ambient motion, seamless loop)
+========================================================= */
 
 .hexDeckCard .deckFx{
   position:absolute;
@@ -1810,14 +1816,16 @@ flex: 0 0 var(--hexWMain);
   border-radius: inherit;
   pointer-events:none;
   overflow:hidden;
+  transform: translateZ(0);
 }
 
-/* glow + subtle hex pattern */
+/* static glow + pattern */
 .hexDeckCard .deckFx::before{
   content:"";
   position:absolute;
   inset:0;
   border-radius: inherit;
+
   background:
     radial-gradient(120% 90% at 40% 20%,
       color-mix(in srgb, var(--a) 35%, white 10%),
@@ -1828,16 +1836,23 @@ flex: 0 0 var(--hexWMain);
     linear-gradient(90deg, rgba(255,255,255,.10) 1px, transparent 1px) 0 0 / 18px 16px,
     linear-gradient(30deg, rgba(0,0,0,.20) 1px, transparent 1px) 0 0 / 18px 16px,
     linear-gradient(150deg, rgba(255,255,255,.06) 1px, transparent 1px) 0 0 / 18px 16px;
+
   opacity: .55;
   mix-blend-mode: overlay;
 }
 
-/* shimmer sweep */
+/* constant inner movement (no visible loop reset) */
+@keyframes deckInnerDrift{
+  from { transform: translate3d(-6%,-6%,0) rotate(0deg); }
+  to   { transform: translate3d( 6%, 6%,0) rotate(360deg); }
+}
+
 .hexDeckCard .deckFx::after{
   content:"";
   position:absolute;
-  inset:-20%;
+  inset:-25%;
   border-radius: inherit;
+
   background:
     repeating-linear-gradient(
       115deg,
@@ -1853,49 +1868,56 @@ flex: 0 0 var(--hexWMain);
       color-mix(in srgb, var(--b) 25%, transparent) 16px,
       rgba(0,0,0,0) 22px
     );
+
   background-size: 180% 180%;
-  opacity: .40;
+  opacity: .38;
   mix-blend-mode: screen;
-  animation: deckShimmer 7s linear infinite;
+
+  will-change: transform;
+  animation: deckInnerDrift 8s linear infinite;
 }
 
-@keyframes deckShimmer{
-  0%{ transform: translate3d(-6%,-6%,0); }
-  50%{ transform: translate3d(6%,2%,0); }
-  100%{ transform: translate3d(-6%,-6%,0); }
+/* =========================================================
+   FULL 360° LAYER-COLORED BORDER (continuous loop)
+========================================================= */
+
+@property --spin {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
 }
 
-/* ------------------------------------------------------------------
-   EXISTING SPINNING BORDER (unchanged)
------------------------------------------------------------------- */
+@keyframes deckBorderSpin{
+  to { --spin: 360deg; }
+}
 
-@property --spin { syntax: "<angle>"; inherits: false; initial-value: 0turn; }
-
-@keyframes spinCW { from{ --spin: 0turn; } to{ --spin: 1turn; } }
-@keyframes spinCCW{ from{ --spin: 1turn; } to{ --spin: 0turn; } }
-
-@keyframes twinkle{
-  0%,100%{ filter: drop-shadow(0 0 10px var(--cardGlow)); opacity:.92; }
-  50%{ filter: drop-shadow(0 0 16px var(--cardGlow)); opacity:1; }
+@keyframes deckBorderBreath{
+  0%,100%{
+    opacity:.95;
+    filter: drop-shadow(0 0 10px var(--cardGlow));
+  }
+  50%{
+    opacity:1;
+    filter: drop-shadow(0 0 16px var(--cardGlow));
+  }
 }
 
 .hexDeckCard::after{
   content:"";
   position:absolute;
-
-  /* ✅ KEY FIXES */
-  inset: 0;                   /* was -2px */
-  border-radius: inherit;      /* was 24px */
+  inset:0;
+  border-radius: inherit;
   padding: 2px;
+  pointer-events:none;
 
   background:
     conic-gradient(
       from var(--spin),
-      transparent 0 80%,
-      rgba(255,255,255,.1) 82% 84%,
-      var(--cardGlow) 86% 90%,
-      rgba(255,255,255,.1) 92% 94%,
-      transparent 96% 100%
+      color-mix(in srgb, var(--cardGlow) 95%, rgba(255,255,255,.15)) 0deg,
+      color-mix(in srgb, var(--cardGlow) 65%, rgba(255,255,255,.10)) 90deg,
+      color-mix(in srgb, var(--cardGlow) 95%, rgba(255,255,255,.15)) 180deg,
+      color-mix(in srgb, var(--cardGlow) 65%, rgba(255,255,255,.10)) 270deg,
+      color-mix(in srgb, var(--cardGlow) 95%, rgba(255,255,255,.15)) 360deg
     );
 
   -webkit-mask:
@@ -1904,29 +1926,26 @@ flex: 0 0 var(--hexWMain);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 
-  opacity: .95;
-  pointer-events:none;
-will-change: transform;
-  animation: var(--spinAnim) linear infinite, twinkle 1.3s ease-in-out infinite;
-
-  /* optional but helps in some browsers */
+  will-change: transform;
   transform: translateZ(0);
   backface-visibility: hidden;
+
+  animation:
+    deckBorderSpin 2.8s linear infinite,
+    deckBorderBreath 1.35s ease-in-out infinite;
 }
 
-/* animation direction/speed via CSS var */
-.hexDeckCard.cw.slow{  --spinAnim: spinCW 3.6s; }
-.hexDeckCard.cw.fast{  --spinAnim: spinCW 2.4s; }
-.hexDeckCard.ccw.slow{ --spinAnim: spinCCW 3.8s; }
-.hexDeckCard.ccw.fast{ --spinAnim: spinCCW 2.2s; }
+/* =========================================================
+   CARD THEMES
+========================================================= */
 
-/* card themes */
 .hexDeckCard.cosmic  { --a:#0C1026; --b:#1A1F4A; }
 .hexDeckCard.risk    { --a:#12090A; --b:#6E0F1B; }
 .hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; }
 .hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; }
 
 @media (prefers-reduced-motion: reduce){
+  .hexDeckCard::after,
   .hexDeckCard .deckFx::after{
     animation:none !important;
   }
