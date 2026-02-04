@@ -44,7 +44,7 @@ export default {
             L4: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
             L5: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
             L6: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
-            L7: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/bg-layer7.jpg",
+            L7: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/bg-layer7.jpg", 
           },
         },
       },
@@ -57,7 +57,7 @@ export default {
         { id: "t4", name: "Track 4", scenarioJson: "worlds/rainbow_realm/scenarios/prism_path/scenario4.json" },
         { id: "t5", name: "Track 5", scenarioJson: "worlds/rainbow_realm/scenarios/prism_path/scenario4.json" },
         { id: "t6", name: "Track 6", scenarioJson: "worlds/rainbow_realm/scenarios/prism_path/scenario5.json" },
-        { id: "t7", name: "Track 7", scenarioJson: "worlds/rainbow_realm/scenarios/prism_path/scenario7.json" },
+        { id: "t7", name: "Track 7", scenarioJson: "worlds/rainbow_realm/scenarios/prism_path/scenario7.json" }
       ],
     },
   ],
