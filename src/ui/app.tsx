@@ -1764,7 +1764,10 @@ flex: 0 0 var(--hexWMain);
   border-radius: 22px;
   overflow: hidden;
 
-  isolation: isolate; /* 🔑 keep blend modes inside card */
+  isolation: isolate;          /* keep blend modes inside card */
+  backface-visibility: hidden; /* reduce edge shimmer */
+  transform: translateZ(0);    /* promote to its own layer */
+  will-change: transform;
 
   border: 1px solid rgba(255,255,255,.18);
   background: linear-gradient(135deg, var(--a), var(--b));
@@ -1879,8 +1882,10 @@ flex: 0 0 var(--hexWMain);
 .hexDeckCard::after{
   content:"";
   position:absolute;
-  inset:-2px;
-  border-radius: 24px;
+
+  /* ✅ KEY FIXES */
+  inset: 0;                   /* was -2px */
+  border-radius: inherit;      /* was 24px */
   padding: 2px;
 
   background:
@@ -1901,8 +1906,12 @@ flex: 0 0 var(--hexWMain);
 
   opacity: .95;
   pointer-events:none;
-
+will-change: transform;
   animation: var(--spinAnim) linear infinite, twinkle 1.3s ease-in-out infinite;
+
+  /* optional but helps in some browsers */
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 /* animation direction/speed via CSS var */
