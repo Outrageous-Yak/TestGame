@@ -3273,9 +3273,7 @@ return (
     />
 
     <div className="topbar">
-      <button className="btn" onClick={() => setShowGhost((v) => !v)}>
-        {showGhost ? "Hide ghost" : "Ghost grid"}
-      </button>
+     
 
       <div className={"dice3d " + (diceRolling ? "rolling" : "")}>
         <div
