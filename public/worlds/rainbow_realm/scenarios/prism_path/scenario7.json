@@ -33,8 +33,7 @@
     { "type": "UP", "from": { "layer": 1, "row": 1, "col": 3 }, "to": { "layer": 1, "row": 3, "col": 1 } },
     { "type": "UP", "from": { "layer": 1, "row": 1, "col": 2 }, "to": { "layer": 1, "row": 3, "col": 1 } },
     { "type": "UP", "from": { "layer": 1, "row": 1, "col": 1 }, "to": { "layer": 1, "row": 3, "col": 1 } },
-    { "type": "UP", "from": { "layer": 1, "row": 2, "col": 6 }, "to": { "layer": 1, "row": 3, "col": 1 } },
-    { "type": "DOWN", "from": { "layer": 2, "row": 6, "col": 5 }, "to": { "layer": 1, "row": 1, "col": 2 } }
+    { "type": "UP", "from": { "layer": 1, "row": 2, "col": 6 }, "to": { "layer": 1, "row": 3, "col": 1 } }
   
 ],
   "revealOnEnterGuaranteedUp": false
