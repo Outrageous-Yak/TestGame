@@ -1843,8 +1843,8 @@ flex: 0 0 var(--hexWMain);
 
 /* constant inner movement (no visible loop reset) */
 @keyframes deckInnerDrift{
-  from { transform: translate3d(-6%,-6%,0) rotate(0deg); }
-  to   { transform: translate3d( 6%, 6%,0) rotate(360deg); }
+  from { transform: translate3d(-90%,-90%,0) rotate(0deg); }
+  to   { transform: translate3d( 90%, 90%,0) rotate(360deg); }
 }
 
 .hexDeckCard .deckFx::after{
