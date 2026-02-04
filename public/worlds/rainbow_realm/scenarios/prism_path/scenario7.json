@@ -8,12 +8,7 @@
     "Shift+Click a hex to inspect it.",
     "Some layers shift after each turn."
   ],
-  "villains": {
-    "requiredRoll": 6,
-    "triggers": [
-      
-    ]
-  },
+  
   "start": { "layer": 1, "row": 3, "col": 1 },
   "goal": { "layer": 5, "row": 6, "col": 6 },
   "missing": [],
