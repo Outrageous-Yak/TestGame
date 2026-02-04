@@ -1,6 +1,6 @@
 // src/worlds/rainbow_realm/world.ts
  
-export default { 
+export default {  
   id: "rainbow_realm",
   name: "Rainbow Realm",
   desc: "Bright, magical rainbow world",
