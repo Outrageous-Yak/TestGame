@@ -967,6 +967,7 @@ body{
   box-shadow: 0 18px 40px rgba(0,0,0,.35);
   display: flex;
   flex-direction: column; 
+  position: relative;
 }
 .barSeg{ height: var(--hexHMain); width: 100%; opacity: .95; }
 .barSeg[data-layer="7"]{ background: var(--L7); }
@@ -1011,7 +1012,28 @@ body{
   text-shadow: 0 2px 10px rgba(0,0,0,.45);
   user-select: none;
 }
+.goalMarker{
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 1000;
+  font-size: 12px;
+  letter-spacing: .2px;
 
+  color: rgba(255, 220, 120, .95);
+  background: rgba(0,0,0,.45);
+  border: 1px solid rgba(255, 220, 120, .55);
+  box-shadow:
+    0 10px 22px rgba(0,0,0,.45),
+    0 0 0 3px rgba(255, 220, 120, .10);
+  z-index: 5;
+  pointer-events: none;
+}
 /* =========================================================
    BOARD WRAP
 ========================================================= */
@@ -2196,25 +2218,45 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
   const currentLayerLocal = props.currentLayer;
 
   // RIGHT BAR: keep your existing layer indicator (7..1)
-  if (side === "right") {
-    const segments = [7, 6, 5, 4, 3, 2, 1];
-    return (
-      <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")}>
-        <div className="layerBar">
-          {segments.map((layerVal) => {
-            const active = layerVal === currentLayerLocal;
-            return (
-              <div
-                key={layerVal}
-                className={"barSeg" + (active ? " isActive" : "")}
-                data-layer={layerVal}
-              />
-            );
-          })}
-        </div>
+if (side === "right") {
+  const segments = [7, 6, 5, 4, 3, 2, 1];
+
+  // goal layer from goalId like "L2-R1-C4"
+  const goalLayer = goalId ? idToCoord(goalId)?.layer ?? null : null;
+
+  // top position (center of that segment)
+  // segments are 7 blocks tall, each is --hexHMain
+  const goalTopPx =
+    goalLayer && goalLayer >= 1 && goalLayer <= 7
+      ? ((7 - goalLayer) * readPxVar(document.documentElement as any, "--hexHMain", 84)) +
+        readPxVar(document.documentElement as any, "--hexHMain", 84) / 2
+      : null;
+
+  return (
+    <div className="barWrap barRight">
+      <div className="layerBar">
+        {segments.map((layerVal) => {
+          const active = layerVal === currentLayerLocal;
+          return (
+            <div
+              key={layerVal}
+              className={"barSeg" + (active ? " isActive" : "")}
+              data-layer={layerVal}
+            />
+          );
+        })}
+
+        {/* ✅ GOAL MARKER */}
+        {goalTopPx !== null ? (
+          <div className="goalMarker" style={{ top: goalTopPx }}>
+            G
+          </div>
+        ) : null}
       </div>
-    );
-  }
+    </div>
+  );
+}
+
 
   // LEFT BAR: show row shifts for the CURRENT layer (r0..r6)
   return (
