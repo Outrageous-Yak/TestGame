@@ -42,7 +42,7 @@
     "7": "NONE"
   },
   "transitions": [
-    { "type": "UP", "from": { "layer": 1, "row": 3, "col": 5 }, "to": { "layer": 2, "row": 2, "col": 2 } },
+    { "type": "UP", "from": { "layer": 1, "row": 1, "col": 5 }, "to": { "layer": 2, "row": 2, "col": 2 } },
     { "type": "UP", "from": { "layer": 2, "row": 3, "col": 5 }, "to": { "layer": 3, "row": 2, "col": 2 } },
     { "type": "UP", "from": { "layer": 3, "row": 3, "col": 5 }, "to": { "layer": 4, "row": 2, "col": 2 } },
     { "type": "UP", "from": { "layer": 4, "row": 3, "col": 5 }, "to": { "layer": 5, "row": 2, "col": 2 } }
