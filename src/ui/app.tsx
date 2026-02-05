@@ -86,7 +86,8 @@ type WorldEntry = {
 type VillainKey = "bad1" | "bad2" | "bad3" | "bad4";
 type VillainTrigger = { key: VillainKey; layer: number; row: number; cols?: "any" | number[] };
 type Encounter = null | { villainKey: VillainKey; tries: number };
-
+type CardKey = "cosmic" | "risk" | "terrain" | "shadow";
+type CardTrigger = { card: CardKey; layer: number; row: number; col: number };
 /* =========================================================
    Worlds registry helpers
 ========================================================= */
@@ -588,6 +589,53 @@ function normalizeRowShift(rawShift: number, rowLen: number) {
 
   return { wrapped, visual };
 }
+function parseCardTriggersFromScenario(s: any): CardTrigger[] {
+  const src = (Array.isArray(s?.cardTriggers) && s.cardTriggers) || [];
+  const allowed: CardKey[] = ["cosmic", "risk", "terrain", "shadow"];
+
+  const toZeroBasedRow = (r: number) => (r >= 1 && r <= 7 ? r - 1 : r);
+  const toZeroBasedCol = (c: number) => (c >= 1 && c <= 7 ? c - 1 : c);
+
+  const out: CardTrigger[] = [];
+
+  for (const raw of src) {
+    if (!raw || typeof raw !== "object") continue;
+
+    const cardRaw = String(raw.card ?? raw.key ?? raw.id ?? "cosmic");
+    const card = (allowed.includes(cardRaw as any) ? cardRaw : "cosmic") as CardKey;
+
+    const layer = Number(raw.layer ?? 1);
+    let row = toZeroBasedRow(Number(raw.row ?? 0));
+    let col = toZeroBasedCol(Number(raw.col ?? 0));
+
+    if (!Number.isFinite(layer) || !Number.isFinite(row) || !Number.isFinite(col)) continue;
+    out.push({ card, layer, row, col });
+  }
+
+  return out;
+}
+const findCardTriggerAt = useCallback(
+  (id: string): CardKey | null => {
+    const c = idToCoord(id);
+    if (!c) return null;
+    for (const t of cardTriggers) {
+      if (t.layer === c.layer && t.row === c.row && t.col === c.col) return t.card;
+    }
+    return null;
+  },
+  [cardTriggers]
+);
+
+const triggerCardFlip = useCallback((card: CardKey) => {
+  if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
+
+  setCardFlip({ key: Date.now(), card });
+
+  cardFlipTimerRef.current = window.setTimeout(() => {
+    setCardFlip(null);
+    cardFlipTimerRef.current = null;
+  }, 1400);
+}, []);
 
 /* =========================================================
    CSS
@@ -2100,6 +2148,26 @@ flex: 0 0 var(--hexWMain);
     deckBorderSpin 2.8s linear infinite,
     deckBorderBreath 1.35s ease-in-out infinite;
 }
+.cardBadge{
+  position: absolute;
+  left: 50%;
+  top: 18px;                 /* ✅ keeps it well below the top point */
+  transform: translateX(-50%);
+  width: 20px;
+  height: 12px;
+  border-radius: 4px;
+
+  z-index: 6;                /* ✅ ABOVE .hexId (which is z-index: 5) */
+  box-shadow: 0 6px 14px rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.18);
+  pointer-events: none;
+}
+
+/* 4 color themes */
+.cardBadge.cosmic  { background: linear-gradient(135deg,#0C1026,#1A1F4A); }
+.cardBadge.risk    { background: linear-gradient(135deg,#12090A,#6E0F1B); }
+.cardBadge.terrain { background: linear-gradient(135deg,#0E3B2E,#1FA88A); }
+.cardBadge.shadow  { background: linear-gradient(135deg,#1B1B1E,#2A1E3F); }
 
 /* =========================================================
    CARD THEMES
@@ -3151,7 +3219,9 @@ function parseVillainsFromScenario(s: any): VillainTrigger[] {
 
   return out;
 }
-
+const [cardTriggers, setCardTriggers] = useState<CardTrigger[]>([]);
+const [cardFlip, setCardFlip] = useState<null | { key: number; card: CardKey }>(null);
+const cardFlipTimerRef = useRef<number | null>(null);
 /* =========================
    Start scenario
 ========================= */
@@ -3167,7 +3237,9 @@ const startScenario = useCallback(async () => {
 
   // ✅ load FIRST
   const s = (await loadScenario(chosenJson)) as any;
-
+const cts = parseCardTriggersFromScenario(s);
+setCardTriggers(cts);
+pushLog("Card triggers loaded: " + cts.length, "info");
   // ✅ then parse + log
   const vts = parseVillainsFromScenario(s);
   setVillainTriggers(vts);
@@ -3424,7 +3496,15 @@ const startScenario = useCallback(async () => {
       if (nextLayer !== currentLayer) {
         setCurrentLayer(nextLayer);
         revealWholeLayer(nextState, nextLayer);
-    
+    // ✅ CARD TRIGGER (AFTER successful move)
+const landedId = pidAfter ?? id;
+const landedCard = findCardTriggerAt(landedId);
+
+if (landedCard) {
+  triggerCardFlip(landedCard);
+  pushLog("Card triggered: " + landedCard, "info");
+}
+
       };
 
       const rm = getReachability(nextState) as any;
@@ -4000,7 +4080,10 @@ const isOffset = cols === 6;
                                     <div className="pShine" />
                                   </>
                                 ) : null}
-
+const cardHere = findCardTriggerAt(id);
+                              {cardHere ? (
+  <div className={"cardBadge " + cardHere} title={cardHere} />
+) : null}
                                 <div className="hexId">{r + "," + c}</div>
 
                                 <div className="hexMarks">
@@ -4094,7 +4177,11 @@ const isOffset = cols === 6;
         </div>
       </div>
     </div>
-
+   {cardFlip ? (
+      <div key={cardFlip.key} className="cardFlipOverlay" aria-live="polite">
+        <div className={"cardFlipCard " + cardFlip.card} />
+      </div>
+    ) : null}
     {encounter ? (
   <div className="overlay" role="dialog" aria-modal="true">
     <div className="overlayCard">
