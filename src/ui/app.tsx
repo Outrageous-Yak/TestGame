@@ -2307,41 +2307,69 @@ function findPortalTransition(
   const c = idToCoord(id);
   if (!c) return null;
 
+  const matches = (from: any) => {
+    const fl = Number(from?.layer);
+    const fr = Number(from?.row);
+    const fc = Number(from?.col);
+
+    if (!Number.isFinite(fl) || !Number.isFinite(fr) || !Number.isFinite(fc)) return false;
+
+    // Accept both 0-based and 1-based scenario data
+    const rowOk = fr === c.row || fr === c.row + 1;
+    const colOk = fc === c.col || fc === c.col + 1;
+
+    return fl === c.layer && rowOk && colOk;
+  };
+
+  const normRow = (r: number) => (r >= 1 && r <= 7 ? r - 1 : r);
+  const normCol = (k: number) => (k >= 1 && k <= 7 ? k - 1 : k);
+
   for (const t of transitions) {
     const from = t?.from;
     if (!from) continue;
+    if (!matches(from)) continue;
 
-    if (
-      Number(from.layer) === c.layer &&
-      Number(from.row) === c.row &&
-      Number(from.col) === c.col
-    ) {
-      const type = t?.type === "DOWN" ? "DOWN" : "UP";
-      const to = t?.to;
+    const type: "UP" | "DOWN" = t?.type === "DOWN" ? "DOWN" : "UP";
+    const to = t?.to;
 
-      // If scenario provides explicit "to", use it
-      if (to && typeof to === "object") {
-        return {
-          type,
-          to: {
-            layer: Number(to.layer),
-            row: Number(to.row),
-            col: Number(to.col),
-          },
-        };
-      }
+    if (to && typeof to === "object") {
+      const tl = Number(to.layer);
+      const tr = Number(to.row);
+      const tc = Number(to.col);
 
-      // Fallback: straight up / down same row+col
-      const fallbackLayer = type === "UP" ? c.layer + 1 : c.layer - 1;
       return {
         type,
-        to: { layer: fallbackLayer, row: c.row, col: c.col },
+        to: {
+          layer: Number.isFinite(tl) ? tl : (type === "UP" ? c.layer + 1 : c.layer - 1),
+          row: Number.isFinite(tr) ? normRow(tr) : c.row,
+          col: Number.isFinite(tc) ? normCol(tc) : c.col,
+        },
       };
     }
+
+    // fallback: straight up/down same row+col
+    const fallbackLayer = type === "UP" ? c.layer + 1 : c.layer - 1;
+    return { type, to: { layer: fallbackLayer, row: c.row, col: c.col } };
   }
 
   return null;
 }
+function applyPortalIfAny(st: any, landedId: string): { next: any; finalId: string } {
+  const tr = findPortalTransition(st?.scenario?.transitions, landedId);
+  if (!tr) return { next: st, finalId: landedId };
+
+  const destId = "L" + tr.to.layer + "-R" + tr.to.row + "-C" + tr.to.col;
+
+  const destHex = getHexFromState(st as any, destId) as any;
+  if (!destHex || destHex.missing || destHex.blocked) {
+    // If destination is invalid, just don't portal
+    return { next: st, finalId: landedId };
+  }
+
+  const next = { ...(st as any), playerHexId: destId };
+  return { next, finalId: destId };
+}
+
 
 /* =========================================================
    App
@@ -3130,7 +3158,14 @@ useEffect(() => {
     }
 
     const pidAfter = (nextState as any).playerHexId as string | null;
+let landedId = pidAfter ?? targetId;
 
+// apply portal jump after encounter move too
+{
+  const ap = applyPortalIfAny(nextState as any, landedId);
+  nextState = ap.next as any;
+  landedId = ap.finalId;
+}
     // close encounter ONLY after we know we have a valid nextState
     pendingEncounterMoveIdRef.current = null;
     setEncounter(null);
@@ -3491,8 +3526,9 @@ pushLog("Card triggers loaded: " + cts.length, "info");
       );
     }
 
-    setState(nextState);
-    setSelectedId(pidAfter ?? id);
+  setState(nextState);
+setSelectedId(landedId);
+
     forceRender((n) => n + 1);
 
     const c2 = pidAfter ? idToCoord(pidAfter) : null;
@@ -3506,7 +3542,24 @@ pushLog("Card triggers loaded: " + cts.length, "info");
     }
 
     // ✅ CARD TRIGGER (AFTER successful move) — must be OUTSIDE the layer-change if
-    const landedId = pidAfter ?? id;
+   // ✅ apply portal jump (AFTER successful move)
+let landedId = pidAfter ?? id;
+{
+  const ap = applyPortalIfAny(nextState as any, landedId);
+  nextState = ap.next as any;
+  landedId = ap.finalId;
+
+  // if we portaled, sync layer immediately
+  const lc = idToCoord(landedId);
+  const portalLayer = lc?.layer ?? null;
+  if (portalLayer && portalLayer !== currentLayer) {
+    enterLayer(nextState as any, portalLayer);
+    setCurrentLayer(portalLayer);
+    revealWholeLayer(nextState as any, portalLayer);
+    triggerLayerFx(portalLayer);
+  }
+}
+
     const landedCard = findCardTriggerAt(landedId);
     if (landedCard) {
       triggerCardFlip(landedCard);
@@ -3516,8 +3569,9 @@ pushLog("Card triggers loaded: " + cts.length, "info");
     const rm = getReachability(nextState) as any;
     setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
 
-    pushLog("Moved to " + (pidAfter ?? id), "ok");
-    if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
+   pushLog("Moved to " + landedId, "ok");
+   if (goalId && landedId === goalId) pushLog("Goal reached!", "ok");
+
   },
   [
     state,
