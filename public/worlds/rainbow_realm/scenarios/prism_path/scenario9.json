@@ -17,7 +17,7 @@
       { "id": "bad4", "layer": 2, "row": 5 }
     ]
   },
-  "start": { "layer": 0, "row": 0, "col": 0 },
+  "start": { "layer": 1, "row": 0, "col": 0 },
   "goal": { "layer": 2, "row": 0, "col": 0 },
   "missing": [
     { "layer": 1, "row": 0, "col": 3 },
