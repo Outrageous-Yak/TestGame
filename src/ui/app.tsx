@@ -1371,12 +1371,12 @@ flex: 0 0 var(--hexWMain);
   position:absolute;
 
   /* make the ring sit slightly outside so it’s obvious */
-  inset: -4px;
+  inset: -8px;
 
   /* ✅ match the hex shape */
   clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
 
-  padding: 3px;                 /* thicker ring */
+  padding: 6px;                 /* thicker ring */
   pointer-events:none;
 
   background:
