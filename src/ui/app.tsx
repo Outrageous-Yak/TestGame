@@ -1629,16 +1629,25 @@ flex: 0 0 var(--hexWMain);
    HEX TEXT / MARKS
 ========================================================= */
 .hexId{
-  position:absolute;
-  top: 9px;
-  left: 9px;
-  font-size: 11px;
-  color: rgba(255,255,255,.70);
+  position: absolute;
+  inset: 0;                 /* fill the hex */
+  display: grid;
+  place-items: center;      /* ✅ dead-center */
+  font-size: 13px;
+  font-weight: 900;
+  color: rgba(255,255,255,.82);
   font-variant-numeric: tabular-nums;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.20);
+
+  /* remove the pill look */
+  padding: 0;
+  border: none;
+  background: transparent;
+
+  /* keep it readable */
+  text-shadow: 0 2px 10px rgba(0,0,0,.55);
+
+  pointer-events: none;
+  z-index: 5;
 }
 .hexMarks{
   position:absolute;
