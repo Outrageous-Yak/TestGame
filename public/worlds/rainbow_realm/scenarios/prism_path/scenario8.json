@@ -23,6 +23,9 @@
     { "layer": 1, "row": 0, "col": 3 },
     { "layer": 1, "row": 1, "col": 3 },
     { "layer": 1, "row": 2, "col": 3 },
+    { "layer": 1, "row": 4, "col": 4 },
+    { "layer": 1, "row": 5, "col": 3 },
+    { "layer": 1, "row": 5, "col": 4 },
     { "layer": 1, "row": 3, "col": 3 }
   ],
   "blocked": [],
