@@ -1289,7 +1289,7 @@ display: grid;
   width: var(--hexWMain);
   height: var(--hexHMain);
 
-  padding: 50;
+  padding: 0;
   border: none;
   background: rgba(0,0,0,0);
   cursor: pointer;
@@ -3959,6 +3959,20 @@ const isOffset = cols === 6;
 
                 const ns = normalizeRowShift(rawShift, cols);
                 const shift = ns.visual;
+const tr = findPortalTransition(
+  (viewState as any)?.scenario?.transitions,
+  id
+);
+
+const isPortalUp = tr?.type === "UP";
+const isPortalDown = tr?.type === "DOWN";
+
+// ✅ real target layer from scenario "to"
+const portalTargetLayer = tr?.to?.layer ?? null;
+
+const portalColor = portalTargetLayer
+  ? layerCssVar(portalTargetLayer)
+  : null;
 
                 const tx = isOffset ? "calc(var(--hexStepX) / 5)" : "0px";
 
@@ -3976,14 +3990,7 @@ const isOffset = cols === 6;
                       const hex = getHexFromState(viewState as any, id) as any;
                       const bm = isBlockedOrMissing(hex);
 
-                      const portalDir = findPortalDirection(
-                        (viewState as any)?.scenario?.transitions,
-                        id
-                      );
-
-                      const isPortalUp = portalDir === "up";
-                      const isPortalDown = portalDir === "down";
-
+                     
                       if (bm.missing)
                         return <div key={id} className="hexSlot empty" />;
 
@@ -4002,15 +4009,7 @@ const isOffset = cols === 6;
                       );
                       const downLayer = Math.max(1, currentLayer - 1);
 
-                      const portalTargetLayer = isPortalUp
-                        ? upLayer
-                        : isPortalDown
-                        ? downLayer
-                        : null;
-
-                      const portalColor = portalTargetLayer
-                        ? layerCssVar(portalTargetLayer)
-                        : null;
+                    
 const cardHere = findCardTriggerAt(id);
                       const isGoal = goalId === id;
                       const isTrigger = !!findTriggerForHex(id);
