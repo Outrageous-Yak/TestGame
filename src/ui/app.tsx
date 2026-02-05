@@ -3959,20 +3959,6 @@ const isOffset = cols === 6;
 
                 const ns = normalizeRowShift(rawShift, cols);
                 const shift = ns.visual;
-const tr = findPortalTransition(
-  (viewState as any)?.scenario?.transitions,
-  id
-);
-
-const isPortalUp = tr?.type === "UP";
-const isPortalDown = tr?.type === "DOWN";
-
-// ✅ real target layer from scenario "to"
-const portalTargetLayer = tr?.to?.layer ?? null;
-
-const portalColor = portalTargetLayer
-  ? layerCssVar(portalTargetLayer)
-  : null;
 
                 const tx = isOffset ? "calc(var(--hexStepX) / 5)" : "0px";
 
@@ -3985,7 +3971,19 @@ const portalColor = portalTargetLayer
              
 
                     {Array.from({ length: cols }, (_, c) => {
-                      const id = "L" + currentLayer + "-R" + r + "-C" + c;
+  const id = "L" + currentLayer + "-R" + r + "-C" + c;
+
+  const tr = findPortalTransition(
+    (viewState as any)?.scenario?.transitions,
+    id
+  );
+
+  const isPortalUp = tr?.type === "UP";
+  const isPortalDown = tr?.type === "DOWN";
+
+  const portalTargetLayer = tr?.to?.layer ?? null;
+
+  const portalColor = portalTargetLayer ? layerCssVar(portalTargetLayer) : null;
 
                       const hex = getHexFromState(viewState as any, id) as any;
                       const bm = isBlockedOrMissing(hex);
