@@ -1084,6 +1084,94 @@ body{
   z-index: 5;
   pointer-events: none;
 }
+/* mini sprite in the RIGHT layer bar */
+.barPlayerMini{
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+
+  display: grid;
+  place-items: center;
+
+  /* keep it visible on dark bar */
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow:
+    0 10px 22px rgba(0,0,0,.40),
+    0 0 0 3px rgba(255,255,255,.06);
+
+  pointer-events: none;
+  z-index: 4; /* goalMarker is 5, so sprite is BEHIND it */
+}
+
+/* make sure goal marker stays above */
+.goalMarker{
+  z-index: 5;
+}
+
+/* sprite sheet renderer for the mini */
+.barPlayerMini .miniSprite{
+  width: 22px;
+  height: 22px;
+
+  image-rendering: pixelated;
+  background-image: var(--spriteImg);
+  background-repeat: no-repeat;
+  background-size:
+    calc(var(--frameW) * var(--cols) * 1px)
+    calc(var(--frameH) * var(--rows) * 1px);
+
+  /* pick a frame (same as your main sprite) */
+  background-position:
+    calc(var(--frameW) * -1px * var(--frameX))
+    calc(var(--frameH) * -1px * var(--frameY));
+
+  transform: scale(0.22);
+  transform-origin: center;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,.55));
+}
+.barPlayerMini{
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow:
+    0 10px 22px rgba(0,0,0,.40),
+    0 0 0 3px rgba(255,255,255,.06);
+  pointer-events: none;
+
+  z-index: 4; /* ✅ behind goalMarker (which is 5) */
+}
+
+.goalMarker{ z-index: 5; }
+
+.barPlayerMini .miniSprite{
+  width: 22px;
+  height: 22px;
+  image-rendering: pixelated;
+  background-image: var(--spriteImg);
+  background-repeat: no-repeat;
+  background-size:
+    calc(var(--frameW) * var(--cols) * 1px)
+    calc(var(--frameH) * var(--rows) * 1px);
+  background-position:
+    calc(var(--frameW) * -1px * var(--frameX))
+    calc(var(--frameH) * -1px * var(--frameY));
+  transform: scale(0.22);
+  transform-origin: center;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,.55));
+}
+
 /* =========================================================
    BOARD WRAP
 ========================================================= */
@@ -2373,19 +2461,27 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
   const side = props.side;
   const currentLayerLocal = props.currentLayer;
 
-  // RIGHT BAR: keep your existing layer indicator (7..1)
+ // RIGHT BAR: keep your existing layer indicator (7..1)
 if (side === "right") {
   const segments = [7, 6, 5, 4, 3, 2, 1];
 
   // goal layer from goalId like "L2-R1-C4"
   const goalLayer = goalId ? idToCoord(goalId)?.layer ?? null : null;
 
+  const hexH = readPxVar(document.documentElement as any, "--hexHMain", 84);
+
   // top position (center of that segment)
-  // segments are 7 blocks tall, each is --hexHMain
   const goalTopPx =
     goalLayer && goalLayer >= 1 && goalLayer <= 7
-      ? ((7 - goalLayer) * readPxVar(document.documentElement as any, "--hexHMain", 84)) +
-        readPxVar(document.documentElement as any, "--hexHMain", 84) / 2
+      ? (7 - goalLayer) * hexH + hexH / 2
+      : null;
+
+  // ✅ player layer from playerId like "L3-R2-C1"
+  const playerLayerBar = playerId ? idToCoord(playerId)?.layer ?? null : null;
+
+  const playerTopPx =
+    playerLayerBar && playerLayerBar >= 1 && playerLayerBar <= 7
+      ? (7 - playerLayerBar) * hexH + hexH / 2
       : null;
 
   return (
@@ -2402,7 +2498,27 @@ if (side === "right") {
           );
         })}
 
-        {/* ✅ GOAL MARKER */}
+        {/* ✅ MINI PLAYER SPRITE (behind goal marker) */}
+        {playerTopPx !== null ? (
+          <div className="barPlayerMini" style={{ top: playerTopPx }}>
+            <div
+              className="miniSprite"
+              style={
+                {
+                  ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
+                  ["--frameW" as any]: FRAME_W,
+                  ["--frameH" as any]: FRAME_H,
+                  ["--cols" as any]: SPRITE_COLS,
+                  ["--rows" as any]: SPRITE_ROWS,
+                  ["--frameX" as any]: walkFrame,
+                  ["--frameY" as any]: facingRow(playerFacing),
+                } as any
+              }
+            />
+          </div>
+        ) : null}
+
+        {/* ✅ GOAL MARKER (above sprite) */}
         {goalTopPx !== null ? (
           <div className="goalMarker" style={{ top: goalTopPx }}>
             G
