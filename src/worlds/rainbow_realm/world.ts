@@ -5,7 +5,7 @@ export default {
   name: "Rainbow Realm",
   desc: "Bright, magical rainbow world",
   menu: { solidColor: "#1e66ff" },
-
+ 
   scenarios: [
     {
       id: "prism_path",
