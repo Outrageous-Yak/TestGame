@@ -1357,51 +1357,62 @@ flex: 0 0 var(--hexWMain);
   100%{ transform: rotate(360deg); }
 }
 
+/* =========================================================
+   REACHABLE (ONLY CHANGES: use layer color via --hexGlow)
+   - keeps your inset/padding exactly as-is
+   - keeps your ring thickness/shape exactly as-is
+========================================================= */
+
 .hex.reach .hexInner{
   position: relative;
   background: transparent !important;
   background-image: none !important;
 
-  border-color: rgba(255, 45, 161, .9);
+  /* ✅ changed from fixed pink -> layer color */
+  border-color: color-mix(in srgb, var(--hexGlow) 90%, white 10%);
   box-shadow:
     inset 0 0 0 1px rgba(0,0,0,.4);
 }
+
 .hex.reach .hexInner::after{
   content:"";
   position:absolute;
 
-  /* make the ring sit slightly outside so it’s obvious */
+  /* keep your inset exactly */
   inset: 1px;
 
-  /* ✅ match the hex shape */
+  /* keep your hex clip exactly */
   clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
 
-  padding: 6px;                 /* thicker ring */
+  /* keep your padding (ring thickness) exactly */
+  padding: 6px;
   pointer-events:none;
 
+  /* ✅ changed all pink stops -> layer color */
   background:
     conic-gradient(
       from var(--reachSpin),
-      rgba(255,45,161,0) 0deg,
-      rgba(255,45,161,.35) 40deg,
-      rgba(255,45,161,1) 90deg,
-      rgba(255,45,161,.35) 140deg,
-      rgba(255,45,161,0) 210deg,
-      rgba(255,45,161,0) 360deg
+      color-mix(in srgb, var(--hexGlow) 0%, transparent) 0deg,
+      color-mix(in srgb, var(--hexGlow) 35%, transparent) 40deg,
+      color-mix(in srgb, var(--hexGlow) 100%, transparent) 90deg,
+      color-mix(in srgb, var(--hexGlow) 35%, transparent) 140deg,
+      color-mix(in srgb, var(--hexGlow) 0%, transparent) 210deg,
+      color-mix(in srgb, var(--hexGlow) 0%, transparent) 360deg
     );
 
-  /* cut the center so it’s outline-only */
+  /* keep your cutout exactly */
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 
-  /* make it pop */
   opacity: 1;
+
+  /* ✅ changed pink glow -> layer color */
   filter:
-    drop-shadow(0 0 10px rgba(255,45,161,.9))
-    drop-shadow(0 0 22px rgba(255,45,161,.35));
+    drop-shadow(0 0 10px color-mix(in srgb, var(--hexGlow) 95%, transparent))
+    drop-shadow(0 0 22px color-mix(in srgb, var(--hexGlow) 35%, transparent));
 
   animation:
     reachSpin 1.8s linear infinite,
@@ -1410,7 +1421,6 @@ flex: 0 0 var(--hexWMain);
   transform: translateZ(0);
   will-change: transform;
 }
-
 
 @property --reachSpin {
   syntax: "<angle>";
@@ -1466,6 +1476,7 @@ flex: 0 0 var(--hexWMain);
     drop-shadow(0 12px 18px rgba(0,0,0,.40))
     drop-shadow(0 0 10px color-mix(in srgb, var(--hexGlow) 55%, transparent));
 }
+
 /* =========================================================
    PORTAL TILE FX (uses destination color: --portalC)
    (keeps your existing tile bg / marks / borders)
@@ -1490,8 +1501,6 @@ flex: 0 0 var(--hexWMain);
   border-radius: 10px;
   clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
 }
-
-
 
 /* glow framing (subtle so your existing look stays) */
 .hex.portalUp .hexInner,
