@@ -1369,20 +1369,25 @@ flex: 0 0 var(--hexWMain);
 .hex.reach .hexInner::after{
   content:"";
   position:absolute;
-  inset: -1px;                 /* sits just outside the hex edge */
-  border-radius: inherit;
-  padding: 2px;
-  pointer-events: none;
+
+  /* make the ring sit slightly outside so it’s obvious */
+  inset: -4px;
+
+  /* ✅ match the hex shape */
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+
+  padding: 3px;                 /* thicker ring */
+  pointer-events:none;
 
   background:
     conic-gradient(
       from var(--reachSpin),
-      transparent 0deg,
-      rgba(255,45,161,.25) 60deg,
-      rgba(255,45,161,.95) 110deg,
-      rgba(255,45,161,.25) 160deg,
-      transparent 220deg,
-      transparent 360deg
+      rgba(255,45,161,0) 0deg,
+      rgba(255,45,161,.35) 40deg,
+      rgba(255,45,161,1) 90deg,
+      rgba(255,45,161,.35) 140deg,
+      rgba(255,45,161,0) 210deg,
+      rgba(255,45,161,0) 360deg
     );
 
   /* cut the center so it’s outline-only */
@@ -1392,15 +1397,20 @@ flex: 0 0 var(--hexWMain);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 
-  filter: drop-shadow(0 0 6px rgba(255,45,161,.6));
+  /* make it pop */
+  opacity: 1;
+  filter:
+    drop-shadow(0 0 10px rgba(255,45,161,.9))
+    drop-shadow(0 0 22px rgba(255,45,161,.35));
 
   animation:
-    reachSpin 2.6s linear infinite,
-    reachPulse 1.2s ease-in-out infinite;
+    reachSpin 1.8s linear infinite,
+    reachPulse .9s ease-in-out infinite;
 
-  will-change: transform;
   transform: translateZ(0);
+  will-change: transform;
 }
+
 
 @property --reachSpin {
   syntax: "<angle>";
