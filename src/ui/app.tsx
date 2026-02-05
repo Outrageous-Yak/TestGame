@@ -1358,15 +1358,64 @@ flex: 0 0 var(--hexWMain);
 }
 
 .hex.reach .hexInner{
-  border-color: rgba(255, 45, 161, .65);
-  background: rgba(255, 45, 161, 0.45) !important; /* ← transparency here */
+  position: relative;
+  background: transparent !important;
   background-image: none !important;
+
+  border-color: rgba(255, 45, 161, .9);
   box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,.35),
-    0 0 0 3px rgba(255, 45, 161, .18),
-    0 0 12px rgba(255, 45, 161, .35);
+    inset 0 0 0 1px rgba(0,0,0,.4);
+}
+.hex.reach .hexInner::after{
+  content:"";
+  position:absolute;
+  inset: -1px;                 /* sits just outside the hex edge */
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+
+  background:
+    conic-gradient(
+      from var(--reachSpin),
+      transparent 0deg,
+      rgba(255,45,161,.25) 60deg,
+      rgba(255,45,161,.95) 110deg,
+      rgba(255,45,161,.25) 160deg,
+      transparent 220deg,
+      transparent 360deg
+    );
+
+  /* cut the center so it’s outline-only */
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+
+  filter: drop-shadow(0 0 6px rgba(255,45,161,.6));
+
+  animation:
+    reachSpin 2.6s linear infinite,
+    reachPulse 1.2s ease-in-out infinite;
+
+  will-change: transform;
+  transform: translateZ(0);
 }
 
+@property --reachSpin {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes reachSpin {
+  to { --reachSpin: 360deg; }
+}
+
+@keyframes reachPulse {
+  0%,100% { opacity: .85; }
+  50%     { opacity: 1; }
+}
 
 @keyframes reachPulse{
   0%{ filter: brightness(1); }
