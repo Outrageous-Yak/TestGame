@@ -17,6 +17,14 @@
       { "id": "bad4", "layer": 2, "row": 5 }
     ]
   },
+  "cardTriggers": [
+  { "card": "cosmic", "layer": 1, "row": 0, "col": 0 },
+  { "card": "cosmic", "layer": 1, "row": 3, "col": 2 },
+  { "card": "cosmic", "layer": 2, "row": 5, "col": 4 },
+
+  { "card": "risk", "layer": 1, "row": 2, "col": 3 },
+  { "card": "risk", "layer": 3, "row": 1, "col": 6 }
+],
   "start": { "layer": 1, "row": 3, "col": 1 },
   "goal": { "layer": 2, "row": 1, "col": 4 },
   "missing": [],
