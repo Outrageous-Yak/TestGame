@@ -1668,7 +1668,7 @@ flex: 0 0 var(--hexWMain);
   font-size: 12px;
   border: 1px solid rgba(255,255,255,.12);
   background: rgba(0,0,0,.25);
-  color: rgba(255,255,255,.85);
+  color: rgba(60, 163, 255, 0.8);
 }
 .mark.g{
   border-color: rgba(255,211,106,.35);
