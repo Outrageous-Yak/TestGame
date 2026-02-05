@@ -614,28 +614,7 @@ function parseCardTriggersFromScenario(s: any): CardTrigger[] {
 
   return out;
 }
-const findCardTriggerAt = useCallback(
-  (id: string): CardKey | null => {
-    const c = idToCoord(id);
-    if (!c) return null;
-    for (const t of cardTriggers) {
-      if (t.layer === c.layer && t.row === c.row && t.col === c.col) return t.card;
-    }
-    return null;
-  },
-  [cardTriggers]
-);
 
-const triggerCardFlip = useCallback((card: CardKey) => {
-  if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
-
-  setCardFlip({ key: Date.now(), card });
-
-  cardFlipTimerRef.current = window.setTimeout(() => {
-    setCardFlip(null);
-    cardFlipTimerRef.current = null;
-  }, 1400);
-}, []);
 
 /* =========================================================
    CSS
@@ -2313,7 +2292,57 @@ flex: 0 0 var(--hexWMain);
 }
 
 `;
-  
+  // =========================
+// Portal helpers
+// =========================
+function findPortalTransition(
+  transitions: any[] | undefined,
+  id: string
+): null | {
+  type: "UP" | "DOWN";
+  to: { layer: number; row: number; col: number };
+} {
+  if (!transitions) return null;
+
+  const c = idToCoord(id);
+  if (!c) return null;
+
+  for (const t of transitions) {
+    const from = t?.from;
+    if (!from) continue;
+
+    if (
+      Number(from.layer) === c.layer &&
+      Number(from.row) === c.row &&
+      Number(from.col) === c.col
+    ) {
+      const type = t?.type === "DOWN" ? "DOWN" : "UP";
+      const to = t?.to;
+
+      // If scenario provides explicit "to", use it
+      if (to && typeof to === "object") {
+        return {
+          type,
+          to: {
+            layer: Number(to.layer),
+            row: Number(to.row),
+            col: Number(to.col),
+          },
+        };
+      }
+
+      // Fallback: straight up / down same row+col
+      const fallbackLayer = type === "UP" ? c.layer + 1 : c.layer - 1;
+      return {
+        type,
+        to: { layer: fallbackLayer, row: c.row, col: c.col },
+      };
+    }
+  }
+
+  return null;
+}
+
 /* =========================================================
    App
 ========================================================= */
@@ -2524,7 +2553,9 @@ export default function App() {
     },
     [playerId]
   );
-
+  const rows = useMemo(() => {
+    return Array.from({ length: ROW_LENS.length }, (_, i) => i);
+  }, []);
 function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
   const side = props.side;
   const currentLayerLocal = props.currentLayer;
@@ -2700,9 +2731,7 @@ if (side === "right") {
     setLog((prev) => [e, ...prev].slice(0, 24));
   }, []);
 
-  const rows = useMemo(() => {
-    return Array.from({ length: ROW_LENS.length }, (_, i) => i);
-  }, []);
+
 
   const viewState = useMemo(() => {
     if (!state) return null;
@@ -3222,6 +3251,28 @@ function parseVillainsFromScenario(s: any): VillainTrigger[] {
 const [cardTriggers, setCardTriggers] = useState<CardTrigger[]>([]);
 const [cardFlip, setCardFlip] = useState<null | { key: number; card: CardKey }>(null);
 const cardFlipTimerRef = useRef<number | null>(null);
+   const findCardTriggerAt = useCallback(
+  (id: string): CardKey | null => {
+    const c = idToCoord(id);
+    if (!c) return null;
+    for (const t of cardTriggers) {
+      if (t.layer === c.layer && t.row === c.row && t.col === c.col) return t.card;
+    }
+    return null;
+  },
+  [cardTriggers]
+);
+
+const triggerCardFlip = useCallback((card: CardKey) => {
+  if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
+
+  setCardFlip({ key: Date.now(), card });
+
+  cardFlipTimerRef.current = window.setTimeout(() => {
+    setCardFlip(null);
+    cardFlipTimerRef.current = null;
+  }, 1400);
+}, []);
 /* =========================
    Start scenario
 ========================= */
@@ -3332,209 +3383,163 @@ pushLog("Card triggers loaded: " + cts.length, "info");
   ========================= */
 
   const tryMoveToId = useCallback(
-    (id: string) => {
-      if (!state) return;
-      if (encounterActive) return;
+  (id: string) => {
+    if (!state) return;
+    if (encounterActive) return;
 
-      // if viewing another layer, snap back
-      if (playerLayer && currentLayer !== playerLayer) {
-        setCurrentLayer(playerLayer);
-        enterLayer(state, playerLayer);
-        revealWholeLayer(state, playerLayer);
-        forceRender((n) => n + 1);
-        pushLog(
-          "You were viewing layer " +
-            currentLayer +
-            " but the player is on layer " +
-            playerLayer +
-            " — switched back.",
-          "info"
-        );
-        return;
-      }
-
-      const hex = getHexFromState(state, id) as any;
-      const bm = isBlockedOrMissing(hex);
-      if (bm.missing) {
-        pushLog("Missing tile.", "bad");
-        return;
-      }
-      if (bm.blocked) {
-        pushLog("Blocked tile.", "bad");
-        return;
-      }
-
-      const pidBefore = (state as any)?.playerHexId as string | null;
-
-      // encounters block movement until you roll a 6
-      const vk = findTriggerForHex(id);
-      if (vk) {
-        pendingEncounterMoveIdRef.current = id;
-        setEncounter((prev) =>
-          prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }
-        );
-        pushLog("Encounter: " + vk + " — roll a 6 to continue", "bad");
-        return;
-      }
-
-      const res: any = tryMove(viewState as any, id);
-      let nextState = unwrapNextState(res);
-
-      // TEMP fallback: if engine rejects but UI says reachable, force move
-      if (!nextState) {
-        if (reachable.has(id) && viewState) {
-          const forced: any = { ...(viewState as any) };
-
-    function findPortalTransition(
-  transitions: any[] | undefined,
-  id: string
-): null | { type: "UP" | "DOWN"; to: { layer: number; row: number; col: number } } {
-  if (!transitions) return null;
-
-  const c = idToCoord(id);
-  if (!c) return null;
-
-  for (const t of transitions) {
-    const from = t?.from;
-    if (!from) continue;
-
-    if (
-      Number(from.layer) === c.layer &&
-      Number(from.row) === c.row &&
-      Number(from.col) === c.col
-    ) {
-      const type = t?.type === "DOWN" ? "DOWN" : "UP";
-      const to = t?.to;
-
-      // ✅ If scenario provides "to", use it. Otherwise fallback to straight up/down.
-      if (to && typeof to === "object") {
-        return {
-          type,
-          to: {
-            layer: Number(to.layer),
-            row: Number(to.row),
-            col: Number(to.col),
-          },
-        };
-      }
-
-      const fallbackLayer = type === "UP" ? c.layer + 1 : c.layer - 1;
-      return { type, to: { layer: fallbackLayer, row: c.row, col: c.col } };
-    }
-  }
-
-  return null;
-}
-
-
-          nextState = forced as any;
-          pushLog("Force-moved (engine rejected)", "info");
-        } else {
-          const msg =
-            (res &&
-              typeof res === "object" &&
-              "reason" in res &&
-              String((res as any).reason)) ||
-            "Move failed.";
-          pushLog(msg, "bad");
-          return;
-        }
-      }
-
-      const pidAfter = (nextState as any).playerHexId as string | null;
-
-      const fromLayer =
-        (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
-
-      const toLayer = pidAfter ? idToCoord(pidAfter)?.layer ?? null : null;
-
-      const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
-
-      setMovesTaken((n) => n + 1);
-
-      if (fromLayer) {
-        setLayerMoves((prev) => ({
-          ...prev,
-          [fromLayer]: (prev[fromLayer] ?? 0) + 1,
-        }));
-        setLayerMoveArmed((prev) => ({ ...prev, [fromLayer]: true }));
-      }
-
-      if (toLayer && fromLayer && toLayer !== fromLayer) {
-  setLayerMoves((prev) => ({ ...prev, [toLayer]: 0 }));
-  setLayerMoveArmed((prev) => ({ ...prev, [toLayer]: true }));
-  triggerLayerFx(toLayer);
-}
-
-      
-
-      if (moved) {
-        setIsWalking(true);
-        if (walkTimer.current) window.clearTimeout(walkTimer.current);
-        walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-
-        setPlayerFacing(
-          facingFromMoveVisual(
-            viewState as any,
-            pidBefore,
-            pidAfter,
-            fromLayer,
-            getLayerMoves(fromLayer)
-          )
-        );
-      }
-
-      setState(nextState);
-      setSelectedId(pidAfter ?? id);
+    // if viewing another layer, snap back
+    if (playerLayer && currentLayer !== playerLayer) {
+      setCurrentLayer(playerLayer);
+      enterLayer(state, playerLayer);
+      revealWholeLayer(state, playerLayer);
       forceRender((n) => n + 1);
+      pushLog(
+        "You were viewing layer " +
+          currentLayer +
+          " but the player is on layer " +
+          playerLayer +
+          " — switched back.",
+        "info"
+      );
+      return;
+    }
 
-      const c2 = pidAfter ? idToCoord(pidAfter) : null;
-      const nextLayer = c2?.layer ?? currentLayer;
+    const hex = getHexFromState(state, id) as any;
+    const bm = isBlockedOrMissing(hex);
+    if (bm.missing) {
+      pushLog("Missing tile.", "bad");
+      return;
+    }
+    if (bm.blocked) {
+      pushLog("Blocked tile.", "bad");
+      return;
+    }
 
-      enterLayer(nextState, nextLayer);
+    const pidBefore = (state as any)?.playerHexId as string | null;
 
-      if (nextLayer !== currentLayer) {
-        setCurrentLayer(nextLayer);
-        revealWholeLayer(nextState, nextLayer);
-    // ✅ CARD TRIGGER (AFTER successful move)
-const landedId = pidAfter ?? id;
-const landedCard = findCardTriggerAt(landedId);
+    // encounters block movement until you roll a 6
+    const vk = findTriggerForHex(id);
+    if (vk) {
+      pendingEncounterMoveIdRef.current = id;
+      setEncounter((prev) =>
+        prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }
+      );
+      pushLog("Encounter: " + vk + " — roll a 6 to continue", "bad");
+      return;
+    }
 
-if (landedCard) {
-  triggerCardFlip(landedCard);
-  pushLog("Card triggered: " + landedCard, "info");
-}
+    const res: any = tryMove(viewState as any, id);
+    let nextState = unwrapNextState(res);
 
-      };
+    // TEMP fallback: if engine rejects but UI says reachable, force move
+    if (!nextState) {
+      if (reachable.has(id) && viewState) {
+        const forced: any = { ...(viewState as any) };
+        (forced as any).playerHexId = id;
+        nextState = forced as any;
+        pushLog("Force-moved (engine rejected)", "info");
+      } else {
+        const msg =
+          (res &&
+            typeof res === "object" &&
+            "reason" in res &&
+            String((res as any).reason)) ||
+          "Move failed.";
+        pushLog(msg, "bad");
+        return;
+      }
+    }
 
-      const rm = getReachability(nextState) as any;
-      setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+    const pidAfter = (nextState as any).playerHexId as string | null;
 
-      pushLog("Moved to " + (pidAfter ?? id), "ok");
-      if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
-    },
-    [
-      state,
-      viewState,
-      encounterActive,
-      reachable,
-      currentLayer,
-      playerLayer,
-      goalId,
-      pushLog,
-      revealWholeLayer,
-      computeOptimalFromReachMap,
-      scenarioLayerCount,
-      findTriggerForHex,
-      getLayerMoves,
-       triggerLayerFx,
-    ]
-  );
+    const fromLayer =
+      (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
 
-  const canGoDown = currentLayer - 1 >= 1;
-  const canGoUp = currentLayer + 1 <= scenarioLayerCount;
+    const toLayer = pidAfter ? idToCoord(pidAfter)?.layer ?? null : null;
 
+    const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
 
+    setMovesTaken((n) => n + 1);
+
+    if (fromLayer) {
+      setLayerMoves((prev) => ({
+        ...prev,
+        [fromLayer]: (prev[fromLayer] ?? 0) + 1,
+      }));
+      setLayerMoveArmed((prev) => ({ ...prev, [fromLayer]: true }));
+    }
+
+    if (toLayer && fromLayer && toLayer !== fromLayer) {
+      setLayerMoves((prev) => ({ ...prev, [toLayer]: 0 }));
+      setLayerMoveArmed((prev) => ({ ...prev, [toLayer]: true }));
+      triggerLayerFx(toLayer);
+    }
+
+    if (moved) {
+      setIsWalking(true);
+      if (walkTimer.current) window.clearTimeout(walkTimer.current);
+      walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+
+      setPlayerFacing(
+        facingFromMoveVisual(
+          viewState as any,
+          pidBefore,
+          pidAfter,
+          fromLayer,
+          getLayerMoves(fromLayer)
+        )
+      );
+    }
+
+    setState(nextState);
+    setSelectedId(pidAfter ?? id);
+    forceRender((n) => n + 1);
+
+    const c2 = pidAfter ? idToCoord(pidAfter) : null;
+    const nextLayer = c2?.layer ?? currentLayer;
+
+    enterLayer(nextState, nextLayer);
+
+    if (nextLayer !== currentLayer) {
+      setCurrentLayer(nextLayer);
+      revealWholeLayer(nextState, nextLayer);
+    }
+
+    // ✅ CARD TRIGGER (AFTER successful move) — must be OUTSIDE the layer-change if
+    const landedId = pidAfter ?? id;
+    const landedCard = findCardTriggerAt(landedId);
+    if (landedCard) {
+      triggerCardFlip(landedCard);
+      pushLog("Card triggered: " + landedCard, "info");
+    }
+
+    const rm = getReachability(nextState) as any;
+    setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+
+    pushLog("Moved to " + (pidAfter ?? id), "ok");
+    if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
+  },
+  [
+    state,
+    viewState,
+    encounterActive,
+    reachable,
+    currentLayer,
+    playerLayer,
+    goalId,
+    pushLog,
+    revealWholeLayer,
+    computeOptimalFromReachMap,
+    findTriggerForHex,
+    getLayerMoves,
+    triggerLayerFx,
+    findCardTriggerAt,
+    triggerCardFlip,
+  ]
+);
+
+const canGoDown = currentLayer - 1 >= 1;
+const canGoUp = currentLayer + 1 <= scenarioLayerCount;
 
   /* =========================
      Screens
@@ -4006,7 +4011,7 @@ const isOffset = cols === 6;
                       const portalColor = portalTargetLayer
                         ? layerCssVar(portalTargetLayer)
                         : null;
-
+const cardHere = findCardTriggerAt(id);
                       const isGoal = goalId === id;
                       const isTrigger = !!findTriggerForHex(id);
                       const tile = HEX_TILE
@@ -4058,10 +4063,11 @@ const isOffset = cols === 6;
                             <div className="hexAnchor">
                               
 
-                           <div
+<div
   className="hexInner"
   style={tile ? { backgroundImage: tile } : undefined}
 >
+  {/* portal FX */}
   {isPortalUp || isPortalDown ? (
     <>
       <div className="pAura" />
@@ -4071,36 +4077,30 @@ const isOffset = cols === 6;
     </>
   ) : null}
 
-                                {isStart ? (
-                                  <>
-                                    <div className="pAura" />
-                                    <div className="pRunes" />
-                                    <div className="pVortex" />
-                                    <div className="pWell" />
-                                    <div className="pShine" />
-                                  </>
-                                ) : null}
-const cardHere = findCardTriggerAt(id);
-                              {cardHere ? (
-  <div className={"cardBadge " + cardHere} title={cardHere} />
-) : null}
-                                <div className="hexId">{r + "," + c}</div>
+  {/* start-tile FX */}
+  {isStart ? (
+    <>
+      <div className="pAura" />
+      <div className="pRunes" />
+      <div className="pVortex" />
+      <div className="pWell" />
+      <div className="pShine" />
+    </>
+  ) : null}
 
-                                <div className="hexMarks">
-                                  {isPortalUp ? (
-                                    <span className="mark">↑</span>
-                                  ) : null}
-                                  {isPortalDown ? (
-                                    <span className="mark">↓</span>
-                                  ) : null}
-                                  {isGoal ? (
-                                    <span className="mark g">G</span>
-                                  ) : null}
-                                  {isTrigger ? (
-                                    <span className="mark t">!</span>
-                                  ) : null}
-                                </div>
-                              </div>
+  {/* card badge */}
+  {cardHere ? <div className={"cardBadge " + cardHere} title={cardHere} /> : null}
+
+  <div className="hexId">{r + "," + c}</div>
+
+  <div className="hexMarks">
+    {isPortalUp ? <span className="mark">↑</span> : null}
+    {isPortalDown ? <span className="mark">↓</span> : null}
+    {isGoal ? <span className="mark g">G</span> : null}
+    {isTrigger ? <span className="mark t">!</span> : null}
+  </div>
+</div>
+
 
                               {isPlayer ? (
                                 <span
