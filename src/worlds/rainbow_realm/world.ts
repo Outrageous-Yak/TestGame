@@ -1,5 +1,5 @@
 // src/worlds/rainbow_realm/world.ts
-       
+        
 export default {  
   id: "rainbow_realm",
   name: "Rainbow Realm",
