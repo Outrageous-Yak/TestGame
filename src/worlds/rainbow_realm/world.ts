@@ -26,7 +26,7 @@ export default {
         },
         assets: {
           backgroundGame:
-            "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
+            "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/game-bg.png",
 
           diceFacesBase:
             "worlds/rainbow_realm/scenarios/prism_path/assets/dice/faces",
