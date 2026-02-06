@@ -3409,11 +3409,11 @@ pushLog("Card triggers loaded: " + cts.length, "info");
     }
   }, [scenarioEntry, startScenario]);
 
-  /* =========================
-     Movement
-  ========================= */
+/* =========================
+   Movement
+========================= */
 
-  const tryMoveToId = useCallback(
+const tryMoveToId = useCallback(
   (id: string) => {
     if (!state) return;
     if (encounterActive) return;
@@ -3435,7 +3435,8 @@ pushLog("Card triggers loaded: " + cts.length, "info");
       return;
     }
 
-    const hex = getHexFromState(state, id) as any;
+    // validate target tile (use viewState so it matches what UI shows)
+    const hex = getHexFromState(viewState as any, id) as any;
     const bm = isBlockedOrMissing(hex);
     if (bm.missing) {
       pushLog("Missing tile.", "bad");
@@ -3446,7 +3447,7 @@ pushLog("Card triggers loaded: " + cts.length, "info");
       return;
     }
 
-    const pidBefore = (state as any)?.playerHexId as string | null;
+    const pidBefore = (viewState as any)?.playerHexId as string | null;
 
     // encounters block movement until you roll a 6
     const vk = findTriggerForHex(id);
@@ -3459,6 +3460,7 @@ pushLog("Card triggers loaded: " + cts.length, "info");
       return;
     }
 
+    // engine move
     const res: any = tryMove(viewState as any, id);
     let nextState = unwrapNextState(res);
 
@@ -3466,7 +3468,7 @@ pushLog("Card triggers loaded: " + cts.length, "info");
     if (!nextState) {
       if (reachable.has(id) && viewState) {
         const forced: any = { ...(viewState as any) };
-        (forced as any).playerHexId = id;
+        forced.playerHexId = id;
         nextState = forced as any;
         pushLog("Force-moved (engine rejected)", "info");
       } else {
@@ -3490,6 +3492,21 @@ pushLog("Card triggers loaded: " + cts.length, "info");
 
     const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
 
+    // -------------------------------------------
+    // ✅ Decide where we actually landed
+    // -------------------------------------------
+    let landedId = pidAfter ?? id;
+
+    // ✅ apply portal BEFORE committing state/selection
+    {
+      const ap = applyPortalIfAny(nextState as any, landedId);
+      nextState = ap.next as any;
+      landedId = ap.finalId;
+    }
+
+    // -------------------------------------------
+    // Per-layer move counters + walking/facing
+    // -------------------------------------------
     setMovesTaken((n) => n + 1);
 
     if (fromLayer) {
@@ -3500,10 +3517,14 @@ pushLog("Card triggers loaded: " + cts.length, "info");
       setLayerMoveArmed((prev) => ({ ...prev, [fromLayer]: true }));
     }
 
-    if (toLayer && fromLayer && toLayer !== fromLayer) {
-      setLayerMoves((prev) => ({ ...prev, [toLayer]: 0 }));
-      setLayerMoveArmed((prev) => ({ ...prev, [toLayer]: true }));
-      triggerLayerFx(toLayer);
+    // NOTE: if a portal moved layers, we want to treat the final layer as the current one
+    const landedCoord = idToCoord(landedId);
+    const finalLayer = landedCoord?.layer ?? (toLayer ?? currentLayer);
+
+    if (finalLayer && fromLayer && finalLayer !== fromLayer) {
+      setLayerMoves((prev) => ({ ...prev, [finalLayer]: 0 }));
+      setLayerMoveArmed((prev) => ({ ...prev, [finalLayer]: true }));
+      triggerLayerFx(finalLayer);
     }
 
     if (moved) {
@@ -3522,52 +3543,40 @@ pushLog("Card triggers loaded: " + cts.length, "info");
       );
     }
 
-  setState(nextState);
-setSelectedId(landedId);
-
+    // -------------------------------------------
+    // ✅ Commit state + selection (SAFE NOW)
+    // -------------------------------------------
+    setState(nextState);
+    setSelectedId(landedId);
     forceRender((n) => n + 1);
 
-    const c2 = pidAfter ? idToCoord(pidAfter) : null;
-    const nextLayer = c2?.layer ?? currentLayer;
+    // -------------------------------------------
+    // ✅ Sync layer view to final landed layer
+    // -------------------------------------------
+    enterLayer(nextState as any, finalLayer);
 
-    enterLayer(nextState, nextLayer);
-
-    if (nextLayer !== currentLayer) {
-      setCurrentLayer(nextLayer);
-      revealWholeLayer(nextState, nextLayer);
+    if (finalLayer !== currentLayer) {
+      setCurrentLayer(finalLayer);
+      revealWholeLayer(nextState as any, finalLayer);
     }
 
-    // ✅ CARD TRIGGER (AFTER successful move) — must be OUTSIDE the layer-change if
-   // ✅ apply portal jump (AFTER successful move)
-let landedId = pidAfter ?? id;
-{
-  const ap = applyPortalIfAny(nextState as any, landedId);
-  nextState = ap.next as any;
-  landedId = ap.finalId;
-
-  // if we portaled, sync layer immediately
-  const lc = idToCoord(landedId);
-  const portalLayer = lc?.layer ?? null;
-  if (portalLayer && portalLayer !== currentLayer) {
-    enterLayer(nextState as any, portalLayer);
-    setCurrentLayer(portalLayer);
-    revealWholeLayer(nextState as any, portalLayer);
-    triggerLayerFx(portalLayer);
-  }
-}
-
+    // -------------------------------------------
+    // ✅ CARD TRIGGER (AFTER final landedId)
+    // -------------------------------------------
     const landedCard = findCardTriggerAt(landedId);
     if (landedCard) {
       triggerCardFlip(landedCard);
       pushLog("Card triggered: " + landedCard, "info");
     }
 
+    // -------------------------------------------
+    // reachability / optimal
+    // -------------------------------------------
     const rm = getReachability(nextState) as any;
     setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
 
-   pushLog("Moved to " + landedId, "ok");
-   if (goalId && landedId === goalId) pushLog("Goal reached!", "ok");
-
+    pushLog("Moved to " + landedId, "ok");
+    if (goalId && landedId === goalId) pushLog("Goal reached!", "ok");
   },
   [
     state,
@@ -3588,8 +3597,6 @@ let landedId = pidAfter ?? id;
   ]
 );
 
-const canGoDown = currentLayer - 1 >= 1;
-const canGoUp = currentLayer + 1 <= scenarioLayerCount;
 
   /* =========================
      Screens
