@@ -38,7 +38,7 @@ export default {
             "worlds/rainbow_realm/scenarios/prism_path/assets/villains",
 
           backgroundLayers: {
-            L1: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
+            L1: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/game-bg.png",
             L2: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
             L3: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
             L4: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
