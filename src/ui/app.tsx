@@ -4013,7 +4013,7 @@ return (
                   {rows.map((r) => {
                     const cols = ROW_LENS[r] ?? 0;
                     const isOffset = cols === 6;
-                    const base = isOffset ? "calc(var(--hexStepX) / 5)" : "0px";
+                    const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
                     const engineShiftRaw =
                       (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
@@ -4099,7 +4099,7 @@ const isOffset = cols === 6;
 
                 const tx =
   "calc(" +
-  (isOffset ? "calc(var(--hexStepX) / 5)" : "0px") +
+  (isOffset ? "calc(var(--hexStepX) / -2)" : "0px") +
   " + (" +
   shift +
   " * var(--hexStepX)))";
