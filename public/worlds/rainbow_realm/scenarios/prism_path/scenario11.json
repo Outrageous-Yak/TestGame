@@ -19,9 +19,7 @@
   "goal": { "layer": 2, "row": 0, "col": 0 },
 
   "missing": [
-    /* Layer 1 rewritten as a forced “snake corridor”:
-       Existing cells form a single long path that ends at the UP portal (L1-R0-C6).
-       Missing cells are everything NOT on the corridor. */
+  
 
     { "layer": 1, "row": 5, "col": 1 },
     { "layer": 1, "row": 5, "col": 2 },
