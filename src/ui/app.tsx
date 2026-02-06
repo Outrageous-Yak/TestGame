@@ -2292,9 +2292,12 @@ flex: 0 0 var(--hexWMain);
 }
 
 `;
-  // =========================
-// Portal helpers
 // =========================
+// Portal helpers (FIXED)
+// - exact "from" match (no +1 matching)
+// - still supports 0-based OR 1-based scenario coords
+// =========================
+
 function findPortalTransition(
   transitions: any[] | undefined,
   id: string
@@ -2307,54 +2310,46 @@ function findPortalTransition(
   const c = idToCoord(id);
   if (!c) return null;
 
-  const matches = (from: any) => {
-    const fl = Number(from?.layer);
-    const fr = Number(from?.row);
-    const fc = Number(from?.col);
-
-    if (!Number.isFinite(fl) || !Number.isFinite(fr) || !Number.isFinite(fc)) return false;
-
-    // Accept both 0-based and 1-based scenario data
-    const rowOk = fr === c.row || fr === c.row + 1;
-    const colOk = fc === c.col || fc === c.col + 1;
-
-    return fl === c.layer && rowOk && colOk;
-  };
-
   const normRow = (r: number) => (r >= 1 && r <= 7 ? r - 1 : r);
   const normCol = (k: number) => (k >= 1 && k <= 7 ? k - 1 : k);
 
   for (const t of transitions) {
     const from = t?.from;
     if (!from) continue;
-    if (!matches(from)) continue;
+
+    const fl = Number(from.layer);
+    const fr = normRow(Number(from.row));
+    const fc = normCol(Number(from.col));
+
+    if (!Number.isFinite(fl) || !Number.isFinite(fr) || !Number.isFinite(fc)) continue;
+
+    // ✅ EXACT MATCH ONLY (prevents "portal appears 4 times")
+    if (fl !== c.layer || fr !== c.row || fc !== c.col) continue;
 
     const type: "UP" | "DOWN" = t?.type === "DOWN" ? "DOWN" : "UP";
-    const to = t?.to;
+    const to = t?.to ?? {};
 
-    if (to && typeof to === "object") {
-      const tl = Number(to.layer);
-      const tr = Number(to.row);
-      const tc = Number(to.col);
+    const tl = Number(to.layer);
+    const tr = normRow(Number(to.row));
+    const tc = normCol(Number(to.col));
 
-      return {
-        type,
-        to: {
-          layer: Number.isFinite(tl) ? tl : (type === "UP" ? c.layer + 1 : c.layer - 1),
-          row: Number.isFinite(tr) ? normRow(tr) : c.row,
-          col: Number.isFinite(tc) ? normCol(tc) : c.col,
-        },
-      };
-    }
-
-    // fallback: straight up/down same row+col
-    const fallbackLayer = type === "UP" ? c.layer + 1 : c.layer - 1;
-    return { type, to: { layer: fallbackLayer, row: c.row, col: c.col } };
+    return {
+      type,
+      to: {
+        layer: Number.isFinite(tl) ? tl : type === "UP" ? c.layer + 1 : c.layer - 1,
+        row: Number.isFinite(tr) ? tr : c.row,
+        col: Number.isFinite(tc) ? tc : c.col,
+      },
+    };
   }
 
   return null;
 }
-function applyPortalIfAny(st: any, landedId: string): { next: any; finalId: string } {
+
+function applyPortalIfAny(
+  st: any,
+  landedId: string
+): { next: any; finalId: string } {
   const tr = findPortalTransition(st?.scenario?.transitions, landedId);
   if (!tr) return { next: st, finalId: landedId };
 
@@ -2369,6 +2364,7 @@ function applyPortalIfAny(st: any, landedId: string): { next: any; finalId: stri
   const next = { ...(st as any), playerHexId: destId };
   return { next, finalId: destId };
 }
+
 
 
 /* =========================================================
