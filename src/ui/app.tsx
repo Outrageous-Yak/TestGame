@@ -2423,7 +2423,8 @@ export default function App() {
 
   const [currentLayer, setCurrentLayer] = useState<number>(1);
   const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
-
+const canGoDown = currentLayer > 1;
+const canGoUp = currentLayer < scenarioLayerCount;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [startHexId, setStartHexId] = useState<string | null>(null);
 
