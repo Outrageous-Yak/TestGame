@@ -3135,7 +3135,7 @@ useEffect(() => {
 
     // ✅ Use viewState here (NOT state)
     const res: any = tryMove(viewState as any, targetId);
-    const nextState = unwrapNextState(res);
+let nextState = unwrapNextState(res);
 
     if (!nextState) {
       const msg =
@@ -3226,6 +3226,85 @@ let landedId = pidAfter ?? targetId;
   pushLog,
   getLayerMoves,
 ]);
+   /* =========================
+   Encounter resolution
+========================= */
+
+function resolveEncounterAndContinue() {
+  if (!state || !encounter) return;
+
+  const moveId = pendingEncounterMoveIdRef.current;
+  if (!moveId) return;
+
+  // clear encounter UI first
+  setEncounter(null);
+  pendingEncounterMoveIdRef.current = null;
+
+  // engine move AFTER encounter success
+  const res: any = tryMove(state as any, moveId);
+
+  // MUST be let (we reassign after portal)
+  let nextState = unwrapNextState(res);
+
+  if (!nextState) {
+    pushLog("Move failed after encounter.", "bad");
+    return;
+  }
+
+  // -------------------------------------------
+  // 1️⃣ Where did we land initially?
+  // -------------------------------------------
+  let landedId = (nextState as any).playerHexId ?? moveId;
+
+  // -------------------------------------------
+  // 2️⃣ Apply portal jump BEFORE committing state
+  // -------------------------------------------
+  {
+    const ap = applyPortalIfAny(nextState as any, landedId);
+    nextState = ap.next as any;
+    landedId = ap.finalId;
+  }
+
+  // -------------------------------------------
+  // 3️⃣ Commit state + selection
+  // -------------------------------------------
+  setState(nextState);
+  setSelectedId(landedId);
+  forceRender((n) => n + 1);
+
+  // -------------------------------------------
+  // 4️⃣ Sync layer view
+  // -------------------------------------------
+  const lc = idToCoord(landedId);
+  const finalLayer = lc?.layer ?? currentLayer;
+
+  enterLayer(nextState as any, finalLayer);
+
+  if (finalLayer !== currentLayer) {
+    setCurrentLayer(finalLayer);
+    revealWholeLayer(nextState as any, finalLayer);
+    triggerLayerFx(finalLayer);
+  }
+
+  // -------------------------------------------
+  // 5️⃣ CARD TRIGGER (after portal)
+  // -------------------------------------------
+  const landedCard = findCardTriggerAt(landedId);
+  if (landedCard) {
+    triggerCardFlip(landedCard);
+    pushLog("Card triggered: " + landedCard, "info");
+  }
+
+  // -------------------------------------------
+  // 6️⃣ Reachability / optimal path
+  // -------------------------------------------
+  const rm = getReachability(nextState) as any;
+  setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+
+  pushLog("Encounter resolved — moved to " + landedId, "ok");
+  if (goalId && landedId === goalId) pushLog("Goal reached!", "ok");
+}
+
 // ---------------------------
 // Villain triggers parser
 // ---------------------------
