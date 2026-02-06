@@ -11,10 +11,7 @@
   "villains": {
     "requiredRoll": 6,
     "triggers": [
-      { "id": "bad1", "layer": 1, "row": 5 },
-      { "id": "bad2", "layer": 1, "row": 6 },
-      { "id": "bad3", "layer": 2, "row": 4 },
-      { "id": "bad4", "layer": 2, "row": 5 }
+      
     ]
   },
 
@@ -31,7 +28,7 @@
     { "layer": 1, "row": 5, "col": 3 },
     { "layer": 1, "row": 5, "col": 4 },
     { "layer": 1, "row": 5, "col": 5 },
-    { "layer": 1, "row": 5, "col": 6 },
+    
 
     { "layer": 1, "row": 3, "col": 0 },
     { "layer": 1, "row": 3, "col": 1 },
@@ -45,7 +42,6 @@
     { "layer": 1, "row": 1, "col": 3 },
     { "layer": 1, "row": 1, "col": 4 },
     { "layer": 1, "row": 1, "col": 5 },
-    { "layer": 1, "row": 1, "col": 6 }
   ],
 
   "blocked": [],
