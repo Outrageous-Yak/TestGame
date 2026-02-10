@@ -590,7 +590,10 @@ function parseCardTriggersFromScenario(s: any): CardTrigger[] {
 
   return out;
 }
-
+function pickRiskVillain(): VillainKey {
+  const pool: VillainKey[] = ["bad1", "bad2", "bad3"];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 /* =========================================================
    CSS
@@ -2501,6 +2504,29 @@ flex: 0 0 var(--hexWMain);
       rotateY(180deg);
   }
 }
+.cardFlipVillain{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+
+  /* sits over the big card */
+  z-index: 5;
+
+  /* fade in AFTER the card is visible */
+  opacity: 0;
+  animation: villainFadeIn 700ms ease-out forwards;
+  animation-delay: 350ms;
+
+  /* optional: make it feel “on top” */
+  filter: drop-shadow(0 18px 40px rgba(0,0,0,.55));
+}
+
+@keyframes villainFadeIn{
+  from { opacity: 0; transform: scale(1.02); }
+  to   { opacity: 1; transform: scale(1.00); }
+}
 
 `;
 // =========================
@@ -3388,11 +3414,16 @@ useEffect(() => {
     const rolled = lastRollValueRef.current;
     if (rolled !== 6) return;
 
-    const targetId = pendingEncounterMoveIdRef.current;
-    if (!targetId) {
-      pushLog("Encounter error: missing pending move target.", "bad");
-      return;
-    }
+ const targetId = pendingEncounterMoveIdRef.current;
+
+// ✅ If encounter was triggered by a card (no pending move target),
+// a roll of 6 simply clears the encounter.
+if (!targetId) {
+  pushLog("Encounter cleared — risk event passed.", "ok");
+  setEncounter(null);
+  return;
+}
+
 
     // IMPORTANT: use viewState (matches what the UI shows)
     if (!viewState) {
@@ -3510,19 +3541,27 @@ let landedId = pidAfter ?? targetId;
 // ---------------------------
 
 const [cardTriggers, setCardTriggers] = useState<CardTrigger[]>([]);
-const [cardFlip, setCardFlip] = useState<null | { key: number; card: CardKey }>(null);
+const [cardFlip, setCardFlip] = useState<
+  null | { key: number; card: CardKey; durMs: number; villainKey?: VillainKey }
+>(null);
 const cardFlipTimerRef = useRef<number | null>(null);
-   const triggerCardFlip = useCallback((card: CardKey) => {
-  if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
+const triggerCardFlip = useCallback(
+  (card: CardKey, opts?: { durMs?: number; villainKey?: VillainKey }) => {
+    if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
 
-  const key = Date.now();
-  setCardFlip({ key, card });
+    const key = Date.now();
+    const durMs = opts?.durMs ?? 1400;
 
-  cardFlipTimerRef.current = window.setTimeout(() => {
-    setCardFlip(null);
-    cardFlipTimerRef.current = null;
-  }, 1400);
-}, []);
+    setCardFlip({ key, card, durMs, villainKey: opts?.villainKey });
+
+    cardFlipTimerRef.current = window.setTimeout(() => {
+      setCardFlip(null);
+      cardFlipTimerRef.current = null;
+    }, durMs);
+  },
+  []
+);
+
 
 useEffect(() => {
   return () => {
@@ -3851,11 +3890,29 @@ const tryMoveToId = useCallback(
     // -------------------------------------------
     // ✅ CARD TRIGGER (AFTER final landedId)
     // -------------------------------------------
-    const landedCard = findCardTriggerAt(landedId);
-    if (landedCard) {
-     triggerCardFlyout(landedCard);
-      pushLog("Card triggered: " + landedCard, "info");
-    }
+ const landedCard = findCardTriggerAt(landedId);
+if (landedCard) {
+  if (landedCard === "risk") {
+    const vk = pickRiskVillain();
+
+    // ✅ open encounter immediately (no target tile needed)
+    pendingEncounterMoveIdRef.current = null;
+    setEncounter({ villainKey: vk, tries: 0 });
+    pushLog("Risk triggered — encounter: " + vk + " (roll a 6)", "bad");
+
+    // ✅ show large card longer + ensure villain is visible on it
+    triggerCardFlyout("risk");
+    triggerCardFlip("risk", { durMs: 2400, villainKey: vk });
+
+    // (Optional) if you DON’T want the extra fullscreen flip (because flyout already shows),
+    // comment the triggerCardFlip line above and instead add the villain to flyCard.
+  } else {
+    triggerCardFlyout(landedCard);
+    triggerCardFlip(landedCard); // keep default duration
+    pushLog("Card triggered: " + landedCard, "info");
+  }
+}
+
 
     // -------------------------------------------
     // reachability / optimal
@@ -4548,12 +4605,30 @@ const cardHere = findCardTriggerAt(id);
 ) : null}
 
 {cardFlip ? (
-  <div key={cardFlip.key} className="cardFlipOverlay" aria-live="polite">
-    <div className={"cardFlipCard " + cardFlip.card}>
+  <div
+    key={cardFlip.key}
+    className="cardFlipOverlay"
+    aria-live="polite"
+    style={{ animationDuration: cardFlip.durMs + "ms" }}
+  >
+    <div
+      className={"cardFlipCard " + cardFlip.card}
+      style={{ animationDuration: cardFlip.durMs + "ms" }}
+    >
       <div className="cardFlipLabel">{cardFlip.card}</div>
+
+      {/* ✅ villain image fades in over the big card (risk only) */}
+      {cardFlip.card === "risk" && cardFlip.villainKey ? (
+        <img
+          className="cardFlipVillain"
+          src={villainImg(cardFlip.villainKey)}
+          alt={cardFlip.villainKey}
+        />
+      ) : null}
     </div>
   </div>
 ) : null}
+
     {encounter ? (
   <div className="overlay" role="dialog" aria-modal="true">
     <div className="overlayCard">
