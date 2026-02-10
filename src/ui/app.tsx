@@ -2711,8 +2711,48 @@ const canGoUp = currentLayer < scenarioLayerCount;
   const rows = useMemo(() => {
     return Array.from({ length: ROW_LENS.length }, (_, i) => i);
   }, []);
-     const viewState = useMemo(() => {
-    if (!state) return null;
+   const viewState = useMemo(() => {
+  if (!state) return null;
+
+  const rs = (state as any).rowShifts;
+  let hasEngineShift = false;
+
+  if (rs && typeof rs === "object") {
+    for (const k of Object.keys(rs)) {
+      const rowsObj = rs[k];
+      if (!rowsObj || typeof rowsObj !== "object") continue;
+      for (const rKey of Object.keys(rowsObj)) {
+        const n = Number(rowsObj[rKey]);
+        if (Number.isFinite(n) && n !== 0) {
+          hasEngineShift = true;
+          break;
+        }
+      }
+      if (hasEngineShift) break;
+    }
+  }
+
+  if (hasEngineShift) return state;
+
+  const injected: any = { ...(state as any) };
+  const rowShifts: any = {};
+
+  for (let layer = 1; layer <= scenarioLayerCount; layer++) {
+    const perRow: any = {};
+    const mL = getLayerMoves(layer);
+
+    for (let r = 0; r < ROW_LENS.length; r++) {
+      perRow[r] = derivedRowShiftUnits(state as any, layer, r, mL);
+    }
+
+    rowShifts[layer] = perRow;
+    rowShifts["L" + layer] = perRow;
+  }
+
+  injected.rowShifts = rowShifts;
+  return injected as any;
+}, [state, scenarioLayerCount, getLayerMoves]);
+
 function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
   const side = props.side;
   const currentLayerLocal = props.currentLayer;
@@ -2892,44 +2932,6 @@ if (side === "right") {
 
 
 
-    const rs = (state as any).rowShifts;
-    let hasEngineShift = false;
-
-    if (rs && typeof rs === "object") {
-      for (const k of Object.keys(rs)) {
-        const rowsObj = rs[k];
-        if (!rowsObj || typeof rowsObj !== "object") continue;
-        for (const rKey of Object.keys(rowsObj)) {
-          const n = Number(rowsObj[rKey]);
-          if (Number.isFinite(n) && n !== 0) {
-            hasEngineShift = true;
-            break;
-          }
-        }
-        if (hasEngineShift) break;
-      }
-    }
-
-    if (hasEngineShift) return state;
-
-    const injected: any = { ...(state as any) };
-    const rowShifts: any = {};
-
-    for (let layer = 1; layer <= scenarioLayerCount; layer++) {
-      const perRow: any = {};
-      const mL = getLayerMoves(layer);
-
-      for (let r = 0; r < ROW_LENS.length; r++) {
-        perRow[r] = derivedRowShiftUnits(state as any, layer, r, mL);
-      }
-
-      rowShifts[layer] = perRow;
-      rowShifts["L" + layer] = perRow;
-    }
-
-    injected.rowShifts = rowShifts;
-    return injected as any;
-  }, [state, scenarioLayerCount, getLayerMoves, layerMoves, layerMoveArmed]);
 
   /* =========================
      Reachability (1-step neighbors)
@@ -3358,29 +3360,7 @@ let landedId = pidAfter ?? targetId;
   pushLog,
   getLayerMoves,
 ]);
-   /* =========================
-   Encounter resolution
-========================= */
 
-
-
-  const moveId = pendingEncounterMoveIdRef.current;
-  if (!moveId) return;
-
-  // clear encounter UI first
-  setEncounter(null);
-  pendingEncounterMoveIdRef.current = null;
-
-  // engine move AFTER encounter success
-  const res: any = tryMove(state as any, moveId);
-
-  // MUST be let (we reassign after portal)
-  let nextState = unwrapNextState(res);
-
-  if (!nextState) {
-    pushLog("Move failed after encounter.", "bad");
-    return;
-  }
 
   // -------------------------------------------
   // 1️⃣ Where did we land initially?
