@@ -2444,32 +2444,64 @@ flex: 0 0 var(--hexWMain);
 @keyframes flyToCenter{
   0%{
     opacity: 1;
-    transform: translate3d(var(--fromX), var(--fromY), 0) scale(1) rotateY(0deg);
+    transform: translate3d(var(--fromX), var(--fromY), 0)
+               scale(1)
+               rotateY(0deg);
   }
-  55%{
+
+  /* arrive at center */
+  45%{
     opacity: 1;
     transform:
-      translate3d(calc(50vw - (var(--fromW) / 2)), calc(50vh - (var(--fromH) / 2)), 0)
-      scale(1.25)
+      translate3d(
+        calc(50vw - (var(--fromW) / 2)),
+        calc(50vh - (var(--fromH) / 2)),
+        0
+      )
+      scale(1.3)
       rotateY(0deg);
   }
-  80%{
+
+  /* HOLD large */
+  70%{
     opacity: 1;
     transform:
-      translate3d(calc(50vw - (var(--fromW) / 2)), calc(50vh - (var(--fromH) / 2)), 0)
-      scale(1.25)
+      translate3d(
+        calc(50vw - (var(--fromW) / 2)),
+        calc(50vh - (var(--fromH) / 2)),
+        0
+      )
+      scale(1.3)
+      rotateY(0deg);
+  }
+
+  /* flip after hold */
+  85%{
+    opacity: 1;
+    transform:
+      translate3d(
+        calc(50vw - (var(--fromW) / 2)),
+        calc(50vh - (var(--fromH) / 2)),
+        0
+      )
+      scale(1.3)
       rotateY(180deg);
   }
+
+  /* fade out */
   100%{
     opacity: 0;
     transform:
-      translate3d(calc(50vw - (var(--fromW) / 2)), calc(50vh - (var(--fromH) / 2)), 0)
-      scale(1.18)
+      translate3d(
+        calc(50vw - (var(--fromW) / 2)),
+        calc(50vh - (var(--fromH) / 2)),
+        0
+      )
+      scale(1.25)
       rotateY(180deg);
   }
 }
 
-`;
 
 // =========================
 // Portal helpers (FIXED)
