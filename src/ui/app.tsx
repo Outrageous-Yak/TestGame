@@ -3362,41 +3362,7 @@ let landedId = pidAfter ?? targetId;
 ]);
 
 
-  // -------------------------------------------
-  // 1️⃣ Where did we land initially?
-  // -------------------------------------------
-  let landedId = (nextState as any).playerHexId ?? moveId;
-
-  // -------------------------------------------
-  // 2️⃣ Apply portal jump BEFORE committing state
-  // -------------------------------------------
-  {
-    const ap = applyPortalIfAny(nextState as any, landedId);
-    nextState = ap.next as any;
-    landedId = ap.finalId;
-  }
-
-  // -------------------------------------------
-  // 3️⃣ Commit state + selection
-  // -------------------------------------------
-  setState(nextState);
-  setSelectedId(landedId);
-  forceRender((n) => n + 1);
-
-  // -------------------------------------------
-  // 4️⃣ Sync layer view
-  // -------------------------------------------
-  const lc = idToCoord(landedId);
-  const finalLayer = lc?.layer ?? currentLayer;
-
-  enterLayer(nextState as any, finalLayer);
-
-  if (finalLayer !== currentLayer) {
-    setCurrentLayer(finalLayer);
-    revealWholeLayer(nextState as any, finalLayer);
-    triggerLayerFx(finalLayer);
-  }
-
+ 
   // -------------------------------------------
   // 5️⃣ CARD TRIGGER (after portal)
   // -------------------------------------------
