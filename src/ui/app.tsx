@@ -3362,26 +3362,6 @@ let landedId = pidAfter ?? targetId;
 ]);
 
 
- 
-  // -------------------------------------------
-  // 5️⃣ CARD TRIGGER (after portal)
-  // -------------------------------------------
-  const landedCard = findCardTriggerAt(landedId);
-  if (landedCard) {
-    triggerCardFlip(landedCard);
-    pushLog("Card triggered: " + landedCard, "info");
-  }
-
-  // -------------------------------------------
-  // 6️⃣ Reachability / optimal path
-  // -------------------------------------------
-  const rm = getReachability(nextState) as any;
-  setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
-
-  pushLog("Encounter resolved — moved to " + landedId, "ok");
-  if (goalId && landedId === goalId) pushLog("Goal reached!", "ok");
-}
-
 // ---------------------------
 // Villain triggers parser
 // ---------------------------
