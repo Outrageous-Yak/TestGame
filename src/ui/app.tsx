@@ -3480,6 +3480,24 @@ let landedId = pidAfter ?? targetId;
 const [cardTriggers, setCardTriggers] = useState<CardTrigger[]>([]);
 const [cardFlip, setCardFlip] = useState<null | { key: number; card: CardKey }>(null);
 const cardFlipTimerRef = useRef<number | null>(null);
+   const triggerCardFlip = useCallback((card: CardKey) => {
+  if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
+
+  const key = Date.now();
+  setCardFlip({ key, card });
+
+  cardFlipTimerRef.current = window.setTimeout(() => {
+    setCardFlip(null);
+    cardFlipTimerRef.current = null;
+  }, 1400);
+}, []);
+
+useEffect(() => {
+  return () => {
+    if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
+  };
+}, []);
+
    const findCardTriggerAt = useCallback(
   (id: string): CardKey | null => {
     const c = idToCoord(id);
@@ -3831,7 +3849,7 @@ const tryMoveToId = useCallback(
     getLayerMoves,
     triggerLayerFx,
     findCardTriggerAt,
-    triggerCardFlip,
+    triggerCardFlyout,
   ]
 );
 
