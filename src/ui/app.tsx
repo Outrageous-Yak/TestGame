@@ -2372,6 +2372,102 @@ flex: 0 0 var(--hexWMain);
   .side{ order: 10; }
   .board{ width: min(var(--boardW), 96vw); }
 }
+/* =========================================================
+   FLY-OUT CARD (deck -> center -> flip)
+========================================================= */
+.flyCardOverlay{
+  position: fixed;
+  inset: 0;
+  z-index: 1900; /* below cardFlipOverlay=2000, above everything else */
+  pointer-events: none;
+}
+
+.flyCard{
+  position: fixed;
+  left: 0;
+  top: 0;
+
+  width: var(--fromW);
+  height: var(--fromH);
+
+  transform-style: preserve-3d;
+  transform-origin: center;
+  border-radius: 22px;
+  overflow: hidden;
+
+  /* start at deck position */
+  transform: translate3d(var(--fromX), var(--fromY), 0) scale(1);
+
+  animation: flyToCenter 1.15s ease-out forwards;
+  box-shadow: 0 28px 90px rgba(0,0,0,.65);
+}
+
+/* reuse your theme backgrounds */
+.flyCard.cosmic  { background: linear-gradient(135deg,#0C1026,#1A1F4A); }
+.flyCard.risk    { background: linear-gradient(135deg,#12090A,#6E0F1B); }
+.flyCard.terrain { background: linear-gradient(135deg,#0E3B2E,#1FA88A); }
+.flyCard.shadow  { background: linear-gradient(135deg,#1B1B1E,#2A1E3F); }
+
+/* two faces for a real flip */
+.flyFace{
+  position:absolute;
+  inset:0;
+  backface-visibility: hidden;
+  border-radius: 22px;
+  overflow:hidden;
+}
+
+.flyFront{ transform: rotateY(0deg); }
+.flyBack{
+  transform: rotateY(180deg);
+  /* slight difference so you "feel" the flip */
+  filter: brightness(1.05) saturate(1.1);
+}
+
+.flyLabel{
+  position:absolute;
+  left: 18px;
+  bottom: 16px;
+  font-weight: 1000;
+  letter-spacing: .45px;
+  font-size: 13px;
+  color: rgba(255,255,255,.92);
+  text-transform: uppercase;
+  text-shadow: 0 10px 26px rgba(0,0,0,.55);
+}
+
+/* keyframe:
+   0%: at deck rect
+   ~55%: reach center, scale up
+   then flip near the end
+*/
+@keyframes flyToCenter{
+  0%{
+    opacity: 1;
+    transform: translate3d(var(--fromX), var(--fromY), 0) scale(1) rotateY(0deg);
+  }
+  55%{
+    opacity: 1;
+    transform:
+      translate3d(calc(50vw - (var(--fromW) / 2)), calc(50vh - (var(--fromH) / 2)), 0)
+      scale(1.25)
+      rotateY(0deg);
+  }
+  80%{
+    opacity: 1;
+    transform:
+      translate3d(calc(50vw - (var(--fromW) / 2)), calc(50vh - (var(--fromH) / 2)), 0)
+      scale(1.25)
+      rotateY(180deg);
+  }
+  100%{
+    opacity: 0;
+    transform:
+      translate3d(calc(50vw - (var(--fromW) / 2)), calc(50vh - (var(--fromH) / 2)), 0)
+      scale(1.18)
+      rotateY(180deg);
+  }
+}
 
 `;
 
@@ -2868,33 +2964,48 @@ if (side === "right") {
 }
 
 
-  function HexDeckCardsOverlay(props: { glowVar: string }) {
-    const overlayStyle = {
-      ["--cardGlow" as any]: props.glowVar,
-    } as React.CSSProperties;
+function HexDeckCardsOverlay(props: { glowVar: string }) {
+  const overlayStyle = {
+    ["--cardGlow" as any]: props.glowVar,
+  } as React.CSSProperties;
 
-    return (
-      <div className="hexDeckOverlay" style={overlayStyle}>
-        <div className="hexDeckCol left">
-          <div className="hexDeckCard cosmic ccw slow">
-            <div className="deckFx" />
-          </div>
-          <div className="hexDeckCard risk ccw fast">
-            <div className="deckFx" />
-          </div>
+  return (
+    <div className="hexDeckOverlay" style={overlayStyle}>
+      <div className="hexDeckCol left">
+        <div
+          className="hexDeckCard cosmic"
+          ref={(el) => (deckRefs.current.cosmic = el)}
+        >
+          <div className="deckFx" />
         </div>
 
-        <div className="hexDeckCol right">
-          <div className="hexDeckCard terrain cw slow">
-            <div className="deckFx" />
-          </div>
-          <div className="hexDeckCard shadow cw fast">
-            <div className="deckFx" />
-          </div>
+        <div
+          className="hexDeckCard risk"
+          ref={(el) => (deckRefs.current.risk = el)}
+        >
+          <div className="deckFx" />
         </div>
       </div>
-    );
-  }
+
+      <div className="hexDeckCol right">
+        <div
+          className="hexDeckCard terrain"
+          ref={(el) => (deckRefs.current.terrain = el)}
+        >
+          <div className="deckFx" />
+        </div>
+
+        <div
+          className="hexDeckCard shadow"
+          ref={(el) => (deckRefs.current.shadow = el)}
+        >
+          <div className="deckFx" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
   /* =========================
      Moves / optimal / log
@@ -3380,17 +3491,58 @@ const cardFlipTimerRef = useRef<number | null>(null);
   },
   [cardTriggers]
 );
+type FlyCard = {
+  key: number;
+  card: CardKey;
+  from: { x: number; y: number; w: number; h: number };
+};
 
-const triggerCardFlip = useCallback((card: CardKey) => {
-  if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
+const deckRefs = useRef<Record<CardKey, HTMLDivElement | null>>({
+  cosmic: null,
+  risk: null,
+  terrain: null,
+  shadow: null,
+});
 
-  setCardFlip({ key: Date.now(), card });
+const [flyCard, setFlyCard] = useState<FlyCard | null>(null);
+const flyTimerRef = useRef<number | null>(null);
 
-  cardFlipTimerRef.current = window.setTimeout(() => {
-    setCardFlip(null);
-    cardFlipTimerRef.current = null;
-  }, 1400);
+useEffect(() => {
+  return () => {
+    if (flyTimerRef.current) window.clearTimeout(flyTimerRef.current);
+  };
 }, []);
+
+const triggerCardFlyout = useCallback((card: CardKey) => {
+  const el = deckRefs.current[card];
+  if (!el) {
+    // fallback: if deck ref missing, use your existing overlay
+    setCardFlip({ key: Date.now(), card });
+    return;
+  }
+
+  const r = el.getBoundingClientRect();
+
+  // start fly card clone
+  const key = Date.now();
+  setFlyCard({
+    key,
+    card,
+    from: { x: r.left, y: r.top, w: r.width, h: r.height },
+  });
+
+  // optional: also show your existing fullscreen overlay slightly later
+  // (comment this out if you want ONLY the fly-out)
+  flyTimerRef.current = window.setTimeout(() => {
+    setCardFlip({ key: Date.now(), card });
+  }, 520);
+
+  // cleanup fly card after animation
+  window.setTimeout(() => {
+    setFlyCard(null);
+  }, 1200);
+}, []);
+
 /* =========================
    Start scenario
 ========================= */
@@ -3651,7 +3803,7 @@ const tryMoveToId = useCallback(
     // -------------------------------------------
     const landedCard = findCardTriggerAt(landedId);
     if (landedCard) {
-      triggerCardFlip(landedCard);
+     triggerCardFlyout(landedCard);
       pushLog("Card triggered: " + landedCard, "info");
     }
 
@@ -4322,6 +4474,29 @@ const cardHere = findCardTriggerAt(id);
         </div>
       </div>
     </div>
+     {flyCard ? (
+  <div key={flyCard.key} className="flyCardOverlay" aria-hidden="true">
+    <div
+      className={"flyCard " + flyCard.card}
+      style={
+        {
+          ["--fromX" as any]: flyCard.from.x + "px",
+          ["--fromY" as any]: flyCard.from.y + "px",
+          ["--fromW" as any]: flyCard.from.w + "px",
+          ["--fromH" as any]: flyCard.from.h + "px",
+        } as any
+      }
+    >
+      <div className="flyFace flyFront">
+        <div className="flyLabel">{flyCard.card}</div>
+      </div>
+      <div className="flyFace flyBack">
+        <div className="flyLabel">{flyCard.card}</div>
+      </div>
+    </div>
+  </div>
+) : null}
+
 {cardFlip ? (
   <div key={cardFlip.key} className="cardFlipOverlay" aria-live="polite">
     <div className={"cardFlipCard " + cardFlip.card}>
