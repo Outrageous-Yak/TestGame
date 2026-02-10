@@ -2502,7 +2502,7 @@ flex: 0 0 var(--hexWMain);
   }
 }
 
-
+`;
 // =========================
 // Portal helpers (FIXED)
 // - exact "from" match (no +1 matching)
