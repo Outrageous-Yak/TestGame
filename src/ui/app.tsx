@@ -281,30 +281,6 @@ function findFirstPlayableHexId(st: GameState, layer: number): string {
   }
   return `L${layer}-R0-C0`;
 }
-function findPortalDirection(
-  transitions: any[] | undefined,
-  id: string
-): "up" | "down" | null {
-  if (!transitions) return null;
-
-  const c = idToCoord(id);
-  if (!c) return null;
-
-  for (const t of transitions) {
-    const from = t.from;
-    if (!from) continue;
-
-    if (
-      Number(from.layer) === c.layer &&
-      Number(from.row) === c.row &&
-      Number(from.col) === c.col
-    ) {
-      return t.type === "UP" ? "up" : "down";
-    }
-  }
-
-  return null;
-}
 
 function facingFromMove(fromId: string | null, toId: string | null): "down" | "up" | "left" | "right" {
   const a = fromId ? idToCoord(fromId) : null;
@@ -2270,6 +2246,112 @@ flex: 0 0 var(--hexWMain);
   70%  { opacity: 1; }
   100% { opacity: 0; transform: translateY(-6px) scale(.99); }
 }
+/* =========================================================
+   CARD FLIP OVERLAY (FULLSCREEN)
+   Shows a big themed card for 1.4s when a card triggers
+========================================================= */
+
+.cardFlipOverlay{
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(10px);
+  pointer-events: none; /* doesn't block clicks */
+  animation: cardFlipFade 1.4s ease-out forwards;
+}
+
+@keyframes cardFlipFade{
+  0%   { opacity: 0; }
+  12%  { opacity: 1; }
+  75%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.cardFlipCard{
+  width: min(420px, 78vw);
+  aspect-ratio: 3 / 4;
+  border-radius: 28px;
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow:
+    0 28px 90px rgba(0,0,0,.65),
+    0 0 0 1px rgba(255,255,255,.06) inset;
+  overflow: hidden;
+  position: relative;
+  transform-origin: center;
+  animation: cardFlipPop 1.4s ease-out forwards;
+}
+
+@keyframes cardFlipPop{
+  0%   { transform: translateY(18px) scale(.92) rotateX(12deg); filter: blur(2px); opacity: 0; }
+  12%  { transform: translateY(0)    scale(1)  rotateX(0deg);  filter: blur(0);  opacity: 1; }
+  70%  { transform: translateY(0)    scale(1)  rotateX(0deg);  filter: blur(0);  opacity: 1; }
+  100% { transform: translateY(-10px) scale(.98); filter: blur(1px); opacity: 0; }
+}
+
+/* Theme backgrounds (match your deck cards) */
+.cardFlipCard.cosmic  { background: linear-gradient(135deg,#0C1026,#1A1F4A); }
+.cardFlipCard.risk    { background: linear-gradient(135deg,#12090A,#6E0F1B); }
+.cardFlipCard.terrain { background: linear-gradient(135deg,#0E3B2E,#1FA88A); }
+.cardFlipCard.shadow  { background: linear-gradient(135deg,#1B1B1E,#2A1E3F); }
+
+/* Nice inner motion + border */
+.cardFlipCard::before{
+  content:"";
+  position:absolute;
+  inset:-30%;
+  background:
+    radial-gradient(80% 60% at 30% 20%, rgba(255,255,255,.14), transparent 65%),
+    radial-gradient(70% 55% at 75% 80%, rgba(255,255,255,.10), transparent 65%),
+    repeating-linear-gradient(115deg, rgba(255,255,255,0) 0 14px, rgba(255,255,255,.10) 18px, rgba(255,255,255,0) 22px);
+  opacity: .55;
+  mix-blend-mode: overlay;
+  animation: flipDrift 1.4s linear forwards;
+}
+
+@keyframes flipDrift{
+  from { transform: translate3d(-12%, -10%, 0) rotate(0deg); }
+  to   { transform: translate3d( 12%,  10%, 0) rotate(14deg); }
+}
+
+.cardFlipCard::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events:none;
+  background:
+    conic-gradient(
+      from 0deg,
+      rgba(255,255,255,.28),
+      rgba(255,255,255,.08),
+      rgba(255,255,255,.28)
+    );
+
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+
+  opacity: .9;
+}
+
+/* Optional label */
+.cardFlipLabel{
+  position:absolute;
+  left: 18px;
+  bottom: 16px;
+  font-weight: 1000;
+  letter-spacing: .45px;
+  font-size: 13px;
+  color: rgba(255,255,255,.90);
+  text-transform: uppercase;
+  text-shadow: 0 10px 26px rgba(0,0,0,.55);
+}
 
 /* =========================================================
    SCROLLBARS
@@ -2292,6 +2374,7 @@ flex: 0 0 var(--hexWMain);
 }
 
 `;
+
 // =========================
 // Portal helpers (FIXED)
 // - exact "from" match (no +1 matching)
@@ -2370,6 +2453,53 @@ function applyPortalIfAny(
 /* =========================================================
    App
 ========================================================= */
+function parseVillainsFromScenario(s: any): VillainTrigger[] {
+  const src =
+    (Array.isArray(s?.villains) && s.villains) ||
+    (Array.isArray(s?.villainTriggers) && s.villainTriggers) ||
+    (Array.isArray(s?.encounters) && s.encounters) ||
+    (Array.isArray(s?.triggers) && s.triggers) ||
+    [];
+
+  const allowed: VillainKey[] = ["bad1", "bad2", "bad3", "bad4"];
+  const out: VillainTrigger[] = [];
+
+  const toZeroBasedRow = (r: number) => (r >= 1 && r <= 7 ? r - 1 : r);
+  const toZeroBasedCol = (c: number) => (c >= 1 && c <= 7 ? c - 1 : c);
+
+  for (const raw of src) {
+    if (!raw || typeof raw !== "object") continue;
+
+    const base = raw.from && typeof raw.from === "object" ? raw.from : raw;
+
+    const keyRaw = String(raw.key ?? raw.villainKey ?? raw.id ?? base.key ?? "bad1");
+    const key = (allowed.includes(keyRaw as any) ? keyRaw : "bad1") as VillainKey;
+
+    const layer = Number(base.layer ?? base.L ?? raw.layer ?? raw.L ?? 1);
+
+    let row = Number(base.row ?? base.r ?? raw.row ?? raw.r ?? 0);
+    row = toZeroBasedRow(row);
+
+    let cols: "any" | number[] | undefined = undefined;
+    const c = base.cols ?? base.col ?? base.c ?? raw.cols ?? raw.col ?? raw.c;
+
+    if (c === "any") {
+      cols = "any";
+    } else if (Array.isArray(c)) {
+      cols = c
+        .map((n: any) => toZeroBasedCol(Number(n)))
+        .filter((n: any) => Number.isFinite(n));
+    } else if (Number.isFinite(Number(c))) {
+      cols = [toZeroBasedCol(Number(c))];
+    }
+
+    if (!Number.isFinite(layer) || !Number.isFinite(row)) continue;
+
+    out.push({ key, layer, row, cols });
+  }
+
+  return out;
+}
 
 export default function App() {
   /* =========================
@@ -2581,6 +2711,8 @@ const canGoUp = currentLayer < scenarioLayerCount;
   const rows = useMemo(() => {
     return Array.from({ length: ROW_LENS.length }, (_, i) => i);
   }, []);
+     const viewState = useMemo(() => {
+    if (!state) return null;
 function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
   const side = props.side;
   const currentLayerLocal = props.currentLayer;
@@ -2758,8 +2890,7 @@ if (side === "right") {
 
 
 
-  const viewState = useMemo(() => {
-    if (!state) return null;
+
 
     const rs = (state as any).rowShifts;
     let hasEngineShift = false;
@@ -3231,8 +3362,7 @@ let landedId = pidAfter ?? targetId;
    Encounter resolution
 ========================= */
 
-function resolveEncounterAndContinue() {
-  if (!state || !encounter) return;
+
 
   const moveId = pendingEncounterMoveIdRef.current;
   if (!moveId) return;
@@ -3309,56 +3439,7 @@ function resolveEncounterAndContinue() {
 // ---------------------------
 // Villain triggers parser
 // ---------------------------
-function parseVillainsFromScenario(s: any): VillainTrigger[] {
-  const src =
-    (Array.isArray(s?.villains) && s.villains) ||
-    (Array.isArray(s?.villainTriggers) && s.villainTriggers) ||
-    (Array.isArray(s?.encounters) && s.encounters) ||
-    (Array.isArray(s?.triggers) && s.triggers) ||
-    [];
 
-  const allowed: VillainKey[] = ["bad1", "bad2", "bad3", "bad4"];
-  const out: VillainTrigger[] = [];
-
-  // If the data looks 1-based, convert to 0-based.
-  const toZeroBasedRow = (r: number) => (r >= 1 && r <= 7 ? r - 1 : r);
-  const toZeroBasedCol = (c: number) => (c >= 1 && c <= 7 ? c - 1 : c);
-
-  for (const raw of src) {
-    if (!raw || typeof raw !== "object") continue;
-
-    // allow nesting: { from:{layer,row,col}, key:"bad1" }
-    const base = raw.from && typeof raw.from === "object" ? raw.from : raw;
-
-    const keyRaw = String(raw.key ?? raw.villainKey ?? raw.id ?? base.key ?? "bad1");
-    const key = (allowed.includes(keyRaw as any) ? keyRaw : "bad1") as VillainKey;
-
-    const layer = Number(base.layer ?? base.L ?? raw.layer ?? raw.L ?? 1);
-
-    let row = Number(base.row ?? base.r ?? raw.row ?? raw.r ?? 0);
-    row = toZeroBasedRow(row);
-
-    // cols can be: "any" OR number[] OR single number
-    let cols: "any" | number[] | undefined = undefined;
-    const c = base.cols ?? base.col ?? base.c ?? raw.cols ?? raw.col ?? raw.c;
-
-    if (c === "any") {
-      cols = "any";
-    } else if (Array.isArray(c)) {
-      cols = c
-        .map((n: any) => toZeroBasedCol(Number(n)))
-        .filter((n: any) => Number.isFinite(n));
-    } else if (Number.isFinite(Number(c))) {
-      cols = [toZeroBasedCol(Number(c))];
-    }
-
-    if (!Number.isFinite(layer) || !Number.isFinite(row)) continue;
-
-    out.push({ key, layer, row, cols });
-  }
-
-  return out;
-}
 const [cardTriggers, setCardTriggers] = useState<CardTrigger[]>([]);
 const [cardFlip, setCardFlip] = useState<null | { key: number; card: CardKey }>(null);
 const cardFlipTimerRef = useRef<number | null>(null);
@@ -3476,7 +3557,6 @@ pushLog("Card triggers loaded: " + cts.length, "info");
   }, [
     scenarioEntry,
     trackEntry,
-    parseVillainsFromScenario,
     revealWholeLayer,
     computeOptimalFromReachMap,
     pushLog,
@@ -4316,11 +4396,13 @@ const cardHere = findCardTriggerAt(id);
         </div>
       </div>
     </div>
-   {cardFlip ? (
-      <div key={cardFlip.key} className="cardFlipOverlay" aria-live="polite">
-        <div className={"cardFlipCard " + cardFlip.card} />
-      </div>
-    ) : null}
+{cardFlip ? (
+  <div key={cardFlip.key} className="cardFlipOverlay" aria-live="polite">
+    <div className={"cardFlipCard " + cardFlip.card}>
+      <div className="cardFlipLabel">{cardFlip.card}</div>
+    </div>
+  </div>
+) : null}
     {encounter ? (
   <div className="overlay" role="dialog" aria-modal="true">
     <div className="overlayCard">
