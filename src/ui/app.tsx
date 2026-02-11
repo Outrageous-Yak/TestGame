@@ -2265,12 +2265,13 @@ flex: 0 0 var(--hexWMain);
 }
 
 .encounterGrid{
-  width: min(1100px, 92vw);
+  width: min(1200px, 94vw);
   display: grid;
-  grid-template-columns: minmax(260px, 420px) minmax(280px, 1fr);
-  gap: 26px;
+  grid-template-columns: 480px 1fr;
+  gap: 80px;
   align-items: center;
 }
+
 
 .encounterCard{
   width: 100%;
@@ -2290,15 +2291,17 @@ flex: 0 0 var(--hexWMain);
 }
 
 .encounterRight{
-  display: grid;
-  justify-items: center;
-  gap: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
+
 .encounterDice{
-  transform: scale(2.35);
+  transform: scale(3.6);
   transform-origin: center;
-  filter: drop-shadow(0 18px 40px rgba(0,0,0,.55));
+  margin-bottom: 30px;
 }
 
 .encounterInfo{
@@ -4723,6 +4726,13 @@ const cardHere = findCardTriggerAt(id);
   </div>
 ) : null}
 
+
+
+
+/* =========================================================
+   JSX: Replace your old encounter overlay block with THIS
+========================================================= */
+
 {encounter ? (
   <div className="encounterScene" role="dialog" aria-modal="true">
     <div className="encounterGrid">
@@ -4741,7 +4751,8 @@ const cardHere = findCardTriggerAt(id);
           <div
             className="cube"
             style={{
-              transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)",
+              transform:
+                "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)",
             }}
           >
             <div className="face face-front"  style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }} />
@@ -4762,6 +4773,7 @@ const cardHere = findCardTriggerAt(id);
 
         <div className="encounterInfo">
           <div className="encounterTitle">ENCOUNTER!</div>
+
           <div className="encounterSub">
             Roll a <b>6</b> to continue
             <span className="encounterTries">
@@ -4801,6 +4813,7 @@ const cardHere = findCardTriggerAt(id);
     </div>
   </div>
 ) : null}
+
 
     <style>{baseCss}</style>
   </div>
