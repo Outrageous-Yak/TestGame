@@ -1,17 +1,30 @@
-// src/ui/app.tsx
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+// src/ui/app.tsx 
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+
 
 import type { GameState, Scenario, Hex } from "../engine/types";
 import { assertScenario } from "../engine/scenario";
 import { newGame, getReachability, tryMove, type ReachMap } from "../engine/api";
+
 import { ROW_LENS, enterLayer, revealHex } from "../engine/board";
 import { neighborIdsSameLayer } from "../engine/neighbors";
 
+/**
+ * ✅ Worlds registry import (GitHub/Linux safe)
+ * Requires a module at: src/worlds/index.(ts|js|tsx|jsx)
+ * Supported export shapes:
+ * - export const worlds = [...]
+ * - export default [...]
+ * - export const registry = [...]
+ */
+import * as WorldsMod from "../worlds";
+
 /* =========================================================
-   Template Flow
-   Start -> World -> Character -> Scenario -> Difficulty? -> Game
+   Types
 ========================================================= */
-type Screen = "start" | "world" | "character" | "scenario" | "difficulty" | "game";
+
+type Screen = "start" | "world" | "character" | "scenario" | "game";
 
 type PlayerChoice =
   | { kind: "preset"; id: string; name: string }
@@ -20,30 +33,48 @@ type PlayerChoice =
 type Coord = { layer: number; row: number; col: number };
 type LogEntry = { n: number; t: string; msg: string; kind?: "ok" | "bad" | "info" };
 
-/* =========================================================
-   World / Scenario auto-discovery
-========================================================= */
-type LayerPalette = { L1: string; L2: string; L3: string; L4: string; L5: string; L6: string; L7: string };
+type LayerPalette = {
+  L1: string;
+  L2: string;
+  L3: string;
+  L4: string;
+  L5: string;
+  L6: string;
+  L7: string;
+};
 
 type ScenarioTheme = {
   palette: LayerPalette;
   assets: {
-    backgroundGame: string; // e.g. "worlds/.../assets/backgrounds/game-bg.jpg"
-    diceFacesBase: string; // e.g. "worlds/.../assets/dice/faces" (expects D20_1.png..D20_6.png)
-    diceCornerBorder: string; // e.g. "worlds/.../assets/dice/borders/corner_flame_red.png"
-    villainsBase: string; // e.g. "worlds/.../assets/villains" (expects bad1.png..bad4.png)
+    backgroundGame?: string;
+    backgroundLayers?: Partial<{
+      L1: string;
+      L2: string;
+      L3: string;
+      L4: string;
+      L5: string;
+      L6: string;
+      L7: string;
+    }>;
+    diceFacesBase: string;
+    diceCornerBorder: string;
+    villainsBase: string;
+    hexTile?: string;
   };
 };
 
-type Track = { id: string; name: string; scenarioJson: string }; // public path
+type Track = { id: string; name: string; scenarioJson: string };
+
 type ScenarioEntry = {
   id: string;
   name: string;
   desc?: string;
-  scenarioJson: string; // public path to JSON
+  scenarioJson: string;
   theme: ScenarioTheme;
-  tracks?: Track[]; // if absent or length===1 => skip difficulty
+  tracks?: Track[];
 };
+
+
 
 type WorldEntry = {
   id: string;
@@ -53,52 +84,126 @@ type WorldEntry = {
   scenarios: ScenarioEntry[];
 };
 
-// Auto-load all world modules under src/worlds/**/world.ts
-const worldModules = import.meta.glob("../worlds/**/world.ts", { eager: true });
+type VillainKey = "bad1" | "bad2" | "bad3" | "bad4";
+type VillainTrigger = { key: VillainKey; layer: number; row: number; cols?: "any" | number[] };
+type Encounter = null | { villainKey: VillainKey; tries: number };
+type CardKey = "cosmic" | "risk" | "terrain" | "shadow";
+type CardTrigger = { card: CardKey; layer: number; row: number; col: number };
+/* =========================================================
+   Worlds registry helpers
+========================================================= */
+
+function getRegisteredWorlds(): any[] {
+  const anyMod: any = WorldsMod as any;
+  const list =
+    (Array.isArray(anyMod?.worlds) && anyMod.worlds) ||
+    (Array.isArray(anyMod?.default) && anyMod.default) ||
+    (Array.isArray(anyMod?.registeredWorlds) && anyMod.registeredWorlds) ||
+    (Array.isArray(anyMod?.registry) && anyMod.registry) ||
+    [];
+  return list;
+}
+
+function normalizeWorldEntry(raw: any): WorldEntry | null {
+  if (!raw) return null;
+  const w = raw.default ?? raw;
+const id = String(w.id ?? w.slug ?? w.key ?? "world");
+const name = String(w.name ?? w.title ?? id);
+
+  const scenarios = Array.isArray(w.scenarios) ? w.scenarios : [];
+
+  const normScenarios: ScenarioEntry[] = scenarios
+    .map((s: any, idx: number): ScenarioEntry | null => {
+      if (!s) return null;
+
+      const sid = String(s.id ?? s.slug ?? `scenario-${idx}`);
+      const sname = String(s.name ?? s.title ?? sid);
+
+      const scenarioJson = String(s.scenarioJson ?? s.json ?? "");
+      if (!scenarioJson) return null;
+
+      const theme: ScenarioTheme =
+        s.theme ??
+        ({
+          palette: {
+            L1: "#19ffb4",
+            L2: "#67a5ff",
+            L3: "#ffd36a",
+            L4: "#ff7ad1",
+            L5: "#a1ff5a",
+            L6: "#a58bff",
+            L7: "#ff5d7a",
+          },
+          assets: {
+            diceFacesBase: "images/dice",
+            diceCornerBorder: "",
+            villainsBase: "images/villains",
+          },
+        } as ScenarioTheme);
+
+      const tracks: Track[] | undefined = Array.isArray(s.tracks)
+        ? (s.tracks
+            .map((t: any, tIdx: number): Track | null => {
+              if (!t) return null;
+              const tid = String(t.id ?? `track-${tIdx}`);
+              const tname = String(t.name ?? tid);
+              const tjson = String(t.scenarioJson ?? t.json ?? "");
+              if (!tjson) return null;
+              return { id: tid, name: tname, scenarioJson: tjson };
+            })
+            .filter(Boolean) as Track[])
+        : undefined;
+
+      return {
+        id: sid,
+        name: sname,
+        desc: s.desc,
+        scenarioJson,
+        theme,
+        tracks: tracks && tracks.length ? tracks : undefined,
+      };
+    })
+    .filter(Boolean) as ScenarioEntry[];
+
+  if (normScenarios.length === 0) return null;
+
+  return {
+    id,
+    name,
+    desc: w.desc,
+    menu: w.menu ?? {},
+    scenarios: normScenarios,
+  };
+}
 
 function loadWorlds(): WorldEntry[] {
+  const rawList = getRegisteredWorlds();
   const list: WorldEntry[] = [];
-  for (const [path, mod] of Object.entries(worldModules as any)) {
-    const w = (mod as any)?.default ?? (mod as any)?.world ?? null;
-    if (!w) continue;
-    if (!w.id) {
-      const m = /..\/worlds\/([^/]+)\/world\.ts$/.exec(path);
-      w.id = m?.[1] ?? "world";
-    }
-    list.push(w as WorldEntry);
+
+  for (const raw of rawList) {
+    const norm = normalizeWorldEntry(raw);
+    if (norm) list.push(norm);
   }
+
   list.sort((a, b) => a.name.localeCompare(b.name));
   return list;
 }
 
 /* =========================================================
-   Villain triggers (loaded from scenario.json, NOT hardcoded)
-========================================================= */
-type VillainKey = "bad1" | "bad2" | "bad3" | "bad4";
-
-type VillainTrigger = {
-  key: VillainKey;
-  layer: number;
-  row: number; // 0-based (matches engine)
-  cols?: "any" | number[]; // 0-based col indices if provided
-};
-
-type Encounter = null | { villainKey: VillainKey; tries: number };
-
-/* =========================================================
    Helpers
 ========================================================= */
+
 function idToCoord(id: string): Coord | null {
   const m = /^L(\d+)-R(\d+)-C(\d+)$/.exec(id);
   if (!m) return null;
   return { layer: Number(m[1]), row: Number(m[2]), col: Number(m[3]) };
 }
 
-/** GitHub Pages-safe public URL helper (respects Vite BASE_URL). */
 function toPublicUrl(p: string) {
   const base = (import.meta as any).env?.BASE_URL ?? "/";
-  const clean = String(p).replace(/^\/+/, "");
-  return base + clean;
+  const cleanBase = String(base).endsWith("/") ? String(base) : `${base}/`;
+  const cleanPath = String(p).replace(/^\/+/, "");
+  return cleanBase + cleanPath;
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
@@ -125,7 +230,6 @@ function isBlockedOrMissing(hex: any): { blocked: boolean; missing: boolean } {
   return { missing: !!hex.missing, blocked: !!hex.blocked };
 }
 
-/** For CSS vars like var(--L2) */
 function layerCssVar(n: number) {
   const clamped = Math.max(1, Math.min(7, Math.floor(n || 1)));
   return `var(--L${clamped})`;
@@ -138,7 +242,6 @@ function nowHHMM() {
   return `${hh}:${mm}`;
 }
 
-/** Best-effort goal id discovery (safe if scenario doesn’t define it). Assumes 0-based row/col. */
 function findGoalId(s: any, fallbackLayer: number): string | null {
   const direct =
     s?.goalHexId ??
@@ -158,24 +261,3090 @@ function findGoalId(s: any, fallbackLayer: number): string | null {
     const layer = Number(gc.layer ?? fallbackLayer);
     const row = Number(gc.row ?? gc.r);
     const col = Number(gc.col ?? gc.c);
-    if (Number.isFinite(layer) && Number.isFinite(row) && Number.isFinite(col)) return `L${layer}-R${row}-C${col}`;
+    if (Number.isFinite(layer) && Number.isFinite(row) && Number.isFinite(col)) {
+      return `L${layer}-R${row}-C${col}`;
+    }
   }
   return null;
 }
 
-/* =========================================================
-   Minimal players (template)
-========================================================= */
-const PLAYER_PRESETS = [
-  { id: "p1", name: "Aeris" },
-  { id: "p2", name: "Devlan" },
-];
+function findFirstPlayableHexId(st: GameState, layer: number): string {
+  for (let r = 0; r < ROW_LENS.length; r++) {
+    const len = ROW_LENS[r] ?? 7;
+    for (let c = 0; c < len; c++) {
+      const id = `L${layer}-R${r}-C${c}`;
+      const hex = getHexFromState(st, id) as any;
+      if (!hex) continue;
+      if (hex.missing) continue;
+      if (hex.blocked) continue;
+      return id;
+    }
+  }
+  return `L${layer}-R0-C0`;
+}
+
+function facingFromMove(fromId: string | null, toId: string | null): "down" | "up" | "left" | "right" {
+  const a = fromId ? idToCoord(fromId) : null;
+  const b = toId ? idToCoord(toId) : null;
+  if (!a || !b) return "down";
+  if (a.layer !== b.layer) return "down";
+
+  const dRow = b.row - a.row;
+  const dCol = b.col - a.col;
+
+  if (Math.abs(dCol) >= Math.abs(dRow)) return dCol > 0 ? "right" : dCol < 0 ? "left" : "down";
+  return dRow > 0 ? "down" : "up";
+}
+function facingFromMoveVisual(
+  st: any,
+  fromId: string | null,
+  toId: string | null,
+  _layer: number,
+  movesTakenForLayer: number
+): "down" | "up" | "left" | "right" {
+  const a = fromId ? idToCoord(fromId) : null;
+  const b = toId ? idToCoord(toId) : null;
+  if (!a || !b) return "down";
+
+  // different layer: keep "down" (or choose your own rule)
+  if (a.layer !== b.layer) return "down";
+
+  const lenA = ROW_LENS[a.row] ?? 7;
+  const lenB = ROW_LENS[b.row] ?? 7;
+
+  // shifts for each row (engine if non-zero else derived)
+  const sAeng = getRowShiftUnits(st, a.layer, a.row);
+  const sAraw = sAeng !== 0 ? sAeng : derivedRowShiftUnits(st, a.layer, a.row, movesTakenForLayer);
+  const sA = normalizeRowShift(sAraw, lenA).visual;
+
+  const sBeng = getRowShiftUnits(st, b.layer, b.row);
+  const sBraw = sBeng !== 0 ? sBeng : derivedRowShiftUnits(st, b.layer, b.row, movesTakenForLayer);
+  const sB = normalizeRowShift(sBraw, lenB).visual;
+
+  // slot columns (already modulo)
+  const slotA = slotOfId(a.row, a.col, sA);
+  const slotB = slotOfId(b.row, b.col, sB);
+
+  // compute dx in "slot units" and choose the shortest circular direction when same row
+  let dxSlots = slotB - slotA;
+  if (a.row === b.row) {
+    const len = lenA;
+    // wrap dx to [-len/2, len/2]
+    dxSlots = ((dxSlots + len / 2) % len) - len / 2;
+  }
+
+  const dRow = b.row - a.row;
+
+  // prefer horizontal if it dominates
+  if (Math.abs(dxSlots) >= Math.abs(dRow) * 0.5) {
+    return dxSlots > 0 ? "right" : dxSlots < 0 ? "left" : "down";
+  }
+
+  return dRow > 0 ? "down" : "up";
+}
+
+
+function unwrapNextState(res: any): GameState | null {
+  if (!res) return null;
+
+  if (typeof res === "object" && "state" in (res as any)) {
+    const st = (res as any).state;
+    return st && typeof st === "object" ? (st as GameState) : null;
+  }
+
+  if (typeof res === "object" && (("hexesById" in (res as any)) || ("playerHexId" in (res as any)))) {
+    return res as GameState;
+  }
+
+  return null;
+}
+function getNeighborsSameLayer(st: any, pid: string): string[] {
+  // ✅ FIRST: state-aware neighbors (respects shifting rows)
+  try {
+    const b = (neighborIdsSameLayer as any)(st, pid);
+    if (Array.isArray(b)) return b;
+  } catch {}
+
+  // fallback: static neighbors (no shifting)
+  try {
+    const a = (neighborIdsSameLayer as any)(pid);
+    if (Array.isArray(a)) return a;
+  } catch {}
+
+  return [];
+}
+
+function cloneReachMap(rm: any): ReachMap {
+  if (!rm) return {} as any;
+
+  // Map-like
+  if (typeof rm?.entries === "function") {
+    return new Map(rm) as any;
+  }
+
+  // Plain object
+  return { ...(rm as any) } as any;
+}
+
+function getRowShiftUnits(st: any, layer: number, row: number): number {
+  const a =
+    st?.rowShifts?.[layer]?.[row] ??
+    st?.rowShifts?.["L" + layer]?.[row] ??
+    st?.shiftByLayer?.[layer]?.[row] ??
+    st?.layerRowShift?.[layer]?.[row] ??
+    0;
+  const n = Number(a);
+  return Number.isFinite(n) ? n : 0;
+}
+function getMovementPattern(st: any, layer: number): string {
+  // st can be a GameState (st.scenario) OR a Scenario (st itself)
+  const sc = st?.scenario ?? st;
+
+  const m = sc?.movement ?? sc?.movementByLayer ?? null;
+  if (!m) return "NONE";
+
+  const v = m[layer] ?? m[String(layer)] ?? m["L" + layer];
+  return typeof v === "string" ? v : "NONE";
+}
+
+function derivedRowShiftUnits(st: any, layer: number, row: number, movesTaken: number): number {
+  if (!st) return 0;
+
+  const pat = getMovementPattern(st, layer);
+  const cols = ROW_LENS[row] ?? 7;
+
+  if (pat === "SEVEN_LEFT_SIX_RIGHT") {
+    if (cols === 7) return -movesTaken;
+    if (cols === 6) return movesTaken;
+  }
+
+  return 0;
+}
+
+
+function posForHex(
+  st: any,
+  layer: number,
+  row: number,
+  col: number,
+  movesTaken: number,
+  stepX: number,
+  stepY: number
+) {
+  const cols = ROW_LENS[row] ?? 7;
+  const isOffset = cols === 6;
+
+  // ✅ correct offset for 6-wide rows
+  const base = isOffset ? (-stepX / 2) : 0;
+const engineShift = getRowShiftUnits(st, layer, row);
+const shift =
+  engineShift !== 0
+    ? engineShift
+    : derivedRowShiftUnits(st, layer, row, movesTaken);
+
+
+  const x = base + (col * stepX) + (shift * stepX);
+  const y = row * stepY;
+
+  return { x, y };
+}
+
+
+function getShiftedNeighborsSameLayer(st: any, pid: string, movesTaken: number): string[] {
+  const c = idToCoord(pid);
+  if (!c) return [];
+
+  // shift for the player row
+const engineShiftCur = getRowShiftUnits(st, c.layer, c.row);
+const shiftCur =
+  engineShiftCur !== 0
+    ? engineShiftCur
+    : derivedRowShiftUnits(st, c.layer, c.row, movesTaken);
+
+
+
+
+  // player’s visual slot column
+  const slotC = slotOfId(c.row, c.col, shiftCur);
+
+  // neighbor slots on the 7676767 grid
+  const slots = neighborSlots(c.row, slotC);
+
+  const out: string[] = [];
+  for (const s of slots) {
+    const cols = ROW_LENS[s.r] ?? 7;
+const engineShift = getRowShiftUnits(st, c.layer, s.r);
+const shift =
+  engineShift !== 0
+    ? engineShift
+    : derivedRowShiftUnits(st, c.layer, s.r, movesTaken);
+
+
+
+    // ensure slot column is valid for that row length
+    if (s.c < 0 || s.c >= cols) continue;
+
+    const id = idAtSlot(c.layer, s.r, s.c, shift);
+
+    const hex = getHexFromState(st, id) as any;
+    if (!hex || hex.missing) continue;
+
+    out.push(id);
+  }
+
+  return out;
+}
+
+function mod(n: number, m: number) {
+  return ((n % m) + m) % m;
+}
+
+// shift > 0 means row moved RIGHT by that many slots
+// shift < 0 means row moved LEFT
+function idAtSlot(layer: number, row: number, slotCol: number, shift: number) {
+  const len = ROW_LENS[row] ?? 7;
+  const origCol = mod(slotCol - shift, len); // inverse mapping
+  return "L" + layer + "-R" + row + "-C" + origCol;
+}
+
+function slotOfId(row: number, origCol: number, shift: number) {
+  const len = ROW_LENS[row] ?? 7;
+  return mod(origCol + shift, len); // forward mapping
+}
+
+// 7676767 neighbor slots (static grid), returns up to 6 slot coords
+function neighborSlots(row: number, col: number) {
+  const out: Array<{ r: number; c: number }> = [];
+
+  const len = ROW_LENS[row] ?? 7;
+
+  // horizontal
+  if (col - 1 >= 0) out.push({ r: row, c: col - 1 });
+  if (col + 1 < len) out.push({ r: row, c: col + 1 });
+
+  const up = row - 1;
+  const dn = row + 1;
+
+  const lenUp = up >= 0 ? (ROW_LENS[up] ?? 7) : 0;
+  const lenDn = dn < ROW_LENS.length ? (ROW_LENS[dn] ?? 7) : 0;
+
+  const curIs6 = (ROW_LENS[row] ?? 7) === 6;
+
+  // If current row is 7, adjacent 6-row sits "between" cols => neighbors use (c-1,c)
+  // If current row is 6, adjacent 7-row spans wider => neighbors use (c,c+1)
+  const upA = curIs6 ? col : col - 1;
+  const upB = curIs6 ? col + 1 : col;
+
+  const dnA = curIs6 ? col : col - 1;
+  const dnB = curIs6 ? col + 1 : col;
+
+  if (up >= 0) {
+    if (upA >= 0 && upA < lenUp) out.push({ r: up, c: upA });
+    if (upB >= 0 && upB < lenUp) out.push({ r: up, c: upB });
+  }
+
+  if (dn < ROW_LENS.length) {
+    if (dnA >= 0 && dnA < lenDn) out.push({ r: dn, c: dnA });
+    if (dnB >= 0 && dnB < lenDn) out.push({ r: dn, c: dnB });
+  }
+
+  return out;
+}
+function readPxVar(el: HTMLElement | null, name: string, fallback: number) {
+  if (!el) return fallback;
+  const v = getComputedStyle(el).getPropertyValue(name).trim(); // e.g. "72px"
+  const n = Number(v.replace("px", ""));
+  return Number.isFinite(n) ? n : fallback;
+}
+function normalizeRowShift(rawShift: number, rowLen: number) {
+  // wrap to 0..len-1
+  let wrapped = ((rawShift % rowLen) + rowLen) % rowLen;
+
+  // convert to a small signed shift so translateX doesn't drift forever
+  let visual = wrapped;
+  if (visual > rowLen / 2) visual = visual - rowLen; // e.g. 6 -> -1 for len=7
+
+  return { wrapped, visual };
+}
+function parseCardTriggersFromScenario(s: any): CardTrigger[] {
+  const src = (Array.isArray(s?.cardTriggers) && s.cardTriggers) || [];
+  const allowed: CardKey[] = ["cosmic", "risk", "terrain", "shadow"];
+
+  const toZeroBasedRow = (r: number) => (r >= 1 && r <= 7 ? r - 1 : r);
+  const toZeroBasedCol = (c: number) => (c >= 1 && c <= 7 ? c - 1 : c);
+
+  const out: CardTrigger[] = [];
+
+  for (const raw of src) {
+    if (!raw || typeof raw !== "object") continue;
+
+    const cardRaw = String(raw.card ?? raw.key ?? raw.id ?? "cosmic");
+    const card = (allowed.includes(cardRaw as any) ? cardRaw : "cosmic") as CardKey;
+
+    const layer = Number(raw.layer ?? 1);
+    let row = toZeroBasedRow(Number(raw.row ?? 0));
+    let col = toZeroBasedCol(Number(raw.col ?? 0));
+
+    if (!Number.isFinite(layer) || !Number.isFinite(row) || !Number.isFinite(col)) continue;
+    out.push({ card, layer, row, col });
+  }
+
+  return out;
+}
+function pickRiskVillain(): VillainKey {
+  const pool: VillainKey[] = ["bad1", "bad2", "bad3"];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 /* =========================================================
-   Dice mapping
+   CSS
 ========================================================= */
+
+const baseCss = `
+:root{
+  --bg0: #070814;
+  --bg1: rgba(10,14,24,.92);
+
+  --text: rgba(255,255,255,.92);
+  --muted: rgba(255,255,255,.65);
+
+  --panel: rgba(10,14,24,.88);
+  --stroke: rgba(255,255,255,.10);
+  --stroke2: rgba(255,255,255,.18);
+
+  --shadow: 0 18px 52px rgba(0,0,0,.45);
+  --shadow2: 0 18px 56px rgba(0,0,0,.55);
+
+  /* board sizing */
+  --boardW: 860px;
+  --boardPadTop: 18px;
+  --boardPadBottom: 18px;
+
+  /* hex geometry (7676767) */
+  --hexWMain: 96px;
+  --hexHMain: 84px;
+  --hexStepX: 90px; /* horizontal spacing between centers */
+
+  /* derived: used by bars (match board height incl padding) */
+  --hexFieldH: calc((var(--hexHMain) * 7) + var(--boardPadTop) + var(--boardPadBottom));
+
+  /* side columns */
+  --barColW: 86px;
+  --barW: 26px;
+  --sideColW: 340px;
+
+  /* layer colors (overridden by themeVars inline) */
+  --L1:#19ffb4;
+  --L2:#67a5ff;
+  --L3:#ffd36a;
+  --L4:#ff7ad1;
+  --L5:#a1ff5a;
+  --L6:#a58bff;
+  --L7:#ff5d7a;
+}
+
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{
+  margin:0;
+  background: radial-gradient(1200px 900px at 50% 20%, rgba(60,80,180,.22), transparent 55%),
+              radial-gradient(900px 650px at 20% 80%, rgba(120,255,210,.10), transparent 55%),
+              var(--bg0);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  overflow:hidden;
+}
+
+.appRoot{
+  min-height:100vh;
+  position:relative;
+}
+
+.gameBg{
+  position:absolute;
+  inset:0;
+  z-index:0;
+  background-size: cover;
+  background-position: center;
+  opacity:1;
+  filter: saturate(1.25) contrast(1.15) brightness(1.05);
+}
+
+/* =========================================================
+   TOPBAR
+========================================================= */
+.topbar{
+  height:64px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  background: linear-gradient(180deg, rgba(0,0,0,.28), rgba(0,0,0,.08));
+  backdrop-filter: blur(10px);
+  position:relative;
+  z-index:5;
+
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.spacer{ flex:1; }
+
+/* =========================================================
+   PANELS / COMMON UI
+========================================================= */
+.screen.center{ height: calc(100vh - 64px); display:grid; place-items:center; padding:18px; }
+.panel{
+  width: min(980px, 92vw);
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 18px;
+  backdrop-filter: blur(12px);
+}
+.panel.wide{ width:min(1040px, 94vw); }
+
+.title{ font-size: 22px; font-weight: 900; letter-spacing: .3px; }
+.sub{ margin-top:6px; color: var(--muted); font-size: 13px; }
+
+.row{ display:flex; gap:10px; justify-content:flex-end; margin-top:14px; align-items:center; }
+.hint{ margin-top:12px; color: var(--muted); font-size: 13px; }
+
+.btn{
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,.10);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.btn:hover{ background: rgba(255,255,255,.16); border-color: var(--stroke2); transform: translateY(-1px); }
+.btn:active{ background: rgba(255,255,255,.22); transform: translateY(0); }
+.btn:disabled{ opacity: .55; cursor: not-allowed; transform:none; }
+
+.btn.primary{
+  background: rgba(120,220,255,.22);
+  border-color: rgba(120,220,255,.35);
+}
+.btn.primary:hover{ background: rgba(120,220,255,.28); border-color: rgba(120,220,255,.50); }
+.btn.primary:active{ background: rgba(120,220,255,.36); }
+
+.grid{
+  margin-top: 12px;
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 12px;
+}
+@media (max-width: 700px){
+  body{ overflow:auto; }
+  .grid{ grid-template-columns: 1fr; }
+}
+
+.card{
+  text-align: left;
+  padding: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(0,0,0,.22);
+  color: var(--text);
+  cursor: pointer;
+
+  position: relative;
+  border-radius: 22px;
+  overflow: hidden;              /* ✅ clips any animated/shine layers if you add them later */
+  backface-visibility: hidden;   /* ✅ reduces edge shimmer */
+  will-change: transform;
+
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.card:hover{
+  transform: translateY(-1px);
+  border-color: rgba(120,220,255,.35);
+  background: rgba(0,0,0,.30);
+  box-shadow: 0 14px 40px rgba(0,0,0,.32);
+}
+
+.card.active{
+  border-color: rgba(120,255,210,.45);
+  box-shadow: 0 0 0 3px rgba(120,255,210,.12), 0 16px 45px rgba(0,0,0,.42);
+}
+
+.cardTitle{
+  font-weight: 900;
+}
+
+.cardDesc{
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.customBox{
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.lbl{
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.inp{
+  width: 100%;
+  padding: 12px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: rgba(0,0,0,.24);
+  color: var(--text);
+  outline: none;
+}
+
+.portrait{
+  width: 120px;
+  height: 120px;
+  border-radius: 18px;
+  object-fit: cover;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.25);
+  box-shadow: 0 14px 40px rgba(0,0,0,.28);
+}
+
+.tracks{
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.tracksTitle{
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+
+.tracksRow{
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chip{
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  background: rgba(0,0,0,.22);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.chip.active{
+  border-color: rgba(120,255,210,.45);
+  box-shadow: 0 0 0 3px rgba(120,255,210,.12);
+}
+
+/* =========================================================
+   TOPBAR HUD GROUPS + ITEMS
+========================================================= */
+.hudGroup{
+  display:flex;
+  align-items:center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.22);
+  box-shadow: 0 12px 30px rgba(0,0,0,.22);
+}
+.hudStat{
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.22);
+  min-width: 86px;
+}
+.hudStat .k{
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: .35px;
+  text-transform: uppercase;
+}
+.hudStat .v{
+  margin-top: 4px;
+  font-weight: 900;
+  font-size: 13px;
+}
+.mutedSmall{
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+.items{ display:flex; gap: 10px; flex-wrap: nowrap; }
+.itemBtn{
+  display:grid;
+  grid-template-columns: 20px auto 18px;
+  align-items:center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(0,0,0,.22);
+  color: var(--text);
+  cursor:pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.itemBtn:hover{ background: rgba(0,0,0,.30); border-color: var(--stroke2); transform: translateY(-1px); }
+.itemBtn:active{ transform: translateY(0); }
+.itemBtn:disabled{ opacity: .55; cursor: not-allowed; transform:none; }
+.itemBtn.off{ opacity: .5; filter: grayscale(.2); }
+.itemIcon{ font-size: 16px; line-height: 1; }
+.itemName{ font-size: 12px; font-weight: 900; letter-spacing: .25px; }
+.itemCharges{
+  font-size: 12px;
+  font-weight: 900;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.08);
+  text-align:center;
+}
+
+/* =========================================================
+   PILL
+========================================================= */
+.pill{
+  display:inline-flex; align-items:center; gap:10px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.22);
+  box-shadow: 0 12px 35px rgba(0,0,0,.25);
+}
+.dot{
+  width:10px; height:10px; border-radius:50%;
+  background: radial-gradient(circle at 30% 30%, rgba(120,255,210,.95), rgba(120,150,255,.65));
+  box-shadow: 0 0 0 3px rgba(120,255,210,.10);
+}
+.pillText{ font-weight: 800; font-size: 13px; color: rgba(255,255,255,.88); }
+
+/* =========================================================
+   DICE 3D
+========================================================= */
+.dice3d{
+  width: 58px; height: 58px;
+  position: relative;
+  display:grid;
+  place-items:center;
+  perspective: 700px;
+}
+.dice3d .cube{
+  width: 46px; height: 46px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 180ms ease;
+}
+.dice3d.rolling .cube{ animation: cubeWobble .35s ease-in-out infinite; }
+@keyframes cubeWobble{
+  0%{ transform: rotateX(0deg) rotateY(0deg); }
+  25%{ transform: rotateX(18deg) rotateY(-16deg); }
+  50%{ transform: rotateX(-16deg) rotateY(22deg); }
+  75%{ transform: rotateX(14deg) rotateY(16deg); }
+  100%{ transform: rotateX(0deg) rotateY(0deg); }
+}
+.dice3d .face{
+  position:absolute; inset:0;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.14);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), 0 10px 22px rgba(0,0,0,.35);
+  backface-visibility: hidden;
+}
+.dice3d .face-front{  transform: rotateY(  0deg) translateZ(23px); }
+.dice3d .face-back{   transform: rotateY(180deg) translateZ(23px); }
+.dice3d .face-right{  transform: rotateY( 90deg) translateZ(23px); }
+.dice3d .face-left{   transform: rotateY(-90deg) translateZ(23px); }
+.dice3d .face-top{    transform: rotateX( 90deg) translateZ(23px); }
+.dice3d .face-bottom{ transform: rotateX(-90deg) translateZ(23px); }
+.diceBorder{
+  position:absolute; inset: 0;
+  pointer-events:none;
+  background-size: cover;
+  background-position: center;
+  opacity: .95;
+  filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
+}
+
+/* =========================================================
+   GAME LAYOUT GRID
+========================================================= */
+.gameLayout{
+  position: relative;
+  z-index: 3;
+  height: calc(100vh - 64px);
+  display: grid;
+  grid-template-columns: 1fr var(--sideColW); /* ✅ only board + sidebar */
+  gap: 14px;
+  padding: 14px;
+  grid-template-rows: 1fr;     /* ✅ IMPORTANT */
+  min-height: 0;              /* ✅ keep */
+  opacity: 1;
+}
+
+/* =========================================================
+   LAYER BARS (HEIGHT MATCHES HEX FIELD + ACTIVE GLOW)
+========================================================= */
+.barWrap{
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 6;
+}
+.barLeft{ justify-content: flex-start; }
+.barRight{ justify-content: flex-end; }
+
+.layerBar{
+  width: var(--barW);
+  height: var(--hexFieldH);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.18);
+  box-shadow: 0 18px 40px rgba(0,0,0,.35);
+  display: flex;
+  flex-direction: column; 
+  position: relative;
+}
+.barSeg{ height: var(--hexHMain); width: 100%; opacity: .95; }
+.barSeg[data-layer="7"]{ background: var(--L7); }
+.barSeg[data-layer="6"]{ background: var(--L6); }
+.barSeg[data-layer="5"]{ background: var(--L5); }
+.barSeg[data-layer="4"]{ background: var(--L4); }
+.barSeg[data-layer="3"]{ background: var(--L3); }
+.barSeg[data-layer="2"]{ background: var(--L2); }
+.barSeg[data-layer="1"]{ background: var(--L1); }
+
+.barSeg.isActive{
+  filter: brightness(1.15);
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,.42),
+    0 0 18px 6px rgba(255,255,255,.10);
+  position: relative;
+}
+.barSeg.isActive::after{
+  content:"";
+  position:absolute;
+  inset: -6px;
+  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.35), transparent 60%);
+  opacity: .55;
+  pointer-events:none;
+}
+/* LEFT BAR: row shift labels */
+.rowShiftBar{
+  position: relative;
+}
+
+.rowShiftBar .rowSeg{
+  display: grid;
+  place-items: center; /* ✅ centers text in each row block */
+  background: rgba(255,255,255,.03); /* subtle; optional */
+}
+
+.rowShiftLabel{
+  font-weight: 1000;
+  font-size: 12px;
+  letter-spacing: .35px;
+  color: rgba(255,255,255,.88);
+  text-shadow: 0 2px 10px rgba(0,0,0,.45);
+  user-select: none;
+}
+.goalMarker{
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 1000;
+  font-size: 12px;
+  letter-spacing: .2px;
+
+  color: rgba(255, 220, 120, .95);
+  background: rgba(0,0,0,.45);
+  border: 1px solid rgba(255, 220, 120, .55);
+  box-shadow:
+    0 10px 22px rgba(0,0,0,.45),
+    0 0 0 3px rgba(255, 220, 120, .10);
+  z-index: 5;
+  pointer-events: none;
+}
+/* mini sprite in the RIGHT layer bar */
+.barPlayerMini{
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+
+  display: grid;
+  place-items: center;
+
+  /* keep it visible on dark bar */
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow:
+    0 10px 22px rgba(0,0,0,.40),
+    0 0 0 3px rgba(255,255,255,.06);
+
+  pointer-events: none;
+  z-index: 4; /* goalMarker is 5, so sprite is BEHIND it */
+}
+
+/* make sure goal marker stays above */
+.goalMarker{
+  z-index: 5;
+}
+
+/* sprite sheet renderer for the mini */
+.barPlayerMini .miniSprite{
+  width: 22px;
+  height: 22px;
+
+  image-rendering: pixelated;
+  background-image: var(--spriteImg);
+  background-repeat: no-repeat;
+  background-size:
+    calc(var(--frameW) * var(--cols) * 1px)
+    calc(var(--frameH) * var(--rows) * 1px);
+
+  /* pick a frame (same as your main sprite) */
+  background-position:
+    calc(var(--frameW) * -1px * var(--frameX))
+    calc(var(--frameH) * -1px * var(--frameY));
+
+  transform: scale(0.22);
+  transform-origin: center;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,.55));
+}
+.barPlayerMini{
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow:
+    0 10px 22px rgba(0,0,0,.40),
+    0 0 0 3px rgba(255,255,255,.06);
+  pointer-events: none;
+
+  z-index: 4; /* ✅ behind goalMarker (which is 5) */
+}
+
+.goalMarker{ z-index: 5; }
+
+.barPlayerMini .miniSprite{
+  width: 22px;
+  height: 22px;
+  image-rendering: pixelated;
+  background-image: var(--spriteImg);
+  background-repeat: no-repeat;
+  background-size:
+    calc(var(--frameW) * var(--cols) * 1px)
+    calc(var(--frameH) * var(--rows) * 1px);
+  background-position:
+    calc(var(--frameW) * -1px * var(--frameX))
+    calc(var(--frameH) * -1px * var(--frameY));
+  transform: scale(0.22);
+  transform-origin: center;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,.55));
+}
+
+/* =========================================================
+   BOARD WRAP
+========================================================= */
+.boardWrap{
+  position: relative;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.50);
+  box-shadow: var(--shadow2);
+  overflow: hidden;           /* ✅ important: contain scroll/overlays */
+--boardInset: calc((100% - (var(--barColW) * 2) - var(--boardW)) / 2);
+display: grid;
+  grid-template-columns: var(--barColW) 1fr var(--barColW);
+  align-items: stretch;       /* ✅ WAS center — this is the big bug */
+  opacity: 1;
+
+   height: 100%;               /* ✅ IMPORTANT */
+  min-height: 0;
+}
+
+
+.boardLayerBg{
+  position:absolute; inset:0;
+  background-size: cover;
+  background-position: center;
+  opacity: 1;
+  transform: scale(1.02);
+  animation: bgFadeIn 220ms ease;
+  z-index: 1;
+}
+@keyframes bgFadeIn{
+  from{ opacity: 0; }
+  to{ opacity: .45; }
+}
+
+.boardScroll{
+  grid-column: 2;
+  position: relative;
+  z-index: 3;          /* above bg + overlay */
+  height: 100%;        /* ✅ make it fill the stretched cell */
+  min-height: 0;
+  overflow: auto;
+  padding: 0 10px;
+
+}
+
+.barWrap.barLeft{ grid-column: 1; }
+.barWrap.barRight{ grid-column: 3; }
+.board{
+  width: var(--boardW);
+  margin: 0 auto;
+  padding: var(--boardPadTop) 0 var(--boardPadBottom);
+  position: relative;
+  height: var(--hexFieldH);
+}
+
+
+/* =========================================================
+   HEX ROWS (7676767)
+========================================================= */
+.hexRow{
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  margin: 0 auto;
+  position: relative;
+}
+.hexGrid{
+  width: fit-content;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* =========================================================
+   HEX SLOTS + HEX BUTTON
+   ✅ FIX: removed invalid nested ".hex{ .hex{ ... } }"
+========================================================= */
+.hexSlot{
+  width: var(--hexStepX);
+  height: var(--hexHMain);
+  display: grid;
+  place-items: center;
+  flex: 0 0 var(--hexStepX);
+}
+.hexSlot.empty{ opacity: 0; }
+
+.hex{
+  width: var(--hexWMain);
+  height: var(--hexHMain);
+
+  padding: 0;
+  border: none;
+  background: rgba(0,0,0,0);
+  cursor: pointer;
+
+  filter: drop-shadow(0 10px 16px rgba(0,0,0,.35));
+  transition: transform 140ms ease, filter 140ms ease;
+  position: relative;
+  overflow: visible;
+
+  --hexGlow: rgba(120,255,210,.51);
+flex: 0 0 var(--hexWMain);
+}
+.hex:hover{
+  transform: translateY(-2px);
+  filter: drop-shadow(0 14px 22px rgba(0,0,0,.45));
+}
+.hex:disabled{
+  opacity: .75;
+  cursor: not-allowed;
+  transform:none;
+  filter: drop-shadow(0 10px 16px rgba(0,0,0,.25));
+}
+
+/* =========================================================
+   HEX INNER TILE + STATES
+========================================================= */
+.hexAnchor{ position: relative; width: 100%; height: 100%; overflow: visible; }
+
+.hexInner{
+  width: 100%;
+  height: 100%;
+  position: relative;
+  border-radius: 10px;
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+  border: 1px solid rgba(255,255,255,.12);
+  background:
+    radial-gradient(circle at 30% 25%, rgba(120,255,210,.12), transparent 55%),
+    radial-gradient(circle at 70% 70%, rgba(120,150,255,.12), transparent 55%),
+    rgba(0,0,0,.34);
+  background-size: cover;
+  background-position: center;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
+  overflow:hidden;
+}
+.hexInner::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  opacity:.18;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255,255,255,.35), transparent 55%),
+    radial-gradient(circle at 80% 80%, rgba(255,255,255,.25), transparent 55%);
+  pointer-events:none;
+}
+/* =========================================================
+   START TILE PORTAL FX (Bonus: Portal Hex recreated)
+   Uses your per-hex color: --hexGlow
+========================================================= */
+
+.hex.portalStart{
+  --portalC: var(--hexGlow);
+}
+
+/* layers inside hexInner (already clipped) */
+.hex .hexInner .pAura,
+.hex .hexInner .pRunes,
+.hex .hexInner .pVortex,
+.hex .hexInner .pWell,
+.hex .hexInner .pShine{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  border-radius: 10px;
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+}
+
+.hex.portalStart .hexInner{
+  border-color: color-mix(in srgb, var(--portalC) 55%, rgba(255,255,255,.14));
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.35),
+    0 0 0 3px color-mix(in srgb, var(--portalC) 18%, transparent),
+    0 0 18px color-mix(in srgb, var(--portalC) 22%, transparent);
+}
+
+/* Aura bloom */
+.hex.portalStart .hexInner .pAura{
+  inset:-14%;
+  background:
+    radial-gradient(circle at 50% 50%,
+      color-mix(in srgb, var(--portalC) 70%, transparent),
+      transparent 60%),
+    radial-gradient(circle at 60% 78%,
+      rgba(0,255,195,0.18),
+      transparent 64%);
+  filter: blur(14px) saturate(1.15);
+  opacity: 0.95;
+  animation: portalBreathe 2.6s ease-in-out infinite;
+}
+@keyframes portalBreathe{
+  0%,100%{ transform: scale(0.99); filter: blur(12px) saturate(1.05); }
+  50%{ transform: scale(1.12); filter: blur(16px) saturate(1.25); }
+}
+
+/* Vortex (twirl) */
+.hex.portalStart .hexInner .pVortex{
+  inset: 9%;
+  overflow:hidden;
+  filter: saturate(1.15);
+  opacity: 0.95;
+}
+.hex.portalStart .hexInner .pVortex::before{
+  content:"";
+  position:absolute; inset:-25%;
+  background:
+    conic-gradient(from 0deg,
+      rgba(0,0,0,0) 0 10%,
+      color-mix(in srgb, var(--portalC) 70%, transparent) 18%,
+      rgba(0,255,195,0.22) 28%,
+      rgba(255,80,170,0.16) 40%,
+      color-mix(in srgb, var(--portalC) 50%, transparent) 54%,
+      rgba(0,0,0,0) 70% 100%),
+    radial-gradient(circle at 50% 50%,
+      rgba(0,0,0,0.0) 0 42%,
+      rgba(0,0,0,0.75) 64% 100%);
+  mix-blend-mode: screen;
+  animation: portalVortex 1.45s linear infinite;
+}
+@keyframes portalVortex{
+  0%{ transform: rotate(0deg) scale(1.03); }
+  100%{ transform: rotate(360deg) scale(1.03); }
+}
+
+/* Runic ring */
+.hex.portalStart .hexInner .pRunes{
+  inset: 2%;
+  opacity: 0.85;
+  background:
+    repeating-conic-gradient(
+      from 10deg,
+      rgba(255,255,255,0.0) 0 10deg,
+      color-mix(in srgb, var(--portalC) 55%, transparent) 10deg 12deg,
+      rgba(255,255,255,0.0) 12deg 18deg
+    );
+  filter: blur(0.35px);
+  animation: portalRunes 3.4s linear infinite reverse;
+  mix-blend-mode: screen;
+}
+@keyframes portalRunes{
+  0%{ transform: rotate(0deg); }
+  100%{ transform: rotate(360deg); }
+}
+
+/* Depth “well” */
+.hex.portalStart .hexInner .pWell{
+  inset: 26%;
+  background:
+    radial-gradient(circle at 50% 52%,
+      rgba(0,0,0,0.0) 0 35%,
+      rgba(0,0,0,0.9) 70% 100%),
+    radial-gradient(circle at 45% 40%,
+      rgba(255,255,255,0.12),
+      transparent 55%);
+  opacity: 0.95;
+}
+
+/* Shimmer sweep */
+.hex.portalStart .hexInner .pShine{
+  inset:-25%;
+  background:
+    conic-gradient(from 210deg,
+      transparent 0 45%,
+      rgba(255,255,255,0.18) 48%,
+      transparent 52% 100%);
+  opacity:0.40;
+  mix-blend-mode: screen;
+  animation: portalShine 1.6s linear infinite;
+}
+@keyframes portalShine{
+  0%{ transform: rotate(0deg); }
+  100%{ transform: rotate(360deg); }
+}
+
+/* =========================================================
+   REACHABLE (ONLY CHANGES: use layer color via --hexGlow)
+   - keeps your inset/padding exactly as-is
+   - keeps your ring thickness/shape exactly as-is
+========================================================= */
+
+.hex.reach .hexInner{
+  position: relative;
+  background: transparent !important;
+  background-image: none !important;
+
+  /* ✅ changed from fixed pink -> layer color */
+  border-color: color-mix(in srgb, var(--hexGlow) 90%, white 10%);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.4);
+}
+
+.hex.reach .hexInner::after{
+  content:"";
+  position:absolute;
+
+  /* keep your inset exactly */
+  inset: 1px;
+
+  /* keep your hex clip exactly */
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+
+  /* keep your padding (ring thickness) exactly */
+  padding: 6px;
+  pointer-events:none;
+
+  /* ✅ changed all pink stops -> layer color */
+  background:
+    conic-gradient(
+      from var(--reachSpin),
+      color-mix(in srgb, var(--hexGlow) 0%, transparent) 0deg,
+      color-mix(in srgb, var(--hexGlow) 35%, transparent) 40deg,
+      color-mix(in srgb, var(--hexGlow) 100%, transparent) 90deg,
+      color-mix(in srgb, var(--hexGlow) 35%, transparent) 140deg,
+      color-mix(in srgb, var(--hexGlow) 0%, transparent) 210deg,
+      color-mix(in srgb, var(--hexGlow) 0%, transparent) 360deg
+    );
+
+  /* keep your cutout exactly */
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+
+  opacity: 1;
+
+  /* ✅ changed pink glow -> layer color */
+  filter:
+    drop-shadow(0 0 10px color-mix(in srgb, var(--hexGlow) 95%, transparent))
+    drop-shadow(0 0 22px color-mix(in srgb, var(--hexGlow) 35%, transparent));
+
+  animation:
+    reachSpin 1.8s linear infinite,
+    reachPulse .9s ease-in-out infinite;
+
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+@property --reachSpin {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes reachSpin {
+  to { --reachSpin: 360deg; }
+}
+
+@keyframes reachPulse {
+  0%,100% { opacity: .85; }
+  50%     { opacity: 1; }
+}
+
+@keyframes reachPulse{
+  0%{ filter: brightness(1); }
+  50%{ filter: brightness(1.15); }
+  100%{ filter: brightness(1); }
+}
+
+.hex.sel .hexInner{
+  border-color: rgba(255,221,121,.55);
+  box-shadow: inset 0 0 0 1px rgba(255,221,121,.20), 0 0 0 3px rgba(255,221,121,.10);
+}
+.hex.blocked .hexInner{
+  border-color: rgba(255,93,122,.22);
+  background: rgba(0,0,0,.55);
+  filter: grayscale(.15) brightness(.9);
+}
+.hex.player .hexInner{
+  border-color: rgba(120,255,210,.55);
+  box-shadow: inset 0 0 0 1px rgba(120,255,210,.20), 0 0 0 3px rgba(120,255,210,.10);
+}
+.hex.goal .hexInner{
+  border-color: rgba(255,211,106,.55);
+  box-shadow: inset 0 0 0 1px rgba(255,211,106,.20), 0 0 0 3px rgba(255,211,106,.10);
+}
+.hex.trigger .hexInner{
+  border-color: rgba(255,122,209,.40);
+  box-shadow: inset 0 0 0 1px rgba(255,122,209,.18), 0 0 0 3px rgba(255,122,209,.08);
+}
+
+/* current layer glow */
+.hex.sel{
+  filter:
+    drop-shadow(0 12px 18px rgba(0,0,0,.40))
+    drop-shadow(0 0 14px color-mix(in srgb, var(--hexGlow) 70%, transparent));
+}
+.hex.reach{
+  filter:
+    drop-shadow(0 12px 18px rgba(0,0,0,.40))
+    drop-shadow(0 0 10px color-mix(in srgb, var(--hexGlow) 55%, transparent));
+}
+
+/* =========================================================
+   PORTAL TILE FX (uses destination color: --portalC)
+   (keeps your existing tile bg / marks / borders)
+========================================================= */
+
+.hex.portalUp,
+.hex.portalDown{
+  --portalC: var(--hexGlow); /* fallback */
+}
+
+.hex.portalUp .hexInner .pAura,
+.hex.portalDown .hexInner .pAura,
+.hex.portalUp .hexInner .pOrbs,
+.hex.portalDown .hexInner .pOrbs,
+.hex.portalUp .hexInner .pRim,
+.hex.portalDown .hexInner .pRim,
+.hex.portalUp .hexInner .pOval,
+.hex.portalDown .hexInner .pOval{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  border-radius: 10px;
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+}
+
+/* glow framing (subtle so your existing look stays) */
+.hex.portalUp .hexInner,
+.hex.portalDown .hexInner{
+  border-color: color-mix(in srgb, var(--portalC) 55%, rgba(255,255,255,.12));
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.35),
+    0 0 0 3px color-mix(in srgb, var(--portalC) 16%, transparent),
+    0 0 16px color-mix(in srgb, var(--portalC) 22%, transparent);
+    z-index: -2;
+}
+
+/* aura bloom */
+.hex.portalUp .hexInner .pAura,
+.hex.portalDown .hexInner .pAura{
+  inset:-14%;
+  background:
+    radial-gradient(circle at 50% 50%,
+      color-mix(in srgb, var(--portalC) 70%, transparent),
+      transparent 60%);
+  filter: blur(14px) saturate(1.15);
+  opacity: .95;
+  animation: pBreathe 2.6s ease-in-out infinite;
+    
+}
+@keyframes pBreathe{
+  0%,100%{ transform: scale(.99); opacity:.75; }
+  50%{ transform: scale(1.12); opacity:1; }
+}
+
+/* crisp floating orbs (same idea as your demo) */
+.hex.portalUp .hexInner .pOrbs,
+.hex.portalDown .hexInner .pOrbs{
+  inset: 0;
+  background:
+    radial-gradient(6px 5px at 20% 30%, rgba(255,255,255,0.18), transparent 58%),
+    radial-gradient(7px 6px at 35% 22%, color-mix(in srgb, var(--portalC) 35%, transparent), transparent 58%),
+    radial-gradient(6px 5px at 55% 18%, rgba(0,255,220,0.18), transparent 58%),
+    radial-gradient(7px 6px at 72% 26%, color-mix(in srgb, var(--portalC) 28%, transparent), transparent 58%);
+  mix-blend-mode: screen;
+  filter: blur(0.25px);
+  opacity: .95;
+  animation: pOrbs 3.2s ease-in-out infinite;
+}
+@keyframes pOrbs{
+  0%,100%{ transform: translateY(0); opacity:.75; }
+  50%{ transform: translateY(-6px); opacity:1; }
+}
+
+/* oval + rim twirl (centered on hex) */
+.hex.portalUp .hexInner .pOval,
+.hex.portalDown .hexInner .pOval,
+.hex.portalUp .hexInner .pRim,
+.hex.portalDown .hexInner .pRim{
+  left:50%;
+  top:50%;
+  width: 80%;
+  height: 46%;
+  transform:
+    translate(-50%,-50%)
+    rotate(-18deg)
+    skewX(-10deg)
+    perspective(800px)
+    rotateX(60deg);
+  border-radius: 999px;
+}
+
+.hex.portalUp .hexInner .pOval,
+.hex.portalDown .hexInner .pOval{
+  inset: auto;
+  overflow:visible;
+  background:
+    radial-gradient(circle at 50% 50%,
+      rgba(0,0,0,0) 0 38%,
+      rgba(0,0,0,0.90) 70%),
+    radial-gradient(circle at 45% 50%,
+      color-mix(in srgb, var(--portalC) 35%, transparent),
+      transparent 65%);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
+}
+.hex.portalUp .hexInner .pOval::before,
+.hex.portalDown .hexInner .pOval::before{
+  content:"";
+  position:absolute;
+  inset:-32%;
+  background:
+    conic-gradient(
+      rgba(0,0,0,0) 0 14%,
+      color-mix(in srgb, var(--portalC) 95%, transparent) 22%,
+      rgba(0,255,220,0.20) 32%,
+      rgba(255,80,170,0.12) 44%,
+      color-mix(in srgb, var(--portalC) 60%, transparent) 58%,
+      rgba(0,0,0,0) 72% 100%);
+  mix-blend-mode: screen;
+  animation: pSpin 1.25s linear infinite;
+}
+@keyframes pSpin{ to{ transform: rotate(360deg); } }
+
+.hex.portalUp .hexInner .pRim,
+.hex.portalDown .hexInner .pRim{
+  inset:auto;
+  background:
+    conic-gradient(
+      transparent 0 18%,
+      rgba(255,255,255,0.22) 22%,
+      color-mix(in srgb, var(--portalC) 95%, transparent) 32%,
+      transparent 55% 100%);
+  filter: blur(0.6px);
+  mix-blend-mode: screen;
+  animation: pRim 1.55s linear infinite;
+  
+}
+@keyframes pRim{
+  to{
+    transform:
+      translate(-50%,-50%)
+      rotate(-18deg)
+      skewX(-10deg)
+      perspective(800px)
+      rotateX(60deg)
+      rotate(360deg);
+  }
+}
+
+/* =========================================================
+   HEX TEXT / MARKS
+========================================================= */
+.hexId{
+  position: absolute;
+  inset: 0;                 /* fill the hex */
+  display: grid;
+  place-items: center;      /* ✅ dead-center */
+  font-size: 13px;
+  font-weight: 900;
+  color: rgba(255,255,255,.82);
+  font-variant-numeric: tabular-nums;
+
+  /* remove the pill look */
+  padding: 0;
+  border: none;
+  background: transparent;
+
+  /* keep it readable */
+  text-shadow: 0 2px 10px rgba(0,0,0,.55);
+
+  pointer-events: none;
+  z-index: 5;
+}
+.hexMarks{
+  position:absolute;
+  right: 9px;
+  bottom: 9px;
+  display:flex;
+  gap: 6px;
+  align-items: flex-end;
+  z-index: 20;
+}
+.mark{
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display:grid;
+  place-items:center;
+  font-weight: 900;
+  font-size: 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.25);
+  color: rgba(60, 163, 255, 0.8);
+}
+.mark.g{
+  border-color: rgba(255,211,106,.35);
+  color: rgba(255,211,106,.95);
+  background: rgba(255,211,106,.10);
+}
+.mark.t{
+  border-color: rgba(255,122,209,.35);
+  color: rgba(255,122,209,.95);
+  background: rgba(255,122,209,.10);
+}
+/* =========================================================
+   GHOST GRID (unshifted reference)
+========================================================= */
+.ghostGrid{
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;           /* behind real hexes (board content is z-index 3+) */
+  opacity: 0.35;
+}
+
+.ghostRow{
+  display: flex;
+  height: var(--hexHMain);
+  align-items: center;
+
+  /* ✅ this is the centering fix */
+  width: fit-content;
+  margin: 0 auto;
+
+  position: relative;
+}
+
+.ghostSlot{
+  width: var(--hexStepX);
+  height: var(--hexHMain);
+  display: grid;
+  place-items: center;
+  flex: 0 0 var(--hexStepX);
+}
+
+.ghostHex{
+  width: var(--hexWMain);
+  height: var(--hexHMain);
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+  border: 1px dashed rgba(255,255,255,.35);
+  background: rgba(0,0,0,.12);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.25);
+}
+
+.ghostText{
+  position: absolute;
+  font-size: 10px;
+  color: rgba(255,255,255,.50);
+  transform: translateY(-2px);
+}
+
+/* =========================================================
+   SPRITE (LARGER)
+========================================================= */
+.playerSpriteSheet{
+  position: absolute;
+  left: 50%;
+  top: 86%;
+  width: calc(var(--frameW) * 1px);
+  height: calc(var(--frameH) * 1px);
+
+  --spriteScale: 0.78;  /* medium bigger */
+  --footX: -10px;
+  --footY: 0px;
+
+  transform:
+    translate(calc(-50% + var(--footX)), calc(-100% + var(--footY)))
+    scale(var(--spriteScale));
+  transform-origin: 50% 100%;
+
+  z-index: 20;
+  pointer-events: none;
+  image-rendering: pixelated;
+
+  background-image: var(--spriteImg);
+  background-repeat: no-repeat;
+  background-size:
+    calc(var(--frameW) * var(--cols) * 1px)
+    calc(var(--frameH) * var(--rows) * 1px);
+  background-position:
+    calc(var(--frameW) * -1px * var(--frameX))
+    calc(var(--frameH) * -1px * var(--frameY));
+
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,.45));
+}
+
+/* =========================================================
+   SIDEBAR (STATUS + LOG)
+========================================================= */
+.side{
+  display:grid;
+  grid-auto-rows: min-content;
+  gap: 14px;
+  min-height: 0;
+  overflow: hidden;
+}
+.panelMini{
+  width: 100%;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(10,14,24,.88);
+  box-shadow: var(--shadow2);
+  backdrop-filter: blur(10px);
+}
+.miniTitle{
+  margin: 0 0 10px 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .45px;
+  color: rgba(255,255,255,.82);
+  font-weight: 900;
+}
+.miniRow{
+  display:flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed rgba(255,255,255,.08);
+}
+.miniRow:last-child{ border-bottom: none; }
+.miniRow .k{ color: var(--muted); font-size: 12px; }
+.miniRow .v{ font-weight: 900; font-size: 12px; }
+
+.log{ max-height: 340px; overflow:auto; padding-right: 6px; }
+.logRow{
+  display:grid;
+  grid-template-columns: 58px 1fr;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.logRow:last-child{ border-bottom:none; }
+.lt{ color: rgba(255,255,255,.55); font-size: 12px; font-variant-numeric: tabular-nums; }
+.lm{ font-size: 13px; color: rgba(255,255,255,.88); }
+.logRow.ok .lm{ color: rgba(70,249,180,.92); }
+.logRow.bad .lm{ color: rgba(255,93,122,.92); }
+.logRow.info .lm{ color: rgba(119,168,255,.92); }
+
+/* =========================================================
+   DECK CARDS (PINNED TO GUTTERS)
+   Continuous layer-colored border + constant inner motion
+========================================================= */
+
+.hexDeckOverlay{
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+
+  --cardGlow: rgba(120,255,210,.65);
+  --deckPadX: 14px;
+  --deckPadY: 14px;
+}
+
+.hexDeckCol{ display: contents; }
+
+/* =========================================================
+   BASE CARD
+========================================================= */
+
+.hexDeckCard{
+  position: absolute;
+
+  width: clamp(187px, 18vw, 286px);
+  max-width: max(150px, calc(var(--boardInset) - (var(--deckPadX) * 2)));
+
+  aspect-ratio: 3 / 4;
+  border-radius: 22px;
+  overflow: hidden;
+
+  isolation: isolate;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform;
+
+  border: 1px solid rgba(255,255,255,.18);
+  background: linear-gradient(135deg, var(--a), var(--b));
+  box-shadow:
+    0 18px 48px rgba(0,0,0,.55),
+    0 0 0 1px rgba(255,255,255,.06) inset;
+}
+
+/* =========================================================
+   CARD POSITIONS
+========================================================= */
+
+.hexDeckCard.cosmic{
+  left: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
+  top: calc(var(--boardPadTop) + var(--deckPadY));
+  transform: translateX(-45%);
+}
+.hexDeckCard.risk{
+  left: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
+  bottom: calc(var(--boardPadBottom) + var(--deckPadY));
+  transform: translateX(-45%);
+}
+.hexDeckCard.terrain{
+  right: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
+  top: calc(var(--boardPadTop) + var(--deckPadY));
+  transform: translateX(45%);
+}
+.hexDeckCard.shadow{
+  right: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
+  bottom: calc(var(--boardPadBottom) + var(--deckPadY));
+  transform: translateX(45%);
+}
+
+/* =========================================================
+   INNER FX LAYER (ambient motion, seamless loop)
+========================================================= */
+
+.hexDeckCard .deckFx{
+  position:absolute;
+  inset:0;
+  border-radius: inherit;
+  pointer-events:none;
+  overflow:hidden;
+  transform: translateZ(0);
+}
+
+/* static glow + pattern */
+.hexDeckCard .deckFx::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius: inherit;
+
+  background:
+    radial-gradient(120% 90% at 40% 20%,
+      color-mix(in srgb, var(--a) 35%, white 10%),
+      transparent 60%),
+    radial-gradient(90% 70% at 70% 80%,
+      color-mix(in srgb, var(--b) 35%, white 6%),
+      transparent 60%),
+    linear-gradient(90deg, rgba(255,255,255,.10) 1px, transparent 1px) 0 0 / 18px 16px,
+    linear-gradient(30deg, rgba(0,0,0,.20) 1px, transparent 1px) 0 0 / 18px 16px,
+    linear-gradient(150deg, rgba(255,255,255,.06) 1px, transparent 1px) 0 0 / 18px 16px;
+
+  opacity: .55;
+  mix-blend-mode: overlay;
+}
+
+/* constant inner movement (no visible loop reset) */
+@keyframes deckInnerDrift{
+  from { transform: translate3d(-90%,-90%,0) rotate(0deg); }
+  to   { transform: translate3d( 90%, 90%,0) rotate(360deg); }
+}
+
+.hexDeckCard .deckFx::after{
+  content:"";
+  position:absolute;
+  inset:-25%;
+  border-radius: inherit;
+
+  background:
+    repeating-linear-gradient(
+      115deg,
+      rgba(255,255,255,0) 0px,
+      rgba(255,255,255,0) 10px,
+      rgba(255,255,255,.18) 14px,
+      rgba(255,255,255,0) 18px
+    ),
+    repeating-linear-gradient(
+      25deg,
+      rgba(0,0,0,0) 0px,
+      rgba(0,0,0,0) 12px,
+      color-mix(in srgb, var(--b) 25%, transparent) 16px,
+      rgba(0,0,0,0) 22px
+    );
+
+  background-size: 180% 180%;
+  opacity: .38;
+  mix-blend-mode: screen;
+
+  will-change: transform;
+  animation: deckInnerDrift 8s linear infinite;
+}
+
+/* =========================================================
+   FULL 360° LAYER-COLORED BORDER (continuous loop)
+========================================================= */
+
+@property --spin {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes deckBorderSpin{
+  to { --spin: 360deg; }
+}
+
+@keyframes deckBorderBreath{
+  0%,100%{
+    opacity:.95;
+    filter: drop-shadow(0 0 10px var(--cardGlow));
+  }
+  50%{
+    opacity:1;
+    filter: drop-shadow(0 0 16px var(--cardGlow));
+  }
+}
+
+.hexDeckCard::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events:none;
+
+  background:
+    conic-gradient(
+      from var(--spin),
+      color-mix(in srgb, var(--cardGlow) 95%, rgba(255,255,255,.15)) 0deg,
+      color-mix(in srgb, var(--cardGlow) 65%, rgba(255,255,255,.10)) 90deg,
+      color-mix(in srgb, var(--cardGlow) 95%, rgba(255,255,255,.15)) 180deg,
+      color-mix(in srgb, var(--cardGlow) 65%, rgba(255,255,255,.10)) 270deg,
+      color-mix(in srgb, var(--cardGlow) 95%, rgba(255,255,255,.15)) 360deg
+    );
+
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+
+  animation:
+    deckBorderSpin 2.8s linear infinite,
+    deckBorderBreath 1.35s ease-in-out infinite;
+}
+.cardBadge{
+  position: absolute;
+  left: 50%;
+  top: 18px;                 /* ✅ keeps it well below the top point */
+  transform: translateX(-50%);
+  width: 20px;
+  height: 12px;
+  border-radius: 4px;
+
+  z-index: 6;                /* ✅ ABOVE .hexId (which is z-index: 5) */
+  box-shadow: 0 6px 14px rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.18);
+  pointer-events: none;
+}
+
+/* 4 color themes */
+.cardBadge.cosmic  { background: linear-gradient(135deg,#0C1026,#1A1F4A); }
+.cardBadge.risk    { background: linear-gradient(135deg,#12090A,#6E0F1B); }
+.cardBadge.terrain { background: linear-gradient(135deg,#0E3B2E,#1FA88A); }
+.cardBadge.shadow  { background: linear-gradient(135deg,#1B1B1E,#2A1E3F); }
+
+/* =========================================================
+   CARD THEMES
+========================================================= */
+
+.hexDeckCard.cosmic  { --a:#0C1026; --b:#1A1F4A; }
+.hexDeckCard.risk    { --a:#12090A; --b:#6E0F1B; }
+.hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; }
+.hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; }
+
+@media (prefers-reduced-motion: reduce){
+  .hexDeckCard::after,
+  .hexDeckCard .deckFx::after{
+    animation:none !important;
+  }
+}
+
+
+/* =========================================================
+   OVERLAY / ENCOUNTER
+========================================================= */
+.overlay{
+  position:absolute;
+  inset:0;
+  z-index: 50;
+  display:grid;
+  place-items: center;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(8px);
+}
+.overlayCard{
+  width: min(560px, 92vw);
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(10,14,24,.92);
+  box-shadow: 0 24px 70px rgba(0,0,0,.55);
+  padding: 16px;
+}
+.overlayTitle{
+  font-size: 16px;
+  font-weight: 1000;
+  letter-spacing: .35px;
+  text-transform: uppercase;
+}
+.overlaySub{
+  margin-top: 8px;
+  color: rgba(255,255,255,.78);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.villainBox{
+  margin-top: 14px;
+  display:grid;
+  grid-template-columns: 120px 1fr;
+  gap: 14px;
+  align-items:center;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+.villainImg{
+  width: 120px;
+  height: 120px;
+  border-radius: 16px;
+  object-fit: cover;
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 14px 40px rgba(0,0,0,.35);
+  background: rgba(0,0,0,.25);
+}
+.villainMeta{ display:grid; gap: 10px; }
+.layerFxOverlay{
+  position: absolute;
+  inset: 0;
+  z-index: 999;               /* higher than board + pieces */
+  pointer-events: auto;       /* blocks clicks */
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+/* Flash */
+.layerFxOverlay::before{
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background: var(--layerFxColor, rgba(255,255,255,.35));
+  animation: layerFlash 3s ease-out forwards;
+}
+
+/* Center textbox */
+.layerFxCard{
+  position: relative;
+  z-index: 1;
+  padding: 18px 22px;
+  border-radius: 16px;
+  background: rgba(10,12,18,.72);
+  border: 1px solid rgba(255,255,255,.18);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 18px 60px rgba(0,0,0,.45);
+  animation: layerCardPop 3s ease-out forwards;
+}
+
+.layerFxTitle{
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  color: rgba(255,255,255,.92);
+}
+
+@keyframes layerFlash{
+  0%   { opacity: 0; transform: scale(1.02); }
+  8%   { opacity: 1; }
+  55%  { opacity: .65; }
+  100% { opacity: 0; transform: scale(1.06); }
+}
+
+@keyframes layerCardPop{
+  0%   { opacity: 0; transform: translateY(10px) scale(.98); }
+  10%  { opacity: 1; transform: translateY(0) scale(1); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-6px) scale(.99); }
+}
+/* =========================================================
+   ENCOUNTER SCENE (FULLSCREEN like old version)
+========================================================= */
+
+.encounterScene{
+  position: fixed;
+  inset: 0;
+  z-index: 2200; /* above cardFlipOverlay(2000) */
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,.62);
+  backdrop-filter: blur(10px);
+}
+
+.encounterGrid{
+  width: min(1100px, 92vw);
+  display: grid;
+  grid-template-columns: minmax(260px, 420px) minmax(280px, 1fr);
+  gap: 26px;
+  align-items: center;
+}
+
+.encounterCard{
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 28px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow: 0 28px 90px rgba(0,0,0,.65);
+  background: rgba(0,0,0,.25);
+}
+
+.encounterCardImg{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.encounterRight{
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+}
+
+.encounterDice{
+  transform: scale(2.35);
+  transform-origin: center;
+  filter: drop-shadow(0 18px 40px rgba(0,0,0,.55));
+}
+
+.encounterInfo{
+  text-align: center;
+  width: min(520px, 90%);
+}
+
+.encounterTitle{
+  font-size: 20px;
+  font-weight: 1000;
+  letter-spacing: .45px;
+  text-transform: uppercase;
+}
+
+.encounterSub{
+  margin-top: 8px;
+  font-size: 14px;
+  color: rgba(255,255,255,.82);
+}
+
+.encounterTries{
+  display: inline-block;
+  margin-left: 12px;
+  opacity: .85;
+}
+
+.encounterRollPill{
+  margin-top: 12px;
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.25);
+  font-weight: 900;
+}
+
+/* responsive stack */
+@media (max-width: 860px){
+  .encounterGrid{
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .encounterDice{ transform: scale(2.0); }
+}
+/* =========================================================
+   CARD FLIP OVERLAY (FULLSCREEN)
+   Shows a big themed card for 1.4s when a card triggers
+========================================================= */
+
+.cardFlipOverlay{
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(10px);
+  pointer-events: none; /* doesn't block clicks */
+  animation: cardFlipFade 1.4s ease-out forwards;
+}
+
+@keyframes cardFlipFade{
+  0%   { opacity: 0; }
+  12%  { opacity: 1; }
+  75%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.cardFlipCard{
+  width: min(420px, 78vw);
+  aspect-ratio: 3 / 4;
+  border-radius: 28px;
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow:
+    0 28px 90px rgba(0,0,0,.65),
+    0 0 0 1px rgba(255,255,255,.06) inset;
+  overflow: hidden;
+  position: relative;
+  transform-origin: center;
+  animation: cardFlipPop 1.4s ease-out forwards;
+}
+
+@keyframes cardFlipPop{
+  0%   { transform: translateY(18px) scale(.92) rotateX(12deg); filter: blur(2px); opacity: 0; }
+  12%  { transform: translateY(0)    scale(1)  rotateX(0deg);  filter: blur(0);  opacity: 1; }
+  70%  { transform: translateY(0)    scale(1)  rotateX(0deg);  filter: blur(0);  opacity: 1; }
+  100% { transform: translateY(-10px) scale(.98); filter: blur(1px); opacity: 0; }
+}
+
+/* Theme backgrounds (match your deck cards) */
+.cardFlipCard.cosmic  { background: linear-gradient(135deg,#0C1026,#1A1F4A); }
+.cardFlipCard.risk    { background: linear-gradient(135deg,#12090A,#6E0F1B); }
+.cardFlipCard.terrain { background: linear-gradient(135deg,#0E3B2E,#1FA88A); }
+.cardFlipCard.shadow  { background: linear-gradient(135deg,#1B1B1E,#2A1E3F); }
+
+/* Nice inner motion + border */
+.cardFlipCard::before{
+  content:"";
+  position:absolute;
+  inset:-30%;
+  background:
+    radial-gradient(80% 60% at 30% 20%, rgba(255,255,255,.14), transparent 65%),
+    radial-gradient(70% 55% at 75% 80%, rgba(255,255,255,.10), transparent 65%),
+    repeating-linear-gradient(115deg, rgba(255,255,255,0) 0 14px, rgba(255,255,255,.10) 18px, rgba(255,255,255,0) 22px);
+  opacity: .55;
+  mix-blend-mode: overlay;
+  animation: flipDrift 1.4s linear forwards;
+}
+
+@keyframes flipDrift{
+  from { transform: translate3d(-12%, -10%, 0) rotate(0deg); }
+  to   { transform: translate3d( 12%,  10%, 0) rotate(14deg); }
+}
+
+.cardFlipCard::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events:none;
+  background:
+    conic-gradient(
+      from 0deg,
+      rgba(255,255,255,.28),
+      rgba(255,255,255,.08),
+      rgba(255,255,255,.28)
+    );
+
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+
+  opacity: .9;
+}
+
+/* Optional label */
+.cardFlipLabel{
+  position:absolute;
+  left: 18px;
+  bottom: 16px;
+  font-weight: 1000;
+  letter-spacing: .45px;
+  font-size: 13px;
+  color: rgba(255,255,255,.90);
+  text-transform: uppercase;
+  text-shadow: 0 10px 26px rgba(0,0,0,.55);
+}
+
+/* =========================================================
+   SCROLLBARS
+========================================================= */
+*::-webkit-scrollbar{ width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,.12);
+  border-radius: 999px;
+  border: 2px solid rgba(0,0,0,.25);
+}
+*::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.18); }
+*::-webkit-scrollbar-corner{ background: transparent; }
+
+@media (max-width: 980px){
+  body{ overflow:auto; }
+  .gameLayout{ grid-template-columns: 1fr; height:auto; }
+  .barWrap{ display:none; }
+  .side{ order: 10; }
+  .board{ width: min(var(--boardW), 96vw); }
+}
+/* =========================================================
+   FLY-OUT CARD (deck -> center -> flip)
+========================================================= */
+.flyCardOverlay{
+  position: fixed;
+  inset: 0;
+  z-index: 1900; /* below cardFlipOverlay=2000, above everything else */
+  pointer-events: none;
+}
+
+.flyCard{
+  position: fixed;
+  left: 0;
+  top: 0;
+
+  width: var(--fromW);
+  height: var(--fromH);
+
+  transform-style: preserve-3d;
+  transform-origin: center;
+  border-radius: 22px;
+  overflow: hidden;
+
+  /* start at deck position */
+  transform: translate3d(var(--fromX), var(--fromY), 0) scale(1);
+
+  animation: flyToCenter 1.15s ease-out forwards;
+  box-shadow: 0 28px 90px rgba(0,0,0,.65);
+}
+
+/* reuse your theme backgrounds */
+.flyCard.cosmic  { background: linear-gradient(135deg,#0C1026,#1A1F4A); }
+.flyCard.risk    { background: linear-gradient(135deg,#12090A,#6E0F1B); }
+.flyCard.terrain { background: linear-gradient(135deg,#0E3B2E,#1FA88A); }
+.flyCard.shadow  { background: linear-gradient(135deg,#1B1B1E,#2A1E3F); }
+
+/* two faces for a real flip */
+.flyFace{
+  position:absolute;
+  inset:0;
+  backface-visibility: hidden;
+  border-radius: 22px;
+  overflow:hidden;
+}
+
+.flyFront{ transform: rotateY(0deg); }
+.flyBack{
+  transform: rotateY(180deg);
+  /* slight difference so you "feel" the flip */
+  filter: brightness(1.05) saturate(1.1);
+}
+
+.flyLabel{
+  position:absolute;
+  left: 18px;
+  bottom: 16px;
+  font-weight: 1000;
+  letter-spacing: .45px;
+  font-size: 13px;
+  color: rgba(255,255,255,.92);
+  text-transform: uppercase;
+  text-shadow: 0 10px 26px rgba(0,0,0,.55);
+}
+
+/* keyframe:
+   0%: at deck rect
+   ~55%: reach center, scale up
+   then flip near the end
+*/
+@keyframes flyToCenter{
+  0%{
+    opacity: 1;
+    transform: translate3d(var(--fromX), var(--fromY), 0)
+               scale(1)
+               rotateY(0deg);
+  }
+
+  /* arrive at center */
+  45%{
+    opacity: 1;
+    transform:
+      translate3d(
+        calc(50vw - (var(--fromW) / 2)),
+        calc(50vh - (var(--fromH) / 2)),
+0
+      )
+      scale(1.3)
+      rotateY(0deg);
+  }
+
+  /* HOLD large */
+  70%{
+    opacity: 1;
+    transform:
+      translate3d(
+        calc(50vw - (var(--fromW) / 2)),
+        calc(50vh - (var(--fromH) / 2)),
+0
+      )
+      scale(1.3)
+      rotateY(0deg);
+  }
+
+  /* flip after hold */
+  85%{
+    opacity: 1;
+    transform:
+      translate3d(
+        calc(50vw - (var(--fromW) / 2)),
+        calc(50vh - (var(--fromH) / 2)),
+0
+      )
+      scale(1.3)
+      rotateY(180deg);
+  }
+
+  /* fade out */
+  100%{
+    opacity: 0;
+    transform:
+      translate3d(
+        calc(50vw - (var(--fromW) / 2)),
+        calc(50vh - (var(--fromH) / 2)),
+0
+      )
+      scale(1.25)
+      rotateY(180deg);
+  }
+}
+.cardFlipVillain{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+
+  /* sits over the big card */
+  z-index: 5;
+
+  /* fade in AFTER the card is visible */
+  opacity: 0;
+  animation: villainFadeIn 700ms ease-out forwards;
+  animation-delay: 350ms;
+
+  /* optional: make it feel “on top” */
+  filter: drop-shadow(0 18px 40px rgba(0,0,0,.55));
+}
+
+@keyframes villainFadeIn{
+  from { opacity: 0; transform: scale(1.02); }
+  to   { opacity: 1; transform: scale(1.00); }
+}
+
+`;
+// =========================
+// Portal helpers (FIXED)
+// - exact "from" match (no +1 matching)
+// - still supports 0-based OR 1-based scenario coords
+// =========================
+
+function findPortalTransition(
+  transitions: any[] | undefined,
+  id: string
+): null | {
+  type: "UP" | "DOWN";
+  to: { layer: number; row: number; col: number };
+} {
+  if (!transitions) return null;
+
+  const c = idToCoord(id);
+  if (!c) return null;
+
+  const normRow = (r: number) => (r >= 1 && r <= 7 ? r - 1 : r);
+  const normCol = (k: number) => (k >= 1 && k <= 7 ? k - 1 : k);
+
+  for (const t of transitions) {
+    const from = t?.from;
+    if (!from) continue;
+
+    const fl = Number(from.layer);
+    const fr = normRow(Number(from.row));
+    const fc = normCol(Number(from.col));
+
+    if (!Number.isFinite(fl) || !Number.isFinite(fr) || !Number.isFinite(fc)) continue;
+
+    // ✅ EXACT MATCH ONLY (prevents "portal appears 4 times")
+    if (fl !== c.layer || fr !== c.row || fc !== c.col) continue;
+
+    const type: "UP" | "DOWN" = t?.type === "DOWN" ? "DOWN" : "UP";
+    const to = t?.to ?? {};
+
+    const tl = Number(to.layer);
+    const tr = normRow(Number(to.row));
+    const tc = normCol(Number(to.col));
+
+    return {
+      type,
+      to: {
+        layer: Number.isFinite(tl) ? tl : type === "UP" ? c.layer + 1 : c.layer - 1,
+        row: Number.isFinite(tr) ? tr : c.row,
+        col: Number.isFinite(tc) ? tc : c.col,
+      },
+    };
+  }
+
+  return null;
+}
+
+function applyPortalIfAny(
+  st: any,
+  landedId: string
+): { next: any; finalId: string } {
+  const tr = findPortalTransition(st?.scenario?.transitions, landedId);
+  if (!tr) return { next: st, finalId: landedId };
+
+  const destId = "L" + tr.to.layer + "-R" + tr.to.row + "-C" + tr.to.col;
+
+  const destHex = getHexFromState(st as any, destId) as any;
+  if (!destHex || destHex.missing || destHex.blocked) {
+    // If destination is invalid, just don't portal
+    return { next: st, finalId: landedId };
+  }
+
+  const next = { ...(st as any), playerHexId: destId };
+  return { next, finalId: destId };
+}
+
+
+
+/* =========================================================
+   App
+========================================================= */
+function parseVillainsFromScenario(s: any): VillainTrigger[] {
+  const src =
+    (Array.isArray(s?.villains) && s.villains) ||
+    (Array.isArray(s?.villainTriggers) && s.villainTriggers) ||
+    (Array.isArray(s?.encounters) && s.encounters) ||
+    (Array.isArray(s?.triggers) && s.triggers) ||
+    [];
+
+  const allowed: VillainKey[] = ["bad1", "bad2", "bad3", "bad4"];
+  const out: VillainTrigger[] = [];
+
+  const toZeroBasedRow = (r: number) => (r >= 1 && r <= 7 ? r - 1 : r);
+  const toZeroBasedCol = (c: number) => (c >= 1 && c <= 7 ? c - 1 : c);
+
+  for (const raw of src) {
+    if (!raw || typeof raw !== "object") continue;
+
+    const base = raw.from && typeof raw.from === "object" ? raw.from : raw;
+
+    const keyRaw = String(raw.key ?? raw.villainKey ?? raw.id ?? base.key ?? "bad1");
+    const key = (allowed.includes(keyRaw as any) ? keyRaw : "bad1") as VillainKey;
+
+    const layer = Number(base.layer ?? base.L ?? raw.layer ?? raw.L ?? 1);
+
+    let row = Number(base.row ?? base.r ?? raw.row ?? raw.r ?? 0);
+    row = toZeroBasedRow(row);
+
+    let cols: "any" | number[] | undefined = undefined;
+    const c = base.cols ?? base.col ?? base.c ?? raw.cols ?? raw.col ?? raw.c;
+
+    if (c === "any") {
+      cols = "any";
+    } else if (Array.isArray(c)) {
+      cols = c
+        .map((n: any) => toZeroBasedCol(Number(n)))
+        .filter((n: any) => Number.isFinite(n));
+    } else if (Number.isFinite(Number(c))) {
+      cols = [toZeroBasedCol(Number(c))];
+    }
+
+    if (!Number.isFinite(layer) || !Number.isFinite(row)) continue;
+
+    out.push({ key, layer, row, cols });
+  }
+
+  return out;
+}
+
+export default function App() {
+  /* =========================
+     Navigation / overlays
+  ========================= */
+  const [screen, setScreen] = useState<Screen>("start");
+
+  const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
+  const [encounter, setEncounter] = useState<Encounter>(null);
+  const pendingEncounterMoveIdRef = useRef<string | null>(null);
+  const encounterActive = !!encounter;
+
+  /* =========================
+     Worlds
+  ========================= */
+  const [worlds, setWorlds] = useState<WorldEntry[]>([]);
+  const [worldId, setWorldId] = useState<string | null>(null);
+
+  const world = useMemo(
+    () => worlds.find((w) => w.id === worldId) ?? null,
+    [worlds, worldId]
+  );
+
+  const [scenarioId, setScenarioId] = useState<string | null>(null);
+  const scenarioEntry = useMemo(
+    () => world?.scenarios.find((s) => s.id === scenarioId) ?? null,
+    [world, scenarioId]
+  );
+
+  const [trackId, setTrackId] = useState<string | null>(null);
+  const trackEntry = useMemo(() => {
+    const tracks = scenarioEntry?.tracks;
+    if (!tracks || tracks.length <= 0) return null;
+    return tracks.find((t) => t.id === trackId) ?? null;
+  }, [scenarioEntry, trackId]);
+
+  useEffect(() => {
+    setWorlds(loadWorlds());
+  }, []);
+
+  /* =========================
+     Player selection (optional)
+  ========================= */
+  const [chosenPlayer, setChosenPlayer] = useState<PlayerChoice | null>(null);
+
+  /* =========================
+     Core game state
+  ========================= */
+  const [state, setState] = useState<GameState | null>(null);
+  const [uiTick, forceRender] = useState(0);
+
+  const [currentLayer, setCurrentLayer] = useState<number>(1);
+  const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
+const canGoDown = currentLayer > 1;
+const canGoUp = currentLayer < scenarioLayerCount;
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [startHexId, setStartHexId] = useState<string | null>(null);
+
+  const [showGhost, setShowGhost] = useState(false);
+
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const playerBtnRef = useRef<HTMLButtonElement | null>(null);
+  // ✅ used by "Quick start (debug)" + auto-start effect
+  const pendingQuickStartRef = useRef(false);
+
+  /* =========================
+     Per-layer move counters (for shifting)
+  ========================= */
+  const [layerMoves, setLayerMoves] = useState<Record<number, number>>({});
+  const [layerMoveArmed, setLayerMoveArmed] = useState<Record<number, boolean>>(
+    {}
+  );
+
+  const getLayerMoves = useCallback(
+    (layer: number) => {
+      const n = layerMoves[layer];
+      return Number.isFinite(n) ? (n as number) : 0;
+    },
+    [layerMoves]
+  );
+
+  /* =========================
+     Layer flash overlay
+  ========================= */
+  const [layerFx, setLayerFx] = useState<null | { key: number; layer: number }>(
+    null
+  );
+  const layerFxTimerRef = useRef<number | null>(null);
+
+  const triggerLayerFx = useCallback((layer: number) => {
+    if (layerFxTimerRef.current) window.clearTimeout(layerFxTimerRef.current);
+
+    const key = Date.now();
+    setLayerFx({ key, layer });
+
+    layerFxTimerRef.current = window.setTimeout(() => {
+      setLayerFx(null);
+      layerFxTimerRef.current = null;
+    }, 3000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (layerFxTimerRef.current) window.clearTimeout(layerFxTimerRef.current);
+    };
+  }, []);
+
+  const layerFxStyle = useMemo(() => {
+    if (!layerFx) return {} as React.CSSProperties;
+    return {
+      ["--layerFxColor" as any]: layerCssVar(layerFx.layer),
+    } as React.CSSProperties;
+  }, [layerFx]);
+
+  /* =========================
+     Player id / coord
+  ========================= */
+  const playerId = useMemo(() => {
+    const pid = (state as any)?.playerHexId;
+    return typeof pid === "string" ? pid : null;
+  }, [state, uiTick]);
+
+  const playerCoord = useMemo(() => {
+    return playerId ? idToCoord(playerId) : null;
+  }, [playerId]);
+
+  const playerLayer = playerCoord?.layer ?? null;
+
+  /* =========================
+     Reset
+  ========================= */
+  const resetAll = useCallback(() => {
+    setEncounter(null);
+    pendingEncounterMoveIdRef.current = null;
+
+    setVillainTriggers([]);
+    setChosenPlayer(null);
+
+    setWorldId(null);
+    setScenarioId(null);
+    setTrackId(null);
+
+    setState(null);
+    setUiTickSafe(forceRender);
+
+    setCurrentLayer(1);
+    setScenarioLayerCount(1);
+    setSelectedId(null);
+    setStartHexId(null);
+
+    setMovesTaken(0);
+    setLayerMoves({});
+    setLayerMoveArmed({});
+
+    setGoalId(null);
+    setOptimalAtStart(null);
+    setOptimalFromNow(null);
+
+    logNRef.current = 0;
+    setLog([]);
+
+    setItems([
+      { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
+      { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
+      { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
+    ]);
+
+    setLayerFx(null);
+    setScreen("start");
+  }, []);
+
+  function setUiTickSafe(setter: React.Dispatch<React.SetStateAction<number>>) {
+    setter((n) => n + 1);
+  }
+  // ---------------------------
+  // Villain trigger lookup
+  // ---------------------------
+  const findTriggerForHex = useCallback(
+    (id: string): VillainKey | null => {
+      const c = idToCoord(id);
+      if (!c) return null;
+
+      for (const v of villainTriggers) {
+        if (v.layer !== c.layer) continue;
+        if (v.row !== c.row) continue;
+
+        // cols: "any" OR list
+        if (v.cols === "any" || !v.cols) return v.key;
+        if (Array.isArray(v.cols) && v.cols.includes(c.col)) return v.key;
+      }
+
+      return null;
+    },
+    [villainTriggers]
+  );
+
+  /* =========================
+     Render helpers/components (INSIDE App)
+     ✅ AFTER playerId exists
+  ========================= */
+
+  const isPlayerHere = useCallback(
+    (id: string) => {
+      return !!playerId && playerId === id;
+    },
+    [playerId]
+  );
+  const rows = useMemo(() => {
+    return Array.from({ length: ROW_LENS.length }, (_, i) => i);
+  }, []);
+   const viewState = useMemo(() => {
+  if (!state) return null;
+
+  const rs = (state as any).rowShifts;
+  let hasEngineShift = false;
+
+  if (rs && typeof rs === "object") {
+    for (const k of Object.keys(rs)) {
+      const rowsObj = rs[k];
+      if (!rowsObj || typeof rowsObj !== "object") continue;
+      for (const rKey of Object.keys(rowsObj)) {
+        const n = Number(rowsObj[rKey]);
+        if (Number.isFinite(n) && n !== 0) {
+          hasEngineShift = true;
+          break;
+        }
+      }
+      if (hasEngineShift) break;
+    }
+  }
+
+  if (hasEngineShift) return state;
+
+  const injected: any = { ...(state as any) };
+  const rowShifts: any = {};
+
+  for (let layer = 1; layer <= scenarioLayerCount; layer++) {
+    const perRow: any = {};
+    const mL = getLayerMoves(layer);
+
+    for (let r = 0; r < ROW_LENS.length; r++) {
+      perRow[r] = derivedRowShiftUnits(state as any, layer, r, mL);
+    }
+
+    rowShifts[layer] = perRow;
+    rowShifts["L" + layer] = perRow;
+  }
+
+  injected.rowShifts = rowShifts;
+  return injected as any;
+}, [state, scenarioLayerCount, getLayerMoves]);
+
+function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
+  const side = props.side;
+  const currentLayerLocal = props.currentLayer;
+
+ // RIGHT BAR: keep your existing layer indicator (7..1)
+if (side === "right") {
+  const segments = [7, 6, 5, 4, 3, 2, 1];
+
+  // goal layer from goalId like "L2-R1-C4"
+  const goalLayer = goalId ? idToCoord(goalId)?.layer ?? null : null;
+
+  const hexH = readPxVar(document.documentElement as any, "--hexHMain", 84);
+
+  // top position (center of that segment)
+  const goalTopPx =
+    goalLayer && goalLayer >= 1 && goalLayer <= 7
+      ? (7 - goalLayer) * hexH + hexH / 2
+      : null;
+
+  // ✅ player layer from playerId like "L3-R2-C1"
+  const playerLayerBar = playerId ? idToCoord(playerId)?.layer ?? null : null;
+
+  const playerTopPx =
+    playerLayerBar && playerLayerBar >= 1 && playerLayerBar <= 7
+      ? (7 - playerLayerBar) * hexH + hexH / 2
+      : null;
+
+  return (
+    <div className="barWrap barRight">
+      <div className="layerBar">
+        {segments.map((layerVal) => {
+          const active = layerVal === currentLayerLocal;
+          return (
+            <div
+              key={layerVal}
+              className={"barSeg" + (active ? " isActive" : "")}
+              data-layer={layerVal}
+            />
+          );
+        })}
+
+        {/* ✅ MINI PLAYER SPRITE (behind goal marker) */}
+        {playerTopPx !== null ? (
+          <div className="barPlayerMini" style={{ top: playerTopPx }}>
+            <div
+              className="miniSprite"
+              style={
+                {
+                  ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
+                  ["--frameW" as any]: FRAME_W,
+                  ["--frameH" as any]: FRAME_H,
+                  ["--cols" as any]: SPRITE_COLS,
+                  ["--rows" as any]: SPRITE_ROWS,
+                  ["--frameX" as any]: walkFrame,
+                  ["--frameY" as any]: facingRow(playerFacing),
+                } as any
+              }
+            />
+          </div>
+        ) : null}
+
+        {/* ✅ GOAL MARKER (above sprite) */}
+        {goalTopPx !== null ? (
+          <div className="goalMarker" style={{ top: goalTopPx }}>
+            G
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+
+  // LEFT BAR: show row shifts for the CURRENT layer (r0..r6)
+  return (
+    <div className="barWrap barLeft">
+      <div className="layerBar rowShiftBar">
+        {rows.map((r) => {
+          const cols = ROW_LENS[r] ?? 7;
+
+          const engineShiftRaw =
+            (viewState as any)?.rowShifts?.[currentLayerLocal]?.[r] ??
+            (viewState as any)?.rowShifts?.["L" + currentLayerLocal]?.[r];
+
+          const engineShift = Number(engineShiftRaw ?? 0);
+
+          const rawShift =
+            Number.isFinite(engineShift) && engineShift !== 0
+              ? engineShift
+              : derivedRowShiftUnits(
+                  viewState as any,
+                  currentLayerLocal,
+                  r,
+                  getLayerMoves(currentLayerLocal)
+                );
+
+          const ns = normalizeRowShift(rawShift, cols);
+          const shift = ns.visual; // signed, small (-3..3 etc)
+
+          // ✅ label rules: -1 => L1, +1 => R1, 0 => show nothing
+          const label =
+            shift === 0 ? "" : shift < 0 ? "L" + Math.abs(shift) : "R" + shift;
+
+          return (
+            <div key={"rowSeg-" + r} className="barSeg rowSeg">
+              {label ? <span className="rowShiftLabel">{label}</span> : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
+function HexDeckCardsOverlay(props: { glowVar: string }) {
+  const overlayStyle = {
+    ["--cardGlow" as any]: props.glowVar,
+  } as React.CSSProperties;
+
+  return (
+    <div className="hexDeckOverlay" style={overlayStyle}>
+      <div className="hexDeckCol left">
+        <div
+          className="hexDeckCard cosmic"
+          ref={(el) => (deckRefs.current.cosmic = el)}
+        >
+          <div className="deckFx" />
+        </div>
+
+        <div
+          className="hexDeckCard risk"
+          ref={(el) => (deckRefs.current.risk = el)}
+        >
+          <div className="deckFx" />
+        </div>
+      </div>
+
+      <div className="hexDeckCol right">
+        <div
+          className="hexDeckCard terrain"
+          ref={(el) => (deckRefs.current.terrain = el)}
+        >
+          <div className="deckFx" />
+        </div>
+
+        <div
+          className="hexDeckCard shadow"
+          ref={(el) => (deckRefs.current.shadow = el)}
+        >
+          <div className="deckFx" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+  /* =========================
+     Moves / optimal / log
+     ✅ MUST be before reachable (reachable depends on per-layer moves)
+  ========================= */
+
+  const [movesTaken, setMovesTaken] = useState(0);
+
+  const [goalId, setGoalId] = useState<string | null>(null);
+  const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
+  const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
+
+  const computeOptimalFromReachMap = useCallback((rm: any, gid: string | null) => {
+    if (!gid || !rm) return null;
+
+    if (typeof rm?.get === "function") {
+      const info = rm.get(gid);
+      return info?.reachable ? (info.distance as number) : null;
+    }
+
+    const info = rm[gid];
+    return info?.reachable ? (info.distance as number) : null;
+  }, []);
+
+  const [log, setLog] = useState<LogEntry[]>([]);
+  const logNRef = useRef(0);
+
+  const pushLog = useCallback((msg: string, kind: LogEntry["kind"] = "info") => {
+    logNRef.current += 1;
+    const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
+    setLog((prev) => [e, ...prev].slice(0, 24));
+  }, []);
+
+
+
+
+
+
+  /* =========================
+     Reachability (1-step neighbors)
+  ========================= */
+
+  const reachable = useMemo(() => {
+    const set = new Set<string>();
+    if (!viewState) return set;
+    if (!playerId) return set;
+
+    // only compute when viewing the player's layer
+    if (playerLayer !== currentLayer) return set;
+
+    const nbs = getShiftedNeighborsSameLayer(
+      viewState as any,
+      playerId,
+      getLayerMoves(playerLayer ?? currentLayer)
+    );
+
+    for (const nbId of nbs) {
+      const hex = getHexFromState(viewState as any, nbId) as any;
+      const bm = isBlockedOrMissing(hex);
+      if (!bm.missing && !bm.blocked) set.add(nbId);
+    }
+
+    return set;
+  }, [viewState, playerId, playerLayer, currentLayer, getLayerMoves]);
+
+  /* =========================
+     Theme / assets
+  ========================= */
+
+  const activeTheme = scenarioEntry?.theme ?? null;
+  const palette = activeTheme?.palette ?? null;
+
+  const GAME__URL = activeTheme?.assets.backgroundGame ?? "";
+
+  // ✅ ABSOLUTELY NO TEMPLATE LITERALS
+  const backgroundLayers: any =
+    (activeTheme && activeTheme.assets && activeTheme.assets.backgroundLayers) || {};
+  const BOARD_LAYER_ = backgroundLayers["L" + currentLayer] || "";
+
+  const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "images/dice";
+  const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
+  const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "images/villains";
+  const HEX_TILE = activeTheme?.assets.hexTile ?? "";
+
+  const themeVars = useMemo(() => {
+    const p = palette;
+    return {
+      ["--L1" as any]: p?.L1 ?? "#19ffb4",
+      ["--L2" as any]: p?.L2 ?? "#67a5ff",
+      ["--L3" as any]: p?.L3 ?? "#ffd36a",
+      ["--L4" as any]: p?.L4 ?? "#ff7ad1",
+      ["--L5" as any]: p?.L5 ?? "#a1ff5a",
+      ["--L6" as any]: p?.L6 ?? "#a58bff",
+      ["--L7" as any]: p?.L7 ?? "#ff5d7a",
+    } as React.CSSProperties;
+  }, [palette]);
+
+  function diceImg(n: number) {
+    return toPublicUrl(DICE_FACES_BASE + "/D20_" + n + ".png");
+  }
+
+  function villainImg(key: VillainKey) {
+    return toPublicUrl(VILLAINS_BASE + "/" + key + ".png");
+  }
+
+  /* =========================
+     Sprite
+  ========================= */
+
+  type Facing = "down" | "up" | "left" | "right";
+
+  const [playerFacing, setPlayerFacing] = useState<Facing>("down");
+  const [isWalking, setIsWalking] = useState(false);
+
+  const SPRITE_COLS = 4;
+  const SPRITE_ROWS = 5;
+
+  const FRAME_W = 128;
+  const FRAME_H = 128;
+
+  function spriteSheetUrl() {
+    return toPublicUrl("images/players/sprite_sheet_20.png");
+  }
+
+  const rafRef = useRef<number | null>(null);
+  const lastRef = useRef(0);
+  const [walkFrame, setWalkFrame] = useState(0);
+
+  const WALK_FPS = 10;
+  const IDLE_FPS = 4;
+
+  useEffect(() => {
+    const fps = isWalking ? WALK_FPS : IDLE_FPS;
+    const frameDuration = 1000 / fps;
+
+    lastRef.current = performance.now();
+
+    const tick = (t: number) => {
+      if (t - lastRef.current >= frameDuration) {
+        setWalkFrame((f) => (f + 1) % SPRITE_COLS);
+        lastRef.current = t;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [isWalking]);
+
+  const walkTimer = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (walkTimer.current) window.clearTimeout(walkTimer.current);
+    };
+  }, []);
+
+  function facingRow(f: Facing) {
+    return f === "down" ? 0 : f === "left" ? 1 : f === "right" ? 2 : 3;
+  }
+
+
+ /* =========================
+   Dice
+========================= */
+
+const [diceValue, setDiceValue] = useState<number>(2);
+const [diceRolling, setDiceRolling] = useState(false);
+const [diceRot, setDiceRot] = useState<{ x: number; y: number }>({
+  x: 0,
+  y: 0,
+});
+const diceTimer = useRef<number | null>(null);
+
+// ✅ IMPORTANT: always remember the *final* roll value (not the flickers)
+const lastRollValueRef = useRef<number>(2);
+
+useEffect(() => {
+  return () => {
+    if (diceTimer.current) window.clearTimeout(diceTimer.current);
+  };
+}, []);
+
 function rotForRoll(n: number) {
-  // Convention: 1=top, 6=bottom, 2=front, 5=back, 3=right, 4=left
   switch (n) {
     case 1:
       return { x: -90, y: 0 };
@@ -194,344 +3363,447 @@ function rotForRoll(n: number) {
   }
 }
 
-/* =========================================================
-   App
-========================================================= */
-export default function App() {
-  const [screen, setScreen] = useState<Screen>("start");
+const rollDice = useCallback(() => {
+  if (diceRolling) return;
 
-  // auto worlds
-  const [worlds, setWorlds] = useState<WorldEntry[]>([]);
-  const [worldId, setWorldId] = useState<string | null>(null);
-  const world = useMemo(() => worlds.find((w) => w.id === worldId) ?? null, [worlds, worldId]);
+  setDiceRolling(true);
 
-  // scenario / track selection
-  const [scenarioId, setScenarioId] = useState<string | null>(null);
-  const scenarioEntry = useMemo(() => world?.scenarios.find((s) => s.id === scenarioId) ?? null, [world, scenarioId]);
+  const start = performance.now();
+  const duration = 650;
 
-  const [trackId, setTrackId] = useState<string | null>(null);
-  const trackEntry = useMemo(() => {
-    const tracks = scenarioEntry?.tracks;
-    if (!tracks || tracks.length <= 0) return null;
-    return tracks.find((t) => t.id === trackId) ?? null;
-  }, [scenarioEntry, trackId]);
+  const tick = () => {
+    const elapsed = performance.now() - start;
 
-  // player
-  const [chosenPlayer, setChosenPlayer] = useState<PlayerChoice | null>(null);
+    // flicker values during roll
+    const flicker = 1 + Math.floor(Math.random() * 6);
+    setDiceValue(flicker);
+    setDiceRot(rotForRoll(flicker));
 
-  // game state
-  const [state, setState] = useState<GameState | null>(null);
-  const [currentLayer, setCurrentLayer] = useState<number>(1);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+    if (elapsed < duration) {
+      diceTimer.current = window.setTimeout(tick, 55);
+    } else {
+      // ✅ final value
+      const final = 1 + Math.floor(Math.random() * 6);
 
-  const [reachMap, setReachMap] = useState<ReachMap>({} as ReachMap);
-  const reachable = useMemo(() => {
-    const set = new Set<string>();
-    for (const [k, v] of Object.entries(reachMap as any)) if ((v as any)?.reachable) set.add(k);
-    return set;
-  }, [reachMap]);
+      lastRollValueRef.current = final; // ✅ use this in encounter resolution
+      setDiceValue(final);
+      setDiceRot(rotForRoll(final));
 
-  // villain triggers loaded from scenario.json
-  const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
-  const [encounter, setEncounter] = useState<Encounter>(null);
-  const encounterActive = !!encounter;
-
-  // palette + assets for the active scenario (used in CSS vars + images)
-  const activeTheme = scenarioEntry?.theme ?? null;
-  const palette = activeTheme?.palette ?? null;
-
-  const GAME_BG_URL = activeTheme?.assets.backgroundGame ?? "";
-  const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "";
-  const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
-  const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "";
-
-  // layer count from scenario JSON (loaded when starting)
-  const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
-
-  const barSegments = useMemo(() => [7, 6, 5, 4, 3, 2, 1], []);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  /* --------------------------
-     Move counter + optimal
-  -------------------------- */
-  const [movesTaken, setMovesTaken] = useState(0);
-  const [goalId, setGoalId] = useState<string | null>(null);
-  const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
-  const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
-
-  /* --------------------------
-     Story log
-  -------------------------- */
-  const [log, setLog] = useState<LogEntry[]>([]);
-  const logNRef = useRef(0);
-  const pushLog = useCallback((msg: string, kind: LogEntry["kind"] = "info") => {
-    logNRef.current += 1;
-    const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
-    setLog((prev) => [e, ...prev].slice(0, 24));
-  }, []);
-
-  /* --------------------------
-     Inventory / power ups (simple)
-  -------------------------- */
-  type ItemId = "reroll" | "revealRing" | "peek";
-  type Item = { id: ItemId; name: string; icon: string; charges: number };
-  const [items, setItems] = useState<Item[]>([
-    { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
-    { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
-    { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
-  ]);
-
-  /* --------------------------
-     Dice state
-  -------------------------- */
-  const [rollValue, setRollValue] = useState<number>(1);
-
-  // Default view shows TOP+FRONT+RIGHT (3 faces)
-  const BASE_DICE_VIEW = { x: -28, y: -36 };
-
-  const [diceRot, setDiceRot] = useState<{ x: number; y: number }>(BASE_DICE_VIEW);
-  const [diceSpinning, setDiceSpinning] = useState(false);
-
-  // drag rotation state (disabled during encounter)
-  const dragRef = useRef({
-    active: false,
-    startX: 0,
-    startY: 0,
-    startRotX: 0,
-    startRotY: 0,
-    pointerId: -1,
-  });
-  const [diceDragging, setDiceDragging] = useState(false);
-
-  const belowLayer = currentLayer - 1;
-  const aboveLayer = currentLayer + 1;
-
-  useEffect(() => {
-    setWorlds(loadWorlds());
-  }, []);
-
-  function diceImg(n: number) {
-    return toPublicUrl(`${DICE_FACES_BASE}/D20_${n}.png`);
-  }
-
-  function villainImg(key: VillainKey) {
-    return toPublicUrl(`${VILLAINS_BASE}/${key}.png`);
-  }
-
-  function findTriggerForHex(id: string): VillainKey | null {
-    const c = idToCoord(id);
-    if (!c) return null;
-    for (const t of villainTriggers) {
-      if (t.layer !== c.layer) continue;
-      if (t.row !== c.row) continue;
-      if (!t.cols || t.cols === "any") return t.key;
-      if (Array.isArray(t.cols) && t.cols.includes(c.col)) return t.key;
+      setDiceRolling(false);
     }
-    return null;
-  }
+  };
 
-  const rollDice = useCallback(() => {
-    // every roll counts as a turn
-    setMovesTaken((m) => m + 1);
+  tick();
+}, [diceRolling]);
 
-    const n = 1 + Math.floor(Math.random() * 6);
-    setRollValue(n);
 
-    const targetFace = rotForRoll(n);
-    const final = { x: BASE_DICE_VIEW.x + targetFace.x, y: BASE_DICE_VIEW.y + targetFace.y };
-
-    setDiceSpinning(true);
-
-    const extraX = 360 * (1 + Math.floor(Math.random() * 2));
-    const extraY = 360 * (2 + Math.floor(Math.random() * 2));
-
-    setDiceRot({ x: final.x - extraX, y: final.y - extraY });
-    window.setTimeout(() => {
-      setDiceRot(final);
-      window.setTimeout(() => setDiceSpinning(false), 650);
-    }, 40);
-
-    pushLog(`Rolled ${n}`, n === 6 ? "ok" : "info");
-
-    // encounter: only 6 clears it
-    setEncounter((prev) => {
-      if (!prev) return prev;
-      if (n === 6) {
-        pushLog(`Encounter cleared (${prev.villainKey})`, "ok");
-        return null;
-      }
-      return { ...prev, tries: prev.tries + 1 };
-    });
-  }, [pushLog]);
-
-  // Manual drag rotation ONLY when NOT in encounter
-  const onDicePointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (encounterActive) return;
-      if (diceSpinning) return;
-      (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
-
-      dragRef.current.active = true;
-      dragRef.current.pointerId = e.pointerId;
-      dragRef.current.startX = e.clientX;
-      dragRef.current.startY = e.clientY;
-      dragRef.current.startRotX = diceRot.x;
-      dragRef.current.startRotY = diceRot.y;
-
-      setDiceDragging(true);
-    },
-    [diceRot.x, diceRot.y, diceSpinning, encounterActive]
-  );
-
-  const onDicePointerMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (encounterActive) return;
-      if (!dragRef.current.active) return;
-      if (e.pointerId !== dragRef.current.pointerId) return;
-
-      const dx = e.clientX - dragRef.current.startX;
-      const dy = e.clientY - dragRef.current.startY;
-
-      const sens = 0.35;
-      const nextY = dragRef.current.startRotY + dx * sens;
-      const nextX = dragRef.current.startRotX - dy * sens;
-
-      setDiceRot({ x: nextX, y: nextY });
-    },
-    [encounterActive]
-  );
-
-  const endDrag = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (encounterActive) return;
-      if (!dragRef.current.active) return;
-      if (e.pointerId !== dragRef.current.pointerId) return;
-      dragRef.current.active = false;
-      dragRef.current.pointerId = -1;
-      setDiceDragging(false);
-    },
-    [encounterActive]
-  );
-
-  /* --------------------------
-     Game helpers
-  -------------------------- */
-  const recomputeReachability = useCallback((st: GameState) => {
-    // hard guard against invalid state
-    if (!(st as any)?.hexesById?.get?.(st.playerHexId)) {
-      setReachMap({} as ReachMap);
-      return;
-    }
-    setReachMap(getReachability(st) as any);
-  }, []);
+  /* =========================
+     Reveal helpers
+  ========================= */
 
   const revealWholeLayer = useCallback((st: GameState, layer: number) => {
     for (let r = 0; r < ROW_LENS.length; r++) {
       const len = ROW_LENS[r] ?? 7;
       for (let c = 0; c < len; c++) {
-        revealHex(st, `L${layer}-R${r}-C${c}`);
+        revealHex(st, "L" + layer + "-R" + r + "-C" + c);
       }
     }
   }, []);
 
   const revealRing = useCallback((st: GameState, centerId: string) => {
     revealHex(st, centerId);
-    for (const nbId of neighborIdsSameLayer(st, centerId)) {
-      revealHex(st, nbId);
+
+    let nbs: string[] = [];
+    try {
+      nbs = (neighborIdsSameLayer as any)(st, centerId) as string[];
+    } catch {
+      try {
+        nbs = (neighborIdsSameLayer as any)(centerId) as string[];
+      } catch {
+        nbs = [];
+      }
     }
+    for (const nbId of nbs) revealHex(st, nbId);
   }, []);
 
-  const computeOptimalFromReachMap = useCallback((rm: ReachMap, gid: string | null) => {
-    if (!gid) return null;
-    const info: any = (rm as any)[gid];
-    return info?.reachable ? (info.distance as number) : null;
-  }, []);
+  /* =========================
+     Items
+  ========================= */
 
-  const parseVillainsFromScenario = useCallback((s: any): VillainTrigger[] => {
-    // Preferred: explicit list
-    if (Array.isArray(s?.villainTriggers)) {
-      return s.villainTriggers
-        .map((t: any) => ({
-          key: t.key as VillainKey,
-          layer: Number(t.layer),
-          row: Number(t.row),
-          cols: t.cols ?? "any",
-        }))
-        .filter((t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row));
+  type ItemId = "reroll" | "revealRing" | "peek";
+  type Item = { id: ItemId; name: string; icon: string; charges: number };
+
+  const [items, setItems] = useState<Item[]>([
+    { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
+    { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
+    { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
+  ]);
+
+  const useItem = useCallback(
+    (id: ItemId) => {
+      const it = items.find((x) => x.id === id);
+      if (!it || it.charges <= 0) return;
+
+      setItems((prev) =>
+        prev.map((x) =>
+          x.id === id ? { ...x, charges: Math.max(0, x.charges - 1) } : x
+        )
+      );
+
+      if (id === "reroll") {
+        rollDice();
+        pushLog("Reroll used — rolling…", "info");
+        return;
+      }
+
+      if (!state) return;
+      const pid = (state as any).playerHexId ?? null;
+      if (!pid) return;
+
+      if (id === "revealRing") {
+        revealRing(state, pid);
+        forceRender((n) => n + 1);
+        pushLog("Used: Reveal (ring)", "ok");
+        return;
+      }
+
+      if (id === "peek") {
+        const up = Math.min(scenarioLayerCount, currentLayer + 1);
+        const dn = Math.max(1, currentLayer - 1);
+
+        const upId = pid.replace(/^L\d+-/, "L" + up + "-");
+        const dnId = pid.replace(/^L\d+-/, "L" + dn + "-");
+
+        revealRing(state, upId);
+        revealRing(state, dnId);
+
+        forceRender((n) => n + 1);
+        pushLog("Used: Peek (above/below ring)", "info");
+        return;
+      }
+    },
+    [items, rollDice, pushLog, state, revealRing, scenarioLayerCount, currentLayer]
+  );
+
+/* =========================
+   Encounter resolution  ✅ FIXED (uses lastRollValueRef)
+========================= */
+
+const prevRollingRef = useRef(false);
+
+useEffect(() => {
+  const wasRolling = prevRollingRef.current;
+  prevRollingRef.current = diceRolling;
+
+  // Only resolve when an encounter is active AND a roll just finished
+  if (!encounter) return;
+  if (diceRolling) return;
+  if (!wasRolling) return;
+
+  try {
+    // increment tries each finished roll
+    setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
+
+    // ✅ only succeed on the FINAL roll result (not a stale diceValue)
+    const rolled = lastRollValueRef.current;
+    if (rolled !== 6) return;
+
+ const targetId = pendingEncounterMoveIdRef.current;
+
+// ✅ If encounter was triggered by a card (no pending move target),
+// a roll of 6 simply clears the encounter.
+if (!targetId) {
+  pushLog("Encounter cleared — risk event passed.", "ok");
+  setEncounter(null);
+  return;
+}
+
+
+    // IMPORTANT: use viewState (matches what the UI shows)
+    if (!viewState) {
+      pushLog("Encounter error: viewState missing.", "bad");
+      return;
     }
 
-    // Fallback: your current JSON format: villains.triggers [{id, layer, row}]
-    if (Array.isArray(s?.villains?.triggers)) {
-      return s.villains.triggers
-        .map((t: any) => ({
-          key: String(t.id) as VillainKey,
-          layer: Number(t.layer),
-          row: Number(t.row),
-          cols: "any" as const,
-        }))
-        .filter((t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row));
+    // Guard: pending tile might now be invalid (blocked/missing) after shifts
+    const pendingHex = getHexFromState(viewState as any, targetId) as any;
+    if (!pendingHex || pendingHex.missing || pendingHex.blocked) {
+      pushLog("Encounter target is invalid now — click another tile.", "bad");
+      pendingEncounterMoveIdRef.current = null; // prevents deadlock
+      return;
     }
 
-    return [];
-  }, []);
+    const pidBefore = (viewState as any)?.playerHexId as string | null;
 
-  const startScenario = useCallback(async () => {
-    if (!scenarioEntry) return;
+    // ✅ Use viewState here (NOT state)
+    const res: any = tryMove(viewState as any, targetId);
+let nextState = unwrapNextState(res);
 
-    // choose which scenario JSON to load:
-    const tracks = scenarioEntry.tracks ?? [];
-    const hasTracks = tracks.length > 1;
-    const chosenJson = hasTracks ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson : scenarioEntry.scenarioJson;
+    if (!nextState) {
+      const msg =
+        (res &&
+          typeof res === "object" &&
+          "reason" in res &&
+          String((res as any).reason)) ||
+        "Move failed after rolling a 6 — click another tile and roll again.";
 
-    const s = (await loadScenario(chosenJson)) as any;
+      pushLog(msg, "bad");
 
-    // villain triggers from JSON (optional)
-    setVillainTriggers(parseVillainsFromScenario(s));
+      // Clear target so player can choose a new one while encounter stays open
+      pendingEncounterMoveIdRef.current = null;
 
-    // reset encounter
+      return;
+    }
+
+    const pidAfter = (nextState as any).playerHexId as string | null;
+let landedId = pidAfter ?? targetId;
+
+// apply portal jump after encounter move too
+{
+  const ap = applyPortalIfAny(nextState as any, landedId);
+  nextState = ap.next as any;
+  landedId = ap.finalId;
+}
+    // close encounter ONLY after we know we have a valid nextState
+    pendingEncounterMoveIdRef.current = null;
     setEncounter(null);
 
+    // walking / facing
+    const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
+    if (moved) {
+      setIsWalking(true);
+      if (walkTimer.current) window.clearTimeout(walkTimer.current);
+      walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+
+      const fromLayer =
+        (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
+
+      setPlayerFacing(
+        facingFromMoveVisual(
+          viewState as any,
+          pidBefore,
+          pidAfter,
+          fromLayer,
+          getLayerMoves(fromLayer)
+        )
+      );
+    }
+
+    setMovesTaken((n) => n + 1);
+
+    setState(nextState);
+    forceRender((n) => n + 1);
+
+    const c2 = pidAfter ? idToCoord(pidAfter) : null;
+    const nextLayer = c2?.layer ?? currentLayer;
+
+    if (Number.isFinite(nextLayer)) {
+      enterLayer(nextState, nextLayer);
+
+      if (nextLayer !== currentLayer) {
+        setCurrentLayer(nextLayer);
+        revealWholeLayer(nextState, nextLayer);
+      }
+    }
+
+    const rm = getReachability(nextState) as any;
+    setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+
+    pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
+    if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
+  } catch (err: any) {
+    console.error("Encounter resolution crashed:", err);
+    pushLog("Encounter crashed: " + String(err?.message ?? err), "bad");
+    // keep encounter open so player can retry
+  }
+}, [
+  encounter,
+  diceRolling,
+  viewState,
+  diceValue, // ok to leave; not relied on for success anymore
+  currentLayer,
+  goalId,
+  revealWholeLayer,
+  computeOptimalFromReachMap,
+  pushLog,
+  getLayerMoves,
+]);
+
+
+// ---------------------------
+// Villain triggers parser
+// ---------------------------
+
+const [cardTriggers, setCardTriggers] = useState<CardTrigger[]>([]);
+const [cardFlip, setCardFlip] = useState<
+  null | { key: number; card: CardKey; durMs: number; villainKey?: VillainKey }
+>(null);
+const cardFlipTimerRef = useRef<number | null>(null);
+const triggerCardFlip = useCallback(
+  (card: CardKey, opts?: { durMs?: number; villainKey?: VillainKey }) => {
+    if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
+
+    const key = Date.now();
+    const durMs = opts?.durMs ?? 1400;
+
+    setCardFlip({ key, card, durMs, villainKey: opts?.villainKey });
+
+    cardFlipTimerRef.current = window.setTimeout(() => {
+      setCardFlip(null);
+      cardFlipTimerRef.current = null;
+    }, durMs);
+  },
+  []
+);
+
+
+useEffect(() => {
+  return () => {
+    if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
+  };
+}, []);
+
+   const findCardTriggerAt = useCallback(
+  (id: string): CardKey | null => {
+    const c = idToCoord(id);
+    if (!c) return null;
+    for (const t of cardTriggers) {
+      if (t.layer === c.layer && t.row === c.row && t.col === c.col) return t.card;
+    }
+    return null;
+  },
+  [cardTriggers]
+);
+type FlyCard = {
+  key: number;
+  card: CardKey;
+  from: { x: number; y: number; w: number; h: number };
+};
+
+const deckRefs = useRef<Record<CardKey, HTMLDivElement | null>>({
+  cosmic: null,
+  risk: null,
+  terrain: null,
+  shadow: null,
+});
+
+const [flyCard, setFlyCard] = useState<FlyCard | null>(null);
+const flyTimerRef = useRef<number | null>(null);
+
+useEffect(() => {
+  return () => {
+    if (flyTimerRef.current) window.clearTimeout(flyTimerRef.current);
+  };
+}, []);
+
+const triggerCardFlyout = useCallback((card: CardKey) => {
+  const el = deckRefs.current[card];
+  if (!el) {
+    // fallback: if deck ref missing, use your existing overlay
+    setCardFlip({ key: Date.now(), card });
+    return;
+  }
+
+  const r = el.getBoundingClientRect();
+
+  // start fly card clone
+  const key = Date.now();
+  setFlyCard({
+    key,
+    card,
+    from: { x: r.left, y: r.top, w: r.width, h: r.height },
+  });
+
+  // optional: also show your existing fullscreen overlay slightly later
+  // (comment this out if you want ONLY the fly-out)
+  flyTimerRef.current = window.setTimeout(() => {
+    setCardFlip({ key: Date.now(), card });
+  }, 520);
+
+  // cleanup fly card after animation
+  window.setTimeout(() => {
+    setFlyCard(null);
+  }, 1200);
+}, []);
+
+/* =========================
+   Start scenario
+========================= */
+
+const startScenario = useCallback(async () => {
+  if (!scenarioEntry) return;
+
+  const tracks = scenarioEntry.tracks ?? [];
+  const hasTracks = tracks.length > 1;
+  const chosenJson = hasTracks
+    ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson
+    : scenarioEntry.scenarioJson;
+
+  // ✅ load FIRST
+  const s = (await loadScenario(chosenJson)) as any;
+const cts = parseCardTriggersFromScenario(s);
+setCardTriggers(cts);
+pushLog("Card triggers loaded: " + cts.length, "info");
+  // ✅ then parse + log
+  const vts = parseVillainsFromScenario(s);
+  setVillainTriggers(vts);
+  pushLog("Villain triggers loaded: " + vts.length, "info");
+
+    setVillainTriggers(parseVillainsFromScenario(s));
+    setEncounter(null);
+    pendingEncounterMoveIdRef.current = null;
+
     const st = newGame(s);
-    const pid = st.playerHexId ?? null;
-    const layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
+
+    const layerCount = Math.max(1, Number(s?.layers ?? 1));
+    setScenarioLayerCount(layerCount);
+
+    let pid = (st as any).playerHexId as string | null;
+    let layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
+    layer = Math.max(1, Math.min(layerCount, layer));
+
+    if (!pid || !/^L\d+-R\d+-C\d+$/.test(pid)) {
+      pid = findFirstPlayableHexId(st, layer);
+      (st as any).playerHexId = pid;
+    }
+
+    const pidCoord = idToCoord(pid);
+    if (pidCoord) layer = Math.max(1, Math.min(layerCount, pidCoord.layer));
 
     const gid = findGoalId(s, layer);
     setGoalId(gid);
 
-    const layerCount = Number(s?.layers ?? 1);
-    setScenarioLayerCount(layerCount);
-
-    // Make sure current layer is visible and revealed
     enterLayer(st, layer);
     revealWholeLayer(st, layer);
 
-    // compute reachability once at start
     const rm = getReachability(st) as any;
-    setReachMap(rm);
 
     setState(st);
     setSelectedId(pid);
+    setStartHexId(pid);
     setCurrentLayer(layer);
+    setPlayerFacing("down");
 
-    // reset dice view
-    setRollValue(1);
-    setDiceRot(BASE_DICE_VIEW);
-    setDiceSpinning(false);
-    setDiceDragging(false);
-
-    // moves + optimal
     setMovesTaken(0);
-    setOptimalAtStart(computeOptimalFromReachMap(rm as any, gid));
-    setOptimalFromNow(computeOptimalFromReachMap(rm as any, gid));
 
-    // reset log
+    const initMoves: Record<number, number> = {};
+    const initArmed: Record<number, boolean> = {};
+    for (let L = 1; L <= layerCount; L++) {
+      initMoves[L] = 0;
+      initArmed[L] = L === layer;
+    }
+    setLayerMoves(initMoves);
+    setLayerMoveArmed(initArmed);
+
+    setOptimalAtStart(computeOptimalFromReachMap(rm, gid));
+    setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
+
     logNRef.current = 0;
     setLog([]);
-    pushLog(`Started: ${scenarioEntry.name}`, "ok");
-    if (gid) pushLog(`Goal: ${gid}`, "info");
-    else pushLog(`Goal: (not set in scenario JSON)`, "bad");
+    pushLog("Started: " + scenarioEntry.name, "ok");
+    if (pid) pushLog("Start: " + pid, "info");
+    if (gid) pushLog("Goal: " + gid, "info");
 
-    // inventory defaults
     setItems([
       { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
       { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
@@ -543,1274 +3815,995 @@ export default function App() {
     }, 0);
 
     setScreen("game");
-  }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog]);
+  }, [
+    scenarioEntry,
+    trackEntry,
+    revealWholeLayer,
+    computeOptimalFromReachMap,
+    pushLog,
+  ]);
 
-  /* --------------------------
-     Board click
-     - Every click counts as a turn attempt (even invalid)
-     - Triggers villain encounter if scenario.json says so
-  -------------------------- */
-  const tryMoveToId = useCallback(
-    (id: string) => {
-      // every click counts
-      setMovesTaken((m) => m + 1);
+  useEffect(() => {
+    if (pendingQuickStartRef.current && scenarioEntry) {
+      pendingQuickStartRef.current = false;
+      startScenario();
+    }
+  }, [scenarioEntry, startScenario]);
 
-      // ignore board interaction during encounter (but click already counted)
-      if (encounterActive) return;
+/* =========================
+   Movement
+========================= */
 
-      // check for villain trigger from scenario.json rules
-      const vk = findTriggerForHex(id);
-      if (vk) {
-        setEncounter({ villainKey: vk, tries: 0 });
-        setDiceRot(BASE_DICE_VIEW);
-        setDiceSpinning(false);
-        setDiceDragging(false);
-        pushLog(`Encounter: ${vk} — roll a 6 to continue`, "bad");
-        return;
-      }
+const tryMoveToId = useCallback(
+  (id: string) => {
+    if (!state) return;
+    if (encounterActive) return;
 
-      if (!state) return;
+    // if viewing another layer, snap back
+    if (playerLayer && currentLayer !== playerLayer) {
+      setCurrentLayer(playerLayer);
+      enterLayer(state, playerLayer);
+      revealWholeLayer(state, playerLayer);
+      forceRender((n) => n + 1);
+      pushLog(
+        "You were viewing layer " +
+          currentLayer +
+          " but the player is on layer " +
+          playerLayer +
+          " — switched back.",
+        "info"
+      );
+      return;
+    }
 
-      setSelectedId(id);
+    // validate target tile (use viewState so it matches what UI shows)
+    const hex = getHexFromState(viewState as any, id) as any;
+    const bm = isBlockedOrMissing(hex);
+    if (bm.missing) {
+      pushLog("Missing tile.", "bad");
+      return;
+    }
+    if (bm.blocked) {
+      pushLog("Blocked tile.", "bad");
+      return;
+    }
 
-      // IMPORTANT: attemptMove (engine) already ends the turn + applies shift.
-      const res = tryMove(state, id);
+    const pidBefore = (viewState as any)?.playerHexId as string | null;
 
-      // Always recompute reachability based on the mutated engine state
-      const rm = getReachability(state) as any;
-      setReachMap(rm);
+    // encounters block movement until you roll a 6
+    const vk = findTriggerForHex(id);
+    if (vk) {
+      pendingEncounterMoveIdRef.current = id;
+      setEncounter((prev) =>
+        prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }
+      );
+      pushLog("Encounter: " + vk + " — roll a 6 to continue", "bad");
+      return;
+    }
 
-      if (res.ok) {
-        const newPlayerId = (state as any).playerHexId;
-        const newLayer = newPlayerId ? idToCoord(newPlayerId)?.layer ?? currentLayer : currentLayer;
+    // engine move
+    const res: any = tryMove(viewState as any, id);
+    let nextState = unwrapNextState(res);
 
-        if (!res.won) {
-          enterLayer(state, newLayer);
-          revealWholeLayer(state, newLayer);
-        }
-
-        setCurrentLayer(newLayer);
-        setSelectedId(newPlayerId ?? id);
-
-        setOptimalFromNow(computeOptimalFromReachMap(rm as any, goalId));
-
-        setState({ ...(state as any) });
-
-        const c = newPlayerId ? idToCoord(newPlayerId) : null;
-        pushLog(
-          c ? `Move OK → R${c.row + 1}C${c.col + 1} (L${c.layer})` : `Move OK`,
-          "ok"
-        );
+    // TEMP fallback: if engine rejects but UI says reachable, force move
+    if (!nextState) {
+      if (reachable.has(id) && viewState) {
+        const forced: any = { ...(viewState as any) };
+        forced.playerHexId = id;
+        nextState = forced as any;
+        pushLog("Force-moved (engine rejected)", "info");
       } else {
-        setState({ ...(state as any) });
-        pushLog(`Move blocked`, "bad");
-      }
-    },
-    [
-      state,
-      currentLayer,
-      pushLog,
-      goalId,
-      computeOptimalFromReachMap,
-      encounterActive,
-      villainTriggers,
-      revealWholeLayer,
-    ]
-  );
-
-  /* --------------------------
-     Inventory use (simple)
-  -------------------------- */
-  const useItem = useCallback(
-    (id: "reroll" | "revealRing" | "peek") => {
-      const it = items.find((x) => x.id === id);
-      if (!it || it.charges <= 0) return;
-
-      setItems((prev) => prev.map((x) => (x.id === id ? { ...x, charges: Math.max(0, x.charges - 1) } : x)));
-
-      if (id === "reroll") {
-        pushLog("Used: Reroll", "info");
-        rollDice();
+        const msg =
+          (res &&
+            typeof res === "object" &&
+            "reason" in res &&
+            String((res as any).reason)) ||
+          "Move failed.";
+        pushLog(msg, "bad");
         return;
       }
-
-      if (!state) return;
-
-      const pid = (state as any).playerHexId ?? null;
-      if (!pid) return;
-
-      if (id === "revealRing") {
-        revealRing(state, pid);
-        setReachMap(getReachability(state) as any);
-        setState({ ...(state as any) });
-        pushLog("Used: Reveal (ring)", "ok");
-        return;
-      }
-
-      if (id === "peek") {
-        const up = Math.min(scenarioLayerCount, currentLayer + 1);
-        const dn = Math.max(1, currentLayer - 1);
-
-        // same row/col, different layer
-        const upId = pid.replace(/^L\d+-/, `L${up}-`);
-        const dnId = pid.replace(/^L\d+-/, `L${dn}-`);
-
-        revealRing(state, upId);
-        revealRing(state, dnId);
-
-        setReachMap(getReachability(state) as any);
-        setState({ ...(state as any) });
-        pushLog("Used: Peek (above/below ring)", "info");
-        return;
-      }
-    },
-    [items, state, currentLayer, scenarioLayerCount, rollDice, pushLog, revealRing]
-  );
-
-  // Stripes (mini-board mode only)
-  const stripeBelow = belowLayer < 1 ? "rgba(0,0,0,.90)" : layerCssVar(belowLayer);
-  const stripeCurr = layerCssVar(currentLayer);
-  const stripeAbove = aboveLayer > scenarioLayerCount ? "rgba(0,0,0,.90)" : layerCssVar(aboveLayer);
-
-  // keep cube position stable across modes
-  const diceAlignY = 70;
-
-  // Mini boards reachability filtered per layer
-  function filterReachForLayer(layer: number, rmAll: ReachMap) {
-    const prefix = `L${layer}-`;
-    const rm = {} as ReachMap;
-    const set = new Set<string>();
-    for (const [k, v] of Object.entries(rmAll as any)) {
-      if (!k.startsWith(prefix)) continue;
-      (rm as any)[k] = v;
-      if ((v as any)?.reachable) set.add(k);
     }
-    return { reachMap: rm, reachable: set };
+
+    const pidAfter = (nextState as any).playerHexId as string | null;
+
+    const fromLayer =
+      (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
+
+    const toLayer = pidAfter ? idToCoord(pidAfter)?.layer ?? null : null;
+
+    const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
+
+    // -------------------------------------------
+    // ✅ Decide where we actually landed
+    // -------------------------------------------
+    let landedId = pidAfter ?? id;
+
+    // ✅ apply portal BEFORE committing state/selection
+    {
+      const ap = applyPortalIfAny(nextState as any, landedId);
+      nextState = ap.next as any;
+      landedId = ap.finalId;
+    }
+
+    // -------------------------------------------
+    // Per-layer move counters + walking/facing
+    // -------------------------------------------
+    setMovesTaken((n) => n + 1);
+
+    if (fromLayer) {
+      setLayerMoves((prev) => ({
+        ...prev,
+        [fromLayer]: (prev[fromLayer] ?? 0) + 1,
+      }));
+      setLayerMoveArmed((prev) => ({ ...prev, [fromLayer]: true }));
+    }
+
+    // NOTE: if a portal moved layers, we want to treat the final layer as the current one
+    const landedCoord = idToCoord(landedId);
+    const finalLayer = landedCoord?.layer ?? (toLayer ?? currentLayer);
+
+    if (finalLayer && fromLayer && finalLayer !== fromLayer) {
+      setLayerMoves((prev) => ({ ...prev, [finalLayer]: 0 }));
+      setLayerMoveArmed((prev) => ({ ...prev, [finalLayer]: true }));
+      triggerLayerFx(finalLayer);
+    }
+
+    if (moved) {
+      setIsWalking(true);
+      if (walkTimer.current) window.clearTimeout(walkTimer.current);
+      walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+
+      setPlayerFacing(
+        facingFromMoveVisual(
+          viewState as any,
+          pidBefore,
+          pidAfter,
+          fromLayer,
+          getLayerMoves(fromLayer)
+        )
+      );
+    }
+
+    // -------------------------------------------
+    // ✅ Commit state + selection (SAFE NOW)
+    // -------------------------------------------
+    setState(nextState);
+    setSelectedId(landedId);
+    forceRender((n) => n + 1);
+
+    // -------------------------------------------
+    // ✅ Sync layer view to final landed layer
+    // -------------------------------------------
+    enterLayer(nextState as any, finalLayer);
+
+    if (finalLayer !== currentLayer) {
+      setCurrentLayer(finalLayer);
+      revealWholeLayer(nextState as any, finalLayer);
+    }
+
+    // -------------------------------------------
+    // ✅ CARD TRIGGER (AFTER final landedId)
+    // -------------------------------------------
+ const landedCard = findCardTriggerAt(landedId);
+if (landedCard) {
+  if (landedCard === "risk") {
+    const vk = pickRiskVillain();
+
+    // ✅ open encounter immediately (no target tile needed)
+    pendingEncounterMoveIdRef.current = null;
+    setEncounter({ villainKey: vk, tries: 0 });
+    pushLog("Risk triggered — encounter: " + vk + " (roll a 6)", "bad");
+
+    // ✅ show large card longer + ensure villain is visible on it
+    triggerCardFlyout("risk");
+    triggerCardFlip("risk", { durMs: 2400, villainKey: vk });
+
+    // (Optional) if you DON’T want the extra fullscreen flip (because flyout already shows),
+    // comment the triggerCardFlip line above and instead add the villain to flyCard.
+  } else {
+    triggerCardFlyout(landedCard);
+    triggerCardFlip(landedCard); // keep default duration
+    pushLog("Card triggered: " + landedCard, "info");
   }
+}
 
-  const miniAboveLayer = Math.min(scenarioLayerCount, Math.max(1, aboveLayer));
-  const miniCurrLayer = currentLayer;
-  const miniBelowLayer = Math.max(1, belowLayer);
-  const miniAboveReach = useMemo(() => filterReachForLayer(miniAboveLayer, reachMap), [miniAboveLayer, reachMap]);
-  const miniCurrReach = useMemo(() => filterReachForLayer(miniCurrLayer, reachMap), [miniCurrLayer, reachMap]);
-  const miniBelowReach = useMemo(() => filterReachForLayer(miniBelowLayer, reachMap), [miniBelowLayer, reachMap]);
 
-  const delta = useMemo(() => {
-    if (optimalAtStart == null || optimalFromNow == null) return null;
-    return movesTaken + optimalFromNow - optimalAtStart;
-  }, [movesTaken, optimalAtStart, optimalFromNow]);
+    // -------------------------------------------
+    // reachability / optimal
+    // -------------------------------------------
+    const rm = getReachability(nextState) as any;
+    setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
 
-  // Solid blue placeholder screens (start + world)
-  const stepBgBlue = "linear-gradient(180deg, rgba(40,120,255,.95), rgba(10,40,120,.95))";
+    pushLog("Moved to " + landedId, "ok");
+    if (goalId && landedId === goalId) pushLog("Goal reached!", "ok");
+  },
+  [
+    state,
+    viewState,
+    encounterActive,
+    reachable,
+    currentLayer,
+    playerLayer,
+    goalId,
+    pushLog,
+    revealWholeLayer,
+    computeOptimalFromReachMap,
+    findTriggerForHex,
+    getLayerMoves,
+    triggerLayerFx,
+    findCardTriggerAt,
+    triggerCardFlyout,
+  ]
+);
 
-  // Inject palette + dice border + background safely via CSS variables
-  const cssVars = useMemo(() => {
-    const vars: any = {
-      ["--diceBorderImg"]: DICE_BORDER_IMG ? `url("${toPublicUrl(DICE_BORDER_IMG)}")` : "none",
-      ["--menuSolidBg"]: stepBgBlue,
-    };
-    if (palette) {
-      vars["--L1"] = palette.L1;
-      vars["--L2"] = palette.L2;
-      vars["--L3"] = palette.L3;
-      vars["--L4"] = palette.L4;
-      vars["--L5"] = palette.L5;
-      vars["--L6"] = palette.L6;
-      vars["--L7"] = palette.L7;
-    }
-    return vars;
-  }, [palette, DICE_BORDER_IMG]);
 
-  return (
-    <div className="appRoot" style={cssVars}>
-      <style>{CSS}</style>
+  /* =========================
+     Screens
+  ========================= */
 
-      {/* Game background only when in-game and a world/scenario is chosen */}
-      {screen === "game" ? (
-        <>
-          <div className="globalBg" aria-hidden="true" style={{ backgroundImage: `url("${toPublicUrl(GAME_BG_URL)}")` }} />
-          <div className="globalBgOverlay" aria-hidden="true" />
-        </>
-      ) : (
-        <>
-          <div className="menuBg" aria-hidden="true" />
-          <div className="globalBgOverlay" aria-hidden="true" />
-        </>
-      )}
+  if (screen === "start") {
+    return (
+      <div className="appRoot" style={themeVars}>
+        <div className="screen center">
+          <div className="panel">
+            <div className="title">Hex Game</div>
+            <div className="sub">Start → World → Character → Scenario → Game</div>
 
-      {/* =====================================================
-          START (blue)
-      ====================================================== */}
-      {screen === "start" ? (
-        <div className="shell shellCard">
-          <div className="card">
-            <div className="cardTitleBig">Hex Layers</div>
-            <div className="cardMeta">Template</div>
             <div className="row">
-              <button
-                className="btn primary"
-                onClick={() => {
-                  setWorldId(null);
-                  setScenarioId(null);
-                  setTrackId(null);
-                  setChosenPlayer(null);
-                  setScreen("world");
-                }}
-              >
+              <button className="btn primary" onClick={() => setScreen("world")}>
                 Start
               </button>
+              <button className="btn" onClick={resetAll}>
+                Reset
+              </button>
+            </div>
+
+            <div className="hint">
+              Worlds loaded: <b>{worlds.length}</b>
             </div>
           </div>
         </div>
-      ) : null}
 
-      {/* =====================================================
-          WORLD SELECT (blue for now)
-      ====================================================== */}
-      {screen === "world" ? (
-        <div className="shell shellCard">
-          <div className="card">
-            <div className="cardTitle">Select world</div>
-            <div className="selectList">
-              {worlds.map((w) => {
-                const selected = w.id === worldId;
-                return (
-                  <div
-                    key={w.id}
-                    className={"selectTile" + (selected ? " selected" : "")}
-                    onClick={() => {
-                      setWorldId(w.id);
-                      setScenarioId(null);
-                      setTrackId(null);
-                    }}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="selectTileTitle">{w.name}</div>
-                    <div className="selectTileDesc">{w.desc ?? ""}</div>
-                  </div>
-                );
-              })}
-              {!worlds.length ? (
-                <div className="selectTileDesc">No worlds found. Add src/worlds/&lt;world&gt;/world.ts</div>
-              ) : null}
-            </div>
-
-            <div className="row rowBetween">
-              <button className="btn" onClick={() => setScreen("start")}>
-                Back
-              </button>
-              <button className="btn primary" disabled={!worldId} onClick={() => setScreen("character")}>
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* =====================================================
-          CHARACTER SELECT (3rd)
-      ====================================================== */}
-      {screen === "character" ? (
-        <div className="shell shellCard">
-          <div className="card">
-            <div className="cardTitle">Choose character</div>
-
-            <div className="selectList">
-              {PLAYER_PRESETS.map((p) => {
-                const isSel = chosenPlayer?.kind === "preset" && chosenPlayer.id === p.id;
-                return (
-                  <div
-                    key={p.id}
-                    className={"selectTile" + (isSel ? " selected" : "")}
-                    onClick={() => setChosenPlayer({ kind: "preset", id: p.id, name: p.name })}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="selectTileTitle">{p.name}</div>
-                    <div className="selectTileDesc">Preset</div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="row rowBetween">
-              <button className="btn" onClick={() => setScreen("world")}>
-                Back
-              </button>
-              <button className="btn primary" disabled={!chosenPlayer || !world} onClick={() => setScreen("scenario")}>
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* =====================================================
-          SCENARIO SELECT
-      ====================================================== */}
-      {screen === "scenario" ? (
-        <div className="shell shellCard">
-          <div className="card">
-            <div className="cardTitle">Select scenario</div>
-            <div className="cardMeta">{world ? `World: ${world.name}` : ""}</div>
-
-            <div className="selectList">
-              {(world?.scenarios ?? []).map((s) => {
-                const selected = s.id === scenarioId;
-                return (
-                  <div
-                    key={s.id}
-                    className={"selectTile" + (selected ? " selected" : "")}
-                    onClick={() => {
-                      setScenarioId(s.id);
-                      setTrackId(null);
-                    }}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="selectTileTitle">{s.name}</div>
-                    <div className="selectTileDesc">{s.desc ?? ""}</div>
-                  </div>
-                );
-              })}
-              {!world?.scenarios?.length ? <div className="selectTileDesc">This world has no scenarios yet.</div> : null}
-            </div>
-
-            <div className="row rowBetween">
-              <button className="btn" onClick={() => setScreen("character")}>
-                Back
-              </button>
-              <button
-                className="btn primary"
-                disabled={!scenarioEntry}
-                onClick={() => {
-                  const tracks = scenarioEntry?.tracks ?? [];
-                  if (tracks.length > 1) {
-                    setScreen("difficulty");
-                  } else {
-                    setTrackId(null);
-                    startScenario().catch((e) => alert(String((e as any)?.message ?? e)));
-                  }
-                }}
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* =====================================================
-          DIFFICULTY (tracks) — skips if only 1
-      ====================================================== */}
-      {screen === "difficulty" ? (
-        <div className="shell shellCard">
-          <div className="card">
-            <div className="cardTitle">Choose difficulty</div>
-            <div className="cardMeta">{scenarioEntry ? scenarioEntry.name : ""}</div>
-
-            <div className="selectList">
-              {(scenarioEntry?.tracks ?? []).map((t) => {
-                const selected = t.id === trackId;
-                return (
-                  <div
-                    key={t.id}
-                    className={"selectTile" + (selected ? " selected" : "")}
-                    onClick={() => setTrackId(t.id)}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="selectTileTitle">{t.name}</div>
-                    <div className="selectTileDesc">Track: {t.id}</div>
-                  </div>
-                );
-              })}
-              {!scenarioEntry?.tracks?.length ? (
-                <div className="selectTileDesc">No tracks found. (This screen should normally be skipped.)</div>
-              ) : null}
-            </div>
-
-            <div className="row rowBetween">
-              <button className="btn" onClick={() => setScreen("scenario")}>
-                Back
-              </button>
-              <button
-                className="btn primary"
-                disabled={!trackId}
-                onClick={() => startScenario().catch((e) => alert(String((e as any)?.message ?? e)))}
-              >
-                Start game
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* =====================================================
-          GAME
-      ====================================================== */}
-      {screen === "game" ? (
-        <div className="shell shellGame">
-          {encounterActive ? <div className="blackout" aria-hidden="true" /> : null}
-
-          {encounterActive ? (
-            <div className="villainCenter">
-              <img className="villainImg" src={villainImg(encounter!.villainKey)} alt={encounter!.villainKey} />
-              <div className="villainText">Roll a 6 to continue</div>
-              <button className="btn primary" onClick={rollDice}>
-                🎲 Roll
-              </button>
-              <div className="villainSmall">Tries: {encounter!.tries}</div>
-            </div>
-          ) : null}
-
-          <div className="scrollStage" ref={scrollRef}>
-            <div className="scrollInner">
-              <div className="gameLayout">
-                <SideBar side="left" currentLayer={currentLayer} segments={barSegments} />
-
-                <div className="mainBoardWrap">
-                  <HexBoard
-                    kind="main"
-                    activeLayer={currentLayer}
-                    maxLayer={scenarioLayerCount}
-                    state={state}
-                    selectedId={selectedId}
-                    reachable={reachable}
-                    reachMap={reachMap}
-                    onCellClick={tryMoveToId}
-                    showCoords
-                    showPlayerOnMini={false}
-                  />
-                </div>
-
-                <SideBar side="right" currentLayer={currentLayer} segments={barSegments} />
-
-                {/* Cube / Dice */}
-                <div className="diceArea">
-                  <div className="diceCubeWrap" aria-label="Layer dice">
-                    <div
-                      className={"diceCube" + (diceSpinning ? " isSpinning" : "") + (diceDragging ? " isDragging" : "")}
-                      onPointerDown={onDicePointerDown}
-                      onPointerMove={onDicePointerMove}
-                      onPointerUp={endDrag}
-                      onPointerCancel={endDrag}
-                      style={{
-                        transform: `translateY(70px) rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
-                        touchAction: encounterActive ? "auto" : "none",
-                        cursor: encounterActive ? "default" : diceDragging ? "grabbing" : "grab",
-                      }}
-                    >
-                      {/* Dice faces during encounter, otherwise mini-board cube */}
-                      {encounterActive ? (
-                        <>
-                          <FaceImage cls="diceFace faceTop" src={diceImg(1)} alt="Dice 1" />
-                          <FaceImage cls="diceFace faceFront" src={diceImg(2)} alt="Dice 2" />
-                          <FaceImage cls="diceFace faceRight" src={diceImg(3)} alt="Dice 3" />
-                          <FaceImage cls="diceFace faceLeft" src={diceImg(4)} alt="Dice 4" />
-                          <FaceImage cls="diceFace faceBack" src={diceImg(5)} alt="Dice 5" />
-                          <FaceImage cls="diceFace faceBottom" src={diceImg(6)} alt="Dice 6" />
-                        </>
-                      ) : (
-                        <>
-                          {/* MINI BOARD MODE (3 faces) */}
-                          <div className="diceFace faceTop">
-                            <div className="faceStripe" style={{ background: stripeAbove }} />
-                            <div className="diceFaceInnerFixed">
-                              <div className="miniFit">
-                                <HexBoard
-                                  kind="mini"
-                                  activeLayer={miniAboveLayer}
-                                  maxLayer={scenarioLayerCount}
-                                  state={state}
-                                  selectedId={null}
-                                  reachable={miniAboveReach.reachable}
-                                  reachMap={miniAboveReach.reachMap}
-                                  showCoords={false}
-                                  onCellClick={undefined}
-                                  showPlayerOnMini={true}
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="diceFace faceFront">
-                            <div className="faceStripe" style={{ background: stripeCurr }} />
-                            <div className="diceFaceInnerFixed">
-                              <div className="miniFit">
-                                <HexBoard
-                                  kind="mini"
-                                  activeLayer={miniCurrLayer}
-                                  maxLayer={scenarioLayerCount}
-                                  state={state}
-                                  selectedId={null}
-                                  reachable={miniCurrReach.reachable}
-                                  reachMap={miniCurrReach.reachMap}
-                                  showCoords={false}
-                                  onCellClick={undefined}
-                                  showPlayerOnMini={true}
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="diceFace faceRight">
-                            <div className="faceStripe" style={{ background: stripeBelow }} />
-                            <div className="diceFaceInnerFixed">
-                              {belowLayer < 1 ? (
-                                <div className="miniInvalid">NO LAYER BELOW</div>
-                              ) : (
-                                <div className="miniFit">
-                                  <HexBoard
-                                    kind="mini"
-                                    activeLayer={miniBelowLayer}
-                                    maxLayer={scenarioLayerCount}
-                                    state={state}
-                                    selectedId={null}
-                                    reachable={miniBelowReach.reachable}
-                                    reachMap={miniBelowReach.reachMap}
-                                    showCoords={false}
-                                    onCellClick={undefined}
-                                    showPlayerOnMini={true}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* HUD faces */}
-                          <div className="diceFace faceBack">
-                            <div className="diceHud">
-                              <div className="hudTitle">Moves</div>
-                              <div className="hudRow">
-                                <span className="hudKey">Taken</span>
-                                <span className="hudVal">{movesTaken}</span>
-                              </div>
-                              <div className="hudRow">
-                                <span className="hudKey">Optimal start</span>
-                                <span className="hudVal">{optimalAtStart == null ? "—" : optimalAtStart}</span>
-                              </div>
-                              <div className="hudRow">
-                                <span className="hudKey">Optimal now</span>
-                                <span className="hudVal">{optimalFromNow == null ? "—" : optimalFromNow}</span>
-                              </div>
-                              <div className="hudRow">
-                                <span className="hudKey">Δ</span>
-                                <span className={"hudVal " + (delta == null ? "" : delta <= 0 ? "ok" : "bad")}>
-                                  {delta == null ? "—" : delta}
-                                </span>
-                              </div>
-                              <div className="hudNote">
-                                Goal: <span className="mono">{goalId ?? "not set"}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="diceFace faceLeft">
-                            <div className="diceHud">
-                              <div className="hudTitle">Story</div>
-                              <div className="hudLog">
-                                {log.slice(0, 7).map((e) => (
-                                  <div key={e.n} className={"hudLogLine " + (e.kind ?? "info")}>
-                                    <span className="hudTime">{e.t}</span>
-                                    <span className="hudMsg">{e.msg}</span>
-                                  </div>
-                                ))}
-                                {!log.length ? <div className="hudLogEmpty">No events yet…</div> : null}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="diceFace faceBottom">
-                            <div className="diceHud">
-                              <div className="hudTitle">Power</div>
-                              <div className="invGrid">
-                                {items.map((it) => (
-                                  <button
-                                    key={it.id}
-                                    className="invSlot"
-                                    onClick={() => useItem(it.id)}
-                                    disabled={it.charges <= 0}
-                                    title={`${it.name} (${it.charges})`}
-                                  >
-                                    <div className="invIcon">{it.icon}</div>
-                                    <div className="invMeta">
-                                      <div className="invName">{it.name}</div>
-                                      <div className="invCharges">{it.charges}</div>
-                                    </div>
-                                  </button>
-                                ))}
-                              </div>
-                              <div className="hudNote">Drag to rotate • Tap items to use</div>
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Controls (no toggle button) */}
-                  <div className="diceControls">
-                    {encounterActive ? (
-                      <div className="diceReadout">Roll = {rollValue}</div>
-                    ) : (
-                      <div className="diceReadout subtle">Drag to rotate</div>
-                    )}
-                  </div>
-
-                  <div className="dragHint">{encounterActive ? "Encounter: roll a 6 to continue" : "Board Mode: Drag rotation only"}</div>
-
-                  <div className="row rowBetween" style={{ marginTop: 12 }}>
-                    <button
-                      className="btn"
-                      onClick={() => {
-                        setScreen("scenario");
-                        setState(null);
-                        setEncounter(null);
-                      }}
-                    >
-                      Back to Scenarios
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/* =========================================================
-   Dice corners (4x per face) — used ONLY in Dice faces
-========================================================= */
-function DiceCorners() {
-  return (
-    <>
-      <span className="diceCorner tl" />
-      <span className="diceCorner tr" />
-      <span className="diceCorner bl" />
-      <span className="diceCorner br" />
-    </>
-  );
-}
-
-/* =========================================================
-   Dice image face component
-========================================================= */
-function FaceImage(props: { cls: string; src: string; alt: string }) {
-  return (
-    <div className={props.cls}>
-      <DiceCorners />
-      <div className="diceImgWrap">
-        <img className="diceImg" src={props.src} alt={props.alt} draggable={false} />
+        <style>{baseCss}</style>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
-/* =========================================================
-   Side bar
-========================================================= */
-function SideBar(props: { side: "left" | "right"; currentLayer: number; segments: number[] }) {
-  const { side, currentLayer, segments } = props;
+ if (screen !== "game") {
   return (
-    <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")} aria-label={`Layer bar ${side}`}>
-      <div className="layerBar">
-        {segments.map((layerVal) => {
-          const active = layerVal === currentLayer;
-          return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} title={`Layer ${layerVal}`} />;
-        })}
-      </div>
-    </div>
-  );
-}
+    <div className="appRoot" style={themeVars}>
+      <div className="screen center">
+        <div className="panel wide">
+          <div className="title">Choose your run</div>
+          <div className="sub">
+            Pick a world, then a scenario, then (optionally) a track.
+          </div>
 
-/* =========================================================
-   Hex Board
-========================================================= */
-function HexBoard(props: {
-  kind: "main" | "mini";
-  activeLayer: number;
-  maxLayer: number;
-  state: GameState | null;
-  selectedId: string | null;
-  reachable: Set<string>;
-  reachMap: ReachMap;
-  onCellClick?: (id: string) => void;
-  showCoords: boolean;
-  showPlayerOnMini?: boolean;
-}) {
-  const { kind, activeLayer, maxLayer, state, selectedId, reachable, reachMap, onCellClick, showCoords, showPlayerOnMini } = props;
-  const playerId = (state as any)?.playerHexId ?? null;
-
-  const hasAbove = activeLayer < maxLayer;
-  const hasBelow = activeLayer > 1;
-
-  const layerColor = layerCssVar(activeLayer);
-  const rimTop = hasAbove ? layerColor : "rgba(0,0,0,.92)";
-  const rimBottom = hasBelow ? layerColor : "rgba(0,0,0,.92)";
-
-  return (
-    <div
-      className={"hexBoard " + (kind === "main" ? "hexBoardMain" : "hexBoardMini")}
-      data-layer={activeLayer}
-      style={
-        {
-          ["--rimTop" as any]: rimTop,
-          ["--rimBottom" as any]: rimBottom,
-        } as any
-      }
-    >
-      {ROW_LENS.map((len, rIdx) => {
-        const row = rIdx; // 0-based
-        const isEvenRow = (row + 1) % 2 === 0; // visual "even" rows still based on display row number
-
-        return (
-          <div key={row} className={"hexRow" + (isEvenRow ? " even" : "")} data-row={row}>
-            {Array.from({ length: len }, (_, cIdx) => {
-              const col = cIdx; // 0-based
-              const id = `L${activeLayer}-R${row}-C${col}`;
-
-              const hex = getHexFromState(state, id) as any;
-              const { blocked, missing } = isBlockedOrMissing(hex);
-
-              const isSel = selectedId === id;
-              const isPlayer = playerId === id && (kind === "main" || !!showPlayerOnMini);
-              const canMove = !!(reachMap as any)?.[id]?.reachable;
-              const isReach = reachable.has(id);
-
+          {/* WORLD PICKER */}
+          <div className="grid" style={{ marginTop: 14 }}>
+            {worlds.map((w) => {
+              const active = w.id === worldId;
               return (
-                <div
-                  key={id}
-                  className={
-                    "hex" +
-                    (isSel ? " sel" : "") +
-                    (isPlayer ? " player" : "") +
-                    (isReach ? " reach" : "") +
-                    (!canMove && kind === "main" && !isPlayer ? " notReach" : "") +
-                    (blocked ? " blocked" : "") +
-                    (missing ? " missing" : "")
-                  }
-                  data-row={row}
-                  onClick={onCellClick ? () => onCellClick(id) : undefined}
-                  role={onCellClick ? "button" : undefined}
-                  tabIndex={onCellClick ? 0 : undefined}
-                  title={showCoords ? `L${activeLayer} R${row + 1} C${col + 1}` : undefined}
+                <button
+                  key={w.id}
+                  className={"card " + (active ? "active" : "")}
+                  onClick={() => {
+                    setWorldId(w.id);
+
+                    // default scenario
+                    const s0 = w.scenarios && w.scenarios.length ? w.scenarios[0] : null;
+                    setScenarioId(s0 ? s0.id : null);
+
+                    // default track (if any)
+                    const t0 = s0 && s0.tracks && s0.tracks.length ? s0.tracks[0] : null;
+                    setTrackId(t0 ? t0.id : null);
+
+                    setScreen("scenario");
+                  }}
                 >
-                  <span className="hexRim hexRimTop" aria-hidden="true" />
-                  <span className="hexRim hexRimBottom" aria-hidden="true" />
-
-                  {showCoords ? (
-                    <span className="hexLabel">
-                      <div>R{row + 1}</div>
-                      <div>C{col + 1}</div>
-                    </span>
-                  ) : null}
-
-                  {kind === "mini" ? <span className="miniNum">{col + 1}</span> : null}
-                </div>
+                  <div className="cardTitle">{w.name}</div>
+                  <div className="cardDesc">{w.desc ?? ""}</div>
+                </button>
               );
             })}
           </div>
-        );
-      })}
+
+          {/* SCENARIO PICKER */}
+          {world ? (
+            <div style={{ marginTop: 16 }}>
+              <div className="tracksTitle">Scenarios</div>
+              <div className="grid">
+                {world.scenarios.map((s) => {
+                  const active = s.id === scenarioId;
+                  return (
+                    <button
+                      key={s.id}
+                      className={"card " + (active ? "active" : "")}
+                      onClick={() => {
+                        setScenarioId(s.id);
+
+                        // default track (if any)
+                        const t0 = s.tracks && s.tracks.length ? s.tracks[0] : null;
+                        setTrackId(t0 ? t0.id : null);
+
+                        setScreen("scenario");
+                      }}
+                    >
+                      <div className="cardTitle">{s.name}</div>
+                      <div className="cardDesc">{s.desc ?? ""}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {/* TRACK PICKER */}
+          {scenarioEntry && scenarioEntry.tracks && scenarioEntry.tracks.length > 1 ? (
+            <div className="tracks">
+              <div className="tracksTitle">Tracks</div>
+              <div className="tracksRow">
+                {scenarioEntry.tracks.map((t) => {
+                  const active = t.id === trackId;
+                  return (
+                    <button
+                      key={t.id}
+                      className={"chip " + (active ? "active" : "")}
+                      onClick={() => setTrackId(t.id)}
+                    >
+                      {t.name}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="hint">
+                Selected: <b>{trackEntry ? trackEntry.name : "—"}</b>
+              </div>
+            </div>
+          ) : scenarioEntry ? (
+            <div className="hint" style={{ marginTop: 12 }}>
+              {scenarioEntry.tracks && scenarioEntry.tracks.length === 1
+                ? "Only one track available."
+                : "No tracks for this scenario (it will start normally)."}
+            </div>
+          ) : null}
+
+          <div className="row">
+            <button className="btn" onClick={resetAll}>
+              Back
+            </button>
+
+            <button
+              className="btn primary"
+              disabled={!scenarioEntry}
+              onClick={startScenario}
+            >
+              Start
+            </button>
+
+            <button
+              className="btn"
+              onClick={() => {
+                const w0 = worlds[0];
+                const s0 = w0 && w0.scenarios ? w0.scenarios[0] : null;
+
+                if (w0 && s0) {
+                  setWorldId(w0.id);
+                  setScenarioId(s0.id);
+
+                  const t0 = s0.tracks && s0.tracks.length ? s0.tracks[0] : null;
+                  setTrackId(t0 ? t0.id : null);
+
+                  pendingQuickStartRef.current = true;
+                }
+              }}
+            >
+              Quick start (debug)
+            </button>
+          </div>
+
+          <div className="hint" style={{ marginTop: 10 }}>
+            World: <b>{world ? world.name : "—"}</b> · Scenario:{" "}
+            <b>{scenarioEntry ? scenarioEntry.name : "—"}</b>
+          </div>
+        </div>
+      </div>
+
+      <style>{baseCss}</style>
     </div>
   );
 }
 
-/* =========================================================
-   CSS
-========================================================= */
-const CSS = `
-:root{
-  --ink: rgba(255,255,255,.92);
+/* =========================
+   GAME screen (complete)
+========================= */
 
-  /* Defaults (overridden via inline CSS vars from scenario theme) */
-  --L1: #FF4D7D;
-  --L2: #FF9A3D;
-  --L3: #FFD35A;
-  --L4: #4BEE9C;
-  --L5: #3ED7FF;
-  --L6: #5C7CFF;
-  --L7: #B66BFF;
+return (
+  <div className="appRoot game" style={themeVars}>
+    <div
+      className="gameBg"
+      style={{
+        backgroundImage: GAME__URL
+          ? "url(" + toPublicUrl(GAME__URL) + ")"
+          : undefined,
+      }}
+    />
+
+    <div className="topbar">
+     
+
+      <div className={"dice3d " + (diceRolling ? "rolling" : "")}>
+        <div
+          className="cube"
+          style={{
+            transform:
+              "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)",
+          }}
+        >
+          <div
+            className="face face-front"
+            style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}
+          />
+          <div
+            className="face face-back"
+            style={{ backgroundImage: "url(" + diceImg(5) + ")" }}
+          />
+          <div
+            className="face face-right"
+            style={{ backgroundImage: "url(" + diceImg(3) + ")" }}
+          />
+          <div
+            className="face face-left"
+            style={{ backgroundImage: "url(" + diceImg(4) + ")" }}
+          />
+          <div
+            className="face face-top"
+            style={{ backgroundImage: "url(" + diceImg(1) + ")" }}
+          />
+          <div
+            className="face face-bottom"
+            style={{ backgroundImage: "url(" + diceImg(6) + ")" }}
+          />
+        </div>
+
+        {DICE_BORDER_IMG ? (
+          <div
+            className="diceBorder"
+            style={{
+              backgroundImage: "url(" + toPublicUrl(DICE_BORDER_IMG) + ")",
+            }}
+          />
+        ) : null}
+      </div>
+
+      <div className="items">
+        {items.map((it) => (
+          <button
+            key={it.id}
+            className={"itemBtn " + (it.charges <= 0 ? "off" : "")}
+            disabled={
+              it.charges <= 0 ||
+              !state ||
+              (encounterActive && it.id !== "reroll") ||
+              (layerFx !== null)
+            }
+            onClick={() => useItem(it.id)}
+            title={it.name + " (" + it.charges + ")"}
+          >
+            <span className="itemIcon">{it.icon}</span>
+            <span className="itemName">{it.name}</span>
+            <span className="itemCharges">{it.charges}</span>
+          </button>
+        ))}
+      </div>
+
+      <button
+        className="btn"
+        disabled={!state || !canGoDown || encounterActive || layerFx !== null}
+        onClick={() => {
+          if (!state) return;
+          const next = Math.max(1, currentLayer - 1);
+          setCurrentLayer(next);
+          enterLayer(state, next);
+          revealWholeLayer(state, next);
+          forceRender((n) => n + 1);
+          pushLog("Layer " + next, "info");
+          triggerLayerFx(next);
+        }}
+      >
+        − Layer
+      </button>
+
+      <button
+        className="btn"
+        disabled={!state || !canGoUp || encounterActive || layerFx !== null}
+        onClick={() => {
+          if (!state) return;
+          const next = Math.min(scenarioLayerCount, currentLayer + 1);
+          setCurrentLayer(next);
+          enterLayer(state, next);
+          revealWholeLayer(state, next);
+          forceRender((n) => n + 1);
+          pushLog("Layer " + next, "info");
+          triggerLayerFx(next);
+        }}
+      >
+        + Layer
+      </button>
+    </div>
+
+    <div className="gameLayout">
+      <div className="boardWrap">
+        <SideBar side="left" currentLayer={currentLayer} />
+
+        <div
+          key={currentLayer}
+          className="boardLayerBg"
+          style={{
+            backgroundImage: BOARD_LAYER_
+              ? "url(" + toPublicUrl(BOARD_LAYER_) + ")"
+              : undefined,
+          }}
+        />
+
+        <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
+
+        <div className="boardScroll" ref={scrollRef}>
+          <div className="board" ref={boardRef}>
+            {/* ✅ ONE stable centering wrapper */}
+            <div className="hexGrid">
+              {/* ✅ LAYER FLASH OVERLAY (one per board) */}
+           {layerFx ? (
+  <div
+    key={layerFx.key}
+    className="layerFxOverlay"
+    style={layerFxStyle}
+    aria-live="polite"
+  >
+    <div className="layerFxCard">
+      <div className="layerFxTitle">Layer {layerFx.layer}</div>
+    </div>
+  </div>
+) : null}
+
+              {showGhost && viewState ? (
+                <div className="ghostGrid">
+                  {rows.map((r) => {
+                    const cols = ROW_LENS[r] ?? 0;
+                    const isOffset = cols === 6;
+                    const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+
+                    const engineShiftRaw =
+                      (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
+                      (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
+
+                    const engineShift = Number(engineShiftRaw ?? 0);
+
+                    const rawShift =
+                      Number.isFinite(engineShift) && engineShift !== 0
+                        ? engineShift
+                        : derivedRowShiftUnits(
+                            viewState as any,
+                            currentLayer,
+                            r,
+                            getLayerMoves(currentLayer)
+                          );
+
+                    const ns = normalizeRowShift(rawShift, cols);
+                    const shift = ns.visual;
+
+                    const tx =
+                      "calc(" + base + " + (" + shift + " * var(--hexStepX)))";
+
+                    return (
+                      <div
+                        key={"ghost-row-" + r}
+                        className="ghostRow"
+                        style={{ transform: "translateX(" + tx + ")" }}
+                      >
+                        {Array.from({ length: cols }, (_, c) => {
+                          const logicalId = idAtSlot(currentLayer, r, c, shift);
+                          const lc = idToCoord(logicalId);
+
+                          return (
+                            <div key={"g-" + r + "-" + c} className="ghostSlot">
+                              <div
+                                style={{
+                                  position: "relative",
+                                  width: "100%",
+                                  height: "100%",
+                                  display: "grid",
+                                  placeItems: "center",
+                                }}
+                              >
+                                <div className="ghostHex" />
+                                <div className="ghostText">
+                                  {r + "," + (lc ? lc.col : c)}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+
+              {rows.map((r) => {
+                const cols = ROW_LENS[r] ?? 0;
+const isOffset = cols === 6;
+
+              
+
+                const engineShiftRaw =
+                  (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
+                  (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
+
+                const engineShift = Number(engineShiftRaw ?? 0);
+
+                const rawShift =
+                  Number.isFinite(engineShift) && engineShift !== 0
+                    ? engineShift
+                    : derivedRowShiftUnits(
+                        viewState as any,
+                        currentLayer,
+                        r,
+                        getLayerMoves(currentLayer)
+                      );
+
+                const ns = normalizeRowShift(rawShift, cols);
+                const shift = ns.visual;
+
+                const tx =
+  "calc(" +
+  (isOffset ? "calc(var(--hexStepX) / -2)" : "0px") +
+  " + (" +
+  shift +
+  " * var(--hexStepX)))";
+
+                return (
+                  <div
+                    key={"row-" + r}
+                    className="hexRow"
+                    style={{ transform: "translateX(" + tx + ")" }}
+                  >
+             
+
+                    {Array.from({ length: cols }, (_, c) => {
+  const id = "L" + currentLayer + "-R" + r + "-C" + c;
+
+  const tr = findPortalTransition(
+    (viewState as any)?.scenario?.transitions,
+    id
+  );
+
+  const isPortalUp = tr?.type === "UP";
+  const isPortalDown = tr?.type === "DOWN";
+
+  const portalTargetLayer = tr?.to?.layer ?? null;
+
+  const portalColor = portalTargetLayer ? layerCssVar(portalTargetLayer) : null;
+
+                      const hex = getHexFromState(viewState as any, id) as any;
+                      const bm = isBlockedOrMissing(hex);
+
+                     
+                      if (bm.missing)
+                        return <div key={id} className="hexSlot empty" />;
+
+                      const isSel = selectedId === id;
+                      const isPlayer = isPlayerHere(id);
+                      const isStart = startHexId === id;
+
+                      const isReach =
+                        playerLayer === currentLayer &&
+                        !isPlayer &&
+                        reachable.has(id);
+
+                      const upLayer = Math.min(
+                        scenarioLayerCount,
+                        currentLayer + 1
+                      );
+                      const downLayer = Math.max(1, currentLayer - 1);
+
+                    
+const cardHere = findCardTriggerAt(id);
+                      const isGoal = goalId === id;
+                      const isTrigger = !!findTriggerForHex(id);
+                      const tile = HEX_TILE
+                        ? "url(" + toPublicUrl(HEX_TILE) + ")"
+                        : "";
+
+                      return (
+                        <div key={"v-" + r + "-" + c} className="hexSlot">
+                          <button
+                            ref={isPlayer ? playerBtnRef : null}
+                            className={[
+                              "hex",
+                              isSel ? "sel" : "",
+                              isReach ? "reach" : "",
+                              bm.blocked ? "blocked" : "",
+                              isPlayer ? "player" : "",
+                              isGoal ? "goal" : "",
+                              isTrigger ? "trigger" : "",
+                              isStart ? "portalStart" : "",
+                              isPortalUp ? "portalUp" : "",
+                              isPortalDown ? "portalDown" : "",
+                            ].join(" ")}
+                            onClick={() => {
+                              if (layerFx !== null) return;
+                              if (playerLayer && currentLayer !== playerLayer) {
+                                tryMoveToId(id);
+                                return;
+                              }
+                              setSelectedId(id);
+                              tryMoveToId(id);
+                            }}
+                            disabled={
+                              !state ||
+                              bm.blocked ||
+                              bm.missing ||
+                              encounterActive ||
+                              layerFx !== null
+                            }
+                            style={
+                              {
+                                ["--hexGlow" as any]: layerCssVar(currentLayer),
+                                ...(portalColor
+                                  ? { ["--portalC" as any]: portalColor }
+                                  : {}),
+                              } as any
+                            }
+                            title={id}
+                          >
+                            <div className="hexAnchor">
+                              
+
+<div
+  className="hexInner"
+  style={tile ? { backgroundImage: tile } : undefined}
+>
+  {/* portal FX */}
+  {isPortalUp || isPortalDown ? (
+    <>
+      <div className="pAura" />
+      <div className="pOrbs" />
+      <div className="pRim" />
+      <div className="pOval" />
+    </>
+  ) : null}
+
+  {/* start-tile FX */}
+  {isStart ? (
+    <>
+      <div className="pAura" />
+      <div className="pRunes" />
+      <div className="pVortex" />
+      <div className="pWell" />
+      <div className="pShine" />
+    </>
+  ) : null}
+
+  {/* card badge */}
+  {cardHere ? <div className={"cardBadge " + cardHere} title={cardHere} /> : null}
+
+  <div className="hexId">{r + "," + c}</div>
+
+  <div className="hexMarks">
+    {isPortalUp ? <span className="mark">↑</span> : null}
+    {isPortalDown ? <span className="mark">↓</span> : null}
+    {isGoal ? <span className="mark g">G</span> : null}
+    {isTrigger ? <span className="mark t">!</span> : null}
+  </div>
+</div>
+
+
+                              {isPlayer ? (
+                                <span
+                                  className={
+                                    "playerSpriteSheet " +
+                                    (isWalking ? "walking" : "")
+                                  }
+                                  style={
+                                    {
+                                      ["--spriteImg" as any]:
+                                        "url(" + spriteSheetUrl() + ")",
+                                      ["--frameW" as any]: FRAME_W,
+                                      ["--frameH" as any]: FRAME_H,
+                                      ["--cols" as any]: SPRITE_COLS,
+                                      ["--rows" as any]: SPRITE_ROWS,
+                                      ["--frameX" as any]: walkFrame,
+                                      ["--frameY" as any]: facingRow(playerFacing),
+                                    } as any
+                                  }
+                                />
+                              ) : null}
+                            </div>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <SideBar side="right" currentLayer={currentLayer} />
+      </div>
+
+      <div className="side">
+        <div className="panelMini">
+          <div className="miniTitle">Status</div>
+
+          <div className="miniRow">
+            <span className="k">Layer</span>
+            <span className="v">
+              {currentLayer}/{scenarioLayerCount}
+            </span>
+          </div>
+
+          <div className="miniRow">
+            <span className="k">Moves</span>
+            <span className="v">{movesTaken}</span>
+          </div>
+
+          <div className="miniRow">
+            <span className="k">Optimal (start)</span>
+            <span className="v">{optimalAtStart ?? "-"}</span>
+          </div>
+
+          <div className="miniRow">
+            <span className="k">Optimal (now)</span>
+            <span className="v">{optimalFromNow ?? "-"}</span>
+          </div>
+        </div>
+
+        <div className="panelMini">
+          <div className="miniTitle">Log</div>
+          <div className="log">
+            {log.map((e) => (
+              <div key={e.n} className={"logRow " + (e.kind ?? "")}>
+                <div className="lt">{e.t}</div>
+                <div className="lm">{e.msg}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+     {flyCard ? (
+  <div key={flyCard.key} className="flyCardOverlay" aria-hidden="true">
+    <div
+      className={"flyCard " + flyCard.card}
+      style={
+        {
+          ["--fromX" as any]: flyCard.from.x + "px",
+          ["--fromY" as any]: flyCard.from.y + "px",
+          ["--fromW" as any]: flyCard.from.w + "px",
+          ["--fromH" as any]: flyCard.from.h + "px",
+        } as any
+      }
+    >
+      <div className="flyFace flyFront">
+        <div className="flyLabel">{flyCard.card}</div>
+      </div>
+      <div className="flyFace flyBack">
+        <div className="flyLabel">{flyCard.card}</div>
+      </div>
+    </div>
+  </div>
+) : null}
+
+{cardFlip ? (
+  <div
+    key={cardFlip.key}
+    className="cardFlipOverlay"
+    aria-live="polite"
+    style={{ animationDuration: cardFlip.durMs + "ms" }}
+  >
+    <div
+      className={"cardFlipCard " + cardFlip.card}
+      style={{ animationDuration: cardFlip.durMs + "ms" }}
+    >
+      <div className="cardFlipLabel">{cardFlip.card}</div>
+
+      {/* ✅ villain image fades in over the big card (risk only) */}
+      {cardFlip.card === "risk" && cardFlip.villainKey ? (
+        <img
+          className="cardFlipVillain"
+          src={villainImg(cardFlip.villainKey)}
+          alt={cardFlip.villainKey}
+        />
+      ) : null}
+    </div>
+  </div>
+) : null}
+
+{encounter ? (
+  <div className="encounterScene" role="dialog" aria-modal="true">
+    <div className="encounterGrid">
+      {/* LEFT: big villain card */}
+      <div className="encounterCard">
+        <img
+          className="encounterCardImg"
+          src={villainImg(encounter.villainKey)}
+          alt={encounter.villainKey}
+        />
+      </div>
+
+      {/* RIGHT: big die + controls */}
+      <div className="encounterRight">
+        <div className={"dice3d encounterDice " + (diceRolling ? "rolling" : "")}>
+          <div
+            className="cube"
+            style={{
+              transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)",
+            }}
+          >
+            <div className="face face-front"  style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }} />
+            <div className="face face-back"   style={{ backgroundImage: "url(" + diceImg(5) + ")" }} />
+            <div className="face face-right"  style={{ backgroundImage: "url(" + diceImg(3) + ")" }} />
+            <div className="face face-left"   style={{ backgroundImage: "url(" + diceImg(4) + ")" }} />
+            <div className="face face-top"    style={{ backgroundImage: "url(" + diceImg(1) + ")" }} />
+            <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }} />
+          </div>
+
+          {DICE_BORDER_IMG ? (
+            <div
+              className="diceBorder"
+              style={{ backgroundImage: "url(" + toPublicUrl(DICE_BORDER_IMG) + ")" }}
+            />
+          ) : null}
+        </div>
+
+        <div className="encounterInfo">
+          <div className="encounterTitle">ENCOUNTER!</div>
+          <div className="encounterSub">
+            Roll a <b>6</b> to continue
+            <span className="encounterTries">
+              Tries: <b>{encounter.tries}</b>
+            </span>
+          </div>
+
+          <div className="row" style={{ justifyContent: "center", marginTop: 12 }}>
+            <button
+              className="btn primary"
+              disabled={diceRolling}
+              onClick={() => rollDice()}
+              title="Roll the die"
+            >
+              {diceRolling ? "Rolling…" : "Roll"}
+            </button>
+
+            <button
+              className="btn"
+              disabled={diceRolling}
+              onClick={() => {
+                pendingEncounterMoveIdRef.current = null;
+                setEncounter(null);
+                pushLog("Encounter dismissed (debug)", "info");
+              }}
+              title="Debug: dismiss encounter"
+            >
+              Dismiss
+            </button>
+          </div>
+
+          <div className="encounterRollPill">
+            Roll = <b>{diceValue}</b>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+) : null}
+
+    <style>{baseCss}</style>
+  </div>
+);
 }
 
-*{ box-sizing: border-box; }
-html, body { height: 100%; margin: 0; }
-body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
-
-.appRoot{
-  min-height: 100vh;
-  position: relative;
-  overflow: hidden;
-  color: var(--ink);
-}
-
-.globalBg{
-  position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  filter: saturate(1.08) contrast(1.02);
-  z-index: 0;
-}
-
-.menuBg{
-  position:absolute;
-  inset:0;
-  background: var(--menuSolidBg, linear-gradient(180deg, rgba(40,120,255,.95), rgba(10,40,120,.95)));
-  z-index:0;
-}
-
-.globalBgOverlay{
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(900px 600px at 50% 50%, rgba(255,255,255,.18), transparent 55%),
-    linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,.24));
-  z-index: 1;
-}
-
-.blackout{
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.85);
-  z-index: 50;
-}
-
-.villainCenter{
-  position: fixed;
-  left: 38%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 60; /* above blackout, below cube */
-  display: grid;
-  gap: 12px;
-  justify-items: center;
-  text-align: center;
-}
-.villainImg{
-  width: min(340px, 40vw);
-  height: auto;
-  border-radius: 16px;
-  box-shadow: 0 30px 80px rgba(0,0,0,.45);
-}
-.villainText{ font-weight: 1000; opacity: .96; }
-.villainSmall{ font-weight: 900; opacity: .8; font-size: 12px; }
-
-.shell{ position: relative; z-index: 2; padding: 22px; }
-.shellCard{ display: grid; place-items: center; min-height: 100vh; }
-
-.card{
-  width: min(980px, calc(100vw - 44px));
-  border-radius: 22px;
-  padding: 18px;
-  background: rgba(255,255,255,.12);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.16) inset, 0 25px 70px rgba(0,0,0,.18);
-  backdrop-filter: blur(10px);
-}
-.cardTitleBig{ font-weight: 1000; font-size: 34px; letter-spacing: .2px; }
-.cardTitle{ font-weight: 1000; font-size: 18px; letter-spacing: .2px; margin-bottom: 10px; }
-.cardMeta{ margin-top: 6px; opacity: .82; font-weight: 900; }
-
-.row{ display:flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-.rowBetween{ justify-content: space-between; }
-
-.btn{
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.18);
-  background: rgba(0,0,0,.20);
-  color: rgba(255,255,255,.92);
-  font-weight: 950;
-  cursor:pointer;
-  box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset, 0 18px 40px rgba(0,0,0,.16);
-}
-.btn:hover{ filter: brightness(1.06); border-color: rgba(255,255,255,.28); }
-.btn:disabled{ opacity: .55; cursor: not-allowed; }
-.btn.primary{
-  border-color: rgba(255,255,255,.30);
-  background: linear-gradient(135deg, rgba(200,140,255,.45), rgba(120,220,255,.30));
-}
-
-.selectList{ display:grid; gap: 10px; margin-top: 12px; }
-.selectTile{
-  border-radius: 16px;
-  padding: 12px;
-  background: rgba(0,0,0,.16);
-  border: 1px solid rgba(255,255,255,.14);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.08) inset;
-  cursor: pointer;
-}
-.selectTile.selected{
-  border-color: rgba(255,255,255,.30);
-  box-shadow: 0 0 0 3px rgba(255,255,255,.10) inset, 0 18px 40px rgba(0,0,0,.14);
-}
-.selectTileTitle{ font-weight: 1000; }
-.selectTileDesc{ margin-top: 4px; opacity: .80; line-height: 1.25; }
-
-/* GAME */
-.shellGame{ min-height: 100vh; display: grid; place-items: start center; padding-top: 18px; }
-
-.scrollStage{
-  width: calc(100vw - 44px);
-  max-width: 100vw;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding-bottom: 16px;
-  scrollbar-gutter: stable both-edges;
-}
-.scrollInner{ min-width: 1380px; }
-
-.dragHint{
-  margin-top: 10px;
-  opacity: .78;
-  font-weight: 900;
-  text-align: center;
-  text-shadow: 0 8px 20px rgba(0,0,0,.18);
-}
-
-.gameLayout{
-  --rows: 7;
-  --hexWMain: 82px;
-  --hexHMain: calc(var(--hexWMain) * 0.8660254);
-
-  display: grid;
-  grid-template-columns: 62px auto 62px 420px;
-  gap: 18px;
-  align-items: start;
-  justify-content: center;
-}
-
-/* BARS */
-.barWrap{ display:flex; align-items: flex-start; justify-content: center; }
-.layerBar{
-  width: 18px;
-  height: calc(var(--hexHMain) * var(--rows));
-  border-radius: 999px;
-  overflow: hidden;
-  background: rgba(0,0,0,.22);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.18);
-  display: grid;
-  grid-template-rows: repeat(7, 1fr);
-}
-.barSeg{ opacity: .95; position: relative; }
-.barSeg[data-layer="1"]{ background: var(--L1); }
-.barSeg[data-layer="2"]{ background: var(--L2); }
-.barSeg[data-layer="3"]{ background: var(--L3); }
-.barSeg[data-layer="4"]{ background: var(--L4); }
-.barSeg[data-layer="5"]{ background: var(--L5); }
-.barSeg[data-layer="6"]{ background: var(--L6); }
-.barSeg[data-layer="7"]{ background: var(--L7); }
-.barSeg.isActive{ outline: 1px solid rgba(255,255,255,.25); z-index: 3; }
-.barSeg.isActive::after{
-  content: "";
-  position: absolute;
-  inset: -10px;
-  background: inherit;
-  filter: blur(14px);
-  opacity: .95;
-  border-radius: 999px;
-}
-
-/* HEX BOARD */
-.hexBoard{
-  --hexW: 74px;
-  --hexH: calc(var(--hexW) * 0.8660254);
-  --hexGap: 10px;
-  --hexOverlap: 0.0;
-  --hexPitch: calc(var(--hexW) * (1 - var(--hexOverlap)) + var(--hexGap));
-  --maxCols: 7;
-
-  width: calc(var(--hexW) + (var(--maxCols) - 1) * var(--hexPitch));
-  display: grid;
-  justify-content: center;
-  user-select: none;
-}
-.hexBoardMain{ --hexW: var(--hexWMain); --hexH: var(--hexHMain); }
-.hexBoardMini{ --hexW: 24px; --hexGap: 2px; --hexOverlap: 0.0; }
-
-.hexRow{ display:flex; width: 100%; height: var(--hexH); align-items: center; justify-content: flex-start; }
-.hexRow.even{ padding-left: calc(var(--hexPitch) / 2); }
-
-.hex{
-  width: var(--hexW);
-  height: var(--hexH);
-  margin-right: calc(var(--hexPitch) - var(--hexW));
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  position: relative;
-  background: rgba(255,255,255,.14);
-  border: 1px solid rgba(0,0,0,.75);
-  box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 6px 16px rgba(0,0,0,.10);
-  cursor: default;
-}
-.hexBoardMain .hex{ cursor: pointer; }
-
-.hexRim{
-  position:absolute;
-  left: 14%;
-  right: 14%;
-  height: 2px;
-  border-radius: 999px;
-  opacity: .95;
-  pointer-events:none;
-  filter: drop-shadow(0 1px 4px rgba(0,0,0,.30));
-  z-index: 2;
-}
-.hexRimTop{ top: 8%; background: var(--rimTop, rgba(0,0,0,.85)); }
-.hexRimBottom{ bottom: 8%; background: var(--rimBottom, rgba(0,0,0,.85)); }
-
-.hexLabel{
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-weight: 1000;
-  letter-spacing: .2px;
-  line-height: 1.05;
-  text-align: center;
-  color: rgba(255,255,255,.98);
-  z-index: 3;
-  pointer-events: none;
-  -webkit-text-stroke: 1px rgba(0,0,0,.75);
-  text-shadow:
-    -1px -1px 0 rgba(0,0,0,.75),
-     1px -1px 0 rgba(0,0,0,.75),
-    -1px  1px 0 rgba(0,0,0,.75),
-     1px  1px 0 rgba(0,0,0,.75),
-     0 0 12px rgba(0,0,0,.45);
-}
-.hexBoardMain .hexLabel{ font-size: 13px; }
-
-.miniNum{
-  position:absolute;
-  inset: 0;
-  display:grid;
-  place-items:center;
-  z-index: 4;
-  pointer-events:none;
-  font-weight: 1000;
-  font-size: 9px;
-  color: rgba(0,0,0,.92);
-  text-shadow: 0 0 6px rgba(255,255,255,.35);
-}
-
-/* Only MAIN board overlays; mini stays uniform */
-.hex::before{ content:""; position:absolute; inset:0; pointer-events:none; z-index:1; opacity:0; }
-.hexBoardMain .hex.notReach{ cursor: not-allowed; }
-.hexBoardMain .hex.notReach::before{ background: rgba(0,0,0,.28); opacity: 1; }
-.hexBoardMain .hex.blocked::before{ background: rgba(0,0,0,.34); opacity: 1; }
-.hexBoardMain .hex.missing::before{ background: rgba(0,0,0,.48); opacity: 1; }
-.hexBoardMini .hex::before{ opacity: 0 !important; }
-
-.hex.reach{
-  box-shadow:
-    0 0 0 2px rgba(255,255,255,.12) inset,
-    0 0 18px rgba(0,200,255,.42),
-    0 0 44px rgba(0,200,255,.22);
-  filter: brightness(1.6);
-}
-.hex.player{
-  box-shadow:
-    0 0 0 2px rgba(255,255,255,.18) inset,
-    0 0 26px rgba(76,255,80,.70),
-    0 0 80px rgba(76,255,80,.45);
-  filter: brightness(1.6);
-  z-index: 4;
-}
-.hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
-
-/* DICE */
-.diceArea{ display:grid; justify-items:center; gap: 14px; padding-top: 0; position: relative; z-index: 70; }
-
-.diceCubeWrap{
-  width: 460px;
-  height: 360px;
-  display:grid;
-  place-items:center;
-  perspective: 1000px;
-  position: relative;
-}
-.diceCube{
-  --s: 294px;
-  width: var(--s);
-  height: var(--s);
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform 650ms cubic-bezier(.2,.9,.2,1);
-}
-.diceCube.isSpinning{ transition: transform 900ms cubic-bezier(.12,.85,.18,1); }
-.diceCube.isDragging{ transition: none !important; }
-
-.diceFace{
-  position:absolute;
-  inset:0;
-  border-radius: 18px;
-  background: rgba(255,255,255,.08);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 22px 50px rgba(0,0,0,.16);
-  backdrop-filter: blur(8px);
-  overflow:hidden;
-}
-
-/* FLAME BORDER CORNERS (Dice faces only) */
-.diceCorner{
-  position:absolute;
-  width: 46%;
-  aspect-ratio: 1 / 1;
-  pointer-events:none;
-  z-index: 20;
-
-  background-image: var(--diceBorderImg);
-  background-repeat: no-repeat;
-  background-size: contain;
-  background-position: top left;
-
-  opacity: 0.92;
-  mix-blend-mode: screen;
-  filter: drop-shadow(0 0 10px rgba(255,60,0,.30));
-}
-.diceCorner.tl{ top: 0; left: 0; transform: rotate(0deg); }
-.diceCorner.tr{ top: 0; right: 0; transform: rotate(90deg); }
-.diceCorner.br{ bottom: 0; right: 0; transform: rotate(180deg); }
-.diceCorner.bl{ bottom: 0; left: 0; transform: rotate(270deg); }
-
-.faceStripe{
-  position:absolute;
-  left: 18px;
-  right: 18px;
-  top: 14px;
-  height: 6px;
-  border-radius: 999px;
-  opacity: .95;
-  z-index: 6;
-  pointer-events:none;
-  filter: drop-shadow(0 2px 8px rgba(0,0,0,.25));
-}
-
-.diceFaceInnerFixed{
-  position:absolute;
-  width: 260px;
-  height: 260px;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  border-radius: 14px;
-  background: rgba(0,0,0,.10);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
-  display:grid;
-  place-items:center;
-  overflow:hidden;
-}
-
-.miniFit{
-  transform: scale(var(--miniScale, 1.55));
-  transform-origin: center;
-  display: grid;
-  place-items: center;
-}
-
-.faceFront { transform: translateZ(calc(var(--s) / 2)); }
-.faceBack  { transform: rotateY(180deg) translateZ(calc(var(--s) / 2)); }
-.faceRight { transform: rotateY(90deg) translateZ(calc(var(--s) / 2)); }
-.faceLeft  { transform: rotateY(-90deg) translateZ(calc(var(--s) / 2)); }
-.faceTop   { transform: rotateX(90deg) translateZ(calc(var(--s) / 2)); }
-.faceBottom{ transform: rotateX(-90deg) translateZ(calc(var(--s) / 2)); }
-
-.diceControls{
-  display:flex;
-  align-items:center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 16px;
-  background: rgba(255,255,255,.10);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.14);
-  backdrop-filter: blur(10px);
-}
-.diceReadout{ font-weight: 1000; font-size: 16px; color: rgba(255,255,255,.92); }
-.diceReadout.subtle{ opacity: .85; }
-
-.miniInvalid{
-  padding: 12px;
-  border-radius: 14px;
-  background: rgba(0,0,0,.16);
-  color: rgba(255,255,255,.88);
-  font-weight: 1000;
-}
-
-/* HUD faces */
-.diceHud{
-  position:absolute;
-  inset: 14px;
-  border-radius: 14px;
-  background: rgba(0,0,0,.16);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
-  padding: 12px;
-  color: rgba(255,255,255,.92);
-  display:flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow:hidden;
-  z-index: 5;
-}
-.hudTitle{ font-weight: 1000; letter-spacing: .2px; opacity: .95; }
-.hudRow{ display:flex; justify-content: space-between; align-items:center; gap: 10px; font-weight: 900; }
-.hudKey{ opacity: .85; }
-.hudVal{ font-weight: 1000; }
-.hudVal.ok{ color: rgba(140,255,170,.95); }
-.hudVal.bad{ color: rgba(255,160,160,.95); }
-.hudNote{ margin-top: auto; opacity: .78; font-weight: 900; font-size: 12px; }
-.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-
-.hudLog{ display:flex; flex-direction: column; gap: 6px; overflow:hidden; }
-.hudLogLine{ display:grid; grid-template-columns: 46px 1fr; gap: 8px; font-size: 12px; line-height: 1.15; font-weight: 900; opacity: .95; }
-.hudTime{ opacity: .75; }
-.hudLogLine.ok .hudMsg{ color: rgba(140,255,170,.95); }
-.hudLogLine.bad .hudMsg{ color: rgba(255,160,160,.95); }
-.hudLogEmpty{ opacity: .75; font-weight: 900; font-size: 12px; }
-
-.invGrid{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.invSlot{
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.08);
-  box-shadow: 0 0 0 1px rgba(0,0,0,.22) inset;
-  padding: 10px;
-  cursor: pointer;
-  color: rgba(255,255,255,.92);
-  display:flex;
-  gap: 10px;
-  align-items:center;
-}
-.invSlot:disabled{ opacity: .55; cursor: not-allowed; }
-.invIcon{ font-size: 22px; }
-.invMeta{ display:flex; flex-direction: column; gap: 2px; }
-.invName{ font-weight: 1000; font-size: 12px; }
-.invCharges{ font-weight: 1000; opacity: .80; font-size: 12px; }
-
-/* Dice images */
-.diceImgWrap{
-  position:absolute;
-  inset: 16px;
-  border-radius: 14px;
-  background: rgba(0,0,0,.10);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
-  display:grid;
-  place-items:center;
-}
-.diceImg{
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  user-select:none;
-  pointer-events:none;
-  filter: drop-shadow(0 10px 20px rgba(0,0,0,.20));
-}
-
-@media (max-width: 980px){
-  .scrollInner{ min-width: 1200px; }
-}
-`;
