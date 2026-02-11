@@ -2624,6 +2624,7 @@ flex: 0 0 var(--hexWMain);
   from { opacity: 0; transform: scale(1.02); }
   to   { opacity: 1; transform: scale(1.00); }
 }
+.ghostText { display: none; }
 
 `;
 // =========================
@@ -4422,9 +4423,9 @@ return (
                               >
                                 <div className="ghostHex" />
                                 <div className="ghostText">
-                                {r + "," + c}
+  {r + "," + (lc ? lc.col : c)}
+</div>
 
-                                </div>
                               </div>
                             </div>
                           );
