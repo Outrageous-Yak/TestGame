@@ -4593,7 +4593,8 @@ const cardHere = findCardTriggerAt(id);
   {/* card badge */}
   {cardHere ? <div className={"cardBadge " + cardHere} title={cardHere} /> : null}
 
- <div className="hexId">{r + "," + (lc ? lc.col : c)}</div>
+<div className="hexId">{r + "," + c}</div>
+
 
   <div className="hexMarks">
     {isPortalUp ? <span className="mark">↑</span> : null}
