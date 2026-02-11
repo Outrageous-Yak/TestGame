@@ -4471,7 +4471,8 @@ const isOffset = cols === 6;
   <div
     key={"row-" + r}
     className="hexRow"
-    style={{ transform: "translateX(0px)" }}
+     style={{ transform: "translateX(" + tx + ")" }}
+
   >
 
 {Array.from({ length: cols }, (_, c) => {
