@@ -4468,11 +4468,10 @@ const isOffset = cols === 6;
 
                 return (
   <div
-  key={"row-" + r}
-  className="hexRow"
-  style={{ transform: "translateX(" + tx + ")" }}
->
-
+    key={"row-" + r}
+    className="hexRow"
+    style={{ transform: "translateX(0px)" }}
+  >
 
 {Array.from({ length: cols }, (_, c) => {
   // ✅ stable grid: c is the VISUAL SLOT column
@@ -4594,8 +4593,7 @@ const cardHere = findCardTriggerAt(id);
   {/* card badge */}
   {cardHere ? <div className={"cardBadge " + cardHere} title={cardHere} /> : null}
 
-<div className="hexId">{r + "," + c}</div>
-
+ <div className="hexId">{r + "," + (lc ? lc.col : c)}</div>
 
   <div className="hexMarks">
     {isPortalUp ? <span className="mark">↑</span> : null}
@@ -4822,4 +4820,3 @@ const cardHere = findCardTriggerAt(id);
   </div>
 );
 }
-
