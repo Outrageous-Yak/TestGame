@@ -4467,15 +4467,16 @@ const isOffset = cols === 6;
   " * var(--hexStepX)))";
 
                 return (
-                  <div
-                    key={"row-" + r}
-                    className="hexRow"
-                    style={{ transform: "translateX(" + tx + ")" }}
-                  >
-             
+  <div
+    key={"row-" + r}
+    className="hexRow"
+    style={{ transform: "translateX(0px)" }}
+  >
 
-                    {Array.from({ length: cols }, (_, c) => {
-  const id = "L" + currentLayer + "-R" + r + "-C" + c;
+{Array.from({ length: cols }, (_, c) => {
+  // ✅ stable grid: c is the VISUAL SLOT column
+  // map slot -> logical id using the row shift
+  const id = idAtSlot(currentLayer, r, c, shift);
 
   const tr = findPortalTransition(
     (viewState as any)?.scenario?.transitions,
@@ -4592,7 +4593,7 @@ const cardHere = findCardTriggerAt(id);
   {/* card badge */}
   {cardHere ? <div className={"cardBadge " + cardHere} title={cardHere} /> : null}
 
-  <div className="hexId">{r + "," + c}</div>
+ <div className="hexId">{r + "," + (lc ? lc.col : c)}</div>
 
   <div className="hexMarks">
     {isPortalUp ? <span className="mark">↑</span> : null}
