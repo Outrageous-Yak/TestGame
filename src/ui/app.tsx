@@ -7,21 +7,11 @@ import { newGame, getReachability, tryMove, type ReachMap } from "../engine/api"
 import { ROW_LENS, enterLayer, revealHex } from "../engine/board";
 import { neighborIdsSameLayer } from "../engine/neighbors";
 
-/**
- * ✅ Worlds registry import (GitHub/Linux safe)
- * Requires a module at: src/worlds/index.(ts|js|tsx|jsx)
- * Supported export shapes:
- * - export const worlds = [...]
- * - export default [...]
- * - export const registry = [...]
- */
-import * as WorldsMod from "../worlds";
-
 /* =========================================================
-   Types
+   Template Flow
+   Start -> World -> Character -> Scenario -> Difficulty? -> Game
 ========================================================= */
-
-type Screen = "start" | "world" | "character" | "scenario" | "game";
+type Screen = "start" | "world" | "character" | "scenario" | "difficulty" | "game";
 
 type PlayerChoice =
   | { kind: "preset"; id: string; name: string }
@@ -30,45 +20,29 @@ type PlayerChoice =
 type Coord = { layer: number; row: number; col: number };
 type LogEntry = { n: number; t: string; msg: string; kind?: "ok" | "bad" | "info" };
 
-type LayerPalette = {
-  L1: string;
-  L2: string;
-  L3: string;
-  L4: string;
-  L5: string;
-  L6: string;
-  L7: string;
-};
+/* =========================================================
+   World / Scenario auto-discovery
+========================================================= */
+type LayerPalette = { L1: string; L2: string; L3: string; L4: string; L5: string; L6: string; L7: string };
 
 type ScenarioTheme = {
   palette: LayerPalette;
   assets: {
-    backgroundGame?: string;
-    backgroundLayers?: Partial<{
-      L1: string;
-      L2: string;
-      L3: string;
-      L4: string;
-      L5: string;
-      L6: string;
-      L7: string;
-    }>;
-    diceFacesBase: string;
-    diceCornerBorder: string;
-    villainsBase: string;
-    hexTile?: string;
+    backgroundGame: string; // e.g. "worlds/.../assets/backgrounds/game-bg.jpg"
+    diceFacesBase: string; // e.g. "worlds/.../assets/dice/faces" (expects D20_1.png..D20_6.png)
+    diceCornerBorder: string; // e.g. "worlds/.../assets/dice/borders/corner_flame_red.png"
+    villainsBase: string; // e.g. "worlds/.../assets/villains" (expects bad1.png..bad4.png)
   };
 };
 
-type Track = { id: string; name: string; scenarioJson: string };
-
+type Track = { id: string; name: string; scenarioJson: string }; // public path
 type ScenarioEntry = {
   id: string;
   name: string;
   desc?: string;
-  scenarioJson: string;
+  scenarioJson: string; // public path to JSON
   theme: ScenarioTheme;
-  tracks?: Track[];
+  tracks?: Track[]; // if absent or length===1 => skip difficulty
 };
 
 type WorldEntry = {
@@ -79,123 +53,52 @@ type WorldEntry = {
   scenarios: ScenarioEntry[];
 };
 
-type VillainKey = "bad1" | "bad2" | "bad3" | "bad4";
-type VillainTrigger = { key: VillainKey; layer: number; row: number; cols?: "any" | number[] };
-type Encounter = null | { villainKey: VillainKey; tries: number };
-
-/* =========================================================
-   Worlds registry helpers
-========================================================= */
-
-function getRegisteredWorlds(): any[] {
-  const anyMod: any = WorldsMod as any;
-  const list =
-    (Array.isArray(anyMod?.worlds) && anyMod.worlds) ||
-    (Array.isArray(anyMod?.default) && anyMod.default) ||
-    (Array.isArray(anyMod?.registeredWorlds) && anyMod.registeredWorlds) ||
-    (Array.isArray(anyMod?.registry) && anyMod.registry) ||
-    [];
-  return list;
-}
-
-function normalizeWorldEntry(raw: any): WorldEntry | null {
-  if (!raw) return null;
-  const w = raw.default ?? raw;
-
-  const id = String(w.id ?? w.slug ?? w.key ?? "world");
-  const name = String(w.name ?? w.title ?? id);
-
-  const scenarios = Array.isArray(w.scenarios) ? w.scenarios : [];
-  const normScenarios: ScenarioEntry[] = scenarios
-    .map((s: any, idx: number) => {
-      if (!s) return null;
-
-      const sid = String(s.id ?? s.slug ?? `scenario-${idx}`);
-      const sname = String(s.name ?? s.title ?? sid);
-
-      const scenarioJson = String(s.scenarioJson ?? s.json ?? "");
-      if (!scenarioJson) return null;
-
-      const theme: ScenarioTheme =
-        s.theme ??
-        ({
-          palette: {
-            L1: "#19ffb4",
-            L2: "#67a5ff",
-            L3: "#ffd36a",
-            L4: "#ff7ad1",
-            L5: "#a1ff5a",
-            L6: "#a58bff",
-            L7: "#ff5d7a",
-          },
-          assets: {
-            diceFacesBase: "images/dice",
-            diceCornerBorder: "",
-            villainsBase: "images/villains",
-          },
-        } as ScenarioTheme);
-
-      const tracks: Track[] | undefined = Array.isArray(s.tracks)
-        ? (s.tracks
-            .map((t: any, tIdx: number) => {
-              if (!t) return null;
-              const tid = String(t.id ?? `track-${tIdx}`);
-              const tname = String(t.name ?? tid);
-              const tjson = String(t.scenarioJson ?? t.json ?? "");
-              if (!tjson) return null;
-              return { id: tid, name: tname, scenarioJson: tjson } as Track;
-            })
-            .filter(Boolean) as Track[])
-        : undefined;
-
-      return {
-        id: sid,
-        name: sname,
-        desc: s.desc,
-        scenarioJson,
-        theme,
-        tracks: tracks && tracks.length ? tracks : undefined,
-      } as ScenarioEntry;
-    })
-    .filter(Boolean) as ScenarioEntry[];
-
-  return {
-    id,
-    name,
-    desc: w.desc,
-    menu: w.menu ?? {},
-    scenarios: normScenarios,
-  } as WorldEntry;
-}
+// Auto-load all world modules under src/worlds/**/world.ts
+const worldModules = import.meta.glob("../worlds/**/world.ts", { eager: true });
 
 function loadWorlds(): WorldEntry[] {
-  const rawList = getRegisteredWorlds();
   const list: WorldEntry[] = [];
-
-  for (const raw of rawList) {
-    const norm = normalizeWorldEntry(raw);
-    if (norm) list.push(norm);
+  for (const [path, mod] of Object.entries(worldModules as any)) {
+    const w = (mod as any)?.default ?? (mod as any)?.world ?? null;
+    if (!w) continue;
+    if (!w.id) {
+      const m = /..\/worlds\/([^/]+)\/world\.ts$/.exec(path);
+      w.id = m?.[1] ?? "world";
+    }
+    list.push(w as WorldEntry);
   }
-
   list.sort((a, b) => a.name.localeCompare(b.name));
   return list;
 }
 
 /* =========================================================
+   Villain triggers (loaded from scenario.json, NOT hardcoded)
+========================================================= */
+type VillainKey = "bad1" | "bad2" | "bad3" | "bad4";
+
+type VillainTrigger = {
+  key: VillainKey;
+  layer: number;
+  row: number; // 0-based (matches engine)
+  cols?: "any" | number[]; // 0-based col indices if provided
+};
+
+type Encounter = null | { villainKey: VillainKey; tries: number };
+
+/* =========================================================
    Helpers
 ========================================================= */
-
 function idToCoord(id: string): Coord | null {
   const m = /^L(\d+)-R(\d+)-C(\d+)$/.exec(id);
   if (!m) return null;
   return { layer: Number(m[1]), row: Number(m[2]), col: Number(m[3]) };
 }
 
+/** GitHub Pages-safe public URL helper (respects Vite BASE_URL). */
 function toPublicUrl(p: string) {
   const base = (import.meta as any).env?.BASE_URL ?? "/";
-  const cleanBase = String(base).endsWith("/") ? String(base) : `${base}/`;
-  const cleanPath = String(p).replace(/^\/+/, "");
-  return cleanBase + cleanPath;
+  const clean = String(p).replace(/^\/+/, "");
+  return base + clean;
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
@@ -222,9 +125,10 @@ function isBlockedOrMissing(hex: any): { blocked: boolean; missing: boolean } {
   return { missing: !!hex.missing, blocked: !!hex.blocked };
 }
 
+/** For CSS vars like var(--L2) */
 function layerCssVar(n: number) {
   const clamped = Math.max(1, Math.min(7, Math.floor(n || 1)));
-  return `var(L${clamped})`;
+  return `var(--L${clamped})`;
 }
 
 function nowHHMM() {
@@ -234,6 +138,7 @@ function nowHHMM() {
   return `${hh}:${mm}`;
 }
 
+/** Best-effort goal id discovery (safe if scenario doesn’t define it). Assumes 0-based row/col. */
 function findGoalId(s: any, fallbackLayer: number): string | null {
   const direct =
     s?.goalHexId ??
@@ -253,70 +158,54 @@ function findGoalId(s: any, fallbackLayer: number): string | null {
     const layer = Number(gc.layer ?? fallbackLayer);
     const row = Number(gc.row ?? gc.r);
     const col = Number(gc.col ?? gc.c);
-    if (Number.isFinite(layer) && Number.isFinite(row) && Number.isFinite(col)) {
-      return `L${layer}-R${row}-C${col}`;
-    }
+    if (Number.isFinite(layer) && Number.isFinite(row) && Number.isFinite(col)) return `L${layer}-R${row}-C${col}`;
   }
   return null;
 }
 
-function findFirstPlayableHexId(st: GameState, layer: number): string {
-  for (let r = 0; r < ROW_LENS.length; r++) {
-    const len = ROW_LENS[r] ?? 7;
-    for (let c = 0; c < len; c++) {
-      const id = `L${layer}-R${r}-C${c}`;
-      const hex = getHexFromState(st, id) as any;
-      if (!hex) continue;
-      if (hex.missing) continue;
-      if (hex.blocked) continue;
-      return id;
-    }
+/* =========================================================
+   Minimal players (template)
+========================================================= */
+const PLAYER_PRESETS = [
+  { id: "p1", name: "Aeris" },
+  { id: "p2", name: "Devlan" },
+];
+
+/* =========================================================
+   Dice mapping
+========================================================= */
+function rotForRoll(n: number) {
+  // Convention: 1=top, 6=bottom, 2=front, 5=back, 3=right, 4=left
+  switch (n) {
+    case 1:
+      return { x: -90, y: 0 };
+    case 2:
+      return { x: 0, y: 0 };
+    case 3:
+      return { x: 0, y: -90 };
+    case 4:
+      return { x: 0, y: 90 };
+    case 5:
+      return { x: 0, y: 180 };
+    case 6:
+      return { x: 90, y: 0 };
+    default:
+      return { x: 0, y: 0 };
   }
-  return `L${layer}-R0-C0`;
-}
-
-function facingFromMove(fromId: string | null, toId: string | null): "down" | "up" | "left" | "right" {
-  const a = fromId ? idToCoord(fromId) : null;
-  const b = toId ? idToCoord(toId) : null;
-  if (!a || !b) return "down";
-  if (a.layer !== b.layer) return "down";
-
-  const dRow = b.row - a.row;
-  const dCol = b.col - a.col;
-
-  if (Math.abs(dCol) >= Math.abs(dRow)) return dCol > 0 ? "right" : dCol < 0 ? "left" : "down";
-  return dRow > 0 ? "down" : "up";
-}
-
-function unwrapNextState(res: any): GameState | null {
-  if (!res) return null;
-
-  if (typeof res === "object" && "state" in (res as any)) {
-    const st = (res as any).state;
-    return st && typeof st === "object" ? (st as GameState) : null;
-  }
-
-  if (typeof res === "object" && (("hexesById" in (res as any)) || ("playerHexId" in (res as any)))) {
-    return res as GameState;
-  }
-
-  return null;
 }
 
 /* =========================================================
    App
 ========================================================= */
-
 export default function App() {
-
-  // navigation
   const [screen, setScreen] = useState<Screen>("start");
 
-  // worlds
+  // auto worlds
   const [worlds, setWorlds] = useState<WorldEntry[]>([]);
   const [worldId, setWorldId] = useState<string | null>(null);
   const world = useMemo(() => worlds.find((w) => w.id === worldId) ?? null, [worlds, worldId]);
 
+  // scenario / track selection
   const [scenarioId, setScenarioId] = useState<string | null>(null);
   const scenarioEntry = useMemo(() => world?.scenarios.find((s) => s.id === scenarioId) ?? null, [world, scenarioId]);
 
@@ -327,21 +216,14 @@ export default function App() {
     return tracks.find((t) => t.id === trackId) ?? null;
   }, [scenarioEntry, trackId]);
 
-  useEffect(() => {
-  setWorlds(loadWorlds());
-}, []);
-
-
   // player
   const [chosenPlayer, setChosenPlayer] = useState<PlayerChoice | null>(null);
 
   // game state
   const [state, setState] = useState<GameState | null>(null);
-  const [, forceRender] = useState(0);
   const [currentLayer, setCurrentLayer] = useState<number>(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // reachability
   const [reachMap, setReachMap] = useState<ReachMap>({} as ReachMap);
   const reachable = useMemo(() => {
     const set = new Set<string>();
@@ -349,190 +231,93 @@ export default function App() {
     return set;
   }, [reachMap]);
 
-  // refs
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const walkTimer = useRef<number | null>(null);
-
-  // encounter flow
-  const pendingEncounterMoveIdRef = useRef<string | null>(null);
+  // villain triggers loaded from scenario.json
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
   const encounterActive = !!encounter;
 
-  /* =========================
-     Theme / assets (✅ INSIDE App)
-  ========================= */
+  // palette + assets for the active scenario (used in CSS vars + images)
   const activeTheme = scenarioEntry?.theme ?? null;
   const palette = activeTheme?.palette ?? null;
 
-  const GAME__URL = activeTheme?.assets.backgroundGame ?? "";
-  const BOARD_LAYER_ = (activeTheme?.assets.backgroundLayers as any)?.[`L${currentLayer}`] ?? "";
-  const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "images/dice";
+  const GAME_BG_URL = activeTheme?.assets.backgroundGame ?? "";
+  const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "";
   const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
-  const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "images/villains";
-  const HEX_TILE = activeTheme?.assets.hexTile ?? "";
+  const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "";
 
+  // layer count from scenario JSON (loaded when starting)
   const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
 
-  const themeVars = useMemo(() => {
-    const p = palette;
-    return {
-      ["L1" as any]: p?.L1 ?? "#19ffb4",
-      ["L2" as any]: p?.L2 ?? "#67a5ff",
-      ["L3" as any]: p?.L3 ?? "#ffd36a",
-      ["L4" as any]: p?.L4 ?? "#ff7ad1",
-      ["L5" as any]: p?.L5 ?? "#a1ff5a",
-      ["L6" as any]: p?.L6 ?? "#a58bff",
-      ["--L7" as any]: p?.L7 ?? "#ff5d7a",
-    } as React.CSSProperties;
-  }, [palette]);
+  const barSegments = useMemo(() => [7, 6, 5, 4, 3, 2, 1], []);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  /* --------------------------
+     Move counter + optimal
+  -------------------------- */
+  const [movesTaken, setMovesTaken] = useState(0);
+  const [goalId, setGoalId] = useState<string | null>(null);
+  const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
+  const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
+
+  /* --------------------------
+     Story log
+  -------------------------- */
+  const [log, setLog] = useState<LogEntry[]>([]);
+  const logNRef = useRef(0);
+  const pushLog = useCallback((msg: string, kind: LogEntry["kind"] = "info") => {
+    logNRef.current += 1;
+    const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
+    setLog((prev) => [e, ...prev].slice(0, 24));
+  }, []);
+
+  /* --------------------------
+     Inventory / power ups (simple)
+  -------------------------- */
+  type ItemId = "reroll" | "revealRing" | "peek";
+  type Item = { id: ItemId; name: string; icon: string; charges: number };
+  const [items, setItems] = useState<Item[]>([
+    { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
+    { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
+    { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
+  ]);
+
+  /* --------------------------
+     Dice state
+  -------------------------- */
+  const [rollValue, setRollValue] = useState<number>(1);
+
+  // Default view shows TOP+FRONT+RIGHT (3 faces)
+  const BASE_DICE_VIEW = { x: -28, y: -36 };
+
+  const [diceRot, setDiceRot] = useState<{ x: number; y: number }>(BASE_DICE_VIEW);
+  const [diceSpinning, setDiceSpinning] = useState(false);
+
+  // drag rotation state (disabled during encounter)
+  const dragRef = useRef({
+    active: false,
+    startX: 0,
+    startY: 0,
+    startRotX: 0,
+    startRotY: 0,
+    pointerId: -1,
+  });
+  const [diceDragging, setDiceDragging] = useState(false);
+
+  const belowLayer = currentLayer - 1;
+  const aboveLayer = currentLayer + 1;
+
+  useEffect(() => {
+    setWorlds(loadWorlds());
+  }, []);
 
   function diceImg(n: number) {
     return toPublicUrl(`${DICE_FACES_BASE}/D20_${n}.png`);
   }
+
   function villainImg(key: VillainKey) {
     return toPublicUrl(`${VILLAINS_BASE}/${key}.png`);
   }
 
-   /* =========================
-     Sprite
-  ========================= */
-type Facing = "down" | "up" | "left" | "right";
-
-const [playerFacing, setPlayerFacing] = useState<Facing>("down");
-const [isWalking, setIsWalking] = useState(false);
-
-  // Sprite sheet info
-  // NOTE: If your sheet is 4 columns x 5 rows (20 frames), set SPRITE_ROWS = 5.
-  // If you're using 4-direction rows only (down/left/right/up), set SPRITE_ROWS = 4.
-  const SPRITE_COLS = 4;
-  const SPRITE_ROWS = 4; // change to 5 ONLY if your CSS/background-size expects 5 rows
-
-  const FRAME_W = 128;
-  const FRAME_H = 128;
-
-  function spriteSheetUrl() {
-    return toPublicUrl("images/players/sprite_sheet_20.png");
-  }
-
-  // Animation state (canvas-style)
-  const rafRef = useRef<number | null>(null);
-  const lastRef = useRef(0);
-  const [walkFrame, setWalkFrame] = useState(0);
-
-  const SPRITE_FPS = 10;
-  const FRAME_DURATION = 1000 / SPRITE_FPS;
-
-  useEffect(() => {
-    // stop animation when not walking
-    if (!isWalking) {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-      setWalkFrame(0);
-      return;
-    }
-
-    // animate frames at a fixed FPS using rAF timing
-    lastRef.current = performance.now();
-
-    const tick = (t: number) => {
-      if (t - lastRef.current >= FRAME_DURATION) {
-        // loop 0..3 (walk cycle frames)
-        setWalkFrame((f) => (f + 1) % SPRITE_COLS);
-        lastRef.current = t;
-      }
-      rafRef.current = requestAnimationFrame(tick);
-    };
-
-    rafRef.current = requestAnimationFrame(tick);
-
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    };
-  }, [isWalking, FRAME_DURATION]);
-
-  // cleanup: if a move timer is still pending, clear it on unmount
-  useEffect(() => {
-    return () => {
-      if (walkTimer.current) window.clearTimeout(walkTimer.current);
-    };
-  }, []);
-
-/* =========================
-   Sprite (Larger)
-========================= */
-
-
-
-/* animation refs + useEffect here */
-
-function facingRow(f: "down" | "up" | "left" | "right") {
-  return f === "down" ? 0 : f === "left" ? 1 : f === "right" ? 2 : 3;
-}
-
-  /* =========================
-     Dice
-  ========================= */
-  const [diceValue, setDiceValue] = useState<number>(2);
-  const [diceRolling, setDiceRolling] = useState(false);
-  const [diceRot, setDiceRot] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const diceTimer = useRef<number | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (diceTimer.current) window.clearTimeout(diceTimer.current);
-    };
-  }, []);
-
-  function rotForRoll(n: number) {
-    switch (n) {
-      case 1:
-        return { x: -90, y: 0 };
-      case 2:
-        return { x: 0, y: 0 };
-      case 3:
-        return { x: 0, y: -90 };
-      case 4:
-        return { x: 0, y: 90 };
-      case 5:
-        return { x: 0, y: 180 };
-      case 6:
-        return { x: 90, y: 0 };
-      default:
-        return { x: 0, y: 0 };
-    }
-  }
-
-  const rollDice = useCallback(() => {
-    if (diceRolling) return;
-    setDiceRolling(true);
-
-    const start = performance.now();
-    const duration = 650;
-
-    const tick = () => {
-      const elapsed = performance.now() - start;
-      const flicker = 1 + Math.floor(Math.random() * 6);
-      setDiceValue(flicker);
-      setDiceRot(rotForRoll(flicker));
-
-      if (elapsed < duration) {
-        diceTimer.current = window.setTimeout(tick, 55);
-      } else {
-        const final = 1 + Math.floor(Math.random() * 6);
-        setDiceValue(final);
-        setDiceRot(rotForRoll(final));
-        setDiceRolling(false);
-      }
-    };
-
-    tick();
-  }, [diceRolling]);
-
-  /* =========================
-     Villain trigger helpers
-  ========================= */
   function findTriggerForHex(id: string): VillainKey | null {
     const c = idToCoord(id);
     if (!c) return null;
@@ -545,7 +330,125 @@ function facingRow(f: "down" | "up" | "left" | "right") {
     return null;
   }
 
+  const rollDice = useCallback(() => {
+    // every roll counts as a turn
+    setMovesTaken((m) => m + 1);
+
+    const n = 1 + Math.floor(Math.random() * 6);
+    setRollValue(n);
+
+    const targetFace = rotForRoll(n);
+    const final = { x: BASE_DICE_VIEW.x + targetFace.x, y: BASE_DICE_VIEW.y + targetFace.y };
+
+    setDiceSpinning(true);
+
+    const extraX = 360 * (1 + Math.floor(Math.random() * 2));
+    const extraY = 360 * (2 + Math.floor(Math.random() * 2));
+
+    setDiceRot({ x: final.x - extraX, y: final.y - extraY });
+    window.setTimeout(() => {
+      setDiceRot(final);
+      window.setTimeout(() => setDiceSpinning(false), 650);
+    }, 40);
+
+    pushLog(`Rolled ${n}`, n === 6 ? "ok" : "info");
+
+    // encounter: only 6 clears it
+    setEncounter((prev) => {
+      if (!prev) return prev;
+      if (n === 6) {
+        pushLog(`Encounter cleared (${prev.villainKey})`, "ok");
+        return null;
+      }
+      return { ...prev, tries: prev.tries + 1 };
+    });
+  }, [pushLog]);
+
+  // Manual drag rotation ONLY when NOT in encounter
+  const onDicePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (encounterActive) return;
+      if (diceSpinning) return;
+      (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+
+      dragRef.current.active = true;
+      dragRef.current.pointerId = e.pointerId;
+      dragRef.current.startX = e.clientX;
+      dragRef.current.startY = e.clientY;
+      dragRef.current.startRotX = diceRot.x;
+      dragRef.current.startRotY = diceRot.y;
+
+      setDiceDragging(true);
+    },
+    [diceRot.x, diceRot.y, diceSpinning, encounterActive]
+  );
+
+  const onDicePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (encounterActive) return;
+      if (!dragRef.current.active) return;
+      if (e.pointerId !== dragRef.current.pointerId) return;
+
+      const dx = e.clientX - dragRef.current.startX;
+      const dy = e.clientY - dragRef.current.startY;
+
+      const sens = 0.35;
+      const nextY = dragRef.current.startRotY + dx * sens;
+      const nextX = dragRef.current.startRotX - dy * sens;
+
+      setDiceRot({ x: nextX, y: nextY });
+    },
+    [encounterActive]
+  );
+
+  const endDrag = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (encounterActive) return;
+      if (!dragRef.current.active) return;
+      if (e.pointerId !== dragRef.current.pointerId) return;
+      dragRef.current.active = false;
+      dragRef.current.pointerId = -1;
+      setDiceDragging(false);
+    },
+    [encounterActive]
+  );
+
+  /* --------------------------
+     Game helpers
+  -------------------------- */
+  const recomputeReachability = useCallback((st: GameState) => {
+    // hard guard against invalid state
+    if (!(st as any)?.hexesById?.get?.(st.playerHexId)) {
+      setReachMap({} as ReachMap);
+      return;
+    }
+    setReachMap(getReachability(st) as any);
+  }, []);
+
+  const revealWholeLayer = useCallback((st: GameState, layer: number) => {
+    for (let r = 0; r < ROW_LENS.length; r++) {
+      const len = ROW_LENS[r] ?? 7;
+      for (let c = 0; c < len; c++) {
+        revealHex(st, `L${layer}-R${r}-C${c}`);
+      }
+    }
+  }, []);
+
+  const revealRing = useCallback((st: GameState, centerId: string) => {
+    revealHex(st, centerId);
+    for (const nbId of neighborIdsSameLayer(st, centerId)) {
+      revealHex(st, nbId);
+    }
+  }, []);
+
+  const computeOptimalFromReachMap = useCallback((rm: ReachMap, gid: string | null) => {
+    if (!gid) return null;
+    const info: any = (rm as any)[gid];
+    return info?.reachable ? (info.distance as number) : null;
+  }, []);
+
   const parseVillainsFromScenario = useCallback((s: any): VillainTrigger[] => {
+    // Preferred: explicit list
     if (Array.isArray(s?.villainTriggers)) {
       return s.villainTriggers
         .map((t: any) => ({
@@ -557,6 +460,7 @@ function facingRow(f: "down" | "up" | "left" | "right") {
         .filter((t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row));
     }
 
+    // Fallback: your current JSON format: villains.triggers [{id, layer, row}]
     if (Array.isArray(s?.villains?.triggers)) {
       return s.villains.triggers
         .map((t: any) => ({
@@ -571,250 +475,63 @@ function facingRow(f: "down" | "up" | "left" | "right") {
     return [];
   }, []);
 
-  /* =========================
-     Moves / optimal / log
-  ========================= */
-  const [movesTaken, setMovesTaken] = useState(0);
-
-  const [goalId, setGoalId] = useState<string | null>(null);
-  const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
-  const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
-
-  const computeOptimalFromReachMap = useCallback((rm: ReachMap, gid: string | null) => {
-    if (!gid) return null;
-    const info: any = (rm as any)[gid];
-    return info?.reachable ? (info.distance as number) : null;
-  }, []);
-
-  const [log, setLog] = useState<LogEntry[]>([]);
-  const logNRef = useRef(0);
-
-  const pushLog = useCallback((msg: string, kind: LogEntry["kind"] = "info") => {
-    logNRef.current += 1;
-    const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
-    setLog((prev) => [e, ...prev].slice(0, 24));
-  }, []);
-
-  /* =========================
-     Reveal helpers
-  ========================= */
-  const revealWholeLayer = useCallback((st: GameState, layer: number) => {
-    for (let r = 0; r < ROW_LENS.length; r++) {
-      const len = ROW_LENS[r] ?? 7;
-      for (let c = 0; c < len; c++) revealHex(st, `L${layer}-R${r}-C${c}`);
-    }
-  }, []);
-
-  const revealRing = useCallback((st: GameState, centerId: string) => {
-    revealHex(st, centerId);
-
-    let nbs: string[] = [];
-    try {
-      nbs = (neighborIdsSameLayer as any)(st, centerId) as string[];
-    } catch {
-      try {
-        nbs = (neighborIdsSameLayer as any)(centerId) as string[];
-      } catch {
-        nbs = [];
-      }
-    }
-    for (const nbId of nbs) revealHex(st, nbId);
-  }, []);
-
-  /* =========================
-     Items
-  ========================= */
-  type ItemId = "reroll" | "revealRing" | "peek";
-  type Item = { id: ItemId; name: string; icon: string; charges: number };
-
-  const [items, setItems] = useState<Item[]>([
-    { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
-    { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
-    { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
-  ]);
-
-  const useItem = useCallback(
-    (id: ItemId) => {
-      const it = items.find((x) => x.id === id);
-      if (!it || it.charges <= 0) return;
-
-      setItems((prev) => prev.map((x) => (x.id === id ? { ...x, charges: Math.max(0, x.charges - 1) } : x)));
-
-      if (id === "reroll") {
-        rollDice();
-        pushLog("Reroll used — rolling…", "info");
-        return;
-      }
-
-      if (!state) return;
-      const pid = (state as any).playerHexId ?? null;
-      if (!pid) return;
-
-      if (id === "revealRing") {
-        revealRing(state, pid);
-        setReachMap(getReachability(state) as any);
-        forceRender((n) => n + 1);
-        pushLog("Used: Reveal (ring)", "ok");
-        return;
-      }
-
-      if (id === "peek") {
-        const up = Math.min(scenarioLayerCount, currentLayer + 1);
-        const dn = Math.max(1, currentLayer - 1);
-
-        const upId = pid.replace(/^L\d+-/, `L${up}-`);
-        const dnId = pid.replace(/^L\d+-/, `L${dn}-`);
-
-        revealRing(state, upId);
-        revealRing(state, dnId);
-
-        setReachMap(getReachability(state) as any);
-        forceRender((n) => n + 1);
-        pushLog("Used: Peek (above/below ring)", "info");
-        return;
-      }
-    },
-    [items, rollDice, pushLog, state, revealRing, scenarioLayerCount, currentLayer]
-  );
-
-  /* =========================
-     Encounter resolution (✅ single effect, correct scope)
-  ========================= */
-  const prevRollingRef = useRef(false);
-  useEffect(() => {
-    const wasRolling = prevRollingRef.current;
-    prevRollingRef.current = diceRolling;
-
-    if (!encounter) return;
-    if (diceRolling) return;
-    if (!wasRolling) return; // only when roll just ended
-
-    // count attempt
-    setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
-
-    // only succeed on 6
-    if (diceValue !== 6) return;
-
-    const targetId = pendingEncounterMoveIdRef.current;
-    pendingEncounterMoveIdRef.current = null;
-
-    // close overlay
-    setEncounter(null);
-
-    if (!state || !targetId) return;
-
-    const res: any = tryMove(state as any, targetId);
-const nextState = unwrapNextState(res);
-
-if (!nextState) {
-  const msg =
-    (res && typeof res === "object" && "reason" in res && String((res as any).reason)) ||
-    "Move failed.";
-  pushLog(msg, "bad");
-  return;
-}
-
-
-    const pidAfter = (nextState as any).playerHexId as string | null;
-/* ✅ PUT THIS HERE */
-const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
-if (moved) {
-  setIsWalking(true);
-
-  if (walkTimer.current) window.clearTimeout(walkTimer.current);
-  walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-
-  setPlayerFacing(facingFromMove(pidBefore, pidAfter));
-}
-    // commit state first
-    setState(nextState);
-    setSelectedId(pidAfter ?? targetId);
-
-    // layer ops after commit
-    const c2 = pidAfter ? idToCoord(pidAfter) : null;
-    const nextLayer = c2?.layer ?? currentLayer;
-    if (nextLayer !== currentLayer) {
-      setCurrentLayer(nextLayer);
-      enterLayer(nextState, nextLayer);
-      revealWholeLayer(nextState, nextLayer);
-    }
-
-    const rm = getReachability(nextState) as any;
-    setReachMap(rm);
-    setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
-
-    pushLog(`Encounter cleared — moved to ${pidAfter ?? targetId}`, "ok");
-    if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
-  }, [
-    encounter,
-    diceRolling,
-    diceValue,
-    state,
-    currentLayer,
-    goalId,
-    revealWholeLayer,
-    computeOptimalFromReachMap,
-    pushLog,
-  ]);
-
-  /* =========================
-     Start scenario
-  ========================= */
   const startScenario = useCallback(async () => {
     if (!scenarioEntry) return;
 
+    // choose which scenario JSON to load:
     const tracks = scenarioEntry.tracks ?? [];
     const hasTracks = tracks.length > 1;
     const chosenJson = hasTracks ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson : scenarioEntry.scenarioJson;
 
     const s = (await loadScenario(chosenJson)) as any;
 
+    // villain triggers from JSON (optional)
     setVillainTriggers(parseVillainsFromScenario(s));
+
+    // reset encounter
     setEncounter(null);
-    pendingEncounterMoveIdRef.current = null;
 
     const st = newGame(s);
-
-    const layerCount = Math.max(1, Number(s?.layers ?? 1));
-    setScenarioLayerCount(layerCount);
-
-    let pid = (st as any).playerHexId as string | null;
-    let layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
-    layer = Math.max(1, Math.min(layerCount, layer));
-
-    if (!pid || !/^L\d+-R\d+-C\d+$/.test(pid)) {
-      pid = findFirstPlayableHexId(st, layer);
-      (st as any).playerHexId = pid;
-    }
-
-    const pidCoord = idToCoord(pid);
-    if (pidCoord) layer = Math.max(1, Math.min(layerCount, pidCoord.layer));
+    const pid = st.playerHexId ?? null;
+    const layer = pid ? idToCoord(pid)?.layer ?? 1 : 1;
 
     const gid = findGoalId(s, layer);
     setGoalId(gid);
 
-    // IMPORTANT ORDER: enter + reveal before reachability
+    const layerCount = Number(s?.layers ?? 1);
+    setScenarioLayerCount(layerCount);
+
+    // Make sure current layer is visible and revealed
     enterLayer(st, layer);
     revealWholeLayer(st, layer);
 
+    // compute reachability once at start
     const rm = getReachability(st) as any;
+    setReachMap(rm);
 
     setState(st);
     setSelectedId(pid);
     setCurrentLayer(layer);
-    setPlayerFacing("down");
 
-    setReachMap(rm);
+    // reset dice view
+    setRollValue(1);
+    setDiceRot(BASE_DICE_VIEW);
+    setDiceSpinning(false);
+    setDiceDragging(false);
+
+    // moves + optimal
     setMovesTaken(0);
-    setOptimalAtStart(computeOptimalFromReachMap(rm, gid));
-    setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
+    setOptimalAtStart(computeOptimalFromReachMap(rm as any, gid));
+    setOptimalFromNow(computeOptimalFromReachMap(rm as any, gid));
 
+    // reset log
     logNRef.current = 0;
     setLog([]);
     pushLog(`Started: ${scenarioEntry.name}`, "ok");
-    if (pid) pushLog(`Start: ${pid}`, "info");
     if (gid) pushLog(`Goal: ${gid}`, "info");
+    else pushLog(`Goal: (not set in scenario JSON)`, "bad");
 
+    // inventory defaults
     setItems([
       { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
       { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
@@ -828,255 +545,258 @@ if (moved) {
     setScreen("game");
   }, [scenarioEntry, trackEntry, parseVillainsFromScenario, revealWholeLayer, computeOptimalFromReachMap, pushLog]);
 
-  /* =========================
-     Movement (no hooks inside)
-  ========================= */
+  /* --------------------------
+     Board click
+     - Every click counts as a turn attempt (even invalid)
+     - Triggers villain encounter if scenario.json says so
+  -------------------------- */
   const tryMoveToId = useCallback(
     (id: string) => {
-      if (!state) return;
+      // every click counts
+      setMovesTaken((m) => m + 1);
+
+      // ignore board interaction during encounter (but click already counted)
       if (encounterActive) return;
 
-      const hex = getHexFromState(state, id) as any;
-      const { blocked, missing } = isBlockedOrMissing(hex);
-      if (missing) {
-        pushLog("Missing tile.", "bad");
-        return;
-      }
-      if (blocked) {
-        pushLog("Blocked tile.", "bad");
-        return;
-      }
-
-      const pidBefore = (state as any).playerHexId as string | null;
-
-      if (pidBefore && id !== pidBefore && reachable.size > 0 && !reachable.has(id)) {
-        pushLog("Not reachable.", "bad");
-        return;
-      }
-
-      // encounter gate BEFORE tryMove
+      // check for villain trigger from scenario.json rules
       const vk = findTriggerForHex(id);
       if (vk) {
-        pendingEncounterMoveIdRef.current = id;
-        setEncounter((prev) => (prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }));
+        setEncounter({ villainKey: vk, tries: 0 });
+        setDiceRot(BASE_DICE_VIEW);
+        setDiceSpinning(false);
+        setDiceDragging(false);
         pushLog(`Encounter: ${vk} — roll a 6 to continue`, "bad");
         return;
       }
 
-      const res: any = tryMove(state as any, id);
-const nextState = unwrapNextState(res);
+      if (!state) return;
 
-if (!nextState) {
-  const msg =
-    (res && typeof res === "object" && "reason" in res && String((res as any).reason)) ||
-    "Move failed.";
-  pushLog(msg, "bad");
-  return;
-}
+      setSelectedId(id);
 
+      // IMPORTANT: attemptMove (engine) already ends the turn + applies shift.
+      const res = tryMove(state, id);
 
-      const pidAfter = (nextState as any).playerHexId as string | null;
-
-      const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
-      if (moved) {
-        setMovesTaken((n) => n + 1);
-
-        setIsWalking(true);
-        if (walkTimer.current) window.clearTimeout(walkTimer.current);
-        walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-
-        setPlayerFacing(facingFromMove(pidBefore, pidAfter));
-      }
-
-      // commit next state first
-      setState(nextState);
-      setSelectedId(pidAfter ?? id);
-
-      // layer ops after commit
-      const c2 = pidAfter ? idToCoord(pidAfter) : null;
-      const nextLayer = c2?.layer ?? currentLayer;
-      if (nextLayer !== currentLayer) {
-        setCurrentLayer(nextLayer);
-        enterLayer(nextState, nextLayer);
-        revealWholeLayer(nextState, nextLayer);
-      }
-
-      const rm = getReachability(nextState) as any;
+      // Always recompute reachability based on the mutated engine state
+      const rm = getReachability(state) as any;
       setReachMap(rm);
-      setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
 
-      pushLog(`Moved to ${pidAfter ?? id}`, "ok");
-      if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
+      if (res.ok) {
+        const newPlayerId = (state as any).playerHexId;
+        const newLayer = newPlayerId ? idToCoord(newPlayerId)?.layer ?? currentLayer : currentLayer;
+
+        if (!res.won) {
+          enterLayer(state, newLayer);
+          revealWholeLayer(state, newLayer);
+        }
+
+        setCurrentLayer(newLayer);
+        setSelectedId(newPlayerId ?? id);
+
+        setOptimalFromNow(computeOptimalFromReachMap(rm as any, goalId));
+
+        setState({ ...(state as any) });
+
+        const c = newPlayerId ? idToCoord(newPlayerId) : null;
+        pushLog(
+          c ? `Move OK → R${c.row + 1}C${c.col + 1} (L${c.layer})` : `Move OK`,
+          "ok"
+        );
+      } else {
+        setState({ ...(state as any) });
+        pushLog(`Move blocked`, "bad");
+      }
     },
     [
       state,
-      encounterActive,
-      reachable,
       currentLayer,
-      goalId,
       pushLog,
-      revealWholeLayer,
+      goalId,
       computeOptimalFromReachMap,
-      findTriggerForHex,
+      encounterActive,
+      villainTriggers,
+      revealWholeLayer,
     ]
   );
 
-  const canGoDown = currentLayer - 1 >= 1;
-  const canGoUp = currentLayer + 1 <= scenarioLayerCount;
+  /* --------------------------
+     Inventory use (simple)
+  -------------------------- */
+  const useItem = useCallback(
+    (id: "reroll" | "revealRing" | "peek") => {
+      const it = items.find((x) => x.id === id);
+      if (!it || it.charges <= 0) return;
 
-  /* =========================
-     Render helpers/components
-  ========================= */
-  const layerRows = useMemo(() => ROW_LENS.length, []);
-  const rows = useMemo(() => Array.from({ length: layerRows }, (_, i) => i), [layerRows]);
+      setItems((prev) => prev.map((x) => (x.id === id ? { ...x, charges: Math.max(0, x.charges - 1) } : x)));
 
-  function hexId(layer: number, r: number, c: number) {
-    return `L${layer}-R${r}-C${c}`;
+      if (id === "reroll") {
+        pushLog("Used: Reroll", "info");
+        rollDice();
+        return;
+      }
+
+      if (!state) return;
+
+      const pid = (state as any).playerHexId ?? null;
+      if (!pid) return;
+
+      if (id === "revealRing") {
+        revealRing(state, pid);
+        setReachMap(getReachability(state) as any);
+        setState({ ...(state as any) });
+        pushLog("Used: Reveal (ring)", "ok");
+        return;
+      }
+
+      if (id === "peek") {
+        const up = Math.min(scenarioLayerCount, currentLayer + 1);
+        const dn = Math.max(1, currentLayer - 1);
+
+        // same row/col, different layer
+        const upId = pid.replace(/^L\d+-/, `L${up}-`);
+        const dnId = pid.replace(/^L\d+-/, `L${dn}-`);
+
+        revealRing(state, upId);
+        revealRing(state, dnId);
+
+        setReachMap(getReachability(state) as any);
+        setState({ ...(state as any) });
+        pushLog("Used: Peek (above/below ring)", "info");
+        return;
+      }
+    },
+    [items, state, currentLayer, scenarioLayerCount, rollDice, pushLog, revealRing]
+  );
+
+  // Stripes (mini-board mode only)
+  const stripeBelow = belowLayer < 1 ? "rgba(0,0,0,.90)" : layerCssVar(belowLayer);
+  const stripeCurr = layerCssVar(currentLayer);
+  const stripeAbove = aboveLayer > scenarioLayerCount ? "rgba(0,0,0,.90)" : layerCssVar(aboveLayer);
+
+  // keep cube position stable across modes
+  const diceAlignY = 70;
+
+  // Mini boards reachability filtered per layer
+  function filterReachForLayer(layer: number, rmAll: ReachMap) {
+    const prefix = `L${layer}-`;
+    const rm = {} as ReachMap;
+    const set = new Set<string>();
+    for (const [k, v] of Object.entries(rmAll as any)) {
+      if (!k.startsWith(prefix)) continue;
+      (rm as any)[k] = v;
+      if ((v as any)?.reachable) set.add(k);
+    }
+    return { reachMap: rm, reachable: set };
   }
 
-  function isPlayerHere(id: string) {
-    const pid = (state as any)?.playerHexId as string | null;
-    return !!pid && pid === id;
-  }
+  const miniAboveLayer = Math.min(scenarioLayerCount, Math.max(1, aboveLayer));
+  const miniCurrLayer = currentLayer;
+  const miniBelowLayer = Math.max(1, belowLayer);
+  const miniAboveReach = useMemo(() => filterReachForLayer(miniAboveLayer, reachMap), [miniAboveLayer, reachMap]);
+  const miniCurrReach = useMemo(() => filterReachForLayer(miniCurrLayer, reachMap), [miniCurrLayer, reachMap]);
+  const miniBelowReach = useMemo(() => filterReachForLayer(miniBelowLayer, reachMap), [miniBelowLayer, reachMap]);
 
-  function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
-    const segments = [7, 6, 5, 4, 3, 2, 1];
-    const { side, currentLayer } = props;
+  const delta = useMemo(() => {
+    if (optimalAtStart == null || optimalFromNow == null) return null;
+    return movesTaken + optimalFromNow - optimalAtStart;
+  }, [movesTaken, optimalAtStart, optimalFromNow]);
 
-    return (
-      <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")}>
-        <div className="layerBar">
-          {segments.map((layerVal) => {
-            const active = layerVal === currentLayer;
-            return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} />;
-          })}
-        </div>
-      </div>
-    );
-  }
+  // Solid blue placeholder screens (start + world)
+  const stepBgBlue = "linear-gradient(180deg, rgba(40,120,255,.95), rgba(10,40,120,.95))";
 
-  function HexDeckCardsOverlay(props: { glowVar: string }) {
-    return (
-      <div className="hexDeckOverlay" style={{ ["--cardGlow" as any]: props.glowVar } as any}>
-        <div className="hexDeckCol left">
-          <div className="hexDeckCard cosmic ccw slow" />
-          <div className="hexDeckCard risk ccw fast" />
-        </div>
+  // Inject palette + dice border + background safely via CSS variables
+  const cssVars = useMemo(() => {
+    const vars: any = {
+      ["--diceBorderImg"]: DICE_BORDER_IMG ? `url("${toPublicUrl(DICE_BORDER_IMG)}")` : "none",
+      ["--menuSolidBg"]: stepBgBlue,
+    };
+    if (palette) {
+      vars["--L1"] = palette.L1;
+      vars["--L2"] = palette.L2;
+      vars["--L3"] = palette.L3;
+      vars["--L4"] = palette.L4;
+      vars["--L5"] = palette.L5;
+      vars["--L6"] = palette.L6;
+      vars["--L7"] = palette.L7;
+    }
+    return vars;
+  }, [palette, DICE_BORDER_IMG]);
 
-        <div className="hexDeckCol right">
-          <div className="hexDeckCard terrain cw slow" />
-          <div className="hexDeckCard shadow cw fast" />
-        </div>
-      </div>
-    );
-  }
+  return (
+    <div className="appRoot" style={cssVars}>
+      <style>{CSS}</style>
 
-  const resetAll = useCallback(() => {
-    setScreen("start");
-    setWorldId(null);
-    setScenarioId(null);
-    setTrackId(null);
-    setChosenPlayer(null);
+      {/* Game background only when in-game and a world/scenario is chosen */}
+      {screen === "game" ? (
+        <>
+          <div className="globalBg" aria-hidden="true" style={{ backgroundImage: `url("${toPublicUrl(GAME_BG_URL)}")` }} />
+          <div className="globalBgOverlay" aria-hidden="true" />
+        </>
+      ) : (
+        <>
+          <div className="menuBg" aria-hidden="true" />
+          <div className="globalBgOverlay" aria-hidden="true" />
+        </>
+      )}
 
-    setState(null);
-    setCurrentLayer(1);
-    setSelectedId(null);
-    setReachMap({} as any);
-
-    setVillainTriggers([]);
-    setEncounter(null);
-    pendingEncounterMoveIdRef.current = null;
-
-    setGoalId(null);
-    setOptimalAtStart(null);
-    setOptimalFromNow(null);
-    setMovesTaken(0);
-
-    logNRef.current = 0;
-    setLog([]);
-
-    setItems([
-      { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
-      { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
-      { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
-    ]);
-  }, []);
-
-  const PLAYER_PRESETS: Array<{ id: string; name: string }> = [
-    { id: "p1", name: "Aeris" },
-    { id: "p2", name: "Devlan" },
-  ];
-
-  /* =========================
-     Screens
-  ========================= */
-  if (screen === "start") {
-    return (
-      <div className="appRoot" style={themeVars}>
-        <div className="screen center">
-          <div className="panel">
-            <div className="title">Hex Game</div>
-            <div className="sub">Start → World → Character → Scenario → Game</div>
-
+      {/* =====================================================
+          START (blue)
+      ====================================================== */}
+      {screen === "start" ? (
+        <div className="shell shellCard">
+          <div className="card">
+            <div className="cardTitleBig">Hex Layers</div>
+            <div className="cardMeta">Template</div>
             <div className="row">
-              <button className="btn primary" onClick={() => setScreen("world")}>
+              <button
+                className="btn primary"
+                onClick={() => {
+                  setWorldId(null);
+                  setScenarioId(null);
+                  setTrackId(null);
+                  setChosenPlayer(null);
+                  setScreen("world");
+                }}
+              >
                 Start
               </button>
-              <button className="btn" onClick={resetAll}>
-                Reset
-              </button>
-            </div>
-
-            <div className="hint">
-              Worlds loaded: <b>{worlds.length}</b>
             </div>
           </div>
         </div>
+      ) : null}
 
-        <style>{baseCss}</style>
-      </div>
-    );
-  }
-
-  if (screen === "world") {
-    return (
-      <div className="appRoot" style={themeVars}>
-        <div className="topbar">
-          <button className="btn" onClick={() => setScreen("start")}>
-            ← Back
-          </button>
-          <div className="spacer" />
-          <button className="btn" onClick={resetAll}>
-            Reset
-          </button>
-        </div>
-
-        <div className="screen center">
-          <div className="panel wide">
-            <div className="title">Choose World</div>
-
-            <div className="grid">
+      {/* =====================================================
+          WORLD SELECT (blue for now)
+      ====================================================== */}
+      {screen === "world" ? (
+        <div className="shell shellCard">
+          <div className="card">
+            <div className="cardTitle">Select world</div>
+            <div className="selectList">
               {worlds.map((w) => {
-                const active = w.id === worldId;
+                const selected = w.id === worldId;
                 return (
-                  <button
+                  <div
                     key={w.id}
-                    className={`card ${active ? "active" : ""}`}
-                    style={{ borderColor: active ? w.menu?.solidColor ?? "rgba(255,255,255,.2)" : undefined }}
+                    className={"selectTile" + (selected ? " selected" : "")}
                     onClick={() => {
                       setWorldId(w.id);
                       setScenarioId(null);
                       setTrackId(null);
                     }}
+                    role="button"
+                    tabIndex={0}
                   >
-                    <div className="cardTitle">{w.name}</div>
-                    <div className="cardDesc">{w.desc ?? w.id}</div>
-                  </button>
+                    <div className="selectTileTitle">{w.name}</div>
+                    <div className="selectTileDesc">{w.desc ?? ""}</div>
+                  </div>
                 );
               })}
+              {!worlds.length ? (
+                <div className="selectTileDesc">No worlds found. Add src/worlds/&lt;world&gt;/world.ts</div>
+              ) : null}
             </div>
 
-            <div className="row">
+            <div className="row rowBetween">
               <button className="btn" onClick={() => setScreen("start")}>
                 Back
               </button>
@@ -1086,1348 +806,1011 @@ if (!nextState) {
             </div>
           </div>
         </div>
+      ) : null}
 
-        <style>{baseCss}</style>
-      </div>
-    );
-  }
+      {/* =====================================================
+          CHARACTER SELECT (3rd)
+      ====================================================== */}
+      {screen === "character" ? (
+        <div className="shell shellCard">
+          <div className="card">
+            <div className="cardTitle">Choose character</div>
 
-  if (screen === "character") {
-    return (
-      <div className="appRoot" style={themeVars}>
-        <div className="topbar">
-          <button className="btn" onClick={() => setScreen("world")}>
-            ← Back
-          </button>
-          <div className="spacer" />
-          <button className="btn" onClick={resetAll}>
-            Reset
-          </button>
-        </div>
-
-        <div className="screen center">
-          <div className="panel wide">
-            <div className="title">Choose Character</div>
-
-            <div className="grid">
+            <div className="selectList">
               {PLAYER_PRESETS.map((p) => {
-                const active = chosenPlayer?.kind === "preset" && chosenPlayer.id === p.id;
+                const isSel = chosenPlayer?.kind === "preset" && chosenPlayer.id === p.id;
                 return (
-                  <button
+                  <div
                     key={p.id}
-                    className={`card ${active ? "active" : ""}`}
+                    className={"selectTile" + (isSel ? " selected" : "")}
                     onClick={() => setChosenPlayer({ kind: "preset", id: p.id, name: p.name })}
+                    role="button"
+                    tabIndex={0}
                   >
-                    <div className="cardTitle">{p.name}</div>
-                    <div className="cardDesc">Preset</div>
-                  </button>
+                    <div className="selectTileTitle">{p.name}</div>
+                    <div className="selectTileDesc">Preset</div>
+                  </div>
                 );
               })}
-
-              <button
-                className={`card ${chosenPlayer?.kind === "custom" ? "active" : ""}`}
-                onClick={() => setChosenPlayer({ kind: "custom", name: "Custom", imageDataUrl: null })}
-              >
-                <div className="cardTitle">Custom</div>
-                <div className="cardDesc">Upload an image</div>
-              </button>
             </div>
 
-            {chosenPlayer?.kind === "custom" ? (
-              <div className="customBox">
-                <label className="lbl">Name</label>
-                <input
-                  className="inp"
-                  value={chosenPlayer.name}
-                  onChange={(e) =>
-                    setChosenPlayer((prev) => (prev && prev.kind === "custom" ? { ...prev, name: e.target.value } : prev))
-                  }
-                />
-
-                <label className="lbl">Portrait (optional)</label>
-                <input
-                  className="inp"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null;
-                    if (!file) return;
-                    const fr = new FileReader();
-                    fr.onload = () => {
-                      const url = typeof fr.result === "string" ? fr.result : null;
-                      setChosenPlayer((prev) => (prev && prev.kind === "custom" ? { ...prev, imageDataUrl: url } : prev));
-                    };
-                    fr.readAsDataURL(file);
-                  }}
-                />
-                {chosenPlayer.imageDataUrl ? <img className="portrait" src={chosenPlayer.imageDataUrl} alt="portrait" /> : null}
-              </div>
-            ) : null}
-
-            <div className="row">
+            <div className="row rowBetween">
               <button className="btn" onClick={() => setScreen("world")}>
                 Back
               </button>
-              <button className="btn primary" disabled={!chosenPlayer} onClick={() => setScreen("scenario")}>
+              <button className="btn primary" disabled={!chosenPlayer || !world} onClick={() => setScreen("scenario")}>
                 Continue
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <style>{baseCss}</style>
-      </div>
-    );
-  }
-
-  if (screen === "scenario") {
-    const scenarios = world?.scenarios ?? [];
-    const tracks = scenarioEntry?.tracks ?? [];
-    const showTracks = tracks.length > 1;
-
-    return (
-      <div className="appRoot" style={themeVars}>
-        <div className="topbar">
-          <button className="btn" onClick={() => setScreen("character")}>
-            ← Back
-          </button>
-          <div className="spacer" />
-          <button className="btn" onClick={resetAll}>
-            Reset
-          </button>
-        </div>
-
-        <div className="screen center">
-          <div className="panel wide">
-            <div className="title">Choose Scenario</div>
-
-            <div className="grid">
-              {scenarios.map((s) => {
-                const active = s.id === scenarioId;
-                return (
-                  <button
-                    key={s.id}
-                    className={`card ${active ? "active" : ""}`}
-                    onClick={() => {
-                      setScenarioId(s.id);
-                      setTrackId(null);
-                    }}
-                  >
-                    <div className="cardTitle">{s.name}</div>
-                    <div className="cardDesc">{s.desc ?? s.id}</div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {scenarioEntry && showTracks ? (
-              <div className="tracks">
-                <div className="tracksTitle">Tracks</div>
-                <div className="tracksRow">
-                  {tracks.map((t) => {
-                    const active = t.id === trackId;
-                    return (
-                      <button key={t.id} className={`chip ${active ? "active" : ""}`} onClick={() => setTrackId(t.id)}>
-                        {t.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-
-            <div className="row">
-              <button className="btn" onClick={() => setScreen("character")}>
-                Back
-              </button>
-              <button className="btn primary" disabled={!scenarioEntry} onClick={startScenario}>
-                Start Game
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <style>{baseCss}</style>
-      </div>
-    );
-  }
-
-  /* =========================
-     GAME screen
-  ========================= */
-  const pid = (state as any)?.playerHexId as string | null;
-
-  return (
-    <div className="appRoot game" style={themeVars}>
-      <div className="game" style={{ backgroundImage: GAME__URL ? `url(${toPublicUrl(GAME__URL)})` : undefined }} />
-
-      <div className="topbar">
-        <button className="btn" onClick={() => setScreen("scenario")}>
-          ↺ Setup
-        </button>
-        <button className="btn" onClick={resetAll}>
-          Reset
-        </button>
-
-        <div className="hudGroup hudGroupLeft">
-          <button className="btn primary" disabled={!state || diceRolling} onClick={rollDice}>
-            {diceRolling ? "Rolling…" : encounterActive ? "Roll (Need 6)" : "Roll"}
-          </button>
-
-          <div className={`dice3d ${diceRolling ? "rolling" : ""}`}>
-            <div className="cube" style={{ transform: `rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)` }}>
-              <div className="face face-front" style={{ backgroundImage: `url(${diceImg(2)})` }} />
-              <div className="face face-back" style={{ backgroundImage: `url(${diceImg(5)})` }} />
-              <div className="face face-right" style={{ backgroundImage: `url(${diceImg(3)})` }} />
-              <div className="face face-left" style={{ backgroundImage: `url(${diceImg(4)})` }} />
-              <div className="face face-top" style={{ backgroundImage: `url(${diceImg(1)})` }} />
-              <div className="face face-bottom" style={{ backgroundImage: `url(${diceImg(6)})` }} />
-            </div>
-
-            {DICE_BORDER_IMG ? <div className="diceBorder" style={{ backgroundImage: `url(${toPublicUrl(DICE_BORDER_IMG)})` }} /> : null}
-          </div>
-
-          <div className="hudStat">
-            <div className="k">Dice</div>
-            <div className="v">{diceValue}</div>
-          </div>
-
-          <div className="hudStat">
-            <div className="k">Facing</div>
-            <div className="v">{playerFacing}</div>
-          </div>
-
-          <div className="hudStat">
-            <div className="k">Goal</div>
-            <div className="v">{goalId ?? "—"}</div>
-          </div>
-
-          <div className="hudStat">
-            <div className="k">Optimal</div>
-            <div className="v">
-              {optimalFromNow ?? "—"} <span className="mutedSmall">{optimalAtStart != null ? `(start ${optimalAtStart})` : ""}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="spacer" />
-
-        <div className="hudGroup hudGroupRight">
-          <div className="items">
-            {items.map((it) => (
-              <button
-                key={it.id}
-                className={`itemBtn ${it.charges <= 0 ? "off" : ""}`}
-                disabled={it.charges <= 0 || !state || (encounterActive && it.id !== "reroll")}
-                onClick={() => useItem(it.id)}
-                title={`${it.name} (${it.charges})`}
-              >
-                <span className="itemIcon">{it.icon}</span>
-                <span className="itemName">{it.name}</span>
-                <span className="itemCharges">{it.charges}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="spacer" />
-
-        <div className="pill">
-          <span className="dot" />
-          <span className="pillText">
-            {world?.name ?? "World"} • {scenarioEntry?.name ?? "Scenario"} • L{currentLayer} • Moves {movesTaken}
-          </span>
-        </div>
-
-        <button
-          className="btn"
-          disabled={!state || !canGoDown || encounterActive}
-          onClick={() => {
-            if (!state) return;
-            const next = Math.max(1, currentLayer - 1);
-            setCurrentLayer(next);
-            enterLayer(state, next);
-            revealWholeLayer(state, next);
-            setReachMap(getReachability(state) as any);
-            pushLog(`Layer ${next}`, "info");
-          }}
-        >
-          − Layer
-        </button>
-
-        <button
-          className="btn"
-          disabled={!state || !canGoUp || encounterActive}
-          onClick={() => {
-            if (!state) return;
-            const next = Math.min(scenarioLayerCount, currentLayer + 1);
-            setCurrentLayer(next);
-            enterLayer(state, next);
-            revealWholeLayer(state, next);
-            setReachMap(getReachability(state) as any);
-            pushLog(`Layer ${next}`, "info");
-          }}
-        >
-          + Layer
-        </button>
-      </div>
-
-      <div className="gameLayout">
-        <SideBar side="left" currentLayer={currentLayer} />
-<div className="boardWrap">
-<div
-  key={currentLayer}
-  className="boardLayer"
-   style={{ backgroundImage: BOARD_LAYER_ ? `url(${toPublicUrl(BOARD_LAYER_)})` : undefined }}
-/>
-
-          <div className="boardScroll" ref={scrollRef}>
-            <div className="board">
-              {rows.map((r) => {
-                const cols = ROW_LENS[r] ?? 0;
-                return (
-                  <div key={r} className={`hexRow ${r % 2 === 1 ? "offset" : ""}`}>
-                    {Array.from({ length: cols }, (_, c) => {
-                      const id = hexId(currentLayer, r, c);
-                      const hex = getHexFromState(state, id) as any;
-                      const { blocked, missing } = isBlockedOrMissing(hex);
-
-                      if (missing) return <div key={id} className="hexSlot empty" />;
-
-                      const isSel = selectedId === id;
-                      const isReach = reachable.has(id);
-                      const isPlayer = isPlayerHere(id);
-                      const isGoal = goalId === id;
-                      const isTrigger = !!findTriggerForHex(id);
-
-                      const tile = HEX_TILE ? `url(${toPublicUrl(HEX_TILE)})` : "";
-
-                      return (
-                        <button
-                          key={id}
-                          className={[
-                            "hex",
-                            isSel ? "sel" : "",
-                            isReach ? "reach" : "",
-                            blocked ? "blocked" : "",
-                            isPlayer ? "player" : "",
-                            isGoal ? "goal" : "",
-                            isTrigger ? "trigger" : "",
-                          ].join(" ")}
-                          onClick={() => {
-                            setSelectedId(id);
-                            tryMoveToId(id);
-                          }}
-                          disabled={!state || blocked || encounterActive}
-                          style={{
-                            ["--hexGlow" as any]: layerCssVar(currentLayer),
-                            backgroundImage: tile || undefined,
-                          }}
-                          title={id}
-                        >
-                          <div className="hexAnchor">
-                            <div className="hexInner">
-                              <div className="hexId">
-                                {r},{c}
-                              </div>
-                              <div className="hexMarks">
-                                {isGoal ? <span className="mark g">G</span> : null}
-                                {isTrigger ? <span className="mark t">!</span> : null}
-                              </div>
-                            </div>
-
-                            {isPlayer ? (
-                              <span
-                                className={`playerSpriteSheet ${isWalking ? "walking" : ""}`}
-                                style={
-                                  {
-                                    ["--spriteImg" as any]: `url(${spriteSheetUrl()})`,
-                                    ["--frameW" as any]: FRAME_W,
-                                    ["--frameH" as any]: FRAME_H,
-                                    ["--cols" as any]: SPRITE_COLS,
-                                    ["--rows" as any]: SPRITE_ROWS,
-                                    ["--frameX" as any]: walkFrame,
-                                    ["--frameY" as any]:
-                                      playerFacing === "down" ? 0 : playerFacing === "left" ? 1 : playerFacing === "right" ? 2 : 3,
-                                  } as any
-                                }
-                              />
-                            ) : null}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
-        </div>
-
-        <SideBar side="right" currentLayer={currentLayer} />
-
-        <div className="side">
-          <div className="panelMini">
-            <div className="miniTitle">Status</div>
-            <div className="miniRow">
-              <span className="k">Player</span>
-              <span className="v">{chosenPlayer?.kind === "preset" ? chosenPlayer.name : chosenPlayer?.name ?? "—"}</span>
-            </div>
-            <div className="miniRow">
-              <span className="k">Tile</span>
-              <span className="v">{pid ?? "—"}</span>
-            </div>
-            <div className="miniRow">
-              <span className="k">Reach</span>
-              <span className="v">{reachable.size}</span>
-            </div>
-            <div className="miniRow">
-              <span className="k">Encounter</span>
-              <span className="v">{encounterActive ? encounter!.villainKey : "no"}</span>
-            </div>
-          </div>
-
-          <div className="panelMini">
-            <div className="miniTitle">Log</div>
-            <div className="log">
-              {log.length === 0 ? (
-                <div className="mutedSmall">No events yet.</div>
-              ) : (
-                log.map((e) => (
-                  <div key={e.n} className={`logRow ${e.kind ?? "info"}`}>
-                    <span className="lt">{e.t}</span>
-                    <span className="lm">{e.msg}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {encounterActive ? (
-        <div className="overlay">
-          <div className="overlayCard">
-            <div className="overlayTitle">Encounter</div>
-            <div className="overlaySub">
-              Villain: <b>{encounter!.villainKey}</b> — roll a <b>6</b> to continue.
-            </div>
-
-            <div className="villainBox">
-              <img className="villainImg" src={villainImg(encounter!.villainKey)} alt="villain" />
-              <div className="villainMeta">
-                <div className="miniRow">
-                  <span className="k">Tries</span>
-                  <span className="v">{encounter!.tries}</span>
-                </div>
-                <div className="miniRow">
-                  <span className="k">Last roll</span>
-                  <span className="v">{diceValue}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="row">
-              <button className="btn primary" disabled={diceRolling} onClick={rollDice}>
-                {diceRolling ? "Rolling…" : "Roll"}
-              </button>
-              <button className="btn" onClick={() => pushLog("You cannot flee. Roll a 6.", "bad")}>
-                Flee
               </button>
             </div>
           </div>
         </div>
       ) : null}
 
-       <style>{baseCss}</style>
+      {/* =====================================================
+          SCENARIO SELECT
+      ====================================================== */}
+      {screen === "scenario" ? (
+        <div className="shell shellCard">
+          <div className="card">
+            <div className="cardTitle">Select scenario</div>
+            <div className="cardMeta">{world ? `World: ${world.name}` : ""}</div>
+
+            <div className="selectList">
+              {(world?.scenarios ?? []).map((s) => {
+                const selected = s.id === scenarioId;
+                return (
+                  <div
+                    key={s.id}
+                    className={"selectTile" + (selected ? " selected" : "")}
+                    onClick={() => {
+                      setScenarioId(s.id);
+                      setTrackId(null);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="selectTileTitle">{s.name}</div>
+                    <div className="selectTileDesc">{s.desc ?? ""}</div>
+                  </div>
+                );
+              })}
+              {!world?.scenarios?.length ? <div className="selectTileDesc">This world has no scenarios yet.</div> : null}
+            </div>
+
+            <div className="row rowBetween">
+              <button className="btn" onClick={() => setScreen("character")}>
+                Back
+              </button>
+              <button
+                className="btn primary"
+                disabled={!scenarioEntry}
+                onClick={() => {
+                  const tracks = scenarioEntry?.tracks ?? [];
+                  if (tracks.length > 1) {
+                    setScreen("difficulty");
+                  } else {
+                    setTrackId(null);
+                    startScenario().catch((e) => alert(String((e as any)?.message ?? e)));
+                  }
+                }}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* =====================================================
+          DIFFICULTY (tracks) — skips if only 1
+      ====================================================== */}
+      {screen === "difficulty" ? (
+        <div className="shell shellCard">
+          <div className="card">
+            <div className="cardTitle">Choose difficulty</div>
+            <div className="cardMeta">{scenarioEntry ? scenarioEntry.name : ""}</div>
+
+            <div className="selectList">
+              {(scenarioEntry?.tracks ?? []).map((t) => {
+                const selected = t.id === trackId;
+                return (
+                  <div
+                    key={t.id}
+                    className={"selectTile" + (selected ? " selected" : "")}
+                    onClick={() => setTrackId(t.id)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="selectTileTitle">{t.name}</div>
+                    <div className="selectTileDesc">Track: {t.id}</div>
+                  </div>
+                );
+              })}
+              {!scenarioEntry?.tracks?.length ? (
+                <div className="selectTileDesc">No tracks found. (This screen should normally be skipped.)</div>
+              ) : null}
+            </div>
+
+            <div className="row rowBetween">
+              <button className="btn" onClick={() => setScreen("scenario")}>
+                Back
+              </button>
+              <button
+                className="btn primary"
+                disabled={!trackId}
+                onClick={() => startScenario().catch((e) => alert(String((e as any)?.message ?? e)))}
+              >
+                Start game
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* =====================================================
+          GAME
+      ====================================================== */}
+      {screen === "game" ? (
+        <div className="shell shellGame">
+          {encounterActive ? <div className="blackout" aria-hidden="true" /> : null}
+
+          {encounterActive ? (
+            <div className="villainCenter">
+              <img className="villainImg" src={villainImg(encounter!.villainKey)} alt={encounter!.villainKey} />
+              <div className="villainText">Roll a 6 to continue</div>
+              <button className="btn primary" onClick={rollDice}>
+                🎲 Roll
+              </button>
+              <div className="villainSmall">Tries: {encounter!.tries}</div>
+            </div>
+          ) : null}
+
+          <div className="scrollStage" ref={scrollRef}>
+            <div className="scrollInner">
+              <div className="gameLayout">
+                <SideBar side="left" currentLayer={currentLayer} segments={barSegments} />
+
+                <div className="mainBoardWrap">
+                  <HexBoard
+                    kind="main"
+                    activeLayer={currentLayer}
+                    maxLayer={scenarioLayerCount}
+                    state={state}
+                    selectedId={selectedId}
+                    reachable={reachable}
+                    reachMap={reachMap}
+                    onCellClick={tryMoveToId}
+                    showCoords
+                    showPlayerOnMini={false}
+                  />
+                </div>
+
+                <SideBar side="right" currentLayer={currentLayer} segments={barSegments} />
+
+                {/* Cube / Dice */}
+                <div className="diceArea">
+                  <div className="diceCubeWrap" aria-label="Layer dice">
+                    <div
+                      className={"diceCube" + (diceSpinning ? " isSpinning" : "") + (diceDragging ? " isDragging" : "")}
+                      onPointerDown={onDicePointerDown}
+                      onPointerMove={onDicePointerMove}
+                      onPointerUp={endDrag}
+                      onPointerCancel={endDrag}
+                      style={{
+                        transform: `translateY(70px) rotateX(${diceRot.x}deg) rotateY(${diceRot.y}deg)`,
+                        touchAction: encounterActive ? "auto" : "none",
+                        cursor: encounterActive ? "default" : diceDragging ? "grabbing" : "grab",
+                      }}
+                    >
+                      {/* Dice faces during encounter, otherwise mini-board cube */}
+                      {encounterActive ? (
+                        <>
+                          <FaceImage cls="diceFace faceTop" src={diceImg(1)} alt="Dice 1" />
+                          <FaceImage cls="diceFace faceFront" src={diceImg(2)} alt="Dice 2" />
+                          <FaceImage cls="diceFace faceRight" src={diceImg(3)} alt="Dice 3" />
+                          <FaceImage cls="diceFace faceLeft" src={diceImg(4)} alt="Dice 4" />
+                          <FaceImage cls="diceFace faceBack" src={diceImg(5)} alt="Dice 5" />
+                          <FaceImage cls="diceFace faceBottom" src={diceImg(6)} alt="Dice 6" />
+                        </>
+                      ) : (
+                        <>
+                          {/* MINI BOARD MODE (3 faces) */}
+                          <div className="diceFace faceTop">
+                            <div className="faceStripe" style={{ background: stripeAbove }} />
+                            <div className="diceFaceInnerFixed">
+                              <div className="miniFit">
+                                <HexBoard
+                                  kind="mini"
+                                  activeLayer={miniAboveLayer}
+                                  maxLayer={scenarioLayerCount}
+                                  state={state}
+                                  selectedId={null}
+                                  reachable={miniAboveReach.reachable}
+                                  reachMap={miniAboveReach.reachMap}
+                                  showCoords={false}
+                                  onCellClick={undefined}
+                                  showPlayerOnMini={true}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="diceFace faceFront">
+                            <div className="faceStripe" style={{ background: stripeCurr }} />
+                            <div className="diceFaceInnerFixed">
+                              <div className="miniFit">
+                                <HexBoard
+                                  kind="mini"
+                                  activeLayer={miniCurrLayer}
+                                  maxLayer={scenarioLayerCount}
+                                  state={state}
+                                  selectedId={null}
+                                  reachable={miniCurrReach.reachable}
+                                  reachMap={miniCurrReach.reachMap}
+                                  showCoords={false}
+                                  onCellClick={undefined}
+                                  showPlayerOnMini={true}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="diceFace faceRight">
+                            <div className="faceStripe" style={{ background: stripeBelow }} />
+                            <div className="diceFaceInnerFixed">
+                              {belowLayer < 1 ? (
+                                <div className="miniInvalid">NO LAYER BELOW</div>
+                              ) : (
+                                <div className="miniFit">
+                                  <HexBoard
+                                    kind="mini"
+                                    activeLayer={miniBelowLayer}
+                                    maxLayer={scenarioLayerCount}
+                                    state={state}
+                                    selectedId={null}
+                                    reachable={miniBelowReach.reachable}
+                                    reachMap={miniBelowReach.reachMap}
+                                    showCoords={false}
+                                    onCellClick={undefined}
+                                    showPlayerOnMini={true}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* HUD faces */}
+                          <div className="diceFace faceBack">
+                            <div className="diceHud">
+                              <div className="hudTitle">Moves</div>
+                              <div className="hudRow">
+                                <span className="hudKey">Taken</span>
+                                <span className="hudVal">{movesTaken}</span>
+                              </div>
+                              <div className="hudRow">
+                                <span className="hudKey">Optimal start</span>
+                                <span className="hudVal">{optimalAtStart == null ? "—" : optimalAtStart}</span>
+                              </div>
+                              <div className="hudRow">
+                                <span className="hudKey">Optimal now</span>
+                                <span className="hudVal">{optimalFromNow == null ? "—" : optimalFromNow}</span>
+                              </div>
+                              <div className="hudRow">
+                                <span className="hudKey">Δ</span>
+                                <span className={"hudVal " + (delta == null ? "" : delta <= 0 ? "ok" : "bad")}>
+                                  {delta == null ? "—" : delta}
+                                </span>
+                              </div>
+                              <div className="hudNote">
+                                Goal: <span className="mono">{goalId ?? "not set"}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="diceFace faceLeft">
+                            <div className="diceHud">
+                              <div className="hudTitle">Story</div>
+                              <div className="hudLog">
+                                {log.slice(0, 7).map((e) => (
+                                  <div key={e.n} className={"hudLogLine " + (e.kind ?? "info")}>
+                                    <span className="hudTime">{e.t}</span>
+                                    <span className="hudMsg">{e.msg}</span>
+                                  </div>
+                                ))}
+                                {!log.length ? <div className="hudLogEmpty">No events yet…</div> : null}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="diceFace faceBottom">
+                            <div className="diceHud">
+                              <div className="hudTitle">Power</div>
+                              <div className="invGrid">
+                                {items.map((it) => (
+                                  <button
+                                    key={it.id}
+                                    className="invSlot"
+                                    onClick={() => useItem(it.id)}
+                                    disabled={it.charges <= 0}
+                                    title={`${it.name} (${it.charges})`}
+                                  >
+                                    <div className="invIcon">{it.icon}</div>
+                                    <div className="invMeta">
+                                      <div className="invName">{it.name}</div>
+                                      <div className="invCharges">{it.charges}</div>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                              <div className="hudNote">Drag to rotate • Tap items to use</div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Controls (no toggle button) */}
+                  <div className="diceControls">
+                    {encounterActive ? (
+                      <div className="diceReadout">Roll = {rollValue}</div>
+                    ) : (
+                      <div className="diceReadout subtle">Drag to rotate</div>
+                    )}
+                  </div>
+
+                  <div className="dragHint">{encounterActive ? "Encounter: roll a 6 to continue" : "Board Mode: Drag rotation only"}</div>
+
+                  <div className="row rowBetween" style={{ marginTop: 12 }}>
+                    <button
+                      className="btn"
+                      onClick={() => {
+                        setScreen("scenario");
+                        setState(null);
+                        setEncounter(null);
+                      }}
+                    >
+                      Back to Scenarios
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
 
+/* =========================================================
+   Dice corners (4x per face) — used ONLY in Dice faces
+========================================================= */
+function DiceCorners() {
+  return (
+    <>
+      <span className="diceCorner tl" />
+      <span className="diceCorner tr" />
+      <span className="diceCorner bl" />
+      <span className="diceCorner br" />
+    </>
+  );
+}
+
+/* =========================================================
+   Dice image face component
+========================================================= */
+function FaceImage(props: { cls: string; src: string; alt: string }) {
+  return (
+    <div className={props.cls}>
+      <DiceCorners />
+      <div className="diceImgWrap">
+        <img className="diceImg" src={props.src} alt={props.alt} draggable={false} />
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   Side bar
+========================================================= */
+function SideBar(props: { side: "left" | "right"; currentLayer: number; segments: number[] }) {
+  const { side, currentLayer, segments } = props;
+  return (
+    <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")} aria-label={`Layer bar ${side}`}>
+      <div className="layerBar">
+        {segments.map((layerVal) => {
+          const active = layerVal === currentLayer;
+          return <div key={layerVal} className={"barSeg" + (active ? " isActive" : "")} data-layer={layerVal} title={`Layer ${layerVal}`} />;
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   Hex Board
+========================================================= */
+function HexBoard(props: {
+  kind: "main" | "mini";
+  activeLayer: number;
+  maxLayer: number;
+  state: GameState | null;
+  selectedId: string | null;
+  reachable: Set<string>;
+  reachMap: ReachMap;
+  onCellClick?: (id: string) => void;
+  showCoords: boolean;
+  showPlayerOnMini?: boolean;
+}) {
+  const { kind, activeLayer, maxLayer, state, selectedId, reachable, reachMap, onCellClick, showCoords, showPlayerOnMini } = props;
+  const playerId = (state as any)?.playerHexId ?? null;
+
+  const hasAbove = activeLayer < maxLayer;
+  const hasBelow = activeLayer > 1;
+
+  const layerColor = layerCssVar(activeLayer);
+  const rimTop = hasAbove ? layerColor : "rgba(0,0,0,.92)";
+  const rimBottom = hasBelow ? layerColor : "rgba(0,0,0,.92)";
+
+  return (
+    <div
+      className={"hexBoard " + (kind === "main" ? "hexBoardMain" : "hexBoardMini")}
+      data-layer={activeLayer}
+      style={
+        {
+          ["--rimTop" as any]: rimTop,
+          ["--rimBottom" as any]: rimBottom,
+        } as any
+      }
+    >
+      {ROW_LENS.map((len, rIdx) => {
+        const row = rIdx; // 0-based
+        const isEvenRow = (row + 1) % 2 === 0; // visual "even" rows still based on display row number
+
+        return (
+          <div key={row} className={"hexRow" + (isEvenRow ? " even" : "")} data-row={row}>
+            {Array.from({ length: len }, (_, cIdx) => {
+              const col = cIdx; // 0-based
+              const id = `L${activeLayer}-R${row}-C${col}`;
+
+              const hex = getHexFromState(state, id) as any;
+              const { blocked, missing } = isBlockedOrMissing(hex);
+
+              const isSel = selectedId === id;
+              const isPlayer = playerId === id && (kind === "main" || !!showPlayerOnMini);
+              const canMove = !!(reachMap as any)?.[id]?.reachable;
+              const isReach = reachable.has(id);
+
+              return (
+                <div
+                  key={id}
+                  className={
+                    "hex" +
+                    (isSel ? " sel" : "") +
+                    (isPlayer ? " player" : "") +
+                    (isReach ? " reach" : "") +
+                    (!canMove && kind === "main" && !isPlayer ? " notReach" : "") +
+                    (blocked ? " blocked" : "") +
+                    (missing ? " missing" : "")
+                  }
+                  data-row={row}
+                  onClick={onCellClick ? () => onCellClick(id) : undefined}
+                  role={onCellClick ? "button" : undefined}
+                  tabIndex={onCellClick ? 0 : undefined}
+                  title={showCoords ? `L${activeLayer} R${row + 1} C${col + 1}` : undefined}
+                >
+                  <span className="hexRim hexRimTop" aria-hidden="true" />
+                  <span className="hexRim hexRimBottom" aria-hidden="true" />
+
+                  {showCoords ? (
+                    <span className="hexLabel">
+                      <div>R{row + 1}</div>
+                      <div>C{col + 1}</div>
+                    </span>
+                  ) : null}
+
+                  {kind === "mini" ? <span className="miniNum">{col + 1}</span> : null}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 /* =========================================================
    CSS
 ========================================================= */
-
-
-const baseCss = `
+const CSS = `
 :root{
-  --bg0:#070a10; --bg1:#0b1324;
-  --panel: rgba(10,14,24,.72);
-  --stroke: rgba(255,255,255,.10);
-  --stroke2: rgba(255,255,255,.18);
-  --text: rgba(255,255,255,.92);
-  --muted: rgba(255,255,255,.62);
-  --shadow: 0 18px 50px rgba(0,0,0,.45);
-  --shadow2: 0 10px 25px rgba(0,0,0,.35);
---deckGap: 20px;
-  /* === BOARD GEOMETRY (7676767) === */
-  --hexWMain: clamp(82px, 6.6vw, 120px);
-  --hexHMain: calc(var(--hexWMain) * 0.8660254);
+  --ink: rgba(255,255,255,.92);
 
-  --hexGap: 10px;
-  --hexOverlap: 0.0;
-  ---hexPitch: calc(var(--hexWMain) + var(--hexGap));
-
-  --maxCols: 7;
-  --hexRows: 7;
-
-  /* These two MUST match between board + bars */
-  --boardPadTop: 10px;
-  --boardPadBottom: 18px;
-
-  --barColW: 62px;
-  --sideColW: 340px;
-  --barW: 18px;
-
---boardW: calc(
-  var(--hexWMain)
-  + 6 * var(--hexPitch)
-);
+  /* Defaults (overridden via inline CSS vars from scenario theme) */
+  --L1: #FF4D7D;
+  --L2: #FF9A3D;
+  --L3: #FFD35A;
+  --L4: #4BEE9C;
+  --L5: #3ED7FF;
+  --L6: #5C7CFF;
+  --L7: #B66BFF;
 }
 
-*{ box-sizing:border-box; }
-html,body{ height:100%; }
-body{
-  margin:0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-  color: var(--text);
-  background:
-    radial-gradient(1200px 800px at 20% 10%, rgba(125,255,220,.10), transparent 5.5%),
-    radial-gradient(900px 700px at 80% 20%, rgba(120,150,255,.12), transparent 5.5%),
-    radial-gradient(900px 700px at 50% 90%, rgba(255,220,120,.08), transparent 6.0%),
-    linear-gradient(180deg, var(--bg0), var(--bg1));
-  overflow:hidden;
-}
+*{ box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
 
-.appRoot{ height:100vh; width:100vw; position:relative; }
-
-/* =========================================================
-   GAME BACKGROUND
-========================================================= */
-.gameBg{
-  position:absolute;
-  inset:0;
-  z-index:0;
-  background-size: cover;
-  background-position: center;
-  opacity:.28;
-  filter: saturate(1.05) contrast(1.05);
-}
-
-/* =========================================================
-   TOPBAR
-========================================================= */
-.topbar{
-  height:64px;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(255,255,255,.06);
-  background: linear-gradient(180deg, rgba(0,0,0,.28), rgba(0,0,0,.08));
-  backdrop-filter: blur(10px);
-  position:relative;
-  z-index:5;
-
-  flex-wrap: nowrap;
-  overflow: hidden;  /* desktop: no horizontal scroll */
-}
-
-.spacer{ flex:1; }
-
-/* =========================================================
-   PANELS / COMMON UI
-========================================================= */
-.screen.center{ height: calc(100vh - 64px); display:grid; place-items:center; padding:18px; }
-.panel{
-  width: min(980px, 92vw);
-  background: var(--panel);
-  border: 1px solid var(--stroke);
-  border-radius: 18px;
-  box-shadow: var(--shadow);
-  padding: 18px;
-  backdrop-filter: blur(12px);
-}
-.panel.wide{ width:min(1040px, 94vw); }
-
-.title{ font-size: 22px; font-weight: 900; letter-spacing: .3px; }
-.sub{ margin-top:6px; color: var(--muted); font-size: 13px; }
-
-.row{ display:flex; gap:10px; justify-content:flex-end; margin-top:14px; align-items:center; }
-.hint{ margin-top:12px; color: var(--muted); font-size: 13px; }
-
-.btn{
-  border: 1px solid var(--stroke);
-  background: rgba(255,255,255,.10);
-  color: var(--text);
-  padding: 10px 12px;
-  border-radius: 14px;
-  cursor: pointer;
-  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
-}
-.btn:hover{ background: rgba(255,255,255,.16); border-color: var(--stroke2); transform: translateY(-1px); }
-.btn:active{ background: rgba(255,255,255,.22); transform: translateY(0); }
-.btn:disabled{ opacity: .55; cursor: not-allowed; transform:none; }
-
-.btn.primary{
-  background: rgba(120,220,255,.22);
-  border-color: rgba(120,220,255,.35);
-}
-.btn.primary:hover{ background: rgba(120,220,255,.28); border-color: rgba(120,220,255,.50); }
-.btn.primary:active{ background: rgba(120,220,255,.36); }
-
-.grid{
-  margin-top: 12px;
-  display:grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
-  gap: 12px;
-}
-@media (max-width: 700px){
-  body{ overflow:auto; }
-  .grid{ grid-template-columns: 1fr; }
-}
-
-.card{
-  text-align:left;
-  padding: 14px;
-  border-radius: 16px;
-  border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.22);
-  color: var(--text);
-  cursor:pointer;
-  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
-}
-.card:hover{
-  transform: translateY(-1px);
-  border-color: rgba(120,220,255,.35);
-  background: rgba(0,0,0,.30);
-  box-shadow: 0 14px 40px rgba(0,0,0,.32);
-}
-.card.active{
-  border-color: rgba(120,255,210,.45);
-  box-shadow: 0 0 0 3px rgba(120,255,210,.12), 0 16px 45px rgba(0,0,0,.42);
-}
-.cardTitle{ font-weight: 900; }
-.cardDesc{ margin-top: 6px; color: var(--muted); font-size: 13px; }
-
-.customBox{ margin-top: 14px; display:grid; gap: 10px; }
-.lbl{ font-size: 12px; color: var(--muted); }
-.inp{
-  width:100%;
-  padding: 12px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.24);
-  color: var(--text);
-  outline:none;
-}
-.portrait{
-  width:120px; height:120px; border-radius: 18px;
-  object-fit: cover;
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(0,0,0,.25);
-  box-shadow: 0 14px 40px rgba(0,0,0,.28);
-}
-
-.tracks{ margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.08); }
-.tracksTitle{ font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
-.tracksRow{ margin-top: 10px; display:flex; flex-wrap: wrap; gap: 10px; }
-.chip{
-  padding: 10px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.22);
-  color: var(--text);
-  cursor:pointer;
-}
-.chip.active{
-  border-color: rgba(120,255,210,.45);
-  box-shadow: 0 0 0 3px rgba(120,255,210,.12);
-}
-
-/* =========================================================
-   TOPBAR HUD GROUPS + ITEMS
-========================================================= */
-.hudGroup{
-  display:flex;
-  align-items:center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.22);
-  box-shadow: 0 12px 30px rgba(0,0,0,.22);
-}
-.hudStat{
-  padding: 8px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.22);
-  min-width: 86px;
-}
-.hudStat .k{
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: .35px;
-  text-transform: uppercase;
-}
-.hudStat .v{
-  margin-top: 4px;
-  font-weight: 900;
-  font-size: 13px;
-}
-.mutedSmall{
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  margin-left: 6px;
-}
-
-.items{ display:flex; gap: 10px; flex-wrap: nowrap; }
-.itemBtn{
-  display:grid;
-  grid-template-columns: 20px auto 18px;
-  align-items:center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.22);
-  color: var(--text);
-  cursor:pointer;
-  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
-}
-.itemBtn:hover{ background: rgba(0,0,0,.30); border-color: var(--stroke2); transform: translateY(-1px); }
-.itemBtn:active{ transform: translateY(0); }
-.itemBtn:disabled{ opacity: .55; cursor: not-allowed; transform:none; }
-.itemBtn.off{ opacity: .5; filter: grayscale(.2); }
-.itemIcon{ font-size: 16px; line-height: 1; }
-.itemName{ font-size: 12px; font-weight: 900; letter-spacing: .25px; }
-.itemCharges{
-  font-size: 12px;
-  font-weight: 900;
-  padding: 2px 7px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.08);
-  text-align:center;
-}
-
-/* =========================================================
-   PILL
-========================================================= */
-.pill{
-  display:inline-flex; align-items:center; gap:10px;
-  padding: 9px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.22);
-  box-shadow: 0 12px 35px rgba(0,0,0,.25);
-}
-.dot{
-  width:10px; height:10px; border-radius:50%;
-  background: radial-gradient(circle at 30% 30%, rgba(120,255,210,.95), rgba(120,150,255,.65));
-  box-shadow: 0 0 0 3px rgba(120,255,210,.10);
-}
-.pillText{ font-weight: 800; font-size: 13px; color: rgba(255,255,255,.88); }
-
-/* =========================================================
-   DICE 3D
-========================================================= */
-.dice3d{
-  width: 58px; height: 58px;
+.appRoot{
+  min-height: 100vh;
   position: relative;
-  display:grid;
-  place-items:center;
-  perspective: 700px;
-}
-.dice3d .cube{
-  width: 46px; height: 46px;
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform 180ms ease;
-}
-.dice3d.rolling .cube{ animation: cubeWobble .35s ease-in-out infinite; }
-@keyframes cubeWobble{
-  0%{ transform: rotateX(0deg) rotateY(0deg); }
-  25%{ transform: rotateX(18deg) rotateY(-16deg); }
-  50%{ transform: rotateX(-16deg) rotateY(22deg); }
-  75%{ transform: rotateX(14deg) rotateY(16deg); }
-  100%{ transform: rotateX(0deg) rotateY(0deg); }
-}
-.dice3d .face{
-  position:absolute; inset:0;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.14);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), 0 10px 22px rgba(0,0,0,.35);
-  backface-visibility: hidden;
-}
-.dice3d .face-front{  transform: rotateY(  0deg) translateZ(23px); }
-.dice3d .face-back{   transform: rotateY(180deg) translateZ(23px); }
-.dice3d .face-right{  transform: rotateY( 90deg) translateZ(23px); }
-.dice3d .face-left{   transform: rotateY(-90deg) translateZ(23px); }
-.dice3d .face-top{    transform: rotateX( 90deg) translateZ(23px); }
-.dice3d .face-bottom{ transform: rotateX(-90deg) translateZ(23px); }
-.diceBorder{
-  position:absolute; inset: 0;
-  pointer-events:none;
-  background-size: cover;
-  background-position: center;
-  opacity: .95;
-  filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
-}
-
-/* =========================================================
-   GAME LAYOUT GRID
-========================================================= */
-.gameLayout{
-  position: relative;
-  z-index: 3;
-  height: calc(100vh - 64px);
-  display:grid;
-  grid-template-columns: var(--barColW) 1fr var(--barColW) var(--sideColW);
-  gap: 14px;
-  padding: 14px;
-  min-height: 0;
-}
-
-/* =========================================================
-   BOARD WRAP
-========================================================= */
-.boardWrap{
-  position: relative;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.08);
-  background: rgba(0,0,0,.22);
-  box-shadow: var(--shadow2);
-  overflow: visible;
-  min-height: 0;
-}
-.boardLayerBg{
-  position:absolute; inset:0;
-  background-size: cover;
-  background-position: center;
-  opacity: .14;
-  transform: scale(1.02);
-  animation: bgFadeIn 220ms ease;
-}
-
-@keyframes bgFadeIn{
-  from{ opacity: 0; }
-  to{ opacity: .14; }
-}
-
-
-/* =========================================================
-   BOARD SCROLL + BOARD
-========================================================= */
-.boardScroll{
-  position: relative;
-  z-index: 2;
-  min-height: 0;
-  overflow: auto;
-  padding: 0 10px;
-}
-
-.board{
-  width: var(--boardW);
-  margin: 0 auto;
-  padding: var(--boardPadTop) 0 var(--boardPadBottom);
-}
-
-/* =========================================================
-   HEX ROWS (7676767)
-========================================================= */
-.hexRow{
-  display: flex;
-  height: var(--hexHMain);
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  
-}
-.hexRow.offset{
-  transform: translateX(calc(var(--hexPitch) / 2));
-}
-
-/* =========================================================
-   HEX SLOTS + HEX BUTTON
-========================================================= */
-.hexSlot{
-  width: var(--hexWMain);
-  height: var(--hexHMain);
-  margin-right: calc(var(--hexPitch) - var(--hexWMain));
-}
-.hexSlot.empty{ opacity: 0; }
-
-.hex{
- width: var(--hexWMain);
-  height: var(--hexHMain);
-  margin-right: calc(var(--hexPitch) - var(--hexWMain));
-  padding: 0;
-  border: none;
-  background: rgba(0,0,0,.0);
-  cursor: pointer;
-  filter: drop-shadow(0 10px 16px rgba(0,0,0,.35));
-  transition: transform 140ms ease, filter 140ms ease;
-  position: relative;
-  overflow: visible;
-
-  --hexGlow: rgba(120,255,210,1);
- 
-}
-.hex:hover{
-  transform: translateY(-2px);
-  filter: drop-shadow(0 14px 22px rgba(0,0,0,.45));
-}
-.hex:disabled{
-  opacity: .75;
-  cursor: not-allowed;
-  transform:none;
-  filter: drop-shadow(0 10px 16px rgba(0,0,0,.25));
-}
-
-/* =========================================================
-   HEX INNER TILE + STATES
-========================================================= */
-.hexInner{
-  width: 100%;
-  height: 100%;
-  position: relative;
-  border-radius: 10px;
-  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
-  border: 1px solid rgba(255,255,255,.12);
-  background:
-    radial-gradient(circle at 30% 25%, rgba(120,255,210,.12), transparent 55%),
-    radial-gradient(circle at 70% 70%, rgba(120,150,255,.12), transparent 55%),
-    rgba(0,0,0,.34);
-  background-size: cover;
-  background-position: center;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
-  overflow:hidden;
-}
-.hexInner::before{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  opacity:.18;
-  background:
-    radial-gradient(circle at 20% 20%, rgba(255,255,255,.35), transparent 55%),
-    radial-gradient(circle at 80% 80%, rgba(255,255,255,.25), transparent 55%);
-  pointer-events:none;
-}
-.hex.reach .hexInner{
-  border-color: rgba(70,249,180,.48);
-  box-shadow: inset 0 0 0 1px rgba(70,249,180,.18), 0 0 0 3px rgba(70,249,180,.08);
-  animation: reachPulse 1.4s ease-in-out infinite;
-}
-@keyframes reachPulse{
-  0%{ filter: brightness(1); }
-  50%{ filter: brightness(1.15); }
-  100%{ filter: brightness(1); }
-}
-.hex.sel .hexInner{
-  border-color: rgba(255,221,121,.55);
-  box-shadow: inset 0 0 0 1px rgba(255,221,121,.20), 0 0 0 3px rgba(255,221,121,.10);
-}
-.hex.blocked .hexInner{
-  border-color: rgba(255,93,122,.22);
-  background: rgba(0,0,0,.55);
-  filter: grayscale(.15) brightness(.9);
-}
-.hex.player .hexInner{
-  border-color: rgba(120,255,210,.55);
-  box-shadow: inset 0 0 0 1px rgba(120,255,210,.20), 0 0 0 3px rgba(120,255,210,.10);
-}
-.hex.goal .hexInner{
-  border-color: rgba(255,211,106,.55);
-  box-shadow: inset 0 0 0 1px rgba(255,211,106,.20), 0 0 0 3px rgba(255,211,106,.10);
-}
-.hex.trigger .hexInner{
-  border-color: rgba(255,122,209,.40);
-  box-shadow: inset 0 0 0 1px rgba(255,122,209,.18), 0 0 0 3px rgba(255,122,209,.08);
-}
-
-/* current layer glow */
-.hex.sel{
-  filter:
-    drop-shadow(0 12px 18px rgba(0,0,0,.40))
-    drop-shadow(0 0 14px color-mix(in srgb, var(--hexGlow) 70%, transparent));
-}
-.hex.reach{
-  filter:
-    drop-shadow(0 12px 18px rgba(0,0,0,.40))
-    drop-shadow(0 0 10px color-mix(in srgb, var(--hexGlow) 55%, transparent));
-}
-
-/* =========================================================
-   HEX TEXT / MARKS
-========================================================= */
-.hexId{
-  position:absolute;
-  top: 9px;
-  left: 9px;
-  font-size: 11px;
-  color: rgba(255,255,255,.70);
-  font-variant-numeric: tabular-nums;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.20);
-}
-.hexMarks{
-  position:absolute;
-  right: 9px;
-  bottom: 9px;
-  display:flex;
-  gap: 6px;
-  align-items: flex-end;
-}
-.mark{
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  display:grid;
-  place-items:center;
-  font-weight: 900;
-  font-size: 12px;
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(0,0,0,.25);
-}
-.mark.g{
-  border-color: rgba(255,211,106,.35);
-  color: rgba(255,211,106,.95);
-  background: rgba(255,211,106,.10);
-}
-.mark.t{
-  border-color: rgba(255,122,209,.35);
-  color: rgba(255,122,209,.95);
-  background: rgba(255,122,209,.10);
-}
-
-/* =========================================================
-   SPRITE (LARGER)
-========================================================= */
-.hexAnchor{ position: relative; width: 100%; height: 100%; overflow: visible; }
-
-.playerSpriteSheet{
-  position: absolute;
-  left: 50%;
- top: 86%;
-  width: calc(var(--frameW) * 1px);
-  height: calc(var(--frameH) * 1px);
-
---spriteScale: 0.62;
---footX: -10px;
---footY: 0px;
-
-  transform:
-    translate(calc(-50% + var(--footX)), calc(-100% + var(--footY)))
-    scale(var(--spriteScale));
-  transform-origin: 50% 100%;
-
-  z-index: 20;
-  pointer-events: none;
-  image-rendering: pixelated;
-
-  background-image: var(--spriteImg);
-  background-repeat: no-repeat;
-  background-size:
-    calc(var(--frameW) * var(--cols) * 1px)
-    calc(var(--frameH) * var(--rows) * 1px);
-  background-position:
-    calc(var(--frameW) * -1px * var(--frameX))
-    calc(var(--frameH) * -1px * var(--frameY));
-
-  filter: drop-shadow(0 10px 18px rgba(0,0,0,.45));
-}
-
-/* =========================================================
-   LAYER BARS (HEIGHT MATCHES HEX FIELD + ACTIVE GLOW)
-========================================================= */
-.barWrap{
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 6;
-}
-.barLeft{ justify-content: flex-start; }
-.barRight{ justify-content: flex-end; }
-
-.layerBar{
-  width: var(--barW);
-  height: var(--hexFieldH);
-  border-radius: 999px;
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,.16);
-  background: rgba(0,0,0,.18);
-  box-shadow: 0 18px 40px rgba(0,0,0,.35);
-  display: flex;
-  flex-direction: column;
-}
-.barSeg{ height: var(--hexHMain); width: 100%; opacity: .95; }
-
-.barSeg[data-layer="7"]{ background: var(--L7); }
-.barSeg[data-layer="6"]{ background: var(--L6); }
-.barSeg[data-layer="5"]{ background: var(--L5); }
-.barSeg[data-layer="4"]{ background: var(--L4); }
-.barSeg[data-layer="3"]{ background: var(--L3); }
-.barSeg[data-layer="2"]{ background: var(--L2); }
-.barSeg[data-layer="1"]{ background: var(--L1); }
-
-.barSeg.isActive{
-  filter: brightness(1.15);
-  box-shadow:
-    inset 0 0 0 2px rgba(255,255,255,.42),
-    0 0 18px 6px rgba(255,255,255,.10);
-  position: relative;
-}
-.barSeg.isActive::after{
-  content:"";
-  position:absolute;
-  inset: -6px;
-  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.35), transparent 60%);
-  opacity: .55;
-  pointer-events:none;
+  color: var(--ink);
 }
 
-/* =========================================================
-   SIDEBAR (STATUS + LOG)
-========================================================= */
-.side{
-  display:grid;
-  grid-auto-rows: min-content;
-  gap: 14px;
-  min-height: 0;
-  overflow: hidden;
-}
-.panelMini{
-  width: 100%;
-  padding: 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(10,14,24,.88);
-  box-shadow: var(--shadow2);
-  backdrop-filter: blur(10px);
-}
-.miniTitle{
-  margin: 0 0 10px 0;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: .45px;
-  color: rgba(255,255,255,.82);
-  font-weight: 900;
-}
-.miniRow{
-  display:flex;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px dashed rgba(255,255,255,.08);
-}
-.miniRow:last-child{ border-bottom: none; }
-.miniRow .k{ color: var(--muted); font-size: 12px; }
-.miniRow .v{ font-weight: 900; font-size: 12px; }
-
-.log{ max-height: 340px; overflow:auto; padding-right: 6px; }
-.logRow{
-  display:grid;
-  grid-template-columns: 58px 1fr;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(255,255,255,.06);
-}
-.logRow:last-child{ border-bottom:none; }
-.lt{ color: rgba(255,255,255,.55); font-size: 12px; font-variant-numeric: tabular-nums; }
-.lm{ font-size: 13px; color: rgba(255,255,255,.88); }
-.logRow.ok .lm{ color: rgba(70,249,180,.92); }
-.logRow.bad .lm{ color: rgba(255,93,122,.92); }
-.logRow.info .lm{ color: rgba(119,168,255,.92); }
-
-/* =========================================================
-   DECK CARDS (HALFWAY BETWEEN HEX EDGE AND BAR COLUMN)
-========================================================= */
-.hexDeckOverlay{
+.globalBg{
   position: absolute;
   inset: 0;
-  z-index: 4;
-  pointer-events: none;
-  --cardGlow: rgba(120,255,210,.65);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: saturate(1.08) contrast(1.02);
+  z-index: 0;
 }
 
-.hexDeckCol{
-  position: absolute;
-  top: var(--boardPadTop);
-  bottom: var(--boardPadBottom);
-  display:flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.hexDeckCol.left{
-  left: calc((100% - var(--boardW)) / 2);
-  transform: translateX(calc(-1 * var(--deckGap)));
-}
-
-.hexDeckCol.right{
-  right: calc((100% - var(--boardW)) / 2);
-  transform: translateX(var(--deckGap));
-}
-.hexDeckCard{
-  width: min(230px, 16vw);
-  max-width: 260px;
-  aspect-ratio: 3 / 4;
-  border-radius: 22px;
-  position: relative;
-  overflow: hidden;
-
-  border: 1px solid rgba(255,255,255,.18);
-  background: linear-gradient(135deg, var(--a), var(--b));
-  box-shadow:
-    0 18px 48px rgba(0,0,0,.55),
-    0 0 0 1px rgba(255,255,255,.06) inset;
-}
-.hexDeckCard::before{
-  content:"";
+.menuBg{
   position:absolute;
   inset:0;
-  background:
-    radial-gradient(120% 90% at 40% 20%, rgba(255,255,255,.12), transparent 55%),
-    radial-gradient(90% 70% at 70% 80%, rgba(255,255,255,.08), transparent 60%);
-  opacity: .9;
-  pointer-events:none;
+  background: var(--menuSolidBg, linear-gradient(180deg, rgba(40,120,255,.95), rgba(10,40,120,.95)));
+  z-index:0;
 }
-.hexDeckCard::after{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  border-radius: 24px;
-  padding: 2px;
 
+.globalBgOverlay{
+  position: absolute;
+  inset: 0;
   background:
-    conic-gradient(
-      from var(--spin),
-      transparent 0 80%,
-      rgba(255,255,255,1) 82% 84%,
-      var(--cardGlow) 86% 90%,
-      rgba(255,255,255,1) 92% 94%,
-      transparent 96% 100%
-    );
+    radial-gradient(900px 600px at 50% 50%, rgba(255,255,255,.18), transparent 55%),
+    linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,.24));
+  z-index: 1;
+}
 
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+.blackout{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.85);
+  z-index: 50;
+}
 
-  filter: blur(.2px) drop-shadow(0 0 10px var(--cardGlow));
+.villainCenter{
+  position: fixed;
+  left: 38%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 60; /* above blackout, below cube */
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  text-align: center;
+}
+.villainImg{
+  width: min(340px, 40vw);
+  height: auto;
+  border-radius: 16px;
+  box-shadow: 0 30px 80px rgba(0,0,0,.45);
+}
+.villainText{ font-weight: 1000; opacity: .96; }
+.villainSmall{ font-weight: 900; opacity: .8; font-size: 12px; }
+
+.shell{ position: relative; z-index: 2; padding: 22px; }
+.shellCard{ display: grid; place-items: center; min-height: 100vh; }
+
+.card{
+  width: min(980px, calc(100vw - 44px));
+  border-radius: 22px;
+  padding: 18px;
+  background: rgba(255,255,255,.12);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.16) inset, 0 25px 70px rgba(0,0,0,.18);
+  backdrop-filter: blur(10px);
+}
+.cardTitleBig{ font-weight: 1000; font-size: 34px; letter-spacing: .2px; }
+.cardTitle{ font-weight: 1000; font-size: 18px; letter-spacing: .2px; margin-bottom: 10px; }
+.cardMeta{ margin-top: 6px; opacity: .82; font-weight: 900; }
+
+.row{ display:flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.rowBetween{ justify-content: space-between; }
+
+.btn{
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(0,0,0,.20);
+  color: rgba(255,255,255,.92);
+  font-weight: 950;
+  cursor:pointer;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset, 0 18px 40px rgba(0,0,0,.16);
+}
+.btn:hover{ filter: brightness(1.06); border-color: rgba(255,255,255,.28); }
+.btn:disabled{ opacity: .55; cursor: not-allowed; }
+.btn.primary{
+  border-color: rgba(255,255,255,.30);
+  background: linear-gradient(135deg, rgba(200,140,255,.45), rgba(120,220,255,.30));
+}
+
+.selectList{ display:grid; gap: 10px; margin-top: 12px; }
+.selectTile{
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(0,0,0,.16);
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.08) inset;
+  cursor: pointer;
+}
+.selectTile.selected{
+  border-color: rgba(255,255,255,.30);
+  box-shadow: 0 0 0 3px rgba(255,255,255,.10) inset, 0 18px 40px rgba(0,0,0,.14);
+}
+.selectTileTitle{ font-weight: 1000; }
+.selectTileDesc{ margin-top: 4px; opacity: .80; line-height: 1.25; }
+
+/* GAME */
+.shellGame{ min-height: 100vh; display: grid; place-items: start center; padding-top: 18px; }
+
+.scrollStage{
+  width: calc(100vw - 44px);
+  max-width: 100vw;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 16px;
+  scrollbar-gutter: stable both-edges;
+}
+.scrollInner{ min-width: 1380px; }
+
+.dragHint{
+  margin-top: 10px;
+  opacity: .78;
+  font-weight: 900;
+  text-align: center;
+  text-shadow: 0 8px 20px rgba(0,0,0,.18);
+}
+
+.gameLayout{
+  --rows: 7;
+  --hexWMain: 82px;
+  --hexHMain: calc(var(--hexWMain) * 0.8660254);
+
+  display: grid;
+  grid-template-columns: 62px auto 62px 420px;
+  gap: 18px;
+  align-items: start;
+  justify-content: center;
+}
+
+/* BARS */
+.barWrap{ display:flex; align-items: flex-start; justify-content: center; }
+.layerBar{
+  width: 18px;
+  height: calc(var(--hexHMain) * var(--rows));
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(0,0,0,.22);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.18);
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+}
+.barSeg{ opacity: .95; position: relative; }
+.barSeg[data-layer="1"]{ background: var(--L1); }
+.barSeg[data-layer="2"]{ background: var(--L2); }
+.barSeg[data-layer="3"]{ background: var(--L3); }
+.barSeg[data-layer="4"]{ background: var(--L4); }
+.barSeg[data-layer="5"]{ background: var(--L5); }
+.barSeg[data-layer="6"]{ background: var(--L6); }
+.barSeg[data-layer="7"]{ background: var(--L7); }
+.barSeg.isActive{ outline: 1px solid rgba(255,255,255,.25); z-index: 3; }
+.barSeg.isActive::after{
+  content: "";
+  position: absolute;
+  inset: -10px;
+  background: inherit;
+  filter: blur(14px);
+  opacity: .95;
+  border-radius: 999px;
+}
+
+/* HEX BOARD */
+.hexBoard{
+  --hexW: 74px;
+  --hexH: calc(var(--hexW) * 0.8660254);
+  --hexGap: 10px;
+  --hexOverlap: 0.0;
+  --hexPitch: calc(var(--hexW) * (1 - var(--hexOverlap)) + var(--hexGap));
+  --maxCols: 7;
+
+  width: calc(var(--hexW) + (var(--maxCols) - 1) * var(--hexPitch));
+  display: grid;
+  justify-content: center;
+  user-select: none;
+}
+.hexBoardMain{ --hexW: var(--hexWMain); --hexH: var(--hexHMain); }
+.hexBoardMini{ --hexW: 24px; --hexGap: 2px; --hexOverlap: 0.0; }
+
+.hexRow{ display:flex; width: 100%; height: var(--hexH); align-items: center; justify-content: flex-start; }
+.hexRow.even{ padding-left: calc(var(--hexPitch) / 2); }
+
+.hex{
+  width: var(--hexW);
+  height: var(--hexH);
+  margin-right: calc(var(--hexPitch) - var(--hexW));
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  position: relative;
+  background: rgba(255,255,255,.14);
+  border: 1px solid rgba(0,0,0,.75);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 6px 16px rgba(0,0,0,.10);
+  cursor: default;
+}
+.hexBoardMain .hex{ cursor: pointer; }
+
+.hexRim{
+  position:absolute;
+  left: 14%;
+  right: 14%;
+  height: 2px;
+  border-radius: 999px;
   opacity: .95;
   pointer-events:none;
+  filter: drop-shadow(0 1px 4px rgba(0,0,0,.30));
+  z-index: 2;
+}
+.hexRimTop{ top: 8%; background: var(--rimTop, rgba(0,0,0,.85)); }
+.hexRimBottom{ bottom: 8%; background: var(--rimBottom, rgba(0,0,0,.85)); }
+
+.hexLabel{
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 1000;
+  letter-spacing: .2px;
+  line-height: 1.05;
+  text-align: center;
+  color: rgba(255,255,255,.98);
+  z-index: 3;
+  pointer-events: none;
+  -webkit-text-stroke: 1px rgba(0,0,0,.75);
+  text-shadow:
+    -1px -1px 0 rgba(0,0,0,.75),
+     1px -1px 0 rgba(0,0,0,.75),
+    -1px  1px 0 rgba(0,0,0,.75),
+     1px  1px 0 rgba(0,0,0,.75),
+     0 0 12px rgba(0,0,0,.45);
+}
+.hexBoardMain .hexLabel{ font-size: 13px; }
+
+.miniNum{
+  position:absolute;
+  inset: 0;
+  display:grid;
+  place-items:center;
+  z-index: 4;
+  pointer-events:none;
+  font-weight: 1000;
+  font-size: 9px;
+  color: rgba(0,0,0,.92);
+  text-shadow: 0 0 6px rgba(255,255,255,.35);
 }
 
-@keyframes spinCW { from{ --spin: 0turn; } to{ --spin: 1turn; } }
-@keyframes spinCCW{ from{ --spin: 1turn; } to{ --spin: 0turn; } }
+/* Only MAIN board overlays; mini stays uniform */
+.hex::before{ content:""; position:absolute; inset:0; pointer-events:none; z-index:1; opacity:0; }
+.hexBoardMain .hex.notReach{ cursor: not-allowed; }
+.hexBoardMain .hex.notReach::before{ background: rgba(0,0,0,.28); opacity: 1; }
+.hexBoardMain .hex.blocked::before{ background: rgba(0,0,0,.34); opacity: 1; }
+.hexBoardMain .hex.missing::before{ background: rgba(0,0,0,.48); opacity: 1; }
+.hexBoardMini .hex::before{ opacity: 0 !important; }
 
-.hexDeckCard.cw.slow{ animation: spinCW 3.6s linear infinite; }
-.hexDeckCard.cw.fast{ animation: spinCW 2.4s linear infinite; }
-.hexDeckCard.ccw.slow{ animation: spinCCW 3.8s linear infinite; }
-.hexDeckCard.ccw.fast{ animation: spinCCW 2.2s linear infinite; }
-
-/* subtle twinkle */
-@keyframes twinkle {
-  0%,100%{ filter: drop-shadow(0 0 10px var(--cardGlow)); opacity:.92; }
-  50%{ filter: drop-shadow(0 0 16px var(--cardGlow)); opacity:1; }
+.hex.reach{
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,.12) inset,
+    0 0 18px rgba(0,200,255,.42),
+    0 0 44px rgba(0,200,255,.22);
+  filter: brightness(1.6);
 }
-.hexDeckCard::after{
-  animation-name: inherit, twinkle;
-  animation-duration: inherit, 1.3s;
-  animation-iteration-count: inherit, infinite;
-  animation-timing-function: linear, ease-in-out;
+.hex.player{
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,.18) inset,
+    0 0 26px rgba(76,255,80,.70),
+    0 0 80px rgba(76,255,80,.45);
+  filter: brightness(1.6);
+  z-index: 4;
 }
+.hex.sel{ outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
 
-/* card color themes */
-.hexDeckCard.cosmic  { --a:#0C1026; --b:#1A1F4A; }
-.hexDeckCard.risk    { --a:#12090A; --b:#6E0F1B; }
-.hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; }
-.hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; }
+/* DICE */
+.diceArea{ display:grid; justify-items:center; gap: 14px; padding-top: 0; position: relative; z-index: 70; }
 
-/* =========================================================
-   OVERLAY / ENCOUNTER
-========================================================= */
-.overlay{
+.diceCubeWrap{
+  width: 460px;
+  height: 360px;
+  display:grid;
+  place-items:center;
+  perspective: 1000px;
+  position: relative;
+}
+.diceCube{
+  --s: 294px;
+  width: var(--s);
+  height: var(--s);
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 650ms cubic-bezier(.2,.9,.2,1);
+}
+.diceCube.isSpinning{ transition: transform 900ms cubic-bezier(.12,.85,.18,1); }
+.diceCube.isDragging{ transition: none !important; }
+
+.diceFace{
   position:absolute;
   inset:0;
-  z-index: 50;
-  display:grid;
-  place-items: center;
-  background: rgba(0,0,0,.55);
-  backdrop-filter: blur(8px);
-}
-.overlayCard{
-  width: min(560px, 92vw);
   border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.14);
-  background: rgba(10,14,24,.92);
-  box-shadow: 0 24px 70px rgba(0,0,0,.55);
-  padding: 16px;
-}
-.overlayTitle{
-  font-size: 16px;
-  font-weight: 1000;
-  letter-spacing: .35px;
-  text-transform: uppercase;
-}
-.overlaySub{
-  margin-top: 8px;
-  color: rgba(255,255,255,.78);
-  font-size: 13px;
-  line-height: 1.35;
-}
-.villainBox{
-  margin-top: 14px;
-  display:grid;
-  grid-template-columns: 120px 1fr;
-  gap: 14px;
-  align-items:center;
-  padding: 0;
-  border: none;
-  background: transparent;
+  background: rgba(255,255,255,.08);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 22px 50px rgba(0,0,0,.16);
+  backdrop-filter: blur(8px);
+  overflow:hidden;
 }
 
-.villainImg{
-  width: 120px;
-  height: 120px;
-  border-radius: 16px;
-  object-fit: cover;
-  border: 1px solid rgba(255,255,255,.12);
-  box-shadow: 0 14px 40px rgba(0,0,0,.35);
-  background: rgba(0,0,0,.25);
-}
-.villainMeta{ display:grid; gap: 10px; }
+/* FLAME BORDER CORNERS (Dice faces only) */
+.diceCorner{
+  position:absolute;
+  width: 46%;
+  aspect-ratio: 1 / 1;
+  pointer-events:none;
+  z-index: 20;
 
-/* =========================================================
-   SCROLLBARS
-========================================================= */
-*::-webkit-scrollbar{ width: 10px; height: 10px; }
-*::-webkit-scrollbar-thumb{
-  background: rgba(255,255,255,.12);
+  background-image: var(--diceBorderImg);
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: top left;
+
+  opacity: 0.92;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 10px rgba(255,60,0,.30));
+}
+.diceCorner.tl{ top: 0; left: 0; transform: rotate(0deg); }
+.diceCorner.tr{ top: 0; right: 0; transform: rotate(90deg); }
+.diceCorner.br{ bottom: 0; right: 0; transform: rotate(180deg); }
+.diceCorner.bl{ bottom: 0; left: 0; transform: rotate(270deg); }
+
+.faceStripe{
+  position:absolute;
+  left: 18px;
+  right: 18px;
+  top: 14px;
+  height: 6px;
   border-radius: 999px;
-  border: 2px solid rgba(0,0,0,.25);
+  opacity: .95;
+  z-index: 6;
+  pointer-events:none;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,.25));
 }
-*::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.18); }
-*::-webkit-scrollbar-corner{ background: transparent; }
+
+.diceFaceInnerFixed{
+  position:absolute;
+  width: 260px;
+  height: 260px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 14px;
+  background: rgba(0,0,0,.10);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+}
+
+.miniFit{
+  transform: scale(var(--miniScale, 1.55));
+  transform-origin: center;
+  display: grid;
+  place-items: center;
+}
+
+.faceFront { transform: translateZ(calc(var(--s) / 2)); }
+.faceBack  { transform: rotateY(180deg) translateZ(calc(var(--s) / 2)); }
+.faceRight { transform: rotateY(90deg) translateZ(calc(var(--s) / 2)); }
+.faceLeft  { transform: rotateY(-90deg) translateZ(calc(var(--s) / 2)); }
+.faceTop   { transform: rotateX(90deg) translateZ(calc(var(--s) / 2)); }
+.faceBottom{ transform: rotateX(-90deg) translateZ(calc(var(--s) / 2)); }
+
+.diceControls{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.10);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 18px 40px rgba(0,0,0,.14);
+  backdrop-filter: blur(10px);
+}
+.diceReadout{ font-weight: 1000; font-size: 16px; color: rgba(255,255,255,.92); }
+.diceReadout.subtle{ opacity: .85; }
+
+.miniInvalid{
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(0,0,0,.16);
+  color: rgba(255,255,255,.88);
+  font-weight: 1000;
+}
+
+/* HUD faces */
+.diceHud{
+  position:absolute;
+  inset: 14px;
+  border-radius: 14px;
+  background: rgba(0,0,0,.16);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
+  padding: 12px;
+  color: rgba(255,255,255,.92);
+  display:flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow:hidden;
+  z-index: 5;
+}
+.hudTitle{ font-weight: 1000; letter-spacing: .2px; opacity: .95; }
+.hudRow{ display:flex; justify-content: space-between; align-items:center; gap: 10px; font-weight: 900; }
+.hudKey{ opacity: .85; }
+.hudVal{ font-weight: 1000; }
+.hudVal.ok{ color: rgba(140,255,170,.95); }
+.hudVal.bad{ color: rgba(255,160,160,.95); }
+.hudNote{ margin-top: auto; opacity: .78; font-weight: 900; font-size: 12px; }
+.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+.hudLog{ display:flex; flex-direction: column; gap: 6px; overflow:hidden; }
+.hudLogLine{ display:grid; grid-template-columns: 46px 1fr; gap: 8px; font-size: 12px; line-height: 1.15; font-weight: 900; opacity: .95; }
+.hudTime{ opacity: .75; }
+.hudLogLine.ok .hudMsg{ color: rgba(140,255,170,.95); }
+.hudLogLine.bad .hudMsg{ color: rgba(255,160,160,.95); }
+.hudLogEmpty{ opacity: .75; font-weight: 900; font-size: 12px; }
+
+.invGrid{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.invSlot{
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.08);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.22) inset;
+  padding: 10px;
+  cursor: pointer;
+  color: rgba(255,255,255,.92);
+  display:flex;
+  gap: 10px;
+  align-items:center;
+}
+.invSlot:disabled{ opacity: .55; cursor: not-allowed; }
+.invIcon{ font-size: 22px; }
+.invMeta{ display:flex; flex-direction: column; gap: 2px; }
+.invName{ font-weight: 1000; font-size: 12px; }
+.invCharges{ font-weight: 1000; opacity: .80; font-size: 12px; }
+
+/* Dice images */
+.diceImgWrap{
+  position:absolute;
+  inset: 16px;
+  border-radius: 14px;
+  background: rgba(0,0,0,.10);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
+  display:grid;
+  place-items:center;
+}
+.diceImg{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select:none;
+  pointer-events:none;
+  filter: drop-shadow(0 10px 20px rgba(0,0,0,.20));
+}
 
 @media (max-width: 980px){
-  .gameLayout{ grid-template-columns: 1fr; height:auto; }
-  .barWrap{ display:none; }
-  .side{ order: 10; }
+  .scrollInner{ min-width: 1200px; }
 }
 `;
