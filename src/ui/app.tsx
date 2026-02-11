@@ -86,8 +86,7 @@ type WorldEntry = {
 type VillainKey = "bad1" | "bad2" | "bad3" | "bad4";
 type VillainTrigger = { key: VillainKey; layer: number; row: number; cols?: "any" | number[] };
 type Encounter = null | { villainKey: VillainKey; tries: number };
-type CardKey = "cosmic" | "risk" | "terrain" | "shadow";
-type CardTrigger = { card: CardKey; layer: number; row: number; col: number };
+
 /* =========================================================
    Worlds registry helpers
 ========================================================= */
@@ -281,6 +280,30 @@ function findFirstPlayableHexId(st: GameState, layer: number): string {
   }
   return `L${layer}-R0-C0`;
 }
+function findPortalDirection(
+  transitions: any[] | undefined,
+  id: string
+): "up" | "down" | null {
+  if (!transitions) return null;
+
+  const c = idToCoord(id);
+  if (!c) return null;
+
+  for (const t of transitions) {
+    const from = t.from;
+    if (!from) continue;
+
+    if (
+      Number(from.layer) === c.layer &&
+      Number(from.row) === c.row &&
+      Number(from.col) === c.col
+    ) {
+      return t.type === "UP" ? "up" : "down";
+    }
+  }
+
+  return null;
+}
 
 function facingFromMove(fromId: string | null, toId: string | null): "down" | "up" | "left" | "right" {
   const a = fromId ? idToCoord(fromId) : null;
@@ -396,25 +419,19 @@ function getRowShiftUnits(st: any, layer: number, row: number): number {
   return Number.isFinite(n) ? n : 0;
 }
 function getMovementPattern(st: any, layer: number): string {
-  // st can be a GameState (st.scenario) OR a Scenario (st itself)
-  const sc = st?.scenario ?? st;
-
-  const m = sc?.movement ?? sc?.movementByLayer ?? null;
+  const m = st?.scenario?.movement ?? st?.scenario?.movementByLayer ?? null;
   if (!m) return "NONE";
-
   const v = m[layer] ?? m[String(layer)] ?? m["L" + layer];
   return typeof v === "string" ? v : "NONE";
 }
 
 function derivedRowShiftUnits(st: any, layer: number, row: number, movesTaken: number): number {
-  if (!st) return 0;
-
   const pat = getMovementPattern(st, layer);
   const cols = ROW_LENS[row] ?? 7;
 
   if (pat === "SEVEN_LEFT_SIX_RIGHT") {
-    if (cols === 7) return -movesTaken;
-    if (cols === 6) return movesTaken;
+    if (cols === 7) return -movesTaken; // 7-wide left
+    if (cols === 6) return movesTaken;  // 6-wide right
   }
 
   return 0;
@@ -565,35 +582,6 @@ function normalizeRowShift(rawShift: number, rowLen: number) {
 
   return { wrapped, visual };
 }
-function parseCardTriggersFromScenario(s: any): CardTrigger[] {
-  const src = (Array.isArray(s?.cardTriggers) && s.cardTriggers) || [];
-  const allowed: CardKey[] = ["cosmic", "risk", "terrain", "shadow"];
-
-  const toZeroBasedRow = (r: number) => (r >= 1 && r <= 7 ? r - 1 : r);
-  const toZeroBasedCol = (c: number) => (c >= 1 && c <= 7 ? c - 1 : c);
-
-  const out: CardTrigger[] = [];
-
-  for (const raw of src) {
-    if (!raw || typeof raw !== "object") continue;
-
-    const cardRaw = String(raw.card ?? raw.key ?? raw.id ?? "cosmic");
-    const card = (allowed.includes(cardRaw as any) ? cardRaw : "cosmic") as CardKey;
-
-    const layer = Number(raw.layer ?? 1);
-    let row = toZeroBasedRow(Number(raw.row ?? 0));
-    let col = toZeroBasedCol(Number(raw.col ?? 0));
-
-    if (!Number.isFinite(layer) || !Number.isFinite(row) || !Number.isFinite(col)) continue;
-    out.push({ card, layer, row, col });
-  }
-
-  return out;
-}
-function pickRiskVillain(): VillainKey {
-  const pool: VillainKey[] = ["bad1", "bad2", "bad3"];
-  return pool[Math.floor(Math.random() * pool.length)];
-}
 
 /* =========================================================
    CSS
@@ -742,108 +730,58 @@ body{
 }
 
 .card{
-  text-align: left;
+  text-align:left;
   padding: 14px;
+  border-radius: 16px;
   border: 1px solid var(--stroke);
   background: rgba(0,0,0,.22);
   color: var(--text);
-  cursor: pointer;
-
-  position: relative;
-  border-radius: 22px;
-  overflow: hidden;              /* ✅ clips any animated/shine layers if you add them later */
-  backface-visibility: hidden;   /* ✅ reduces edge shimmer */
-  will-change: transform;
-
-  transition:
-    transform 140ms ease,
-    border-color 140ms ease,
-    background 140ms ease,
-    box-shadow 140ms ease;
+  cursor:pointer;
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
 }
-
 .card:hover{
   transform: translateY(-1px);
   border-color: rgba(120,220,255,.35);
   background: rgba(0,0,0,.30);
   box-shadow: 0 14px 40px rgba(0,0,0,.32);
 }
-
 .card.active{
   border-color: rgba(120,255,210,.45);
   box-shadow: 0 0 0 3px rgba(120,255,210,.12), 0 16px 45px rgba(0,0,0,.42);
 }
+.cardTitle{ font-weight: 900; }
+.cardDesc{ margin-top: 6px; color: var(--muted); font-size: 13px; }
 
-.cardTitle{
-  font-weight: 900;
-}
-
-.cardDesc{
-  margin-top: 6px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.customBox{
-  margin-top: 14px;
-  display: grid;
-  gap: 10px;
-}
-
-.lbl{
-  font-size: 12px;
-  color: var(--muted);
-}
-
+.customBox{ margin-top: 14px; display:grid; gap: 10px; }
+.lbl{ font-size: 12px; color: var(--muted); }
 .inp{
-  width: 100%;
+  width:100%;
   padding: 12px 12px;
   border-radius: 12px;
   border: 1px solid var(--stroke);
   background: rgba(0,0,0,.24);
   color: var(--text);
-  outline: none;
+  outline:none;
 }
-
 .portrait{
-  width: 120px;
-  height: 120px;
-  border-radius: 18px;
+  width:120px; height:120px; border-radius: 18px;
   object-fit: cover;
   border: 1px solid rgba(255,255,255,.12);
   background: rgba(0,0,0,.25);
   box-shadow: 0 14px 40px rgba(0,0,0,.28);
 }
 
-.tracks{
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255,255,255,.08);
-}
-
-.tracksTitle{
-  font-size: 12px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: .4px;
-}
-
-.tracksRow{
-  margin-top: 10px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
+.tracks{ margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.08); }
+.tracksTitle{ font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+.tracksRow{ margin-top: 10px; display:flex; flex-wrap: wrap; gap: 10px; }
 .chip{
   padding: 10px 12px;
   border-radius: 999px;
   border: 1px solid var(--stroke);
   background: rgba(0,0,0,.22);
   color: var(--text);
-  cursor: pointer;
+  cursor:pointer;
 }
-
 .chip.active{
   border-color: rgba(120,255,210,.45);
   box-shadow: 0 0 0 3px rgba(120,255,210,.12);
@@ -1023,7 +961,6 @@ body{
   box-shadow: 0 18px 40px rgba(0,0,0,.35);
   display: flex;
   flex-direction: column; 
-  position: relative;
 }
 .barSeg{ height: var(--hexHMain); width: 100%; opacity: .95; }
 .barSeg[data-layer="7"]{ background: var(--L7); }
@@ -1048,134 +985,6 @@ body{
   background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.35), transparent 60%);
   opacity: .55;
   pointer-events:none;
-}
-/* LEFT BAR: row shift labels */
-.rowShiftBar{
-  position: relative;
-}
-
-.rowShiftBar .rowSeg{
-  display: grid;
-  place-items: center; /* ✅ centers text in each row block */
-  background: rgba(255,255,255,.03); /* subtle; optional */
-}
-
-.rowShiftLabel{
-  font-weight: 1000;
-  font-size: 12px;
-  letter-spacing: .35px;
-  color: rgba(255,255,255,.88);
-  text-shadow: 0 2px 10px rgba(0,0,0,.45);
-  user-select: none;
-}
-.goalMarker{
-  position: absolute;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  font-weight: 1000;
-  font-size: 12px;
-  letter-spacing: .2px;
-
-  color: rgba(255, 220, 120, .95);
-  background: rgba(0,0,0,.45);
-  border: 1px solid rgba(255, 220, 120, .55);
-  box-shadow:
-    0 10px 22px rgba(0,0,0,.45),
-    0 0 0 3px rgba(255, 220, 120, .10);
-  z-index: 5;
-  pointer-events: none;
-}
-/* mini sprite in the RIGHT layer bar */
-.barPlayerMini{
-  position: absolute;
-  left: 50%;
-  transform: translate(-50%, -50%);
-
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-
-  display: grid;
-  place-items: center;
-
-  /* keep it visible on dark bar */
-  background: rgba(0,0,0,.35);
-  border: 1px solid rgba(255,255,255,.18);
-  box-shadow:
-    0 10px 22px rgba(0,0,0,.40),
-    0 0 0 3px rgba(255,255,255,.06);
-
-  pointer-events: none;
-  z-index: 4; /* goalMarker is 5, so sprite is BEHIND it */
-}
-
-/* make sure goal marker stays above */
-.goalMarker{
-  z-index: 5;
-}
-
-/* sprite sheet renderer for the mini */
-.barPlayerMini .miniSprite{
-  width: 22px;
-  height: 22px;
-
-  image-rendering: pixelated;
-  background-image: var(--spriteImg);
-  background-repeat: no-repeat;
-  background-size:
-    calc(var(--frameW) * var(--cols) * 1px)
-    calc(var(--frameH) * var(--rows) * 1px);
-
-  /* pick a frame (same as your main sprite) */
-  background-position:
-    calc(var(--frameW) * -1px * var(--frameX))
-    calc(var(--frameH) * -1px * var(--frameY));
-
-  transform: scale(0.22);
-  transform-origin: center;
-  filter: drop-shadow(0 3px 6px rgba(0,0,0,.55));
-}
-.barPlayerMini{
-  position: absolute;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  background: rgba(0,0,0,.35);
-  border: 1px solid rgba(255,255,255,.18);
-  box-shadow:
-    0 10px 22px rgba(0,0,0,.40),
-    0 0 0 3px rgba(255,255,255,.06);
-  pointer-events: none;
-
-  z-index: 4; /* ✅ behind goalMarker (which is 5) */
-}
-
-.goalMarker{ z-index: 5; }
-
-.barPlayerMini .miniSprite{
-  width: 22px;
-  height: 22px;
-  image-rendering: pixelated;
-  background-image: var(--spriteImg);
-  background-repeat: no-repeat;
-  background-size:
-    calc(var(--frameW) * var(--cols) * 1px)
-    calc(var(--frameH) * var(--rows) * 1px);
-  background-position:
-    calc(var(--frameW) * -1px * var(--frameX))
-    calc(var(--frameH) * -1px * var(--frameY));
-  transform: scale(0.22);
-  transform-origin: center;
-  filter: drop-shadow(0 3px 6px rgba(0,0,0,.55));
 }
 
 /* =========================================================
@@ -1268,7 +1077,7 @@ display: grid;
   width: var(--hexWMain);
   height: var(--hexHMain);
 
-  padding: 0;
+  padding: 50;
   border: none;
   background: rgba(0,0,0,0);
   cursor: pointer;
@@ -1451,85 +1260,16 @@ flex: 0 0 var(--hexWMain);
   100%{ transform: rotate(360deg); }
 }
 
-/* =========================================================
-   REACHABLE (ONLY CHANGES: use layer color via --hexGlow)
-   - keeps your inset/padding exactly as-is
-   - keeps your ring thickness/shape exactly as-is
-========================================================= */
-
 .hex.reach .hexInner{
-  position: relative;
-  background: transparent !important;
+  border-color: rgba(255, 45, 161, .65);
+  background: rgba(255, 45, 161, 0.45) !important; /* ← transparency here */
   background-image: none !important;
-
-  /* ✅ changed from fixed pink -> layer color */
-  border-color: color-mix(in srgb, var(--hexGlow) 90%, white 10%);
   box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,.4);
+    inset 0 0 0 1px rgba(0,0,0,.35),
+    0 0 0 3px rgba(255, 45, 161, .18),
+    0 0 12px rgba(255, 45, 161, .35);
 }
 
-.hex.reach .hexInner::after{
-  content:"";
-  position:absolute;
-
-  /* keep your inset exactly */
-  inset: 1px;
-
-  /* keep your hex clip exactly */
-  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
-
-  /* keep your padding (ring thickness) exactly */
-  padding: 6px;
-  pointer-events:none;
-
-  /* ✅ changed all pink stops -> layer color */
-  background:
-    conic-gradient(
-      from var(--reachSpin),
-      color-mix(in srgb, var(--hexGlow) 0%, transparent) 0deg,
-      color-mix(in srgb, var(--hexGlow) 35%, transparent) 40deg,
-      color-mix(in srgb, var(--hexGlow) 100%, transparent) 90deg,
-      color-mix(in srgb, var(--hexGlow) 35%, transparent) 140deg,
-      color-mix(in srgb, var(--hexGlow) 0%, transparent) 210deg,
-      color-mix(in srgb, var(--hexGlow) 0%, transparent) 360deg
-    );
-
-  /* keep your cutout exactly */
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-
-  opacity: 1;
-
-  /* ✅ changed pink glow -> layer color */
-  filter:
-    drop-shadow(0 0 10px color-mix(in srgb, var(--hexGlow) 95%, transparent))
-    drop-shadow(0 0 22px color-mix(in srgb, var(--hexGlow) 35%, transparent));
-
-  animation:
-    reachSpin 1.8s linear infinite,
-    reachPulse .9s ease-in-out infinite;
-
-  transform: translateZ(0);
-  will-change: transform;
-}
-
-@property --reachSpin {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
-
-@keyframes reachSpin {
-  to { --reachSpin: 360deg; }
-}
-
-@keyframes reachPulse {
-  0%,100% { opacity: .85; }
-  50%     { opacity: 1; }
-}
 
 @keyframes reachPulse{
   0%{ filter: brightness(1); }
@@ -1570,7 +1310,6 @@ flex: 0 0 var(--hexWMain);
     drop-shadow(0 12px 18px rgba(0,0,0,.40))
     drop-shadow(0 0 10px color-mix(in srgb, var(--hexGlow) 55%, transparent));
 }
-
 /* =========================================================
    PORTAL TILE FX (uses destination color: --portalC)
    (keeps your existing tile bg / marks / borders)
@@ -1581,20 +1320,20 @@ flex: 0 0 var(--hexWMain);
   --portalC: var(--hexGlow); /* fallback */
 }
 
-.hex.portalUp .hexInner .pAura,
-.hex.portalDown .hexInner .pAura,
-.hex.portalUp .hexInner .pOrbs,
-.hex.portalDown .hexInner .pOrbs,
-.hex.portalUp .hexInner .pRim,
-.hex.portalDown .hexInner .pRim,
-.hex.portalUp .hexInner .pOval,
-.hex.portalDown .hexInner .pOval{
+.hex .hexInner .pAura,
+.hex .hexInner .pOrbs,
+.hex .hexInner .pRim,
+.hex .hexInner .pOval{
   position:absolute;
   inset:0;
   pointer-events:none;
   border-radius: 10px;
   clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+    overflow:visible;
+    z-index: 50;
+
 }
+
 
 /* glow framing (subtle so your existing look stays) */
 .hex.portalUp .hexInner,
@@ -1723,25 +1462,16 @@ flex: 0 0 var(--hexWMain);
    HEX TEXT / MARKS
 ========================================================= */
 .hexId{
-  position: absolute;
-  inset: 0;                 /* fill the hex */
-  display: grid;
-  place-items: center;      /* ✅ dead-center */
-  font-size: 13px;
-  font-weight: 900;
-  color: rgba(255,255,255,.82);
+  position:absolute;
+  top: 9px;
+  left: 9px;
+  font-size: 11px;
+  color: rgba(255,255,255,.70);
   font-variant-numeric: tabular-nums;
-
-  /* remove the pill look */
-  padding: 0;
-  border: none;
-  background: transparent;
-
-  /* keep it readable */
-  text-shadow: 0 2px 10px rgba(0,0,0,.55);
-
-  pointer-events: none;
-  z-index: 5;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.20);
 }
 .hexMarks{
   position:absolute;
@@ -1762,7 +1492,6 @@ flex: 0 0 var(--hexWMain);
   font-size: 12px;
   border: 1px solid rgba(255,255,255,.12);
   background: rgba(0,0,0,.25);
-  color: rgba(60, 163, 255, 0.8);
 }
 .mark.g{
   border-color: rgba(255,211,106,.35);
@@ -1910,8 +1639,7 @@ flex: 0 0 var(--hexWMain);
 .logRow.info .lm{ color: rgba(119,168,255,.92); }
 
 /* =========================================================
-   DECK CARDS (PINNED TO GUTTERS)
-   Continuous layer-colored border + constant inner motion
+   DECK CARDS (PINNED TO GUTTERS) + BORDER EFFECT
 ========================================================= */
 
 .hexDeckOverlay{
@@ -1927,10 +1655,6 @@ flex: 0 0 var(--hexWMain);
 
 .hexDeckCol{ display: contents; }
 
-/* =========================================================
-   BASE CARD
-========================================================= */
-
 .hexDeckCard{
   position: absolute;
 
@@ -1941,10 +1665,7 @@ flex: 0 0 var(--hexWMain);
   border-radius: 22px;
   overflow: hidden;
 
-  isolation: isolate;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  will-change: transform;
+  isolation: isolate; /* 🔑 keep blend modes inside card */
 
   border: 1px solid rgba(255,255,255,.18);
   background: linear-gradient(135deg, var(--a), var(--b));
@@ -1953,19 +1674,18 @@ flex: 0 0 var(--hexWMain);
     0 0 0 1px rgba(255,255,255,.06) inset;
 }
 
-/* =========================================================
-   CARD POSITIONS
-========================================================= */
-
+/* positions */
 .hexDeckCard.cosmic{
   left: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
   top: calc(var(--boardPadTop) + var(--deckPadY));
   transform: translateX(-45%);
+
 }
 .hexDeckCard.risk{
   left: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
   bottom: calc(var(--boardPadBottom) + var(--deckPadY));
   transform: translateX(-45%);
+
 }
 .hexDeckCard.terrain{
   right: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
@@ -1978,9 +1698,9 @@ flex: 0 0 var(--hexWMain);
   transform: translateX(45%);
 }
 
-/* =========================================================
-   INNER FX LAYER (ambient motion, seamless loop)
-========================================================= */
+/* ------------------------------------------------------------------
+   INNER FX LAYER (requires <div class="deckFx" /> inside card)
+------------------------------------------------------------------ */
 
 .hexDeckCard .deckFx{
   position:absolute;
@@ -1988,16 +1708,14 @@ flex: 0 0 var(--hexWMain);
   border-radius: inherit;
   pointer-events:none;
   overflow:hidden;
-  transform: translateZ(0);
 }
 
-/* static glow + pattern */
+/* glow + subtle hex pattern */
 .hexDeckCard .deckFx::before{
   content:"";
   position:absolute;
   inset:0;
   border-radius: inherit;
-
   background:
     radial-gradient(120% 90% at 40% 20%,
       color-mix(in srgb, var(--a) 35%, white 10%),
@@ -2008,23 +1726,16 @@ flex: 0 0 var(--hexWMain);
     linear-gradient(90deg, rgba(255,255,255,.10) 1px, transparent 1px) 0 0 / 18px 16px,
     linear-gradient(30deg, rgba(0,0,0,.20) 1px, transparent 1px) 0 0 / 18px 16px,
     linear-gradient(150deg, rgba(255,255,255,.06) 1px, transparent 1px) 0 0 / 18px 16px;
-
   opacity: .55;
   mix-blend-mode: overlay;
 }
 
-/* constant inner movement (no visible loop reset) */
-@keyframes deckInnerDrift{
-  from { transform: translate3d(-90%,-90%,0) rotate(0deg); }
-  to   { transform: translate3d( 90%, 90%,0) rotate(360deg); }
-}
-
+/* shimmer sweep */
 .hexDeckCard .deckFx::after{
   content:"";
   position:absolute;
-  inset:-25%;
+  inset:-20%;
   border-radius: inherit;
-
   background:
     repeating-linear-gradient(
       115deg,
@@ -2040,56 +1751,47 @@ flex: 0 0 var(--hexWMain);
       color-mix(in srgb, var(--b) 25%, transparent) 16px,
       rgba(0,0,0,0) 22px
     );
-
   background-size: 180% 180%;
-  opacity: .38;
+  opacity: .40;
   mix-blend-mode: screen;
-
-  will-change: transform;
-  animation: deckInnerDrift 8s linear infinite;
+  animation: deckShimmer 7s linear infinite;
 }
 
-/* =========================================================
-   FULL 360° LAYER-COLORED BORDER (continuous loop)
-========================================================= */
-
-@property --spin {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
+@keyframes deckShimmer{
+  0%{ transform: translate3d(-6%,-6%,0); }
+  50%{ transform: translate3d(6%,2%,0); }
+  100%{ transform: translate3d(-6%,-6%,0); }
 }
 
-@keyframes deckBorderSpin{
-  to { --spin: 360deg; }
-}
+/* ------------------------------------------------------------------
+   EXISTING SPINNING BORDER (unchanged)
+------------------------------------------------------------------ */
 
-@keyframes deckBorderBreath{
-  0%,100%{
-    opacity:.95;
-    filter: drop-shadow(0 0 10px var(--cardGlow));
-  }
-  50%{
-    opacity:1;
-    filter: drop-shadow(0 0 16px var(--cardGlow));
-  }
+@property --spin { syntax: "<angle>"; inherits: false; initial-value: 0turn; }
+
+@keyframes spinCW { from{ --spin: 0turn; } to{ --spin: 1turn; } }
+@keyframes spinCCW{ from{ --spin: 1turn; } to{ --spin: 0turn; } }
+
+@keyframes twinkle{
+  0%,100%{ filter: drop-shadow(0 0 10px var(--cardGlow)); opacity:.92; }
+  50%{ filter: drop-shadow(0 0 16px var(--cardGlow)); opacity:1; }
 }
 
 .hexDeckCard::after{
   content:"";
   position:absolute;
-  inset:0;
-  border-radius: inherit;
+  inset:-2px;
+  border-radius: 24px;
   padding: 2px;
-  pointer-events:none;
 
   background:
     conic-gradient(
       from var(--spin),
-      color-mix(in srgb, var(--cardGlow) 95%, rgba(255,255,255,.15)) 0deg,
-      color-mix(in srgb, var(--cardGlow) 65%, rgba(255,255,255,.10)) 90deg,
-      color-mix(in srgb, var(--cardGlow) 95%, rgba(255,255,255,.15)) 180deg,
-      color-mix(in srgb, var(--cardGlow) 65%, rgba(255,255,255,.10)) 270deg,
-      color-mix(in srgb, var(--cardGlow) 95%, rgba(255,255,255,.15)) 360deg
+      transparent 0 80%,
+      rgba(255,255,255,.1) 82% 84%,
+      var(--cardGlow) 86% 90%,
+      rgba(255,255,255,.1) 92% 94%,
+      transparent 96% 100%
     );
 
   -webkit-mask:
@@ -2098,46 +1800,25 @@ flex: 0 0 var(--hexWMain);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 
-  will-change: transform;
-  transform: translateZ(0);
-  backface-visibility: hidden;
+  opacity: .95;
+  pointer-events:none;
 
-  animation:
-    deckBorderSpin 2.8s linear infinite,
-    deckBorderBreath 1.35s ease-in-out infinite;
-}
-.cardBadge{
-  position: absolute;
-  left: 50%;
-  top: 18px;                 /* ✅ keeps it well below the top point */
-  transform: translateX(-50%);
-  width: 20px;
-  height: 12px;
-  border-radius: 4px;
-
-  z-index: 6;                /* ✅ ABOVE .hexId (which is z-index: 5) */
-  box-shadow: 0 6px 14px rgba(0,0,0,.35);
-  border: 1px solid rgba(255,255,255,.18);
-  pointer-events: none;
+  animation: var(--spinAnim) linear infinite, twinkle 1.3s ease-in-out infinite;
 }
 
-/* 4 color themes */
-.cardBadge.cosmic  { background: linear-gradient(135deg,#0C1026,#1A1F4A); }
-.cardBadge.risk    { background: linear-gradient(135deg,#12090A,#6E0F1B); }
-.cardBadge.terrain { background: linear-gradient(135deg,#0E3B2E,#1FA88A); }
-.cardBadge.shadow  { background: linear-gradient(135deg,#1B1B1E,#2A1E3F); }
+/* animation direction/speed via CSS var */
+.hexDeckCard.cw.slow{  --spinAnim: spinCW 3.6s; }
+.hexDeckCard.cw.fast{  --spinAnim: spinCW 2.4s; }
+.hexDeckCard.ccw.slow{ --spinAnim: spinCCW 3.8s; }
+.hexDeckCard.ccw.fast{ --spinAnim: spinCCW 2.2s; }
 
-/* =========================================================
-   CARD THEMES
-========================================================= */
-
+/* card themes */
 .hexDeckCard.cosmic  { --a:#0C1026; --b:#1A1F4A; }
 .hexDeckCard.risk    { --a:#12090A; --b:#6E0F1B; }
 .hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; }
 .hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; }
 
 @media (prefers-reduced-motion: reduce){
-  .hexDeckCard::after,
   .hexDeckCard .deckFx::after{
     animation:none !important;
   }
@@ -2249,112 +1930,6 @@ flex: 0 0 var(--hexWMain);
   70%  { opacity: 1; }
   100% { opacity: 0; transform: translateY(-6px) scale(.99); }
 }
-/* =========================================================
-   CARD FLIP OVERLAY (FULLSCREEN)
-   Shows a big themed card for 1.4s when a card triggers
-========================================================= */
-
-.cardFlipOverlay{
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  display: grid;
-  place-items: center;
-  background: rgba(0,0,0,.55);
-  backdrop-filter: blur(10px);
-  pointer-events: none; /* doesn't block clicks */
-  animation: cardFlipFade 1.4s ease-out forwards;
-}
-
-@keyframes cardFlipFade{
-  0%   { opacity: 0; }
-  12%  { opacity: 1; }
-  75%  { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-.cardFlipCard{
-  width: min(420px, 78vw);
-  aspect-ratio: 3 / 4;
-  border-radius: 28px;
-  border: 1px solid rgba(255,255,255,.18);
-  box-shadow:
-    0 28px 90px rgba(0,0,0,.65),
-    0 0 0 1px rgba(255,255,255,.06) inset;
-  overflow: hidden;
-  position: relative;
-  transform-origin: center;
-  animation: cardFlipPop 1.4s ease-out forwards;
-}
-
-@keyframes cardFlipPop{
-  0%   { transform: translateY(18px) scale(.92) rotateX(12deg); filter: blur(2px); opacity: 0; }
-  12%  { transform: translateY(0)    scale(1)  rotateX(0deg);  filter: blur(0);  opacity: 1; }
-  70%  { transform: translateY(0)    scale(1)  rotateX(0deg);  filter: blur(0);  opacity: 1; }
-  100% { transform: translateY(-10px) scale(.98); filter: blur(1px); opacity: 0; }
-}
-
-/* Theme backgrounds (match your deck cards) */
-.cardFlipCard.cosmic  { background: linear-gradient(135deg,#0C1026,#1A1F4A); }
-.cardFlipCard.risk    { background: linear-gradient(135deg,#12090A,#6E0F1B); }
-.cardFlipCard.terrain { background: linear-gradient(135deg,#0E3B2E,#1FA88A); }
-.cardFlipCard.shadow  { background: linear-gradient(135deg,#1B1B1E,#2A1E3F); }
-
-/* Nice inner motion + border */
-.cardFlipCard::before{
-  content:"";
-  position:absolute;
-  inset:-30%;
-  background:
-    radial-gradient(80% 60% at 30% 20%, rgba(255,255,255,.14), transparent 65%),
-    radial-gradient(70% 55% at 75% 80%, rgba(255,255,255,.10), transparent 65%),
-    repeating-linear-gradient(115deg, rgba(255,255,255,0) 0 14px, rgba(255,255,255,.10) 18px, rgba(255,255,255,0) 22px);
-  opacity: .55;
-  mix-blend-mode: overlay;
-  animation: flipDrift 1.4s linear forwards;
-}
-
-@keyframes flipDrift{
-  from { transform: translate3d(-12%, -10%, 0) rotate(0deg); }
-  to   { transform: translate3d( 12%,  10%, 0) rotate(14deg); }
-}
-
-.cardFlipCard::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  border-radius: inherit;
-  padding: 2px;
-  pointer-events:none;
-  background:
-    conic-gradient(
-      from 0deg,
-      rgba(255,255,255,.28),
-      rgba(255,255,255,.08),
-      rgba(255,255,255,.28)
-    );
-
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-
-  opacity: .9;
-}
-
-/* Optional label */
-.cardFlipLabel{
-  position:absolute;
-  left: 18px;
-  bottom: 16px;
-  font-weight: 1000;
-  letter-spacing: .45px;
-  font-size: 13px;
-  color: rgba(255,255,255,.90);
-  text-transform: uppercase;
-  text-shadow: 0 10px 26px rgba(0,0,0,.55);
-}
 
 /* =========================================================
    SCROLLBARS
@@ -2375,303 +1950,23 @@ flex: 0 0 var(--hexWMain);
   .side{ order: 10; }
   .board{ width: min(var(--boardW), 96vw); }
 }
-/* =========================================================
-   FLY-OUT CARD (deck -> center -> flip)
-========================================================= */
-.flyCardOverlay{
-  position: fixed;
-  inset: 0;
-  z-index: 1900; /* below cardFlipOverlay=2000, above everything else */
-  pointer-events: none;
-}
-
-.flyCard{
-  position: fixed;
-  left: 0;
-  top: 0;
-
-  width: var(--fromW);
-  height: var(--fromH);
-
-  transform-style: preserve-3d;
-  transform-origin: center;
-  border-radius: 22px;
-  overflow: hidden;
-
-  /* start at deck position */
-  transform: translate3d(var(--fromX), var(--fromY), 0) scale(1);
-
-  animation: flyToCenter 1.15s ease-out forwards;
-  box-shadow: 0 28px 90px rgba(0,0,0,.65);
-}
-
-/* reuse your theme backgrounds */
-.flyCard.cosmic  { background: linear-gradient(135deg,#0C1026,#1A1F4A); }
-.flyCard.risk    { background: linear-gradient(135deg,#12090A,#6E0F1B); }
-.flyCard.terrain { background: linear-gradient(135deg,#0E3B2E,#1FA88A); }
-.flyCard.shadow  { background: linear-gradient(135deg,#1B1B1E,#2A1E3F); }
-
-/* two faces for a real flip */
-.flyFace{
-  position:absolute;
-  inset:0;
-  backface-visibility: hidden;
-  border-radius: 22px;
-  overflow:hidden;
-}
-
-.flyFront{ transform: rotateY(0deg); }
-.flyBack{
-  transform: rotateY(180deg);
-  /* slight difference so you "feel" the flip */
-  filter: brightness(1.05) saturate(1.1);
-}
-
-.flyLabel{
-  position:absolute;
-  left: 18px;
-  bottom: 16px;
-  font-weight: 1000;
-  letter-spacing: .45px;
-  font-size: 13px;
-  color: rgba(255,255,255,.92);
-  text-transform: uppercase;
-  text-shadow: 0 10px 26px rgba(0,0,0,.55);
-}
-
-/* keyframe:
-   0%: at deck rect
-   ~55%: reach center, scale up
-   then flip near the end
-*/
-@keyframes flyToCenter{
-  0%{
-    opacity: 1;
-    transform: translate3d(var(--fromX), var(--fromY), 0)
-               scale(1)
-               rotateY(0deg);
-  }
-
-  /* arrive at center */
-  45%{
-    opacity: 1;
-    transform:
-      translate3d(
-        calc(50vw - (var(--fromW) / 2)),
-        calc(50vh - (var(--fromH) / 2)),
-        0
-      )
-      scale(1.3)
-      rotateY(0deg);
-  }
-
-  /* HOLD large */
-  70%{
-    opacity: 1;
-    transform:
-      translate3d(
-        calc(50vw - (var(--fromW) / 2)),
-        calc(50vh - (var(--fromH) / 2)),
-        0
-      )
-      scale(1.3)
-      rotateY(0deg);
-  }
-
-  /* flip after hold */
-  85%{
-    opacity: 1;
-    transform:
-      translate3d(
-        calc(50vw - (var(--fromW) / 2)),
-        calc(50vh - (var(--fromH) / 2)),
-        0
-      )
-      scale(1.3)
-      rotateY(180deg);
-  }
-
-  /* fade out */
-  100%{
-    opacity: 0;
-    transform:
-      translate3d(
-        calc(50vw - (var(--fromW) / 2)),
-        calc(50vh - (var(--fromH) / 2)),
-        0
-      )
-      scale(1.25)
-      rotateY(180deg);
-  }
-}
-.cardFlipVillain{
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-
-  /* sits over the big card */
-  z-index: 5;
-
-  /* fade in AFTER the card is visible */
-  opacity: 0;
-  animation: villainFadeIn 700ms ease-out forwards;
-  animation-delay: 350ms;
-
-  /* optional: make it feel “on top” */
-  filter: drop-shadow(0 18px 40px rgba(0,0,0,.55));
-}
-
-@keyframes villainFadeIn{
-  from { opacity: 0; transform: scale(1.02); }
-  to   { opacity: 1; transform: scale(1.00); }
-}
 
 `;
-// =========================
-// Portal helpers (FIXED)
-// - exact "from" match (no +1 matching)
-// - still supports 0-based OR 1-based scenario coords
-// =========================
-
-function findPortalTransition(
-  transitions: any[] | undefined,
-  id: string
-): null | {
-  type: "UP" | "DOWN";
-  to: { layer: number; row: number; col: number };
-} {
-  if (!transitions) return null;
-
-  const c = idToCoord(id);
-  if (!c) return null;
-
-  const normRow = (r: number) => (r >= 1 && r <= 7 ? r - 1 : r);
-  const normCol = (k: number) => (k >= 1 && k <= 7 ? k - 1 : k);
-
-  for (const t of transitions) {
-    const from = t?.from;
-    if (!from) continue;
-
-    const fl = Number(from.layer);
-    const fr = normRow(Number(from.row));
-    const fc = normCol(Number(from.col));
-
-    if (!Number.isFinite(fl) || !Number.isFinite(fr) || !Number.isFinite(fc)) continue;
-
-    // ✅ EXACT MATCH ONLY (prevents "portal appears 4 times")
-    if (fl !== c.layer || fr !== c.row || fc !== c.col) continue;
-
-    const type: "UP" | "DOWN" = t?.type === "DOWN" ? "DOWN" : "UP";
-    const to = t?.to ?? {};
-
-    const tl = Number(to.layer);
-    const tr = normRow(Number(to.row));
-    const tc = normCol(Number(to.col));
-
-    return {
-      type,
-      to: {
-        layer: Number.isFinite(tl) ? tl : type === "UP" ? c.layer + 1 : c.layer - 1,
-        row: Number.isFinite(tr) ? tr : c.row,
-        col: Number.isFinite(tc) ? tc : c.col,
-      },
-    };
-  }
-
-  return null;
-}
-
-function applyPortalIfAny(
-  st: any,
-  landedId: string
-): { next: any; finalId: string } {
-  const tr = findPortalTransition(st?.scenario?.transitions, landedId);
-  if (!tr) return { next: st, finalId: landedId };
-
-  const destId = "L" + tr.to.layer + "-R" + tr.to.row + "-C" + tr.to.col;
-
-  const destHex = getHexFromState(st as any, destId) as any;
-  if (!destHex || destHex.missing || destHex.blocked) {
-    // If destination is invalid, just don't portal
-    return { next: st, finalId: landedId };
-  }
-
-  const next = { ...(st as any), playerHexId: destId };
-  return { next, finalId: destId };
-}
-
-
-
 /* =========================================================
    App
 ========================================================= */
-function parseVillainsFromScenario(s: any): VillainTrigger[] {
-  const src =
-    (Array.isArray(s?.villains) && s.villains) ||
-    (Array.isArray(s?.villainTriggers) && s.villainTriggers) ||
-    (Array.isArray(s?.encounters) && s.encounters) ||
-    (Array.isArray(s?.triggers) && s.triggers) ||
-    [];
-
-  const allowed: VillainKey[] = ["bad1", "bad2", "bad3", "bad4"];
-  const out: VillainTrigger[] = [];
-
-  const toZeroBasedRow = (r: number) => (r >= 1 && r <= 7 ? r - 1 : r);
-  const toZeroBasedCol = (c: number) => (c >= 1 && c <= 7 ? c - 1 : c);
-
-  for (const raw of src) {
-    if (!raw || typeof raw !== "object") continue;
-
-    const base = raw.from && typeof raw.from === "object" ? raw.from : raw;
-
-    const keyRaw = String(raw.key ?? raw.villainKey ?? raw.id ?? base.key ?? "bad1");
-    const key = (allowed.includes(keyRaw as any) ? keyRaw : "bad1") as VillainKey;
-
-    const layer = Number(base.layer ?? base.L ?? raw.layer ?? raw.L ?? 1);
-
-    let row = Number(base.row ?? base.r ?? raw.row ?? raw.r ?? 0);
-    row = toZeroBasedRow(row);
-
-    let cols: "any" | number[] | undefined = undefined;
-    const c = base.cols ?? base.col ?? base.c ?? raw.cols ?? raw.col ?? raw.c;
-
-    if (c === "any") {
-      cols = "any";
-    } else if (Array.isArray(c)) {
-      cols = c
-        .map((n: any) => toZeroBasedCol(Number(n)))
-        .filter((n: any) => Number.isFinite(n));
-    } else if (Number.isFinite(Number(c))) {
-      cols = [toZeroBasedCol(Number(c))];
-    }
-
-    if (!Number.isFinite(layer) || !Number.isFinite(row)) continue;
-
-    out.push({ key, layer, row, cols });
-  }
-
-  return out;
-}
 
 export default function App() {
-  /* =========================
-     Navigation / overlays
-  ========================= */
+  // navigation
   const [screen, setScreen] = useState<Screen>("start");
-
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
   const pendingEncounterMoveIdRef = useRef<string | null>(null);
   const encounterActive = !!encounter;
 
-  /* =========================
-     Worlds
-  ========================= */
+  // worlds
   const [worlds, setWorlds] = useState<WorldEntry[]>([]);
   const [worldId, setWorldId] = useState<string | null>(null);
-
   const world = useMemo(
     () => worlds.find((w) => w.id === worldId) ?? null,
     [worlds, worldId]
@@ -2694,84 +1989,72 @@ export default function App() {
     setWorlds(loadWorlds());
   }, []);
 
-  /* =========================
-     Player selection (optional)
-  ========================= */
+  // player (character selection only)
   const [chosenPlayer, setChosenPlayer] = useState<PlayerChoice | null>(null);
 
-  /* =========================
-     Core game state
-  ========================= */
+  // ✅ IMPORTANT: declare these BEFORE any hook that references them
   const [state, setState] = useState<GameState | null>(null);
   const [uiTick, forceRender] = useState(0);
-
   const [currentLayer, setCurrentLayer] = useState<number>(1);
-  const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
-const canGoDown = currentLayer > 1;
-const canGoUp = currentLayer < scenarioLayerCount;
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [startHexId, setStartHexId] = useState<string | null>(null);
-
   const [showGhost, setShowGhost] = useState(false);
 
+  const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
+// Layer transition overlay (flash + text, blocks input)
+const [layerFx, setLayerFx] = useState<null | { layer: number; color: string; key: number }>(null);
+const layerFxTimer = useRef<number | null>(null);
+
+const LAYER_COLORS: Record<number, string> = {
+  1: "rgba(140, 180, 255, 0.45)", // example
+  2: "rgba(255, 140, 40, 0.55)",  // orange
+  3: "rgba(120, 255, 210, 0.45)",
+};
+
+const triggerLayerFx = useCallback((layer: number) => {
+  // clear any existing timer
+  if (layerFxTimer.current != null) window.clearTimeout(layerFxTimer.current);
+
+  const color = LAYER_COLORS[layer] ?? "rgba(255,255,255,0.35)";
+  setLayerFx({ layer, color, key: Date.now() });
+
+  // hide after 3s
+  layerFxTimer.current = window.setTimeout(() => {
+    setLayerFx(null);
+    layerFxTimer.current = null;
+  }, 3000);
+}, []);
+
   const boardRef = useRef<HTMLDivElement | null>(null);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
   const playerBtnRef = useRef<HTMLButtonElement | null>(null);
-  // ✅ used by "Quick start (debug)" + auto-start effect
-  const pendingQuickStartRef = useRef(false);
 
-  /* =========================
-     Per-layer move counters (for shifting)
-  ========================= */
-  const [layerMoves, setLayerMoves] = useState<Record<number, number>>({});
-  const [layerMoveArmed, setLayerMoveArmed] = useState<Record<number, boolean>>(
-    {}
-  );
+  // ✅ read real CSS hex steps from the board element
+  const [hexStep, setHexStep] = useState({ stepX: 72, stepY: 84 });
 
-  const getLayerMoves = useCallback(
-    (layer: number) => {
-      const n = layerMoves[layer];
-      return Number.isFinite(n) ? (n as number) : 0;
-    },
-    [layerMoves]
-  );
+  // ✅ NOTE: this effect does not need currentLayer/uiTick,
+  // but if you want it to re-read after rerenders, uiTick is ok.
+  useLayoutEffect(() => {
+    const el = boardRef.current;
+    if (!el) return;
 
-  /* =========================
-     Layer flash overlay
-  ========================= */
-  const [layerFx, setLayerFx] = useState<null | { key: number; layer: number }>(
+    const update = () => {
+      setHexStep({
+        stepX: readPxVar(el, "--hexStepX", 72),
+        stepY: readPxVar(el, "--hexHMain", 84),
+      });
+    };
+
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [uiTick]);
+
+  const [spriteXY, setSpriteXY] = useState<{ x: number; y: number } | null>(
     null
   );
-  const layerFxTimerRef = useRef<number | null>(null);
 
-  const triggerLayerFx = useCallback((layer: number) => {
-    if (layerFxTimerRef.current) window.clearTimeout(layerFxTimerRef.current);
-
-    const key = Date.now();
-    setLayerFx({ key, layer });
-
-    layerFxTimerRef.current = window.setTimeout(() => {
-      setLayerFx(null);
-      layerFxTimerRef.current = null;
-    }, 3000);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (layerFxTimerRef.current) window.clearTimeout(layerFxTimerRef.current);
-    };
-  }, []);
-
-  const layerFxStyle = useMemo(() => {
-    if (!layerFx) return {} as React.CSSProperties;
-    return {
-      ["--layerFxColor" as any]: layerCssVar(layerFx.layer),
-    } as React.CSSProperties;
-  }, [layerFx]);
-
-  /* =========================
-     Player id / coord
-  ========================= */
+  // ✅ single source of truth for player position (always follows engine)
   const playerId = useMemo(() => {
     const pid = (state as any)?.playerHexId;
     return typeof pid === "string" ? pid : null;
@@ -2783,89 +2066,39 @@ const canGoUp = currentLayer < scenarioLayerCount;
 
   const playerLayer = playerCoord?.layer ?? null;
 
-  /* =========================
-     Reset
-  ========================= */
-  const resetAll = useCallback(() => {
-    setEncounter(null);
-    pendingEncounterMoveIdRef.current = null;
+  const [movesTaken, setMovesTaken] = useState(0);
 
-    setVillainTriggers([]);
-    setChosenPlayer(null);
+  // ✅ per-layer movement counters
+  const [layerMoves, setLayerMoves] = useState<Record<number, number>>({});
+  const [layerMoveArmed, setLayerMoveArmed] = useState<Record<number, boolean>>(
+    {}
+  );
 
-    setWorldId(null);
-    setScenarioId(null);
-    setTrackId(null);
-
-    setState(null);
-    setUiTickSafe(forceRender);
-
-    setCurrentLayer(1);
-    setScenarioLayerCount(1);
-    setSelectedId(null);
-    setStartHexId(null);
-
-    setMovesTaken(0);
-    setLayerMoves({});
-    setLayerMoveArmed({});
-
-    setGoalId(null);
-    setOptimalAtStart(null);
-    setOptimalFromNow(null);
-
-    logNRef.current = 0;
-    setLog([]);
-
-    setItems([
-      { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
-      { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
-      { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
-    ]);
-
-    setLayerFx(null);
-    setScreen("start");
-  }, []);
-
-  function setUiTickSafe(setter: React.Dispatch<React.SetStateAction<number>>) {
-    setter((n) => n + 1);
+  // shifting only starts once a layer is "armed"
+  function getLayerMoves(layer: number) {
+    return layerMoveArmed[layer] ? layerMoves[layer] ?? 0 : 0;
   }
-  // ---------------------------
-  // Villain trigger lookup
-  // ---------------------------
-  const findTriggerForHex = useCallback(
-    (id: string): VillainKey | null => {
-      const c = idToCoord(id);
-      if (!c) return null;
 
-      for (const v of villainTriggers) {
-        if (v.layer !== c.layer) continue;
-        if (v.row !== c.row) continue;
+  useLayoutEffect(() => {
+    const btn = playerBtnRef.current;
+    const board = boardRef.current;
+    if (!btn || !board) return;
 
-        // cols: "any" OR list
-        if (v.cols === "any" || !v.cols) return v.key;
-        if (Array.isArray(v.cols) && v.cols.includes(c.col)) return v.key;
-      }
+    const b = board.getBoundingClientRect();
+    const r = btn.getBoundingClientRect();
 
-      return null;
-    },
-    [villainTriggers]
-  );
+    const x = r.left - b.left + r.width / 2;
+    const y = r.top - b.top + r.height * 0.86;
+
+    setSpriteXY({ x, y });
+  }, [playerId, currentLayer, movesTaken, uiTick]);
 
   /* =========================
-     Render helpers/components (INSIDE App)
-     ✅ AFTER playerId exists
+     Moves / optimal / log
+     ✅ MUST be before reachable (because reachable depends on movesTaken)
   ========================= */
 
-  const isPlayerHere = useCallback(
-    (id: string) => {
-      return !!playerId && playerId === id;
-    },
-    [playerId]
-  );
-  const rows = useMemo(() => {
-    return Array.from({ length: ROW_LENS.length }, (_, i) => i);
-  }, []);
-   const viewState = useMemo(() => {
+const viewState = useMemo(() => {
   if (!state) return null;
 
   const rs = (state as any).rowShifts;
@@ -2877,10 +2110,7 @@ const canGoUp = currentLayer < scenarioLayerCount;
       if (!rowsObj || typeof rowsObj !== "object") continue;
       for (const rKey of Object.keys(rowsObj)) {
         const n = Number(rowsObj[rKey]);
-        if (Number.isFinite(n) && n !== 0) {
-          hasEngineShift = true;
-          break;
-        }
+        if (Number.isFinite(n) && n !== 0) { hasEngineShift = true; break; }
       }
       if (hasEngineShift) break;
     }
@@ -2891,202 +2121,42 @@ const canGoUp = currentLayer < scenarioLayerCount;
   const injected: any = { ...(state as any) };
   const rowShifts: any = {};
 
-  for (let layer = 1; layer <= scenarioLayerCount; layer++) {
-    const perRow: any = {};
-    const mL = getLayerMoves(layer);
+for (let layer = 1; layer <= scenarioLayerCount; layer++) {
+  const perRow: any = {};
+  const mL = getLayerMoves(layer);
 
-    for (let r = 0; r < ROW_LENS.length; r++) {
-      perRow[r] = derivedRowShiftUnits(state as any, layer, r, mL);
-    }
-
-    rowShifts[layer] = perRow;
-    rowShifts["L" + layer] = perRow;
+  for (let r = 0; r < ROW_LENS.length; r++) {
+    perRow[r] = derivedRowShiftUnits(state as any, layer, r, mL);
   }
+
+  rowShifts[layer] = perRow;
+  rowShifts["L" + layer] = perRow;
+}
+
 
   injected.rowShifts = rowShifts;
   return injected as any;
-}, [state, scenarioLayerCount, getLayerMoves]);
+}, [state, scenarioLayerCount, layerMoves, layerMoveArmed]); // ✅ deps
 
-function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
-  const side = props.side;
-  const currentLayerLocal = props.currentLayer;
-
- // RIGHT BAR: keep your existing layer indicator (7..1)
-if (side === "right") {
-  const segments = [7, 6, 5, 4, 3, 2, 1];
-
-  // goal layer from goalId like "L2-R1-C4"
-  const goalLayer = goalId ? idToCoord(goalId)?.layer ?? null : null;
-
-  const hexH = readPxVar(document.documentElement as any, "--hexHMain", 84);
-
-  // top position (center of that segment)
-  const goalTopPx =
-    goalLayer && goalLayer >= 1 && goalLayer <= 7
-      ? (7 - goalLayer) * hexH + hexH / 2
-      : null;
-
-  // ✅ player layer from playerId like "L3-R2-C1"
-  const playerLayerBar = playerId ? idToCoord(playerId)?.layer ?? null : null;
-
-  const playerTopPx =
-    playerLayerBar && playerLayerBar >= 1 && playerLayerBar <= 7
-      ? (7 - playerLayerBar) * hexH + hexH / 2
-      : null;
-
-  return (
-    <div className="barWrap barRight">
-      <div className="layerBar">
-        {segments.map((layerVal) => {
-          const active = layerVal === currentLayerLocal;
-          return (
-            <div
-              key={layerVal}
-              className={"barSeg" + (active ? " isActive" : "")}
-              data-layer={layerVal}
-            />
-          );
-        })}
-
-        {/* ✅ MINI PLAYER SPRITE (behind goal marker) */}
-        {playerTopPx !== null ? (
-          <div className="barPlayerMini" style={{ top: playerTopPx }}>
-            <div
-              className="miniSprite"
-              style={
-                {
-                  ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
-                  ["--frameW" as any]: FRAME_W,
-                  ["--frameH" as any]: FRAME_H,
-                  ["--cols" as any]: SPRITE_COLS,
-                  ["--rows" as any]: SPRITE_ROWS,
-                  ["--frameX" as any]: walkFrame,
-                  ["--frameY" as any]: facingRow(playerFacing),
-                } as any
-              }
-            />
-          </div>
-        ) : null}
-
-        {/* ✅ GOAL MARKER (above sprite) */}
-        {goalTopPx !== null ? (
-          <div className="goalMarker" style={{ top: goalTopPx }}>
-            G
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-
-  // LEFT BAR: show row shifts for the CURRENT layer (r0..r6)
-  return (
-    <div className="barWrap barLeft">
-      <div className="layerBar rowShiftBar">
-        {rows.map((r) => {
-          const cols = ROW_LENS[r] ?? 7;
-
-          const engineShiftRaw =
-            (viewState as any)?.rowShifts?.[currentLayerLocal]?.[r] ??
-            (viewState as any)?.rowShifts?.["L" + currentLayerLocal]?.[r];
-
-          const engineShift = Number(engineShiftRaw ?? 0);
-
-          const rawShift =
-            Number.isFinite(engineShift) && engineShift !== 0
-              ? engineShift
-              : derivedRowShiftUnits(
-                  viewState as any,
-                  currentLayerLocal,
-                  r,
-                  getLayerMoves(currentLayerLocal)
-                );
-
-          const ns = normalizeRowShift(rawShift, cols);
-          const shift = ns.visual; // signed, small (-3..3 etc)
-
-          // ✅ label rules: -1 => L1, +1 => R1, 0 => show nothing
-          const label =
-            shift === 0 ? "" : shift < 0 ? "L" + Math.abs(shift) : "R" + shift;
-
-          return (
-            <div key={"rowSeg-" + r} className="barSeg rowSeg">
-              {label ? <span className="rowShiftLabel">{label}</span> : null}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-
-function HexDeckCardsOverlay(props: { glowVar: string }) {
-  const overlayStyle = {
-    ["--cardGlow" as any]: props.glowVar,
-  } as React.CSSProperties;
-
-  return (
-    <div className="hexDeckOverlay" style={overlayStyle}>
-      <div className="hexDeckCol left">
-        <div
-          className="hexDeckCard cosmic"
-          ref={(el) => (deckRefs.current.cosmic = el)}
-        >
-          <div className="deckFx" />
-        </div>
-
-        <div
-          className="hexDeckCard risk"
-          ref={(el) => (deckRefs.current.risk = el)}
-        >
-          <div className="deckFx" />
-        </div>
-      </div>
-
-      <div className="hexDeckCol right">
-        <div
-          className="hexDeckCard terrain"
-          ref={(el) => (deckRefs.current.terrain = el)}
-        >
-          <div className="deckFx" />
-        </div>
-
-        <div
-          className="hexDeckCard shadow"
-          ref={(el) => (deckRefs.current.shadow = el)}
-        >
-          <div className="deckFx" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-  /* =========================
-     Moves / optimal / log
-     ✅ MUST be before reachable (reachable depends on per-layer moves)
-  ========================= */
-
-  const [movesTaken, setMovesTaken] = useState(0);
 
   const [goalId, setGoalId] = useState<string | null>(null);
   const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
   const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
 
-  const computeOptimalFromReachMap = useCallback((rm: any, gid: string | null) => {
-    if (!gid || !rm) return null;
+  const computeOptimalFromReachMap = useCallback(
+    (rm: any, gid: string | null) => {
+      if (!gid || !rm) return null;
 
-    if (typeof rm?.get === "function") {
-      const info = rm.get(gid);
+      if (typeof rm?.get === "function") {
+        const info = rm.get(gid);
+        return info?.reachable ? (info.distance as number) : null;
+      }
+
+      const info = rm[gid];
       return info?.reachable ? (info.distance as number) : null;
-    }
-
-    const info = rm[gid];
-    return info?.reachable ? (info.distance as number) : null;
-  }, []);
+    },
+    []
+  );
 
   const [log, setLog] = useState<LogEntry[]>([]);
   const logNRef = useRef(0);
@@ -3096,11 +2166,6 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
     const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
     setLog((prev) => [e, ...prev].slice(0, 24));
   }, []);
-
-
-
-
-
 
   /* =========================
      Reachability (1-step neighbors)
@@ -3114,11 +2179,11 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
     // only compute when viewing the player's layer
     if (playerLayer !== currentLayer) return set;
 
-    const nbs = getShiftedNeighborsSameLayer(
-      viewState as any,
-      playerId,
-      getLayerMoves(playerLayer ?? currentLayer)
-    );
+ const nbs = getShiftedNeighborsSameLayer(
+  viewState as any,
+  playerId,
+  getLayerMoves(playerLayer ?? currentLayer) // ✅ per-layer
+);
 
     for (const nbId of nbs) {
       const hex = getHexFromState(viewState as any, nbId) as any;
@@ -3127,10 +2192,14 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
     }
 
     return set;
-  }, [viewState, playerId, playerLayer, currentLayer, getLayerMoves]);
+  }, [viewState, playerId, movesTaken, playerLayer, currentLayer]);
+
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const walkTimer = useRef<number | null>(null);
+  const pendingQuickStartRef = useRef(false);
 
   /* =========================
-     Theme / assets
+     Theme / assets (INSIDE App)
   ========================= */
 
   const activeTheme = scenarioEntry?.theme ?? null;
@@ -3140,7 +2209,8 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
 
   // ✅ ABSOLUTELY NO TEMPLATE LITERALS
   const backgroundLayers: any =
-    (activeTheme && activeTheme.assets && activeTheme.assets.backgroundLayers) || {};
+    (activeTheme && activeTheme.assets && activeTheme.assets.backgroundLayers) ||
+    {};
   const BOARD_LAYER_ = backgroundLayers["L" + currentLayer] || "";
 
   const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "images/dice";
@@ -3192,32 +2262,31 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
   const lastRef = useRef(0);
   const [walkFrame, setWalkFrame] = useState(0);
 
-  const WALK_FPS = 10;
-  const IDLE_FPS = 4;
+const WALK_FPS = 10;
+const IDLE_FPS = 4;
 
-  useEffect(() => {
-    const fps = isWalking ? WALK_FPS : IDLE_FPS;
-    const frameDuration = 1000 / fps;
+ useEffect(() => {
+  const fps = isWalking ? WALK_FPS : IDLE_FPS;
+  const frameDuration = 1000 / fps;
 
-    lastRef.current = performance.now();
+  lastRef.current = performance.now();
 
-    const tick = (t: number) => {
-      if (t - lastRef.current >= frameDuration) {
-        setWalkFrame((f) => (f + 1) % SPRITE_COLS);
-        lastRef.current = t;
-      }
-      rafRef.current = requestAnimationFrame(tick);
-    };
-
+  const tick = (t: number) => {
+    if (t - lastRef.current >= frameDuration) {
+      setWalkFrame((f) => (f + 1) % SPRITE_COLS);
+      lastRef.current = t;
+    }
     rafRef.current = requestAnimationFrame(tick);
+  };
 
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    };
-  }, [isWalking]);
+  rafRef.current = requestAnimationFrame(tick);
 
-  const walkTimer = useRef<number | null>(null);
+  return () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+  };
+}, [isWalking]);
+
   useEffect(() => {
     return () => {
       if (walkTimer.current) window.clearTimeout(walkTimer.current);
@@ -3228,80 +2297,114 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
     return f === "down" ? 0 : f === "left" ? 1 : f === "right" ? 2 : 3;
   }
 
+  /* =========================
+     Dice
+  ========================= */
 
- /* =========================
-   Dice
-========================= */
+  const [diceValue, setDiceValue] = useState<number>(2);
+  const [diceRolling, setDiceRolling] = useState(false);
+  const [diceRot, setDiceRot] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
+  const diceTimer = useRef<number | null>(null);
 
-const [diceValue, setDiceValue] = useState<number>(2);
-const [diceRolling, setDiceRolling] = useState(false);
-const [diceRot, setDiceRot] = useState<{ x: number; y: number }>({
-  x: 0,
-  y: 0,
-});
-const diceTimer = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (diceTimer.current) window.clearTimeout(diceTimer.current);
+    };
+  }, []);
 
-// ✅ IMPORTANT: always remember the *final* roll value (not the flickers)
-const lastRollValueRef = useRef<number>(2);
-
-useEffect(() => {
-  return () => {
-    if (diceTimer.current) window.clearTimeout(diceTimer.current);
-  };
-}, []);
-
-function rotForRoll(n: number) {
-  switch (n) {
-    case 1:
-      return { x: -90, y: 0 };
-    case 2:
-      return { x: 0, y: 0 };
-    case 3:
-      return { x: 0, y: -90 };
-    case 4:
-      return { x: 0, y: 90 };
-    case 5:
-      return { x: 0, y: 180 };
-    case 6:
-      return { x: 90, y: 0 };
-    default:
-      return { x: 0, y: 0 };
-  }
-}
-
-const rollDice = useCallback(() => {
-  if (diceRolling) return;
-
-  setDiceRolling(true);
-
-  const start = performance.now();
-  const duration = 650;
-
-  const tick = () => {
-    const elapsed = performance.now() - start;
-
-    // flicker values during roll
-    const flicker = 1 + Math.floor(Math.random() * 6);
-    setDiceValue(flicker);
-    setDiceRot(rotForRoll(flicker));
-
-    if (elapsed < duration) {
-      diceTimer.current = window.setTimeout(tick, 55);
-    } else {
-      // ✅ final value
-      const final = 1 + Math.floor(Math.random() * 6);
-
-      lastRollValueRef.current = final; // ✅ use this in encounter resolution
-      setDiceValue(final);
-      setDiceRot(rotForRoll(final));
-
-      setDiceRolling(false);
+  function rotForRoll(n: number) {
+    switch (n) {
+      case 1:
+        return { x: -90, y: 0 };
+      case 2:
+        return { x: 0, y: 0 };
+      case 3:
+        return { x: 0, y: -90 };
+      case 4:
+        return { x: 0, y: 90 };
+      case 5:
+        return { x: 0, y: 180 };
+      case 6:
+        return { x: 90, y: 0 };
+      default:
+        return { x: 0, y: 0 };
     }
-  };
+  }
 
-  tick();
-}, [diceRolling]);
+  const rollDice = useCallback(() => {
+    if (diceRolling) return;
+    setDiceRolling(true);
 
+    const start = performance.now();
+    const duration = 650;
+
+    const tick = () => {
+      const elapsed = performance.now() - start;
+      const flicker = 1 + Math.floor(Math.random() * 6);
+      setDiceValue(flicker);
+      setDiceRot(rotForRoll(flicker));
+
+      if (elapsed < duration) {
+        diceTimer.current = window.setTimeout(tick, 55);
+      } else {
+        const final = 1 + Math.floor(Math.random() * 6);
+        setDiceValue(final);
+        setDiceRot(rotForRoll(final));
+        setDiceRolling(false);
+      }
+    };
+
+    tick();
+  }, [diceRolling]);
+
+  /* =========================
+     Villain trigger helpers
+  ========================= */
+
+  function findTriggerForHex(id: string): VillainKey | null {
+    const c = idToCoord(id);
+    if (!c) return null;
+    for (const t of villainTriggers) {
+      if (t.layer !== c.layer) continue;
+      if (t.row !== c.row) continue;
+      if (!t.cols || t.cols === "any") return t.key;
+      if (Array.isArray(t.cols) && t.cols.includes(c.col)) return t.key;
+    }
+    return null;
+  }
+
+  const parseVillainsFromScenario = useCallback((s: any): VillainTrigger[] => {
+    if (Array.isArray(s?.villainTriggers)) {
+      return s.villainTriggers
+        .map((t: any) => ({
+          key: t.key as VillainKey,
+          layer: Number(t.layer),
+          row: Number(t.row),
+          cols: t.cols ?? "any",
+        }))
+        .filter(
+          (t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row)
+        );
+    }
+
+    if (Array.isArray(s?.villains?.triggers)) {
+      return s.villains.triggers
+        .map((t: any) => ({
+          key: String(t.id) as VillainKey,
+          layer: Number(t.layer),
+          row: Number(t.row),
+          cols: "any" as const,
+        }))
+        .filter(
+          (t: any) => t.key && Number.isFinite(t.layer) && Number.isFinite(t.row)
+        );
+    }
+
+    return [];
+  }, []);
 
   /* =========================
      Reveal helpers
@@ -3392,268 +2495,114 @@ const rollDice = useCallback(() => {
   );
 
 /* =========================
-   Encounter resolution  ✅ FIXED (uses lastRollValueRef)
+   Encounter resolution
 ========================= */
 
 const prevRollingRef = useRef(false);
-
 useEffect(() => {
   const wasRolling = prevRollingRef.current;
   prevRollingRef.current = diceRolling;
 
-  // Only resolve when an encounter is active AND a roll just finished
   if (!encounter) return;
   if (diceRolling) return;
   if (!wasRolling) return;
 
-  try {
-    // increment tries each finished roll
-    setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
+  setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
+  if (diceValue !== 6) return;
 
-    // ✅ only succeed on the FINAL roll result (not a stale diceValue)
-    const rolled = lastRollValueRef.current;
-    if (rolled !== 6) return;
+  const targetId = pendingEncounterMoveIdRef.current;
+  pendingEncounterMoveIdRef.current = null;
 
- const targetId = pendingEncounterMoveIdRef.current;
-
-// ✅ If encounter was triggered by a card (no pending move target),
-// a roll of 6 simply clears the encounter.
-if (!targetId) {
-  pushLog("Encounter cleared — risk event passed.", "ok");
   setEncounter(null);
-  return;
-}
 
+  if (!state || !targetId) return;
 
-    // IMPORTANT: use viewState (matches what the UI shows)
-    if (!viewState) {
-      pushLog("Encounter error: viewState missing.", "bad");
-      return;
-    }
+  const res: any = tryMove(state as any, targetId);
+  const nextState = unwrapNextState(res);
 
-    // Guard: pending tile might now be invalid (blocked/missing) after shifts
-    const pendingHex = getHexFromState(viewState as any, targetId) as any;
-    if (!pendingHex || pendingHex.missing || pendingHex.blocked) {
-      pushLog("Encounter target is invalid now — click another tile.", "bad");
-      pendingEncounterMoveIdRef.current = null; // prevents deadlock
-      return;
-    }
-
-    const pidBefore = (viewState as any)?.playerHexId as string | null;
-
-    // ✅ Use viewState here (NOT state)
-    const res: any = tryMove(viewState as any, targetId);
-let nextState = unwrapNextState(res);
-
-    if (!nextState) {
-      const msg =
-        (res &&
-          typeof res === "object" &&
-          "reason" in res &&
-          String((res as any).reason)) ||
-        "Move failed after rolling a 6 — click another tile and roll again.";
-
-      pushLog(msg, "bad");
-
-      // Clear target so player can choose a new one while encounter stays open
-      pendingEncounterMoveIdRef.current = null;
-
-      return;
-    }
-
-    const pidAfter = (nextState as any).playerHexId as string | null;
-let landedId = pidAfter ?? targetId;
-
-// apply portal jump after encounter move too
-{
-  const ap = applyPortalIfAny(nextState as any, landedId);
-  nextState = ap.next as any;
-  landedId = ap.finalId;
-}
-    // close encounter ONLY after we know we have a valid nextState
-    pendingEncounterMoveIdRef.current = null;
-    setEncounter(null);
-
-    // walking / facing
-    const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
-    if (moved) {
-      setIsWalking(true);
-      if (walkTimer.current) window.clearTimeout(walkTimer.current);
-      walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-
-      const fromLayer =
-        (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
-
-      setPlayerFacing(
-        facingFromMoveVisual(
-          viewState as any,
-          pidBefore,
-          pidAfter,
-          fromLayer,
-          getLayerMoves(fromLayer)
-        )
-      );
-    }
-
-    setMovesTaken((n) => n + 1);
-
-    setState(nextState);
-    forceRender((n) => n + 1);
-
-    const c2 = pidAfter ? idToCoord(pidAfter) : null;
-    const nextLayer = c2?.layer ?? currentLayer;
-
-    if (Number.isFinite(nextLayer)) {
-      enterLayer(nextState, nextLayer);
-
-      if (nextLayer !== currentLayer) {
-        setCurrentLayer(nextLayer);
-        revealWholeLayer(nextState, nextLayer);
-      }
-    }
-
-    const rm = getReachability(nextState) as any;
-    setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
-
-    pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
-    if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
-  } catch (err: any) {
-    console.error("Encounter resolution crashed:", err);
-    pushLog("Encounter crashed: " + String(err?.message ?? err), "bad");
-    // keep encounter open so player can retry
+  if (!nextState) {
+    const msg =
+      (res &&
+        typeof res === "object" &&
+        "reason" in res &&
+        String((res as any).reason)) ||
+      "Move failed.";
+    pushLog(msg, "bad");
+    return;
   }
+
+  const pidBefore = (state as any)?.playerHexId as string | null;
+  const pidAfter = (nextState as any).playerHexId as string | null;
+
+  const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
+
+  if (moved) {
+    setIsWalking(true);
+    if (walkTimer.current) window.clearTimeout(walkTimer.current);
+    walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+
+    const fromLayer =
+      (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
+
+    setPlayerFacing(
+      facingFromMoveVisual(
+        viewState as any,
+        pidBefore,
+        pidAfter,
+        fromLayer,
+        getLayerMoves(fromLayer)
+      )
+    );
+  }
+
+  setMovesTaken((n) => n + 1);
+
+  setState(nextState);
+  forceRender((n) => n + 1);
+
+  const c2 = pidAfter ? idToCoord(pidAfter) : null;
+  const nextLayer = c2?.layer ?? currentLayer;
+
+  enterLayer(nextState, nextLayer);
+
+  if (nextLayer !== currentLayer) {
+    setCurrentLayer(nextLayer);
+    revealWholeLayer(nextState, nextLayer);
+  }
+
+  const rm = getReachability(nextState) as any;
+  setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+
+  pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
+  if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
 }, [
   encounter,
   diceRolling,
-  viewState,
-  diceValue, // ok to leave; not relied on for success anymore
+  diceValue,
+  state,
   currentLayer,
+  viewState,
   goalId,
   revealWholeLayer,
   computeOptimalFromReachMap,
   pushLog,
-  getLayerMoves,
 ]);
 
 
-// ---------------------------
-// Villain triggers parser
-// ---------------------------
+  /* =========================
+     Start scenario
+  ========================= */
 
-const [cardTriggers, setCardTriggers] = useState<CardTrigger[]>([]);
-const [cardFlip, setCardFlip] = useState<
-  null | { key: number; card: CardKey; durMs: number; villainKey?: VillainKey }
->(null);
-const cardFlipTimerRef = useRef<number | null>(null);
-const triggerCardFlip = useCallback(
-  (card: CardKey, opts?: { durMs?: number; villainKey?: VillainKey }) => {
-    if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
+  const startScenario = useCallback(async () => {
+    if (!scenarioEntry) return;
 
-    const key = Date.now();
-    const durMs = opts?.durMs ?? 1400;
+    const tracks = scenarioEntry.tracks ?? [];
+    const hasTracks = tracks.length > 1;
+    const chosenJson = hasTracks
+      ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson
+      : scenarioEntry.scenarioJson;
 
-    setCardFlip({ key, card, durMs, villainKey: opts?.villainKey });
-
-    cardFlipTimerRef.current = window.setTimeout(() => {
-      setCardFlip(null);
-      cardFlipTimerRef.current = null;
-    }, durMs);
-  },
-  []
-);
-
-
-useEffect(() => {
-  return () => {
-    if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
-  };
-}, []);
-
-   const findCardTriggerAt = useCallback(
-  (id: string): CardKey | null => {
-    const c = idToCoord(id);
-    if (!c) return null;
-    for (const t of cardTriggers) {
-      if (t.layer === c.layer && t.row === c.row && t.col === c.col) return t.card;
-    }
-    return null;
-  },
-  [cardTriggers]
-);
-type FlyCard = {
-  key: number;
-  card: CardKey;
-  from: { x: number; y: number; w: number; h: number };
-};
-
-const deckRefs = useRef<Record<CardKey, HTMLDivElement | null>>({
-  cosmic: null,
-  risk: null,
-  terrain: null,
-  shadow: null,
-});
-
-const [flyCard, setFlyCard] = useState<FlyCard | null>(null);
-const flyTimerRef = useRef<number | null>(null);
-
-useEffect(() => {
-  return () => {
-    if (flyTimerRef.current) window.clearTimeout(flyTimerRef.current);
-  };
-}, []);
-
-const triggerCardFlyout = useCallback((card: CardKey) => {
-  const el = deckRefs.current[card];
-  if (!el) {
-    // fallback: if deck ref missing, use your existing overlay
-    setCardFlip({ key: Date.now(), card });
-    return;
-  }
-
-  const r = el.getBoundingClientRect();
-
-  // start fly card clone
-  const key = Date.now();
-  setFlyCard({
-    key,
-    card,
-    from: { x: r.left, y: r.top, w: r.width, h: r.height },
-  });
-
-  // optional: also show your existing fullscreen overlay slightly later
-  // (comment this out if you want ONLY the fly-out)
-  flyTimerRef.current = window.setTimeout(() => {
-    setCardFlip({ key: Date.now(), card });
-  }, 520);
-
-  // cleanup fly card after animation
-  window.setTimeout(() => {
-    setFlyCard(null);
-  }, 1200);
-}, []);
-
-/* =========================
-   Start scenario
-========================= */
-
-const startScenario = useCallback(async () => {
-  if (!scenarioEntry) return;
-
-  const tracks = scenarioEntry.tracks ?? [];
-  const hasTracks = tracks.length > 1;
-  const chosenJson = hasTracks
-    ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson
-    : scenarioEntry.scenarioJson;
-
-  // ✅ load FIRST
-  const s = (await loadScenario(chosenJson)) as any;
-const cts = parseCardTriggersFromScenario(s);
-setCardTriggers(cts);
-pushLog("Card triggers loaded: " + cts.length, "info");
-  // ✅ then parse + log
-  const vts = parseVillainsFromScenario(s);
-  setVillainTriggers(vts);
-  pushLog("Villain triggers loaded: " + vts.length, "info");
+    const s = (await loadScenario(chosenJson)) as any;
 
     setVillainTriggers(parseVillainsFromScenario(s));
     setEncounter(null);
@@ -3724,6 +2673,7 @@ pushLog("Card triggers loaded: " + cts.length, "info");
   }, [
     scenarioEntry,
     trackEntry,
+    parseVillainsFromScenario,
     revealWholeLayer,
     computeOptimalFromReachMap,
     pushLog,
@@ -3736,212 +2686,306 @@ pushLog("Card triggers loaded: " + cts.length, "info");
     }
   }, [scenarioEntry, startScenario]);
 
-/* =========================
-   Movement
-========================= */
+  /* =========================
+     Movement
+  ========================= */
 
-const tryMoveToId = useCallback(
-  (id: string) => {
-    if (!state) return;
-    if (encounterActive) return;
+  const tryMoveToId = useCallback(
+    (id: string) => {
+      if (!state) return;
+      if (encounterActive) return;
 
-    // if viewing another layer, snap back
-    if (playerLayer && currentLayer !== playerLayer) {
-      setCurrentLayer(playerLayer);
-      enterLayer(state, playerLayer);
-      revealWholeLayer(state, playerLayer);
-      forceRender((n) => n + 1);
-      pushLog(
-        "You were viewing layer " +
-          currentLayer +
-          " but the player is on layer " +
-          playerLayer +
-          " — switched back.",
-        "info"
-      );
-      return;
-    }
-
-    // validate target tile (use viewState so it matches what UI shows)
-    const hex = getHexFromState(viewState as any, id) as any;
-    const bm = isBlockedOrMissing(hex);
-    if (bm.missing) {
-      pushLog("Missing tile.", "bad");
-      return;
-    }
-    if (bm.blocked) {
-      pushLog("Blocked tile.", "bad");
-      return;
-    }
-
-    const pidBefore = (viewState as any)?.playerHexId as string | null;
-
-    // encounters block movement until you roll a 6
-    const vk = findTriggerForHex(id);
-    if (vk) {
-      pendingEncounterMoveIdRef.current = id;
-      setEncounter((prev) =>
-        prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }
-      );
-      pushLog("Encounter: " + vk + " — roll a 6 to continue", "bad");
-      return;
-    }
-
-    // engine move
-    const res: any = tryMove(viewState as any, id);
-    let nextState = unwrapNextState(res);
-
-    // TEMP fallback: if engine rejects but UI says reachable, force move
-    if (!nextState) {
-      if (reachable.has(id) && viewState) {
-        const forced: any = { ...(viewState as any) };
-        forced.playerHexId = id;
-        nextState = forced as any;
-        pushLog("Force-moved (engine rejected)", "info");
-      } else {
-        const msg =
-          (res &&
-            typeof res === "object" &&
-            "reason" in res &&
-            String((res as any).reason)) ||
-          "Move failed.";
-        pushLog(msg, "bad");
+      // if viewing another layer, snap back
+      if (playerLayer && currentLayer !== playerLayer) {
+        setCurrentLayer(playerLayer);
+        enterLayer(state, playerLayer);
+        revealWholeLayer(state, playerLayer);
+        forceRender((n) => n + 1);
+        pushLog(
+          "You were viewing layer " +
+            currentLayer +
+            " but the player is on layer " +
+            playerLayer +
+            " — switched back.",
+          "info"
+        );
         return;
       }
+
+      const hex = getHexFromState(state, id) as any;
+      const bm = isBlockedOrMissing(hex);
+      if (bm.missing) {
+        pushLog("Missing tile.", "bad");
+        return;
+      }
+      if (bm.blocked) {
+        pushLog("Blocked tile.", "bad");
+        return;
+      }
+
+      const pidBefore = (state as any)?.playerHexId as string | null;
+
+      // encounters block movement until you roll a 6
+      const vk = findTriggerForHex(id);
+      if (vk) {
+        pendingEncounterMoveIdRef.current = id;
+        setEncounter((prev) =>
+          prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }
+        );
+        pushLog("Encounter: " + vk + " — roll a 6 to continue", "bad");
+        return;
+      }
+
+      const res: any = tryMove(viewState as any, id);
+      let nextState = unwrapNextState(res);
+
+      // TEMP fallback: if engine rejects but UI says reachable, force move
+      if (!nextState) {
+        if (reachable.has(id) && viewState) {
+          const forced: any = { ...(viewState as any) };
+
+    function findPortalTransition(
+  transitions: any[] | undefined,
+  id: string
+): null | { type: "UP" | "DOWN"; to: { layer: number; row: number; col: number } } {
+  if (!transitions) return null;
+
+  const c = idToCoord(id);
+  if (!c) return null;
+
+  for (const t of transitions) {
+    const from = t?.from;
+    if (!from) continue;
+
+    if (
+      Number(from.layer) === c.layer &&
+      Number(from.row) === c.row &&
+      Number(from.col) === c.col
+    ) {
+      const type = t?.type === "DOWN" ? "DOWN" : "UP";
+      const to = t?.to;
+
+      // ✅ If scenario provides "to", use it. Otherwise fallback to straight up/down.
+      if (to && typeof to === "object") {
+        return {
+          type,
+          to: {
+            layer: Number(to.layer),
+            row: Number(to.row),
+            col: Number(to.col),
+          },
+        };
+      }
+
+      const fallbackLayer = type === "UP" ? c.layer + 1 : c.layer - 1;
+      return { type, to: { layer: fallbackLayer, row: c.row, col: c.col } };
     }
-
-    const pidAfter = (nextState as any).playerHexId as string | null;
-
-    const fromLayer =
-      (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
-
-    const toLayer = pidAfter ? idToCoord(pidAfter)?.layer ?? null : null;
-
-    const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
-
-    // -------------------------------------------
-    // ✅ Decide where we actually landed
-    // -------------------------------------------
-    let landedId = pidAfter ?? id;
-
-    // ✅ apply portal BEFORE committing state/selection
-    {
-      const ap = applyPortalIfAny(nextState as any, landedId);
-      nextState = ap.next as any;
-      landedId = ap.finalId;
-    }
-
-    // -------------------------------------------
-    // Per-layer move counters + walking/facing
-    // -------------------------------------------
-    setMovesTaken((n) => n + 1);
-
-    if (fromLayer) {
-      setLayerMoves((prev) => ({
-        ...prev,
-        [fromLayer]: (prev[fromLayer] ?? 0) + 1,
-      }));
-      setLayerMoveArmed((prev) => ({ ...prev, [fromLayer]: true }));
-    }
-
-    // NOTE: if a portal moved layers, we want to treat the final layer as the current one
-    const landedCoord = idToCoord(landedId);
-    const finalLayer = landedCoord?.layer ?? (toLayer ?? currentLayer);
-
-    if (finalLayer && fromLayer && finalLayer !== fromLayer) {
-      setLayerMoves((prev) => ({ ...prev, [finalLayer]: 0 }));
-      setLayerMoveArmed((prev) => ({ ...prev, [finalLayer]: true }));
-      triggerLayerFx(finalLayer);
-    }
-
-    if (moved) {
-      setIsWalking(true);
-      if (walkTimer.current) window.clearTimeout(walkTimer.current);
-      walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-
-      setPlayerFacing(
-        facingFromMoveVisual(
-          viewState as any,
-          pidBefore,
-          pidAfter,
-          fromLayer,
-          getLayerMoves(fromLayer)
-        )
-      );
-    }
-
-    // -------------------------------------------
-    // ✅ Commit state + selection (SAFE NOW)
-    // -------------------------------------------
-    setState(nextState);
-    setSelectedId(landedId);
-    forceRender((n) => n + 1);
-
-    // -------------------------------------------
-    // ✅ Sync layer view to final landed layer
-    // -------------------------------------------
-    enterLayer(nextState as any, finalLayer);
-
-    if (finalLayer !== currentLayer) {
-      setCurrentLayer(finalLayer);
-      revealWholeLayer(nextState as any, finalLayer);
-    }
-
-    // -------------------------------------------
-    // ✅ CARD TRIGGER (AFTER final landedId)
-    // -------------------------------------------
- const landedCard = findCardTriggerAt(landedId);
-if (landedCard) {
-  if (landedCard === "risk") {
-    const vk = pickRiskVillain();
-
-    // ✅ open encounter immediately (no target tile needed)
-    pendingEncounterMoveIdRef.current = null;
-    setEncounter({ villainKey: vk, tries: 0 });
-    pushLog("Risk triggered — encounter: " + vk + " (roll a 6)", "bad");
-
-    // ✅ show large card longer + ensure villain is visible on it
-    triggerCardFlyout("risk");
-    triggerCardFlip("risk", { durMs: 2400, villainKey: vk });
-
-    // (Optional) if you DON’T want the extra fullscreen flip (because flyout already shows),
-    // comment the triggerCardFlip line above and instead add the villain to flyCard.
-  } else {
-    triggerCardFlyout(landedCard);
-    triggerCardFlip(landedCard); // keep default duration
-    pushLog("Card triggered: " + landedCard, "info");
   }
+
+  return null;
 }
 
 
-    // -------------------------------------------
-    // reachability / optimal
-    // -------------------------------------------
-    const rm = getReachability(nextState) as any;
-    setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+          nextState = forced as any;
+          pushLog("Force-moved (engine rejected)", "info");
+        } else {
+          const msg =
+            (res &&
+              typeof res === "object" &&
+              "reason" in res &&
+              String((res as any).reason)) ||
+            "Move failed.";
+          pushLog(msg, "bad");
+          return;
+        }
+      }
 
-    pushLog("Moved to " + landedId, "ok");
-    if (goalId && landedId === goalId) pushLog("Goal reached!", "ok");
-  },
-  [
-    state,
-    viewState,
-    encounterActive,
-    reachable,
-    currentLayer,
-    playerLayer,
-    goalId,
-    pushLog,
-    revealWholeLayer,
-    computeOptimalFromReachMap,
-    findTriggerForHex,
-    getLayerMoves,
-    triggerLayerFx,
-    findCardTriggerAt,
-    triggerCardFlyout,
-  ]
-);
+      const pidAfter = (nextState as any).playerHexId as string | null;
 
+      const fromLayer =
+        (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
+
+      const toLayer = pidAfter ? idToCoord(pidAfter)?.layer ?? null : null;
+
+      const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
+
+      setMovesTaken((n) => n + 1);
+
+      if (fromLayer) {
+        setLayerMoves((prev) => ({
+          ...prev,
+          [fromLayer]: (prev[fromLayer] ?? 0) + 1,
+        }));
+        setLayerMoveArmed((prev) => ({ ...prev, [fromLayer]: true }));
+      }
+
+      if (toLayer && fromLayer && toLayer !== fromLayer) {
+  setLayerMoves((prev) => ({ ...prev, [toLayer]: 0 }));
+  setLayerMoveArmed((prev) => ({ ...prev, [toLayer]: true }));
+  triggerLayerFx(toLayer);
+}
+
+      
+
+      if (moved) {
+        setIsWalking(true);
+        if (walkTimer.current) window.clearTimeout(walkTimer.current);
+        walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+
+        setPlayerFacing(
+          facingFromMoveVisual(
+            viewState as any,
+            pidBefore,
+            pidAfter,
+            fromLayer,
+            getLayerMoves(fromLayer)
+          )
+        );
+      }
+
+      setState(nextState);
+      setSelectedId(pidAfter ?? id);
+      forceRender((n) => n + 1);
+
+      const c2 = pidAfter ? idToCoord(pidAfter) : null;
+      const nextLayer = c2?.layer ?? currentLayer;
+
+      enterLayer(nextState, nextLayer);
+
+      if (nextLayer !== currentLayer) {
+        setCurrentLayer(nextLayer);
+        revealWholeLayer(nextState, nextLayer);
+    
+      };
+
+      const rm = getReachability(nextState) as any;
+      setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+
+      pushLog("Moved to " + (pidAfter ?? id), "ok");
+      if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
+    },
+    [
+      state,
+      viewState,
+      encounterActive,
+      reachable,
+      currentLayer,
+      playerLayer,
+      goalId,
+      pushLog,
+      revealWholeLayer,
+      computeOptimalFromReachMap,
+      scenarioLayerCount,
+      findTriggerForHex,
+      getLayerMoves,
+       triggerLayerFx,
+    ]
+  );
+
+  const canGoDown = currentLayer - 1 >= 1;
+  const canGoUp = currentLayer + 1 <= scenarioLayerCount;
+
+  /* =========================
+     Render helpers/components
+  ========================= */
+
+  const layerRows = useMemo(() => ROW_LENS.length, []);
+  const rows = useMemo(
+    () => Array.from({ length: layerRows }, (_, i) => i),
+    [layerRows]
+  );
+
+  function isPlayerHere(id: string) {
+    return !!playerId && playerId === id;
+  }
+
+  function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
+    const segments = [7, 6, 5, 4, 3, 2, 1];
+    const side = props.side;
+    const currentLayerLocal = props.currentLayer;
+
+    return (
+      <div className={"barWrap " + (side === "left" ? "barLeft" : "barRight")}>
+        <div className="layerBar">
+          {segments.map((layerVal) => {
+            const active = layerVal === currentLayerLocal;
+            return (
+              <div
+                key={layerVal}
+                className={"barSeg" + (active ? " isActive" : "")}
+                data-layer={layerVal}
+              />
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  function HexDeckCardsOverlay(props: { glowVar: string }) {
+    return (
+      <div
+        className="hexDeckOverlay"
+        style={{ ["--cardGlow" as any]: props.glowVar } as any}
+      >
+        <div className="hexDeckCol left">
+          <div className="hexDeckCard cosmic ccw slow">
+            <div className="deckFx" />
+          </div>
+
+          <div className="hexDeckCard risk ccw fast">
+            <div className="deckFx" />
+          </div>
+        </div>
+
+        <div className="hexDeckCol right">
+          <div className="hexDeckCard terrain cw slow">
+            <div className="deckFx" />
+          </div>
+
+          <div className="hexDeckCard shadow cw fast">
+            <div className="deckFx" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const resetAll = useCallback(() => {
+    setScreen("start");
+    setWorldId(null);
+    setScenarioId(null);
+    setTrackId(null);
+    setChosenPlayer(null);
+
+    setState(null);
+    setCurrentLayer(1);
+    setSelectedId(null);
+    setStartHexId(null);
+
+    setVillainTriggers([]);
+    setEncounter(null);
+    pendingEncounterMoveIdRef.current = null;
+
+    setGoalId(null);
+    setOptimalAtStart(null);
+    setOptimalFromNow(null);
+    setMovesTaken(0);
+
+    logNRef.current = 0;
+    setLog([]);
+
+    setItems([
+      { id: "reroll", name: "Reroll", icon: "🎲", charges: 2 },
+      { id: "revealRing", name: "Reveal", icon: "👁️", charges: 2 },
+      { id: "peek", name: "Peek", icon: "🧿", charges: 1 },
+    ]);
+  }, []);
+
+  const PLAYER_PRESETS: Array<{ id: string; name: string }> = [
+    { id: "p1", name: "Aeris" },
+    { id: "p2", name: "Devlan" },
+  ];
 
   /* =========================
      Screens
@@ -4137,7 +3181,9 @@ return (
     />
 
     <div className="topbar">
-     
+      <button className="btn" onClick={() => setShowGhost((v) => !v)}>
+        {showGhost ? "Hide ghost" : "Ghost grid"}
+      </button>
 
       <div className={"dice3d " + (diceRolling ? "rolling" : "")}>
         <div
@@ -4260,25 +3306,25 @@ return (
             {/* ✅ ONE stable centering wrapper */}
             <div className="hexGrid">
               {/* ✅ LAYER FLASH OVERLAY (one per board) */}
-           {layerFx ? (
-  <div
-    key={layerFx.key}
-    className="layerFxOverlay"
-    style={layerFxStyle}
-    aria-live="polite"
-  >
-    <div className="layerFxCard">
-      <div className="layerFxTitle">Layer {layerFx.layer}</div>
-    </div>
-  </div>
-) : null}
+              {layerFx ? (
+                <div
+                  key={layerFx.key}
+                  className="layerFxOverlay"
+                  style={{ ["--layerFxColor" as any]: layerFx.color } as any}
+                  aria-live="polite"
+                >
+                  <div className="layerFxCard">
+                    <div className="layerFxTitle">Layer {layerFx.layer}</div>
+                  </div>
+                </div>
+              ) : null}
 
               {showGhost && viewState ? (
                 <div className="ghostGrid">
                   {rows.map((r) => {
                     const cols = ROW_LENS[r] ?? 0;
                     const isOffset = cols === 6;
-                    const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+                    const base = isOffset ? "calc(var(--hexStepX) / 5)" : "0px";
 
                     const engineShiftRaw =
                       (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
@@ -4362,12 +3408,7 @@ const isOffset = cols === 6;
                 const ns = normalizeRowShift(rawShift, cols);
                 const shift = ns.visual;
 
-                const tx =
-  "calc(" +
-  (isOffset ? "calc(var(--hexStepX) / -2)" : "0px") +
-  " + (" +
-  shift +
-  " * var(--hexStepX)))";
+                const tx = isOffset ? "calc(var(--hexStepX) / 5)" : "0px";
 
                 return (
                   <div
@@ -4375,27 +3416,31 @@ const isOffset = cols === 6;
                     className="hexRow"
                     style={{ transform: "translateX(" + tx + ")" }}
                   >
-             
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: 8,
+                        opacity: 0.35,
+                        fontSize: 12,
+                      }}
+                    >
+                      r{r} shift:{shift}
+                    </div>
 
                     {Array.from({ length: cols }, (_, c) => {
-  const id = "L" + currentLayer + "-R" + r + "-C" + c;
-
-  const tr = findPortalTransition(
-    (viewState as any)?.scenario?.transitions,
-    id
-  );
-
-  const isPortalUp = tr?.type === "UP";
-  const isPortalDown = tr?.type === "DOWN";
-
-  const portalTargetLayer = tr?.to?.layer ?? null;
-
-  const portalColor = portalTargetLayer ? layerCssVar(portalTargetLayer) : null;
+                      const id = "L" + currentLayer + "-R" + r + "-C" + c;
 
                       const hex = getHexFromState(viewState as any, id) as any;
                       const bm = isBlockedOrMissing(hex);
 
-                     
+                      const portalDir = findPortalDirection(
+                        (viewState as any)?.scenario?.transitions,
+                        id
+                      );
+
+                      const isPortalUp = portalDir === "up";
+                      const isPortalDown = portalDir === "down";
+
                       if (bm.missing)
                         return <div key={id} className="hexSlot empty" />;
 
@@ -4414,8 +3459,16 @@ const isOffset = cols === 6;
                       );
                       const downLayer = Math.max(1, currentLayer - 1);
 
-                    
-const cardHere = findCardTriggerAt(id);
+                      const portalTargetLayer = isPortalUp
+                        ? upLayer
+                        : isPortalDown
+                        ? downLayer
+                        : null;
+
+                      const portalColor = portalTargetLayer
+                        ? layerCssVar(portalTargetLayer)
+                        : null;
+
                       const isGoal = goalId === id;
                       const isTrigger = !!findTriggerForHex(id);
                       const tile = HEX_TILE
@@ -4465,46 +3518,57 @@ const cardHere = findCardTriggerAt(id);
                             title={id}
                           >
                             <div className="hexAnchor">
-                              
+                              {isPortalUp || isPortalDown ? (
+                                <div className="portalOuter">
+                                  <div className="pRim" />
+                                  <div className="pOval" />
+                                </div>
+                              ) : null}
 
-<div
-  className="hexInner"
-  style={tile ? { backgroundImage: tile } : undefined}
->
-  {/* portal FX */}
-  {isPortalUp || isPortalDown ? (
-    <>
-      <div className="pAura" />
-      <div className="pOrbs" />
-      <div className="pRim" />
-      <div className="pOval" />
-    </>
-  ) : null}
+                              <div
+                                className="hexInner"
+                                style={
+                                  tile ? { backgroundImage: tile } : undefined
+                                }
+                              >
+                                {isPortalUp || isPortalDown ? (
+                                  <>
+                                    <div className="pAura" />
+                                    <div className="pOrbs" />
+                                    <div className="pRunes" />
+                                    <div className="pVortex" />
+                                    <div className="pWell" />
+                                    <div className="pShine" />
+                                  </>
+                                ) : null}
 
-  {/* start-tile FX */}
-  {isStart ? (
-    <>
-      <div className="pAura" />
-      <div className="pRunes" />
-      <div className="pVortex" />
-      <div className="pWell" />
-      <div className="pShine" />
-    </>
-  ) : null}
+                                {isStart ? (
+                                  <>
+                                    <div className="pAura" />
+                                    <div className="pRunes" />
+                                    <div className="pVortex" />
+                                    <div className="pWell" />
+                                    <div className="pShine" />
+                                  </>
+                                ) : null}
 
-  {/* card badge */}
-  {cardHere ? <div className={"cardBadge " + cardHere} title={cardHere} /> : null}
+                                <div className="hexId">{r + "," + c}</div>
 
-  <div className="hexId">{r + "," + c}</div>
-
-  <div className="hexMarks">
-    {isPortalUp ? <span className="mark">↑</span> : null}
-    {isPortalDown ? <span className="mark">↓</span> : null}
-    {isGoal ? <span className="mark g">G</span> : null}
-    {isTrigger ? <span className="mark t">!</span> : null}
-  </div>
-</div>
-
+                                <div className="hexMarks">
+                                  {isPortalUp ? (
+                                    <span className="mark">↑</span>
+                                  ) : null}
+                                  {isPortalDown ? (
+                                    <span className="mark">↓</span>
+                                  ) : null}
+                                  {isGoal ? (
+                                    <span className="mark g">G</span>
+                                  ) : null}
+                                  {isTrigger ? (
+                                    <span className="mark t">!</span>
+                                  ) : null}
+                                </div>
+                              </div>
 
                               {isPlayer ? (
                                 <span
@@ -4581,115 +3645,12 @@ const cardHere = findCardTriggerAt(id);
         </div>
       </div>
     </div>
-     {flyCard ? (
-  <div key={flyCard.key} className="flyCardOverlay" aria-hidden="true">
-    <div
-      className={"flyCard " + flyCard.card}
-      style={
-        {
-          ["--fromX" as any]: flyCard.from.x + "px",
-          ["--fromY" as any]: flyCard.from.y + "px",
-          ["--fromW" as any]: flyCard.from.w + "px",
-          ["--fromH" as any]: flyCard.from.h + "px",
-        } as any
-      }
-    >
-      <div className="flyFace flyFront">
-        <div className="flyLabel">{flyCard.card}</div>
-      </div>
-      <div className="flyFace flyBack">
-        <div className="flyLabel">{flyCard.card}</div>
-      </div>
-    </div>
-  </div>
-) : null}
-
-{cardFlip ? (
-  <div
-    key={cardFlip.key}
-    className="cardFlipOverlay"
-    aria-live="polite"
-    style={{ animationDuration: cardFlip.durMs + "ms" }}
-  >
-    <div
-      className={"cardFlipCard " + cardFlip.card}
-      style={{ animationDuration: cardFlip.durMs + "ms" }}
-    >
-      <div className="cardFlipLabel">{cardFlip.card}</div>
-
-      {/* ✅ villain image fades in over the big card (risk only) */}
-      {cardFlip.card === "risk" && cardFlip.villainKey ? (
-        <img
-          className="cardFlipVillain"
-          src={villainImg(cardFlip.villainKey)}
-          alt={cardFlip.villainKey}
-        />
-      ) : null}
-    </div>
-  </div>
-) : null}
 
     {encounter ? (
-  <div className="overlay" role="dialog" aria-modal="true">
-    <div className="overlayCard">
-      <div className="overlayTitle">Encounter!</div>
-      <div className="overlaySub">
-        A villain blocks your path. Roll a <b>6</b> to break through.
-        <span style={{ display: "inline-block", marginLeft: 10, opacity: 0.8 }}>
-          Tries: <b>{encounter.tries}</b>
-        </span>
+      <div className="overlay">
+        {/* ... */}
       </div>
-
-      <div className="villainBox">
-        <img
-          className="villainImg"
-          src={villainImg(encounter.villainKey)}
-          alt={encounter.villainKey}
-        />
-
-        <div className="villainMeta">
-          <div style={{ fontWeight: 900, fontSize: 14 }}>
-            {encounter.villainKey.toUpperCase()}
-          </div>
-
-          <div style={{ color: "rgba(255,255,255,.78)", fontSize: 13, lineHeight: 1.35 }}>
-            Click <b>Roll</b> (or use the <b>Reroll</b> item). If the die lands on <b>6</b>,
-            you will automatically continue to the tile you clicked.
-          </div>
-
-          <div className="row" style={{ justifyContent: "flex-start", marginTop: 8 }}>
-            <button
-              className="btn primary"
-              disabled={diceRolling}
-              onClick={() => rollDice()}
-              title="Roll the die"
-            >
-              {diceRolling ? "Rolling…" : "Roll"}
-            </button>
-
-            <button
-              className="btn"
-              disabled={diceRolling}
-              onClick={() => {
-                // optional escape hatch (prevents soft-lock during debugging)
-                pendingEncounterMoveIdRef.current = null;
-                setEncounter(null);
-                pushLog("Encounter dismissed (debug)", "info");
-              }}
-              title="Debug: dismiss encounter"
-            >
-              Dismiss
-            </button>
-          </div>
-
-          <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
-            Current die: <b>{diceValue}</b>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-) : null}
+    ) : null}
 
     <style>{baseCss}</style>
   </div>
