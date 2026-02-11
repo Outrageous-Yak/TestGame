@@ -3326,13 +3326,12 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
  /* =========================
    Dice
 ========================= */
-
+const BASE_DICE_VIEW = { x: -28, y: -36 };
 const [diceValue, setDiceValue] = useState<number>(2);
 const [diceRolling, setDiceRolling] = useState(false);
-const [diceRot, setDiceRot] = useState<{ x: number; y: number }>({
-  x: 0,
-  y: 0,
-});
+const [diceRot, setDiceRot] = useState<{ x: number; y: number }>(
+  BASE_DICE_VIEW
+);
 const diceTimer = useRef<number | null>(null);
 
 // ✅ IMPORTANT: always remember the *final* roll value (not the flickers)
@@ -3992,6 +3991,7 @@ if (landedCard) {
     // ✅ open encounter immediately (no target tile needed)
     pendingEncounterMoveIdRef.current = null;
     setEncounter({ villainKey: vk, tries: 0 });
+     setDiceRot(BASE_DICE_VIEW);
     pushLog("Risk triggered — encounter: " + vk + " (roll a 6)", "bad");
 
     // ✅ show large card longer + ensure villain is visible on it
