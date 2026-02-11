@@ -4477,7 +4477,7 @@ const isOffset = cols === 6;
   // ✅ stable grid: c is the VISUAL SLOT column
   // map slot -> logical id using the row shift
   const id = idAtSlot(currentLayer, r, c, shift);
-const lc = idToCoord(id);
+
   const tr = findPortalTransition(
     (viewState as any)?.scenario?.transitions,
     id
