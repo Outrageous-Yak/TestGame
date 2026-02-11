@@ -4468,10 +4468,11 @@ const isOffset = cols === 6;
 
                 return (
   <div
-    key={"row-" + r}
-    className="hexRow"
-    style={{ transform: "translateX(0px)" }}
-  >
+  key={"row-" + r}
+  className="hexRow"
+  style={{ transform: "translateX(" + tx + ")" }}
+>
+
 
 {Array.from({ length: cols }, (_, c) => {
   // ✅ stable grid: c is the VISUAL SLOT column
