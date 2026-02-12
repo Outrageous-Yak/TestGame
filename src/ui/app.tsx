@@ -93,6 +93,24 @@ type CardTrigger = { card: CardKey; layer: number; row: number; col: number };
 /* =========================================================
    Worlds registry helpers
 ========================================================= */
+function getVisualId(
+  state: GameState | null,
+  layer: number,
+  row: number,
+  col: number
+): string {
+  if (!state) return `L${layer}-R${row}-C${col}`;
+
+  // If your engine tracks shifts per layer,
+  // apply inverse shift here.
+
+  const shift = (state as any).layerShifts?.[layer] ?? 0;
+
+  const rowLen = ROW_LENS[row];
+  const adjustedCol = (col + shift + rowLen) % rowLen;
+
+  return `L${layer}-R${row}-C${adjustedCol}`;
+}
 
 function getRegisteredWorlds(): any[] {
   const anyMod: any = WorldsMod as any;
@@ -273,7 +291,7 @@ function findFirstPlayableHexId(st: GameState, layer: number): string {
   for (let r = 0; r < ROW_LENS.length; r++) {
     const len = ROW_LENS[r] ?? 7;
     for (let c = 0; c < len; c++) {
-      const id = `L${layer}-R${r}-C${c}`;
+      const id = getEngineHexIdForVisualPosition(activeLayer, row, col);
       const hex = getHexFromState(st, id) as any;
       if (!hex) continue;
       if (hex.missing) continue;
