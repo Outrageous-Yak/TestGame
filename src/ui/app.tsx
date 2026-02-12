@@ -211,6 +211,12 @@ function loadWorlds(): WorldEntry[] {
 /* =========================================================
    Helpers
 ========================================================= */
+function ensureScenario(st: any): any {
+  if (st && !st.scenario && scenarioRef.current) {
+    st.scenario = scenarioRef.current;
+  }
+  return st;
+}
 
 function idToCoord(id: string): Coord | null {
   const m = /^L(\d+)-R(\d+)-C(\d+)$/.exec(id);
@@ -2847,7 +2853,7 @@ const canGoUp = currentLayer < scenarioLayerCount;
   const playerBtnRef = useRef<HTMLButtonElement | null>(null);
   // ✅ used by "Quick start (debug)" + auto-start effect
   const pendingQuickStartRef = useRef(false);
-const scenarioRef = useRef<Scenario | null>(null);
+const scenarioRef: { current: Scenario | null } = { current: null };
   /* =========================
      Per-layer move counters (for shifting)
   ========================= */
@@ -3570,7 +3576,8 @@ if (!targetId) {
 
     // ✅ Use viewState here (NOT state)
     const res: any = tryMove(viewState as any, targetId);
-let nextState = unwrapNextState(res);
+let nextState = unwrapNextState(res); 
+     if (nextState) ensureScenario(nextState);
 
     if (!nextState) {
       const msg =
@@ -3788,7 +3795,9 @@ pushLog("Card triggers loaded: " + cts.length, "info");
 
    scenarioRef.current = s;            // ✅ store scenario for later
 const st: any = newGame(s);
-st.scenario = s;  
+scenarioRef.current = s;
+st.scenario = s; // keep
+ensureScenario(st);
 
     const layerCount = Math.max(1, Number(s?.layers ?? 1));
     setScenarioLayerCount(layerCount);
@@ -3945,7 +3954,8 @@ const tryMoveToId = useCallback(
 
     // engine move
     const res: any = tryMove(viewState as any, id);
-    let nextState = unwrapNextState(res);
+    let nextState = unwrapNextState(res); 
+     if (nextState) ensureScenario(nextState);
 
     // TEMP fallback: if engine rejects but UI says reachable, force move
     if (!nextState) {
@@ -4361,7 +4371,9 @@ return (
           </button>
         ))}
       </div>
-
+const st2: any = ensureScenario(state);
+enterLayer(st2, next);
+revealWholeLayer(st2, next);
       <button
         className="btn"
         disabled={!state || !canGoDown || encounterActive || layerFx !== null}
