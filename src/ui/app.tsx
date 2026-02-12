@@ -623,8 +623,7 @@ const baseCss = `
   /* hex geometry (7676767) */
   --hexWMain: 96px;
   --hexHMain: 84px;
-  --hexStepX: 78px;
-
+  --hexStepX: 90px; /* horizontal spacing between centers */
 
   /* derived: used by bars (match board height incl padding) */
   --hexFieldH: calc((var(--hexHMain) * 7) + var(--boardPadTop) + var(--boardPadBottom));
@@ -2625,7 +2624,6 @@ flex: 0 0 var(--hexWMain);
   from { opacity: 0; transform: scale(1.02); }
   to   { opacity: 1; transform: scale(1.00); }
 }
-.ghostText { display: none; }
 
 `;
 // =========================
@@ -4424,9 +4422,9 @@ return (
                               >
                                 <div className="ghostHex" />
                                 <div className="ghostText">
-  {r + "," + (lc ? lc.col : c)}
-</div>
+                                {r + "," + c}
 
+                                </div>
                               </div>
                             </div>
                           );
