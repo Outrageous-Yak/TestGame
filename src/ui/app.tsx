@@ -366,18 +366,28 @@ function facingFromMoveVisual(
 function unwrapNextState(res: any): GameState | null {
   if (!res) return null;
 
-  if (typeof res === "object" && "state" in (res as any)) {
+  // engine shape: { state: GameState, ... }
+  if (typeof res === "object" && "state" in res) {
     const st = (res as any).state;
-     (st as any).scenario = s;
-    return st && typeof st === "object" ? (st as GameState) : null;
+    if (st && typeof st === "object") {
+      if (!(st as any).scenario && scenarioRef.current) {
+        (st as any).scenario = scenarioRef.current; // ✅ always reattach
+      }
+      return st as GameState;
+    }
+    return null;
   }
 
-  if (typeof res === "object" && (("hexesById" in (res as any)) || ("playerHexId" in (res as any)))) {
-    return res as GameState;
+  // sometimes tryMove returns the state directly
+  if (typeof res === "object" && (("hexesById" in res) || ("playerHexId" in res))) {
+    const st = res as any;
+    if (!st.scenario && scenarioRef.current) st.scenario = scenarioRef.current; // ✅
+    return st as GameState;
   }
 
   return null;
 }
+
 function getNeighborsSameLayer(st: any, pid: string): string[] {
   // ✅ FIRST: state-aware neighbors (respects shifting rows)
   try {
@@ -2772,7 +2782,7 @@ function parseVillainsFromScenario(s: any): VillainTrigger[] {
 
   return out;
 }
-
+const scenarioRef = useRef<Scenario | null>(null);
 export default function App() {
   /* =========================
      Navigation / overlays
@@ -3776,7 +3786,9 @@ pushLog("Card triggers loaded: " + cts.length, "info");
     setEncounter(null);
     pendingEncounterMoveIdRef.current = null;
 
-    const st = newGame(s);
+   scenarioRef.current = s;            // ✅ store scenario for later
+const st: any = newGame(s);
+st.scenario = s;  
 
     const layerCount = Math.max(1, Number(s?.layers ?? 1));
     setScenarioLayerCount(layerCount);
@@ -3912,8 +3924,9 @@ const tryMoveToId = useCallback(
     if (!nextState) {
       if (reachable.has(id) && viewState) {
         const forced: any = { ...(viewState as any) };
-        forced.playerHexId = id;
-        nextState = forced as any;
+forced.playerHexId = id;
+if (!forced.scenario && scenarioRef.current) forced.scenario = scenarioRef.current;
+nextState = forced as any;
         pushLog("Force-moved (engine rejected)", "info");
       } else {
         const msg =
