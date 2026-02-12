@@ -4489,7 +4489,7 @@ return (
   <div
     key={"row-" + r}
     className="hexRow"
-    style={{ transform: "translateX(" + tx + ")" }} // ✅ use tx
+    style={{ transform: "translateX(" + tx + ")" }}
   >
 
 
