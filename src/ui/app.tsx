@@ -287,20 +287,20 @@ function findGoalId(s: any, fallbackLayer: number): string | null {
   return null;
 }
 
-function findFirstPlayableHexId(st: GameState, layer: number): string {
+function findFirstPlayableHexId(layer: number): string | null {
   for (let r = 0; r < ROW_LENS.length; r++) {
-    const len = ROW_LENS[r] ?? 7;
+    const len = ROW_LENS[r];
     for (let c = 0; c < len; c++) {
-      const id = getEngineHexIdForVisualPosition(activeLayer, row, col);
-      const hex = getHexFromState(st, id) as any;
-      if (!hex) continue;
-      if (hex.missing) continue;
-      if (hex.blocked) continue;
-      return id;
+      const id = getEngineHexIdForVisualPosition(layer, r, c);
+      const hex = getHexFromState(state, id);
+      if (hex && !hex.blocked && !hex.missing) {
+        return id;
+      }
     }
   }
-  return `L${layer}-R0-C0`;
+  return null;
 }
+
 
 function facingFromMove(fromId: string | null, toId: string | null): "down" | "up" | "left" | "right" {
   const a = fromId ? idToCoord(fromId) : null;
@@ -2782,7 +2782,7 @@ function parseVillainsFromScenario(s: any): VillainTrigger[] {
 
   return out;
 }
-const scenarioRef = useRef<Scenario | null>(null);
+
 export default function App() {
   /* =========================
      Navigation / overlays
@@ -2847,7 +2847,7 @@ const canGoUp = currentLayer < scenarioLayerCount;
   const playerBtnRef = useRef<HTMLButtonElement | null>(null);
   // ✅ used by "Quick start (debug)" + auto-start effect
   const pendingQuickStartRef = useRef(false);
-
+const scenarioRef = useRef<Scenario | null>(null);
   /* =========================
      Per-layer move counters (for shifting)
   ========================= */
@@ -3868,6 +3868,33 @@ st.scenario = s;
 /* =========================
    Movement
 ========================= */
+const unwrapNextState = useCallback((res: any): GameState | null => {
+  if (!res) return null;
+
+  // engine shape: { state: GameState, ... }
+  if (typeof res === "object" && "state" in res) {
+    const st = (res as any).state;
+    if (st && typeof st === "object") {
+      if (!(st as any).scenario && scenarioRef.current) {
+        (st as any).scenario = scenarioRef.current;
+      }
+      return st as GameState;
+    }
+    return null;
+  }
+
+  // sometimes tryMove returns the state directly
+  if (
+    typeof res === "object" &&
+    (("hexesById" in res) || ("playerHexId" in res))
+  ) {
+    const st = res as any;
+    if (!st.scenario && scenarioRef.current) st.scenario = scenarioRef.current;
+    return st as GameState;
+  }
+
+  return null;
+}, []);
 
 const tryMoveToId = useCallback(
   (id: string) => {
