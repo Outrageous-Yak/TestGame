@@ -368,6 +368,7 @@ function unwrapNextState(res: any): GameState | null {
 
   if (typeof res === "object" && "state" in (res as any)) {
     const st = (res as any).state;
+     (st as any).scenario = s;
     return st && typeof st === "object" ? (st as GameState) : null;
   }
 
