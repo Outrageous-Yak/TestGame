@@ -623,7 +623,8 @@ const baseCss = `
   /* hex geometry (7676767) */
   --hexWMain: 96px;
   --hexHMain: 84px;
-  --hexStepX: 90px; /* horizontal spacing between centers */
+  --hexStepX: 78px;
+
 
   /* derived: used by bars (match board height incl padding) */
   --hexFieldH: calc((var(--hexHMain) * 7) + var(--boardPadTop) + var(--boardPadBottom));
