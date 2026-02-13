@@ -4732,10 +4732,6 @@ return (
 
 
 
-/* =========================================================
-   JSX: Replace your old encounter overlay block with THIS
-========================================================= */
-
 {encounter ? (
  <div
   className="encounterScene"
