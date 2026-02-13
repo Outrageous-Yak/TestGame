@@ -292,12 +292,14 @@ function findGoalId(s: any, fallbackLayer: number): string | null {
   }
   return null;
 }
-
+function getEngineHexIdForVisualPosition(layer: number, row: number, visualCol: number) {
+  return "L" + layer + "-R" + row + "-C" + visualCol;
+}
 function findFirstPlayableHexId(st: GameState | null, layer: number): string | null {
   for (let r = 0; r < ROW_LENS.length; r++) {
     const len = ROW_LENS[r];
     for (let c = 0; c < len; c++) {
-      const id = getEngineHexIdForVisualPosition(layer, r, c);
+     const id = "L" + layer + "-R" + r + "-C" + c;
       const hex = getHexFromState(st, id) as any;
       if (hex && !hex.blocked && !hex.missing) return id;
     }
@@ -1019,7 +1021,7 @@ body{
   opacity: .95;
   filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
 }
-.face{
+.hexface{
   position: absolute;
   inset: 0;
   border-radius: 18px;
