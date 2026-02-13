@@ -3519,7 +3519,7 @@ const rollDice = useCallback(() => {
         return;
       }
     },
-    [items, rollDice, pushLog, state, revealRing, scenarioLayerCount, currentLayer]
+    [items, rollDice, pushLog, state, revealRing, scenarioLayerCount, currentLayer, forceRender]
   );
 
 /* =========================
@@ -4079,6 +4079,7 @@ if (landedCard) {
     triggerLayerFx,
     findCardTriggerAt,
     triggerCardFlyout,
+     triggerCardFlip,
   ]
 );
 
