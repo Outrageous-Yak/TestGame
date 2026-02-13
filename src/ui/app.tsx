@@ -4037,14 +4037,14 @@ if (landedCard) {
     pushLog("Risk triggered — encounter: " + vk + " (roll a 6)", "bad");
 
     // ✅ show large card longer + ensure villain is visible on it
-    triggerCardFlyout("risk");
-    triggerCardFlip("risk", { durMs: 2400, villainKey: vk });
+    //triggerCardFlyout("risk");
+    //triggerCardFlip("risk", { durMs: 2400, villainKey: vk });
 
     // (Optional) if you DON’T want the extra fullscreen flip (because flyout already shows),
     // comment the triggerCardFlip line above and instead add the villain to flyCard.
   } else {
-    triggerCardFlyout(landedCard);
-    triggerCardFlip(landedCard); // keep default duration
+    //triggerCardFlyout(landedCard);
+    //triggerCardFlip(landedCard); // keep default duration
     pushLog("Card triggered: " + landedCard, "info");
   }
 }
@@ -4663,7 +4663,7 @@ return (
   </div>
 </div>
 
-{cardFlip ? (
+{/* {cardFlip ? (
   <div
     key={cardFlip.key}
     className="cardFlipOverlay"
@@ -4685,7 +4685,7 @@ return (
       ) : null}
     </div>
   </div>
-) : null}
+) : null}*/}
 
 
 
