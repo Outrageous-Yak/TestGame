@@ -1019,6 +1019,37 @@ body{
   opacity: .95;
   filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
 }
+.face{
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* corners */
+.diceCorner{
+  position:absolute;
+  width: 46%;
+  aspect-ratio: 1 / 1;
+  pointer-events:none;
+  z-index: 5;
+
+  background-image: url(var(--diceBorderUrl));
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: top left;
+
+  opacity: 0.92;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 10px rgba(255,60,0,.30));
+}
+.diceCorner.tl{ top: 0; left: 0; transform: rotate(0deg); }
+.diceCorner.tr{ top: 0; right: 0; transform: rotate(90deg); }
+.diceCorner.br{ bottom: 0; right: 0; transform: rotate(180deg); }
+.diceCorner.bl{ bottom: 0; left: 0; transform: rotate(270deg); }
 
 /* =========================================================
    GAME LAYOUT GRID
@@ -3300,6 +3331,16 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
   function villainImg(key: VillainKey) {
     return toPublicUrl(VILLAINS_BASE + "/" + key + ".png");
   }
+function DiceCorners() {
+  return (
+    <>
+      <span className="diceCorner tl" />
+      <span className="diceCorner tr" />
+      <span className="diceCorner bl" />
+      <span className="diceCorner br" />
+    </>
+  );
+}
 
   /* =========================
      Sprite
@@ -4715,20 +4756,31 @@ return (
                 "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)",
             }}
           >
-            <div className="face face-front"  style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }} />
-            <div className="face face-back"   style={{ backgroundImage: "url(" + diceImg(5) + ")" }} />
-            <div className="face face-right"  style={{ backgroundImage: "url(" + diceImg(3) + ")" }} />
-            <div className="face face-left"   style={{ backgroundImage: "url(" + diceImg(4) + ")" }} />
-            <div className="face face-top"    style={{ backgroundImage: "url(" + diceImg(1) + ")" }} />
-            <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }} />
-          </div>
+            <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}>
+  <DiceCorners />
+</div>
 
-          {DICE_BORDER_IMG ? (
-            <div
-              className="diceBorder"
-              style={{ backgroundImage: "url(" + toPublicUrl(DICE_BORDER_IMG) + ")" }}
-            />
-          ) : null}
+<div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
+  <DiceCorners />
+</div>
+
+<div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }}>
+  <DiceCorners />
+</div>
+
+<div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }}>
+  <DiceCorners />
+</div>
+
+<div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }}>
+  <DiceCorners />
+</div>
+
+<div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}>
+  <DiceCorners />
+</div>
+
+          
         </div>
 
         <div className="encounterInfo">
