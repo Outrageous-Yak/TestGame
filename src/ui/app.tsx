@@ -4364,7 +4364,7 @@ return (
   − Layer
 </button>
 
-        − Layer
+
 <button
   className="btn"
   disabled={!state || !canGoUp || encounterActive || layerFx !== null}
