@@ -293,15 +293,13 @@ function findGoalId(s: any, fallbackLayer: number): string | null {
   return null;
 }
 
-function findFirstPlayableHexId(layer: number): string | null {
+function findFirstPlayableHexId(st: GameState | null, layer: number): string | null {
   for (let r = 0; r < ROW_LENS.length; r++) {
     const len = ROW_LENS[r];
     for (let c = 0; c < len; c++) {
       const id = getEngineHexIdForVisualPosition(layer, r, c);
-      const hex = getHexFromState(state, id);
-      if (hex && !hex.blocked && !hex.missing) {
-        return id;
-      }
+      const hex = getHexFromState(st, id) as any;
+      if (hex && !hex.blocked && !hex.missing) return id;
     }
   }
   return null;
@@ -632,7 +630,7 @@ function pickRiskVillain(): VillainKey {
   const pool: VillainKey[] = ["bad1", "bad2", "bad3"];
   return pool[Math.floor(Math.random() * pool.length)];
 }
-
+const scenarioRef: { current: Scenario | null } = { current: null };
 /* =========================================================
    CSS
 ========================================================= */
@@ -2853,7 +2851,7 @@ const canGoUp = currentLayer < scenarioLayerCount;
   const playerBtnRef = useRef<HTMLButtonElement | null>(null);
   // ✅ used by "Quick start (debug)" + auto-start effect
   const pendingQuickStartRef = useRef(false);
-const scenarioRef: { current: Scenario | null } = { current: null };
+
   /* =========================
      Per-layer move counters (for shifting)
   ========================= */
@@ -3877,33 +3875,7 @@ ensureScenario(st);
 /* =========================
    Movement
 ========================= */
-const unwrapNextState = useCallback((res: any): GameState | null => {
-  if (!res) return null;
 
-  // engine shape: { state: GameState, ... }
-  if (typeof res === "object" && "state" in res) {
-    const st = (res as any).state;
-    if (st && typeof st === "object") {
-      if (!(st as any).scenario && scenarioRef.current) {
-        (st as any).scenario = scenarioRef.current;
-      }
-      return st as GameState;
-    }
-    return null;
-  }
-
-  // sometimes tryMove returns the state directly
-  if (
-    typeof res === "object" &&
-    (("hexesById" in res) || ("playerHexId" in res))
-  ) {
-    const st = res as any;
-    if (!st.scenario && scenarioRef.current) st.scenario = scenarioRef.current;
-    return st as GameState;
-  }
-
-  return null;
-}, []);
 
 const tryMoveToId = useCallback(
   (id: string) => {
@@ -4371,42 +4343,48 @@ return (
           </button>
         ))}
       </div>
-const st2: any = ensureScenario(state);
-enterLayer(st2, next);
-revealWholeLayer(st2, next);
-      <button
-        className="btn"
-        disabled={!state || !canGoDown || encounterActive || layerFx !== null}
-        onClick={() => {
-          if (!state) return;
-          const next = Math.max(1, currentLayer - 1);
-          setCurrentLayer(next);
-          enterLayer(state, next);
-          revealWholeLayer(state, next);
-          forceRender((n) => n + 1);
-          pushLog("Layer " + next, "info");
-          triggerLayerFx(next);
-        }}
-      >
-        − Layer
-      </button>
 
-      <button
-        className="btn"
-        disabled={!state || !canGoUp || encounterActive || layerFx !== null}
-        onClick={() => {
-          if (!state) return;
-          const next = Math.min(scenarioLayerCount, currentLayer + 1);
-          setCurrentLayer(next);
-          enterLayer(state, next);
-          revealWholeLayer(state, next);
-          forceRender((n) => n + 1);
-          pushLog("Layer " + next, "info");
-          triggerLayerFx(next);
-        }}
-      >
-        + Layer
-      </button>
+    <button
+  className="btn"
+  disabled={!state || !canGoDown || encounterActive || layerFx !== null}
+  onClick={() => {
+    if (!state) return;
+    const next = Math.max(1, currentLayer - 1);
+
+    const st2: any = ensureScenario(state);     // ✅ here (not in JSX)
+    setCurrentLayer(next);
+    enterLayer(st2, next);
+    revealWholeLayer(st2, next);
+
+    forceRender((n) => n + 1);
+    pushLog("Layer " + next, "info");
+    triggerLayerFx(next);
+  }}
+>
+  − Layer
+</button>
+
+        − Layer
+<button
+  className="btn"
+  disabled={!state || !canGoUp || encounterActive || layerFx !== null}
+  onClick={() => {
+    if (!state) return;
+    const next = Math.min(scenarioLayerCount, currentLayer + 1);
+
+    const st2: any = ensureScenario(state);     // ✅ here (not in JSX)
+    setCurrentLayer(next);
+    enterLayer(st2, next);
+    revealWholeLayer(st2, next);
+
+    forceRender((n) => n + 1);
+    pushLog("Layer " + next, "info");
+    triggerLayerFx(next);
+  }}
+>
+  + Layer
+</button>
+
     </div>
 
   <div className="gameLayout">
