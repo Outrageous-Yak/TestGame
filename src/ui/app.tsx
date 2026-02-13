@@ -4668,11 +4668,11 @@ return (
     key={cardFlip.key}
     className="cardFlipOverlay"
     aria-live="polite"
-    style={{ animationDuration: cardFlip.durMs + "ms" }}
+    style={{ "--cardFlipDur": cardFlip.durMs + "ms" } as React.CSSProperties}
   >
     <div
       className={"cardFlipCard " + cardFlip.card}
-      style={{ animationDuration: cardFlip.durMs + "ms" }}
+      style={{ "--cardFlipDur": cardFlip.durMs + "ms" } as React.CSSProperties}
     >
       <div className="cardFlipLabel">{cardFlip.card}</div>
 
