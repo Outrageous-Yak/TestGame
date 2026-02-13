@@ -2383,7 +2383,7 @@ flex: 0 0 var(--hexWMain);
 }
 /* =========================================================
    CARD FLIP OVERLAY (FULLSCREEN)
-   Shows a big themed card for 1.4s when a card triggers
+   Shows a big themed card for 1400ms when a card triggers
 ========================================================= */
 
 .cardFlipOverlay{
@@ -2395,7 +2395,7 @@ flex: 0 0 var(--hexWMain);
   background: rgba(0,0,0,.55);
   backdrop-filter: blur(10px);
   pointer-events: none; /* doesn't block clicks */
-  animation: cardFlipFade 1.4s ease-out forwards;
+  animation: cardFlipFade 1400ms ease-out forwards;
 }
 
 @keyframes cardFlipFade{
@@ -2416,7 +2416,7 @@ flex: 0 0 var(--hexWMain);
   overflow: hidden;
   position: relative;
   transform-origin: center;
-  animation: cardFlipPop 1.4s ease-out forwards;
+  animation: cardFlipPop 1400ms ease-out forwards;
 }
 
 @keyframes cardFlipPop{
@@ -2443,7 +2443,7 @@ flex: 0 0 var(--hexWMain);
     repeating-linear-gradient(115deg, rgba(255,255,255,0) 0 14px, rgba(255,255,255,.10) 18px, rgba(255,255,255,0) 22px);
   opacity: .55;
   mix-blend-mode: overlay;
-  animation: flipDrift 1.4s linear forwards;
+  animation: flipDrift 1400ms linear forwards;
 }
 
 @keyframes flipDrift{
@@ -3737,14 +3737,13 @@ useEffect(() => {
 const triggerCardFlyout = useCallback((card: CardKey) => {
   const el = deckRefs.current[card];
   if (!el) {
-    // fallback: if deck ref missing, use your existing overlay
-    setCardFlip({ key: Date.now(), card });
+    // fallback: if deck ref missing, use the normal flip helper (keeps timers consistent)
+    triggerCardFlip(card);
     return;
   }
 
   const r = el.getBoundingClientRect();
 
-  // start fly card clone
   const key = Date.now();
   setFlyCard({
     key,
@@ -3752,17 +3751,14 @@ const triggerCardFlyout = useCallback((card: CardKey) => {
     from: { x: r.left, y: r.top, w: r.width, h: r.height },
   });
 
-  // optional: also show your existing fullscreen overlay slightly later
-  // (comment this out if you want ONLY the fly-out)
   flyTimerRef.current = window.setTimeout(() => {
-    setCardFlip({ key: Date.now(), card });
+    triggerCardFlip(card);
   }, 520);
 
-  // cleanup fly card after animation
   window.setTimeout(() => {
     setFlyCard(null);
   }, 1200);
-}, []);
+}, [triggerCardFlip]);
 
 /* =========================
    Start scenario
