@@ -4723,9 +4723,6 @@ return (
             </div>
           </div>
 
-         
-            />
-          ) : null}
         </div>
 
         <div className="encounterInfo">
