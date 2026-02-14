@@ -101,8 +101,7 @@ function getVisualId(
 ): string {
   if (!state) return `L${layer}-R${row}-C${col}`;
 
-  // If your engine tracks shifts per layer,
-  // apply inverse shift here.
+ 
 
   const shift = (state as any).layerShifts?.[layer] ?? 0;
 
@@ -331,13 +330,13 @@ function facingFromMoveVisual(
   const b = toId ? idToCoord(toId) : null;
   if (!a || !b) return "down";
 
-  // different layer: keep "down" (or choose your own rule)
+
   if (a.layer !== b.layer) return "down";
 
   const lenA = ROW_LENS[a.row] ?? 7;
   const lenB = ROW_LENS[b.row] ?? 7;
 
-  // shifts for each row (engine if non-zero else derived)
+  
   const sAeng = getRowShiftUnits(st, a.layer, a.row);
   const sAraw = sAeng !== 0 ? sAeng : derivedRowShiftUnits(st, a.layer, a.row, movesTakenForLayer);
   const sA = normalizeRowShift(sAraw, lenA).visual;
@@ -346,21 +345,21 @@ function facingFromMoveVisual(
   const sBraw = sBeng !== 0 ? sBeng : derivedRowShiftUnits(st, b.layer, b.row, movesTakenForLayer);
   const sB = normalizeRowShift(sBraw, lenB).visual;
 
-  // slot columns (already modulo)
+ 
   const slotA = slotOfId(a.row, a.col, sA);
   const slotB = slotOfId(b.row, b.col, sB);
 
-  // compute dx in "slot units" and choose the shortest circular direction when same row
+  
   let dxSlots = slotB - slotA;
   if (a.row === b.row) {
     const len = lenA;
-    // wrap dx to [-len/2, len/2]
+   
     dxSlots = ((dxSlots + len / 2) % len) - len / 2;
   }
 
   const dRow = b.row - a.row;
 
-  // prefer horizontal if it dominates
+ 
   if (Math.abs(dxSlots) >= Math.abs(dRow) * 0.5) {
     return dxSlots > 0 ? "right" : dxSlots < 0 ? "left" : "down";
   }
@@ -372,22 +371,22 @@ function facingFromMoveVisual(
 function unwrapNextState(res: any): GameState | null {
   if (!res) return null;
 
-  // engine shape: { state: GameState, ... }
+  
   if (typeof res === "object" && "state" in res) {
     const st = (res as any).state;
     if (st && typeof st === "object") {
       if (!(st as any).scenario && scenarioRef.current) {
-        (st as any).scenario = scenarioRef.current; // ✅ always reattach
+        (st as any).scenario = scenarioRef.current; 
       }
       return st as GameState;
     }
     return null;
   }
 
-  // sometimes tryMove returns the state directly
+  
   if (typeof res === "object" && (("hexesById" in res) || ("playerHexId" in res))) {
     const st = res as any;
-    if (!st.scenario && scenarioRef.current) st.scenario = scenarioRef.current; // ✅
+    if (!st.scenario && scenarioRef.current) st.scenario = scenarioRef.current; 
     return st as GameState;
   }
 
@@ -395,13 +394,13 @@ function unwrapNextState(res: any): GameState | null {
 }
 
 function getNeighborsSameLayer(st: any, pid: string): string[] {
-  // ✅ FIRST: state-aware neighbors (respects shifting rows)
+
   try {
     const b = (neighborIdsSameLayer as any)(st, pid);
     if (Array.isArray(b)) return b;
   } catch {}
 
-  // fallback: static neighbors (no shifting)
+ 
   try {
     const a = (neighborIdsSameLayer as any)(pid);
     if (Array.isArray(a)) return a;
@@ -413,12 +412,12 @@ function getNeighborsSameLayer(st: any, pid: string): string[] {
 function cloneReachMap(rm: any): ReachMap {
   if (!rm) return {} as any;
 
-  // Map-like
+
   if (typeof rm?.entries === "function") {
     return new Map(rm) as any;
   }
 
-  // Plain object
+
   return { ...(rm as any) } as any;
 }
 
@@ -471,7 +470,7 @@ function posForHex(
   const cols = ROW_LENS[row] ?? 7;
   const isOffset = cols === 6;
 
-  // ✅ correct offset for 6-wide rows
+
   const base = isOffset ? (-stepX / 2) : 0;
 const engineShift = getRowShiftUnits(st, layer, row);
 const shift =
@@ -491,7 +490,7 @@ function getShiftedNeighborsSameLayer(st: any, pid: string, movesTaken: number):
   const c = idToCoord(pid);
   if (!c) return [];
 
-  // shift for the player row
+ 
 const engineShiftCur = getRowShiftUnits(st, c.layer, c.row);
 const shiftCur =
   engineShiftCur !== 0
@@ -501,10 +500,9 @@ const shiftCur =
 
 
 
-  // player’s visual slot column
   const slotC = slotOfId(c.row, c.col, shiftCur);
 
-  // neighbor slots on the 7676767 grid
+
   const slots = neighborSlots(c.row, slotC);
 
   const out: string[] = [];
@@ -518,7 +516,7 @@ const shift =
 
 
 
-    // ensure slot column is valid for that row length
+  
     if (s.c < 0 || s.c >= cols) continue;
 
     const id = idAtSlot(c.layer, s.r, s.c, shift);
@@ -536,26 +534,25 @@ function mod(n: number, m: number) {
   return ((n % m) + m) % m;
 }
 
-// shift > 0 means row moved RIGHT by that many slots
-// shift < 0 means row moved LEFT
+
 function idAtSlot(layer: number, row: number, slotCol: number, shift: number) {
   const len = ROW_LENS[row] ?? 7;
-  const origCol = mod(slotCol - shift, len); // inverse mapping
+  const origCol = mod(slotCol - shift, len); 
   return "L" + layer + "-R" + row + "-C" + origCol;
 }
 
 function slotOfId(row: number, origCol: number, shift: number) {
   const len = ROW_LENS[row] ?? 7;
-  return mod(origCol + shift, len); // forward mapping
+  return mod(origCol + shift, len); 
 }
 
-// 7676767 neighbor slots (static grid), returns up to 6 slot coords
+
 function neighborSlots(row: number, col: number) {
   const out: Array<{ r: number; c: number }> = [];
 
   const len = ROW_LENS[row] ?? 7;
 
-  // horizontal
+ 
   if (col - 1 >= 0) out.push({ r: row, c: col - 1 });
   if (col + 1 < len) out.push({ r: row, c: col + 1 });
 
@@ -567,8 +564,7 @@ function neighborSlots(row: number, col: number) {
 
   const curIs6 = (ROW_LENS[row] ?? 7) === 6;
 
-  // If current row is 7, adjacent 6-row sits "between" cols => neighbors use (c-1,c)
-  // If current row is 6, adjacent 7-row spans wider => neighbors use (c,c+1)
+
   const upA = curIs6 ? col : col - 1;
   const upB = curIs6 ? col + 1 : col;
 
@@ -589,17 +585,16 @@ function neighborSlots(row: number, col: number) {
 }
 function readPxVar(el: HTMLElement | null, name: string, fallback: number) {
   if (!el) return fallback;
-  const v = getComputedStyle(el).getPropertyValue(name).trim(); // e.g. "72px"
+  const v = getComputedStyle(el).getPropertyValue(name).trim(); 
   const n = Number(v.replace("px", ""));
   return Number.isFinite(n) ? n : fallback;
 }
 function normalizeRowShift(rawShift: number, rowLen: number) {
-  // wrap to 0..len-1
+
   let wrapped = ((rawShift % rowLen) + rowLen) % rowLen;
 
-  // convert to a small signed shift so translateX doesn't drift forever
   let visual = wrapped;
-  if (visual > rowLen / 2) visual = visual - rowLen; // e.g. 6 -> -1 for len=7
+  if (visual > rowLen / 2) visual = visual - rowLen;
 
   return { wrapped, visual };
 }
@@ -2694,11 +2689,7 @@ flex: 0 0 var(--hexWMain);
 }
 
 `;
-// =========================
-// Portal helpers (FIXED)
-// - exact "from" match (no +1 matching)
-// - still supports 0-based OR 1-based scenario coords
-// =========================
+
 
 function findPortalTransition(
   transitions: any[] | undefined,
@@ -2725,7 +2716,7 @@ function findPortalTransition(
 
     if (!Number.isFinite(fl) || !Number.isFinite(fr) || !Number.isFinite(fc)) continue;
 
-    // ✅ EXACT MATCH ONLY (prevents "portal appears 4 times")
+    
     if (fl !== c.layer || fr !== c.row || fc !== c.col) continue;
 
     const type: "UP" | "DOWN" = t?.type === "DOWN" ? "DOWN" : "UP";
@@ -2759,7 +2750,7 @@ function applyPortalIfAny(
 
   const destHex = getHexFromState(st as any, destId) as any;
   if (!destHex || destHex.missing || destHex.blocked) {
-    // If destination is invalid, just don't portal
+ 
     return { next: st, finalId: landedId };
   }
 
@@ -2882,7 +2873,7 @@ const canGoUp = currentLayer < scenarioLayerCount;
   const boardRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const playerBtnRef = useRef<HTMLButtonElement | null>(null);
-  // ✅ used by "Quick start (debug)" + auto-start effect
+
   const pendingQuickStartRef = useRef(false);
 
   /* =========================
@@ -2994,9 +2985,7 @@ const canGoUp = currentLayer < scenarioLayerCount;
   function setUiTickSafe(setter: React.Dispatch<React.SetStateAction<number>>) {
     setter((n) => n + 1);
   }
-  // ---------------------------
-  // Villain trigger lookup
-  // ---------------------------
+
   const findTriggerForHex = useCallback(
     (id: string): VillainKey | null => {
       const c = idToCoord(id);
@@ -3006,7 +2995,6 @@ const canGoUp = currentLayer < scenarioLayerCount;
         if (v.layer !== c.layer) continue;
         if (v.row !== c.row) continue;
 
-        // cols: "any" OR list
         if (v.cols === "any" || !v.cols) return v.key;
         if (Array.isArray(v.cols) && v.cols.includes(c.col)) return v.key;
       }
@@ -3076,22 +3064,20 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
   const side = props.side;
   const currentLayerLocal = props.currentLayer;
 
- // RIGHT BAR: keep your existing layer indicator (7..1)
+
 if (side === "right") {
   const segments = [7, 6, 5, 4, 3, 2, 1];
 
-  // goal layer from goalId like "L2-R1-C4"
+
   const goalLayer = goalId ? idToCoord(goalId)?.layer ?? null : null;
 
   const hexH = readPxVar(document.documentElement as any, "--hexHMain", 84);
 
-  // top position (center of that segment)
   const goalTopPx =
     goalLayer && goalLayer >= 1 && goalLayer <= 7
       ? (7 - goalLayer) * hexH + hexH / 2
       : null;
 
-  // ✅ player layer from playerId like "L3-R2-C1"
   const playerLayerBar = playerId ? idToCoord(playerId)?.layer ?? null : null;
 
   const playerTopPx =
@@ -3145,7 +3131,7 @@ if (side === "right") {
 }
 
 
-  // LEFT BAR: show row shifts for the CURRENT layer (r0..r6)
+
   return (
     <div className="barWrap barLeft">
       <div className="layerBar rowShiftBar">
@@ -3169,9 +3155,8 @@ if (side === "right") {
                 );
 
           const ns = normalizeRowShift(rawShift, cols);
-          const shift = ns.visual; // signed, small (-3..3 etc)
+          const shift = ns.visual; 
 
-          // ✅ label rules: -1 => L1, +1 => R1, 0 => show nothing
           const label =
             shift === 0 ? "" : shift < 0 ? "L" + Math.abs(shift) : "R" + shift;
 
@@ -3276,7 +3261,7 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
     if (!viewState) return set;
     if (!playerId) return set;
 
-    // only compute when viewing the player's layer
+   
     if (playerLayer !== currentLayer) return set;
 
     const nbs = getShiftedNeighborsSameLayer(
@@ -3303,7 +3288,7 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
 
   const GAME__URL = activeTheme?.assets.backgroundGame ?? "";
 
-  // ✅ ABSOLUTELY NO TEMPLATE LITERALS
+
   const backgroundLayers: any =
     (activeTheme && activeTheme.assets && activeTheme.assets.backgroundLayers) || {};
   const BOARD_LAYER_ = backgroundLayers["L" + currentLayer] || "";
@@ -3415,7 +3400,7 @@ const [diceRot, setDiceRot] = useState<{ x: number; y: number }>(
 );
 const diceTimer = useRef<number | null>(null);
 
-// ✅ IMPORTANT: always remember the *final* roll value (not the flickers)
+
 const lastRollValueRef = useRef<number>(2);
 
 useEffect(() => {
@@ -3454,7 +3439,7 @@ const rollDice = useCallback(() => {
   const tick = () => {
     const elapsed = performance.now() - start;
 
-    // flicker values during roll
+   
     const flicker = 1 + Math.floor(Math.random() * 6);
     setDiceValue(flicker);
     setDiceRot(rotForRoll(flicker));
@@ -3462,10 +3447,10 @@ const rollDice = useCallback(() => {
     if (elapsed < duration) {
       diceTimer.current = window.setTimeout(tick, 55);
     } else {
-      // ✅ final value
+  
       const final = 1 + Math.floor(Math.random() * 6);
 
-      lastRollValueRef.current = final; // ✅ use this in encounter resolution
+      lastRollValueRef.current = final; 
       setDiceValue(final);
       setDiceRot(rotForRoll(final));
 
@@ -3575,23 +3560,21 @@ useEffect(() => {
   const wasRolling = prevRollingRef.current;
   prevRollingRef.current = diceRolling;
 
-  // Only resolve when an encounter is active AND a roll just finished
+  
   if (!encounter) return;
   if (diceRolling) return;
   if (!wasRolling) return;
 
   try {
-    // increment tries each finished roll
+
     setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
 
-    // ✅ only succeed on the FINAL roll result (not a stale diceValue)
     const rolled = lastRollValueRef.current;
     if (rolled !== 6) return;
 
  const targetId = pendingEncounterMoveIdRef.current;
 
-// ✅ If encounter was triggered by a card (no pending move target),
-// a roll of 6 simply clears the encounter.
+
 if (!targetId) {
   pushLog("Encounter cleared — risk event passed.", "ok");
   setEncounter(null);
@@ -3599,23 +3582,22 @@ if (!targetId) {
 }
 
 
-    // IMPORTANT: use viewState (matches what the UI shows)
+   
     if (!viewState) {
       pushLog("Encounter error: viewState missing.", "bad");
       return;
     }
 
-    // Guard: pending tile might now be invalid (blocked/missing) after shifts
     const pendingHex = getHexFromState(viewState as any, targetId) as any;
     if (!pendingHex || pendingHex.missing || pendingHex.blocked) {
       pushLog("Encounter target is invalid now — click another tile.", "bad");
-      pendingEncounterMoveIdRef.current = null; // prevents deadlock
+      pendingEncounterMoveIdRef.current = null;
       return;
     }
 
     const pidBefore = (viewState as any)?.playerHexId as string | null;
 
-    // ✅ Use viewState here (NOT state)
+   
     const res: any = tryMove(viewState as any, targetId);
 let nextState = unwrapNextState(res); 
      if (nextState) ensureScenario(nextState);
@@ -3630,7 +3612,7 @@ let nextState = unwrapNextState(res);
 
       pushLog(msg, "bad");
 
-      // Clear target so player can choose a new one while encounter stays open
+     
       pendingEncounterMoveIdRef.current = null;
 
       return;
@@ -3639,17 +3621,16 @@ let nextState = unwrapNextState(res);
     const pidAfter = (nextState as any).playerHexId as string | null;
 let landedId = pidAfter ?? targetId;
 
-// apply portal jump after encounter move too
+
 {
   const ap = applyPortalIfAny(nextState as any, landedId);
   nextState = ap.next as any;
   landedId = ap.finalId;
 }
-    // close encounter ONLY after we know we have a valid nextState
+
     pendingEncounterMoveIdRef.current = null;
     setEncounter(null);
 
-    // walking / facing
     const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
     if (moved) {
       setIsWalking(true);
@@ -3695,13 +3676,13 @@ let landedId = pidAfter ?? targetId;
   } catch (err: any) {
     console.error("Encounter resolution crashed:", err);
     pushLog("Encounter crashed: " + String(err?.message ?? err), "bad");
-    // keep encounter open so player can retry
+   
   }
 }, [
   encounter,
   diceRolling,
   viewState,
-  diceValue, // ok to leave; not relied on for success anymore
+  diceValue, 
   currentLayer,
   goalId,
   revealWholeLayer,
@@ -3711,9 +3692,7 @@ let landedId = pidAfter ?? targetId;
 ]);
 
 
-// ---------------------------
-// Villain triggers parser
-// ---------------------------
+
 
 const [cardTriggers, setCardTriggers] = useState<CardTrigger[]>([]);
 const [cardFlip, setCardFlip] = useState<
@@ -3780,7 +3759,7 @@ useEffect(() => {
 const triggerCardFlyout = useCallback((card: CardKey) => {
   const el = deckRefs.current[card];
   if (!el) {
-    // fallback: if deck ref missing, use the normal flip helper (keeps timers consistent)
+
     triggerCardFlip(card);
     return;
   }
@@ -3816,12 +3795,11 @@ const startScenario = useCallback(async () => {
     ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson
     : scenarioEntry.scenarioJson;
 
-  // ✅ load FIRST
   const s = (await loadScenario(chosenJson)) as any;
 const cts = parseCardTriggersFromScenario(s);
 setCardTriggers(cts);
 pushLog("Card triggers loaded: " + cts.length, "info");
-  // ✅ then parse + log
+ 
   const vts = parseVillainsFromScenario(s);
   setVillainTriggers(vts);
   pushLog("Villain triggers loaded: " + vts.length, "info");
@@ -3830,10 +3808,10 @@ pushLog("Card triggers loaded: " + cts.length, "info");
     setEncounter(null);
     pendingEncounterMoveIdRef.current = null;
 
-   scenarioRef.current = s;            // ✅ store scenario for later
+   scenarioRef.current = s;         
 const st: any = newGame(s);
 scenarioRef.current = s;
-st.scenario = s; // keep
+st.scenario = s; 
 ensureScenario(st);
 
     const layerCount = Math.max(1, Number(s?.layers ?? 1));
@@ -3921,7 +3899,7 @@ const tryMoveToId = useCallback(
     if (!state) return;
     if (encounterActive) return;
 
-    // if viewing another layer, snap back
+ 
     if (playerLayer && currentLayer !== playerLayer) {
       setCurrentLayer(playerLayer);
       enterLayer(state, playerLayer);
@@ -3938,7 +3916,7 @@ const tryMoveToId = useCallback(
       return;
     }
 
-    // validate target tile (use viewState so it matches what UI shows)
+ 
     const hex = getHexFromState(viewState as any, id) as any;
     const bm = isBlockedOrMissing(hex);
     if (bm.missing) {
@@ -3952,7 +3930,7 @@ const tryMoveToId = useCallback(
 
     const pidBefore = (viewState as any)?.playerHexId as string | null;
 
-    // encounters block movement until you roll a 6
+
     const vk = findTriggerForHex(id);
     if (vk) {
       pendingEncounterMoveIdRef.current = id;
@@ -3963,12 +3941,12 @@ const tryMoveToId = useCallback(
       return;
     }
 
-    // engine move
+   
     const res: any = tryMove(viewState as any, id);
     let nextState = unwrapNextState(res); 
      if (nextState) ensureScenario(nextState);
 
-    // TEMP fallback: if engine rejects but UI says reachable, force move
+
     if (!nextState) {
       if (reachable.has(id) && viewState) {
         const forced: any = { ...(viewState as any) };
@@ -3997,21 +3975,16 @@ nextState = forced as any;
 
     const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
 
-    // -------------------------------------------
-    // ✅ Decide where we actually landed
-    // -------------------------------------------
+
     let landedId = pidAfter ?? id;
 
-    // ✅ apply portal BEFORE committing state/selection
     {
       const ap = applyPortalIfAny(nextState as any, landedId);
       nextState = ap.next as any;
       landedId = ap.finalId;
     }
 
-    // -------------------------------------------
-    // Per-layer move counters + walking/facing
-    // -------------------------------------------
+
     setMovesTaken((n) => n + 1);
 
     if (fromLayer) {
@@ -4022,7 +3995,7 @@ nextState = forced as any;
       setLayerMoveArmed((prev) => ({ ...prev, [fromLayer]: true }));
     }
 
-    // NOTE: if a portal moved layers, we want to treat the final layer as the current one
+
     const landedCoord = idToCoord(landedId);
     const finalLayer = landedCoord?.layer ?? (toLayer ?? currentLayer);
 
@@ -4048,16 +4021,11 @@ nextState = forced as any;
       );
     }
 
-    // -------------------------------------------
-    // ✅ Commit state + selection (SAFE NOW)
-    // -------------------------------------------
+
     setState(nextState);
     setSelectedId(landedId);
     forceRender((n) => n + 1);
 
-    // -------------------------------------------
-    // ✅ Sync layer view to final landed layer
-    // -------------------------------------------
     enterLayer(nextState as any, finalLayer);
 
     if (finalLayer !== currentLayer) {
@@ -4065,37 +4033,28 @@ nextState = forced as any;
       revealWholeLayer(nextState as any, finalLayer);
     }
 
-    // -------------------------------------------
-    // ✅ CARD TRIGGER (AFTER final landedId)
-    // -------------------------------------------
  const landedCard = findCardTriggerAt(landedId);
 if (landedCard) {
   if (landedCard === "risk") {
     const vk = pickRiskVillain();
 
-    // ✅ open encounter immediately (no target tile needed)
+  
     pendingEncounterMoveIdRef.current = null;
     setEncounter({ villainKey: vk, tries: 0 });
      setDiceRot(BASE_DICE_VIEW);
     pushLog("Risk triggered — encounter: " + vk + " (roll a 6)", "bad");
 
-    // ✅ show large card longer + ensure villain is visible on it
     //triggerCardFlyout("risk");
     //triggerCardFlip("risk", { durMs: 2400, villainKey: vk });
 
-    // (Optional) if you DON’T want the extra fullscreen flip (because flyout already shows),
-    // comment the triggerCardFlip line above and instead add the villain to flyCard.
   } else {
     //triggerCardFlyout(landedCard);
-    //triggerCardFlip(landedCard); // keep default duration
+    //triggerCardFlip(landedCard); 
     pushLog("Card triggered: " + landedCard, "info");
   }
 }
 
 
-    // -------------------------------------------
-    // reachability / optimal
-    // -------------------------------------------
     const rm = getReachability(nextState) as any;
     setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
 
@@ -4176,11 +4135,9 @@ if (landedCard) {
                   onClick={() => {
                     setWorldId(w.id);
 
-                    // default scenario
                     const s0 = w.scenarios && w.scenarios.length ? w.scenarios[0] : null;
                     setScenarioId(s0 ? s0.id : null);
 
-                    // default track (if any)
                     const t0 = s0 && s0.tracks && s0.tracks.length ? s0.tracks[0] : null;
                     setTrackId(t0 ? t0.id : null);
 
@@ -4208,7 +4165,7 @@ if (landedCard) {
                       onClick={() => {
                         setScenarioId(s.id);
 
-                        // default track (if any)
+                       
                         const t0 = s.tracks && s.tracks.length ? s.tracks[0] : null;
                         setTrackId(t0 ? t0.id : null);
 
@@ -4391,7 +4348,7 @@ return (
     if (!state) return;
     const next = Math.max(1, currentLayer - 1);
 
-    const st2: any = ensureScenario(state);     // ✅ here (not in JSX)
+    const st2: any = ensureScenario(state);  
     setCurrentLayer(next);
     enterLayer(st2, next);
     revealWholeLayer(st2, next);
@@ -4412,7 +4369,7 @@ return (
     if (!state) return;
     const next = Math.min(scenarioLayerCount, currentLayer + 1);
 
-    const st2: any = ensureScenario(state);     // ✅ here (not in JSX)
+    const st2: any = ensureScenario(state);    
     setCurrentLayer(next);
     enterLayer(st2, next);
     revealWholeLayer(st2, next);
@@ -4484,9 +4441,9 @@ return (
 
             const ns = normalizeRowShift(rawShift, cols);
 
-            // 🔥 THIS IS THE FIX
-            const shiftVisual = ns.visual;   // for translateX
-            const shiftWrapped = ns.wrapped; // for id mapping
+         
+            const shiftVisual = ns.visual;  
+            const shiftWrapped = ns.wrapped; 
 
             const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
