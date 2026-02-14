@@ -2801,6 +2801,55 @@ function applyPortalIfAny(
 /* =========================================================
    App
 ========================================================= */
+function GhostGrid(props: { layer: number }) {
+  const layer = props.layer;
+  return (
+    <div className="ghostGrid" aria-hidden="true">
+      {rows.map((r) => {
+        const cols = ROW_LENS[r] ?? 0;
+        const isOffset = cols === 6;
+
+        // Use the SAME shift math as the real board so the honeycomb matches
+        const engineShiftRaw =
+          (viewState as any)?.rowShifts?.[layer]?.[r] ??
+          (viewState as any)?.rowShifts?.["L" + layer]?.[r];
+
+        const engineShift = Number(engineShiftRaw ?? 0);
+
+        const rawShift =
+          Number.isFinite(engineShift) && engineShift !== 0
+            ? engineShift
+            : derivedRowShiftUnits(
+                viewState as any,
+                layer,
+                r,
+                getLayerMoves(layer)
+              );
+
+        const ns = normalizeRowShift(rawShift, cols);
+        const shiftVisual = ns.visual;
+
+        const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+        const tx = "calc(" + base + " + (" + shiftVisual + " * var(--hexStepX)))";
+
+        return (
+          <div
+            key={"gRow-" + r}
+            className="ghostRow"
+            style={{ transform: "translateX(" + tx + ")" }}
+          >
+            {Array.from({ length: cols }, (_, c) => (
+              <div key={"g-" + r + "-" + c} className="ghostSlot">
+                <div className="ghostHex" />
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function parseVillainsFromScenario(s: any): VillainTrigger[] {
   const src =
     (Array.isArray(s?.villains) && s.villains) ||
@@ -4441,6 +4490,8 @@ return (
     <div className="boardScroll" ref={scrollRef}>
       <div className="board" ref={boardRef}>
         <div className="hexGrid">
+           {showGhost ? <GhostGrid layer={currentLayer} /> : null}
+
           {layerFx ? (
             <div
               key={layerFx.key}
