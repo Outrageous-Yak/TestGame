@@ -4731,8 +4731,9 @@ return (
 
       {/* RIGHT: big die + info + controls */}
       <div className="encounterRight">
-         <div className="encounterCard riskCard">
+       
         <div className={"dice3d encounterDice " + (diceRolling ? "rolling" : "")}>
+            <div className="encounterCard riskCard">
           <div
             className="cube"
             style={{
