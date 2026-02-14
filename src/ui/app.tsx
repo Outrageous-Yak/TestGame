@@ -4663,29 +4663,7 @@ return (
   </div>
 </div>
 
-{/* {cardFlip ? (
-  <div
-    key={cardFlip.key}
-    className="cardFlipOverlay"
-    aria-live="polite"
-    style={{ "--cardFlipDur": cardFlip.durMs + "ms" } as React.CSSProperties}
-  >
-    <div
-      className={"cardFlipCard " + cardFlip.card}
-      style={{ "--cardFlipDur": cardFlip.durMs + "ms" } as React.CSSProperties}
-    >
-      <div className="cardFlipLabel">{cardFlip.card}</div>
 
-      {cardFlip.card === "risk" && cardFlip.villainKey ? (
-        <img
-          className="cardFlipVillain"
-          src={villainImg(cardFlip.villainKey)}
-          alt={cardFlip.villainKey}
-        />
-      ) : null}
-    </div>
-  </div>
-) : null}*/}
 
 
 
