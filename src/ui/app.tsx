@@ -4668,16 +4668,16 @@ return (
 
 
 {encounter ? (
- <div
-  className="encounterScene"
-  role="dialog"
-  aria-modal="true"
-  style={{
-    ["--diceBorderUrl" as any]: DICE_BORDER_IMG
-      ? "url(" + toPublicUrl(DICE_BORDER_IMG) + ")"
-      : "none",
-  }}
->
+  <div
+    className="encounterScene"
+    role="dialog"
+    aria-modal="true"
+    style={{
+      ["--diceBorderUrl" as any]: DICE_BORDER_IMG
+        ? "url(" + toPublicUrl(DICE_BORDER_IMG) + ")"
+        : "none",
+    }}
+  >
     <div className="encounterGrid">
       {/* LEFT: big villain card */}
       <div className="encounterCard">
@@ -4688,51 +4688,47 @@ return (
         />
       </div>
 
-      {/* RIGHT: big die + controls */}
+      {/* RIGHT: big die + info + controls */}
       <div className="encounterRight">
-<div className={"dice3d encounterDice " + (diceRolling ? "rolling" : "")}>
-  <div
-    className="cube"
-    style={{
-      transform:
-        "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)",
-    }}
-  >
-    <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}>
-      <DiceCorners />
-    </div>
+        <div className={"dice3d encounterDice " + (diceRolling ? "rolling" : "")}>
+          <div
+            className="cube"
+            style={{
+              transform:
+                "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)",
+            }}
+          >
+            <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}>
+              <DiceCorners />
+            </div>
 
-    <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
-      <DiceCorners />
-    </div>
+            <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
+              <DiceCorners />
+            </div>
 
-    <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }}>
-      <DiceCorners />
-    </div>
+            <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }}>
+              <DiceCorners />
+            </div>
 
-    <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }}>
-      <DiceCorners />
-    </div>
+            <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }}>
+              <DiceCorners />
+            </div>
 
-    <div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }}>
-      <DiceCorners />
-    </div>
+            <div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }}>
+              <DiceCorners />
+            </div>
 
-    <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}>
-      <DiceCorners />
-    </div>
-  </div>
+            <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}>
+              <DiceCorners />
+            </div>
+          </div>
 
-  {DICE_BORDER_IMG ? (
-    <div
-      className="diceBorder"
-      style={{ backgroundImage: "url(" + toPublicUrl(DICE_BORDER_IMG) + ")" }}
-    />
-  ) : null}
-</div>
-
-
-          
+          {DICE_BORDER_IMG ? (
+            <div
+              className="diceBorder"
+              style={{ backgroundImage: "url(" + toPublicUrl(DICE_BORDER_IMG) + ")" }}
+            />
+          ) : null}
         </div>
 
         <div className="encounterInfo">
@@ -4777,6 +4773,7 @@ return (
     </div>
   </div>
 ) : null}
+
 
 
     <style>{baseCss}</style>
