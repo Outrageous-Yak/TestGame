@@ -2345,6 +2345,44 @@ flex: 0 0 var(--hexWMain);
   box-shadow: 0 28px 90px rgba(0,0,0,.65);
   background: rgba(0,0,0,.25);
 }
+/* Use your existing risk gradient */
+.encounterCard.riskCard {
+  background: linear-gradient(135deg,#12090A,#6E0F1B);
+  position: relative;
+  overflow: hidden;
+}
+
+/* optional inner animated glow (like deck cards) */
+.riskCardFx {
+  position: absolute;
+  inset: -30%;
+  background:
+    radial-gradient(80% 60% at 30% 20%, rgba(255,255,255,.12), transparent 65%),
+    radial-gradient(70% 55% at 75% 80%, rgba(255,255,255,.08), transparent 65%);
+  mix-blend-mode: overlay;
+  animation: riskDrift 8s linear infinite;
+}
+
+@keyframes riskDrift {
+  from { transform: translate3d(-12%, -10%, 0) rotate(0deg); }
+  to   { transform: translate3d( 12%,  10%, 0) rotate(14deg); }
+}
+
+/* Villain sits on top of red card */
+.riskVillainImg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+
+  z-index: 5;
+
+  animation: villainFadeIn 700ms ease-out forwards;
+  animation-delay: 300ms;
+
+  filter: drop-shadow(0 18px 40px rgba(0,0,0,.55));
+}
 
 .encounterCardImg{
   width: 100%;
@@ -4680,13 +4718,16 @@ return (
   >
     <div className="encounterGrid">
       {/* LEFT: big villain card */}
-      <div className="encounterCard">
-        <img
-          className="encounterCardImg"
-          src={villainImg(encounter.villainKey)}
-          alt={encounter.villainKey}
-        />
-      </div>
+    <div className="encounterCard riskCard">
+  <div className="riskCardFx" />
+
+  <img
+    className="riskVillainImg"
+    src={villainImg(encounter.villainKey)}
+    alt={encounter.villainKey}
+  />
+</div>
+
 
       {/* RIGHT: big die + info + controls */}
       <div className="encounterRight">
