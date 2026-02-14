@@ -4723,10 +4723,7 @@ return (
             </div>
           </div>
 
-          {DICE_BORDER_IMG ? (
-            <div
-              className="diceBorder"
-              style={{ backgroundImage: "url(" + toPublicUrl(DICE_BORDER_IMG) + ")" }}
+         
             />
           ) : null}
         </div>
