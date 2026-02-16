@@ -4782,7 +4782,7 @@ return (
 
       {/* RIGHT: big die + info + controls */}
       <div className="encounterRight">
-       
+        <div className="encounterCard riskCard">
         <div className={"dice3d encounterDice " + (diceRolling ? "rolling" : "")}>
             <div className="encounterCard riskCard">
           <div
@@ -4856,6 +4856,7 @@ return (
           <div className="encounterRollPill">
             Roll = <b>{diceValue}</b>
           </div>
+           </div>
         </div>
       </div>
     </div>
