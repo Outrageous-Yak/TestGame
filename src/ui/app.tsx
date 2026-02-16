@@ -4775,8 +4775,7 @@ return (
 
     <div className="encounterGrid">
       {/* LEFT: big villain card */}
-        <div className="encounterCard riskCard">
-         </div>  
+        
     <div className="encounterCard riskCard">
   <div className="riskCardFx" />
 
