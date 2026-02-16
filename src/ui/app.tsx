@@ -656,7 +656,7 @@ const baseCss = `
   --hexWMain: 96px;
   --hexHMain: 84px;
   --hexStepX: 90px; /* horizontal spacing between centers */
-
+  --hexStepY: calc(var(--hexHMain) * 0.75);
   /* derived: used by bars (match board height incl padding) */
   --hexFieldH: calc((var(--hexHMain) * 7) + var(--boardPadTop) + var(--boardPadBottom));
 
@@ -1333,6 +1333,14 @@ display: grid;
   width: fit-content;
   margin: 0 auto;
   position: relative;
+
+  /* ✅ row spacing */
+  height: var(--hexStepY);
+}
+
+/* ✅ overlap rows (84 - 63 = 21px overlap) */
+.hexRow:not(:first-child){
+  margin-top: calc(var(--hexStepY) - var(--hexHMain)); /* negative */
 }
 .hexGrid{
   width: fit-content;
@@ -1346,7 +1354,7 @@ display: grid;
 ========================================================= */
 .hexSlot{
   width: var(--hexStepX);
-  height: var(--hexHMain);
+  height: var(--hexStepY);          /* ✅ match row height */
   display: grid;
   place-items: center;
   flex: 0 0 var(--hexStepX);
@@ -1876,14 +1884,21 @@ flex: 0 0 var(--hexWMain);
 
 .ghostRow{
   display: flex;
-  height: var(--hexHMain);
+  height: var(--hexStepY);
   align-items: center;
-
-  /* ✅ this is the centering fix */
   width: fit-content;
   margin: 0 auto;
-
   position: relative;
+}
+.ghostRow:not(:first-child){
+  margin-top: calc(var(--hexStepY) - var(--hexHMain));
+}
+.ghostSlot{
+  width: var(--hexStepX);
+  height: var(--hexStepY);
+  display: grid;
+  place-items: center;
+  flex: 0 0 var(--hexStepX);
 }
 
 .ghostSlot{
