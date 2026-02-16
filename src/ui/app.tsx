@@ -4756,7 +4756,7 @@ return (
 
 
 
-{encounter ? (
+{encounter ? ( <div className="encounterCard riskCard">
   <div
     className="encounterScene"
     role="dialog"
@@ -4769,7 +4769,7 @@ return (
   >  
     
 
-        <div className="encounterCard riskCard">
+       
            
 
 
