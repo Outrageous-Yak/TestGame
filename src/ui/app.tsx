@@ -4766,7 +4766,13 @@ return (
         ? "url(" + toPublicUrl(DICE_BORDER_IMG) + ")"
         : "none",
     }}
-  >
+  >  
+     <div className="encounterGrid">
+
+        <div className="encounterCard riskCard">
+         </div>  
+
+</div>
     <div className="encounterGrid">
       {/* LEFT: big villain card */}
         <div className="encounterCard riskCard">
