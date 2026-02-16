@@ -1,5 +1,6 @@
 
 
+
 // src/ui/app.tsx 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
@@ -969,33 +970,22 @@ body{
 .pillText{ font-weight: 800; font-size: 13px; color: rgba(255,255,255,.88); }
 
 /* =========================================================
-   DICE 3D (variable-sized, stays sharp)
+   DICE 3D
 ========================================================= */
-
 .dice3d{
-  /* defaults (topbar) */
-  --diceBox: 58px;   /* overall wrapper */
-  --cube: 46px;      /* cube size */
-  --z: 23px;         /* translateZ depth (half cube) */
-
-  width: var(--diceBox);
-  height: var(--diceBox);
+  width: 58px; height: 58px;
   position: relative;
-  display: grid;
-  place-items: center;
+  display:grid;
+  place-items:center;
   perspective: 700px;
 }
-
 .dice3d .cube{
-  width: var(--cube);
-  height: var(--cube);
+  width: 46px; height: 46px;
   position: relative;
   transform-style: preserve-3d;
   transition: transform 180ms ease;
 }
-
 .dice3d.rolling .cube{ animation: cubeWobble .35s ease-in-out infinite; }
-
 @keyframes cubeWobble{
   0%{ transform: rotateX(0deg) rotateY(0deg); }
   25%{ transform: rotateX(18deg) rotateY(-16deg); }
@@ -1003,10 +993,8 @@ body{
   75%{ transform: rotateX(14deg) rotateY(16deg); }
   100%{ transform: rotateX(0deg) rotateY(0deg); }
 }
-
 .dice3d .face{
-  position:absolute;
-  inset:0;
+  position:absolute; inset:0;
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,.14);
   background-size: cover;
@@ -1014,17 +1002,13 @@ body{
   background-repeat: no-repeat;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), 0 10px 22px rgba(0,0,0,.35);
   backface-visibility: hidden;
-  transform: translateZ(var(--z)); /* default; overridden per-face below */
 }
-
-/* faces use --z */
-.dice3d .face-front{  transform: rotateY(  0deg) translateZ(var(--z)); }
-.dice3d .face-back{   transform: rotateY(180deg) translateZ(var(--z)); }
-.dice3d .face-right{  transform: rotateY( 90deg) translateZ(var(--z)); }
-.dice3d .face-left{   transform: rotateY(-90deg) translateZ(var(--z)); }
-.dice3d .face-top{    transform: rotateX( 90deg) translateZ(var(--z)); }
-.dice3d .face-bottom{ transform: rotateX(-90deg) translateZ(var(--z)); }
-
+.dice3d .face-front{  transform: rotateY(  0deg) translateZ(23px); }
+.dice3d .face-back{   transform: rotateY(180deg) translateZ(23px); }
+.dice3d .face-right{  transform: rotateY( 90deg) translateZ(23px); }
+.dice3d .face-left{   transform: rotateY(-90deg) translateZ(23px); }
+.dice3d .face-top{    transform: rotateX( 90deg) translateZ(23px); }
+.dice3d .face-bottom{ transform: rotateX(-90deg) translateZ(23px); }
 .diceBorder{
   position:absolute; inset: 0;
   pointer-events:none;
@@ -1033,14 +1017,6 @@ body{
   opacity: .95;
   filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
 }
-/* Large dice used in encounter (no transform scaling) */
-.dice3d.diceLg{
-  --diceBox: 210px;
-  --cube: 168px;
-  --z: 84px;        /* half of cube */
-  perspective: 1200px;
-}
-
 .hexface{
   position: absolute;
   inset: 0;
@@ -2424,7 +2400,11 @@ flex: 0 0 var(--hexWMain);
 }
 
 
-
+.encounterDice{
+  transform: scale(3.6);
+  transform-origin: center;
+  margin-bottom: 30px;
+}
 
 .encounterInfo{
   text-align: center;
@@ -2466,7 +2446,7 @@ flex: 0 0 var(--hexWMain);
     grid-template-columns: 1fr;
     gap: 18px;
   }
- 
+  .encounterDice{ transform: scale(2.0); }
 }
 /* =========================================================
    CARD FLIP OVERLAY (FULLSCREEN)
@@ -4384,7 +4364,49 @@ return (
     <div className="topbar">
      
 
+      <div className={"dice3d " + (diceRolling ? "rolling" : "")}>
+        <div
+          className="cube"
+          style={{
+            transform:
+              "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)",
+          }}
+        >
+          <div
+            className="face face-front"
+            style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}
+          />
+          <div
+            className="face face-back"
+            style={{ backgroundImage: "url(" + diceImg(5) + ")" }}
+          />
+          <div
+            className="face face-right"
+            style={{ backgroundImage: "url(" + diceImg(3) + ")" }}
+          />
+          <div
+            className="face face-left"
+            style={{ backgroundImage: "url(" + diceImg(4) + ")" }}
+          />
+          <div
+            className="face face-top"
+            style={{ backgroundImage: "url(" + diceImg(1) + ")" }}
+          />
+          <div
+            className="face face-bottom"
+            style={{ backgroundImage: "url(" + diceImg(6) + ")" }}
+          />
+        </div>
 
+        {DICE_BORDER_IMG ? (
+          <div
+            className="diceBorder"
+            style={{
+              backgroundImage: "url(" + toPublicUrl(DICE_BORDER_IMG) + ")",
+            }}
+          />
+        ) : null}
+      </div>
 
       <div className="items">
         {items.map((it) => (
@@ -4735,7 +4757,7 @@ return (
 
 
 
-{encounter ? ( <div className="encounterCard riskCard">
+{encounter ? (
   <div
     className="encounterScene"
     role="dialog"
@@ -4748,7 +4770,7 @@ return (
   >  
     
 
-       
+        <div className="encounterCard riskCard">
            
 
 
@@ -4769,8 +4791,7 @@ return (
       {/* RIGHT: big die + info + controls */}
       <div className="encounterRight">
        
-        <div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
-
+        <div className={"dice3d encounterDice " + (diceRolling ? "rolling" : "")}>
                 
           <div
             className="cube"
