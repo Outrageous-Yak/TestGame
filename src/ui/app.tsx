@@ -972,18 +972,42 @@ body{
    DICE 3D
 ========================================================= */
 .dice3d{
-  width: 58px; height: 58px;
+  --diceBox: 58px;
+  --cube: 46px;
+  --z: 23px;
+
+  width: var(--diceBox);
+  height: var(--diceBox);
   position: relative;
   display:grid;
   place-items:center;
   perspective: 700px;
 }
+
 .dice3d .cube{
-  width: 46px; height: 46px;
+  width: var(--cube);
+  height: var(--cube);
   position: relative;
   transform-style: preserve-3d;
   transition: transform 180ms ease;
 }
+
+/* use --z instead of hardcoded 23px */
+.dice3d .face-front{  transform: rotateY(  0deg) translateZ(var(--z)); }
+.dice3d .face-back{   transform: rotateY(180deg) translateZ(var(--z)); }
+.dice3d .face-right{  transform: rotateY( 90deg) translateZ(var(--z)); }
+.dice3d .face-left{   transform: rotateY(-90deg) translateZ(var(--z)); }
+.dice3d .face-top{    transform: rotateX( 90deg) translateZ(var(--z)); }
+.dice3d .face-bottom{ transform: rotateX(-90deg) translateZ(var(--z)); }
+
+/* BIG encounter variant */
+.dice3d.diceLg{
+  --diceBox: 210px;
+  --cube: 168px;
+  --z: 84px; /* cube/2 */
+  perspective: 1600px;
+}
+
 .dice3d.rolling .cube{ animation: cubeWobble .35s ease-in-out infinite; }
 @keyframes cubeWobble{
   0%{ transform: rotateX(0deg) rotateY(0deg); }
@@ -2399,11 +2423,7 @@ flex: 0 0 var(--hexWMain);
 }
 
 
-.encounterDice{
-  transform: scale(3.6);
-  transform-origin: center;
-  margin-bottom: 30px;
-}
+
 
 .encounterInfo{
   text-align: center;
@@ -2445,7 +2465,7 @@ flex: 0 0 var(--hexWMain);
     grid-template-columns: 1fr;
     gap: 18px;
   }
-  .encounterDice{ transform: scale(2.0); }
+ 
 }
 /* =========================================================
    CARD FLIP OVERLAY (FULLSCREEN)
@@ -4363,49 +4383,32 @@ return (
     <div className="topbar">
      
 
-      <div className={"dice3d " + (diceRolling ? "rolling" : "")}>
-        <div
-          className="cube"
-          style={{
-            transform:
-              "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)",
-          }}
-        >
-          <div
-            className="face face-front"
-            style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}
-          />
-          <div
-            className="face face-back"
-            style={{ backgroundImage: "url(" + diceImg(5) + ")" }}
-          />
-          <div
-            className="face face-right"
-            style={{ backgroundImage: "url(" + diceImg(3) + ")" }}
-          />
-          <div
-            className="face face-left"
-            style={{ backgroundImage: "url(" + diceImg(4) + ")" }}
-          />
-          <div
-            className="face face-top"
-            style={{ backgroundImage: "url(" + diceImg(1) + ")" }}
-          />
-          <div
-            className="face face-bottom"
-            style={{ backgroundImage: "url(" + diceImg(6) + ")" }}
-          />
-        </div>
+<div className={"dice3d diceLg encounterDice " + (diceRolling ? "rolling" : "")}>
+  <div
+    className="cube"
+    style={{
+      transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)",
+    }}
+  >
+    <div className="face face-front"  style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }} />
+    <div className="face face-back"   style={{ backgroundImage: "url(" + diceImg(5) + ")" }} />
+    <div className="face face-right"  style={{ backgroundImage: "url(" + diceImg(3) + ")" }} />
+    <div className="face face-left"   style={{ backgroundImage: "url(" + diceImg(4) + ")" }} />
+    <div className="face face-top"    style={{ backgroundImage: "url(" + diceImg(1) + ")" }} />
+    <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }} />
+  </div>
 
-        {DICE_BORDER_IMG ? (
-          <div
-            className="diceBorder"
-            style={{
-              backgroundImage: "url(" + toPublicUrl(DICE_BORDER_IMG) + ")",
-            }}
-          />
-        ) : null}
-      </div>
+  {/* corners overlay ONCE */}
+  <DiceCorners />
+
+  {/* optional: if you use this in topbar too, keep consistent */}
+  {DICE_BORDER_IMG ? (
+    <div
+      className="diceBorder"
+      style={{ backgroundImage: "url(" + toPublicUrl(DICE_BORDER_IMG) + ")" }}
+    />
+  ) : null}
+</div>
 
       <div className="items">
         {items.map((it) => (
