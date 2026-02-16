@@ -4784,7 +4784,7 @@ return (
       <div className="encounterRight">
         <div className="encounterCard riskCard">
         <div className={"dice3d encounterDice " + (diceRolling ? "rolling" : "")}>
-            <div className="encounterCard riskCard">
+            
           <div
             className="cube"
             style={{
@@ -4818,7 +4818,7 @@ return (
           </div>
 
         </div>
-</div>
+
         <div className="encounterInfo">
           <div className="encounterTitle">ENCOUNTER!</div>
 
