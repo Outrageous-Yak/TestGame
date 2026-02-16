@@ -653,12 +653,20 @@ const baseCss = `
   --boardPadBottom: 18px;
 
   /* hex geometry (7676767) */
-  --hexWMain: 96px;
+   --hexWMain: 96px;
   --hexHMain: 84px;
-  --hexStepX: 90px; /* horizontal spacing between centers */
+  --hexStepX: 90px;
 
-  /* derived: used by bars (match board height incl padding) */
-  --hexFieldH: calc((var(--hexHMain) * 7) + var(--boardPadTop) + var(--boardPadBottom));
+  /* ✅ THIS is the honeycomb vertical spacing */
+  --hexStepY: calc(var(--hexHMain) * 0.75);
+
+  /* ✅ derived board field height with overlap (7 rows) */
+  --hexFieldH: calc(
+    (var(--hexStepY) * 6) + var(--hexHMain) + var(--boardPadTop) + var(--boardPadBottom)
+  );
+
+  /* ✅ layer bar segment height that matches new field height */
+  --layerSegH: calc((var(--hexFieldH) - var(--boardPadTop) - var(--boardPadBottom)) / 7);
 
   /* side columns */
   --barColW: 86px;
@@ -1114,7 +1122,7 @@ body{
   flex-direction: column; 
   position: relative;
 }
-.barSeg{ height: var(--hexHMain); width: 100%; opacity: .95; }
+.barSeg{ height: var(--layerSegH);   width: 100%; opacity: .95; }
 .barSeg[data-layer="7"]{ background: var(--L7); }
 .barSeg[data-layer="6"]{ background: var(--L6); }
 .barSeg[data-layer="5"]{ background: var(--L5); }
@@ -1144,6 +1152,7 @@ body{
 }
 
 .rowShiftBar .rowSeg{
+  height: var(--hexStepY);
   display: grid;
   place-items: center; /* ✅ centers text in each row block */
   background: rgba(255,255,255,.03); /* subtle; optional */
@@ -1320,7 +1329,7 @@ display: grid;
   margin: 0 auto;
   padding: var(--boardPadTop) 0 var(--boardPadBottom);
   position: relative;
-  height: var(--hexFieldH);
+  height: calc((var(--hexStepY) * 6) + var(--hexHMain));
 }
 
 
@@ -1330,6 +1339,7 @@ display: grid;
 .hexRow{
   display: flex;
   align-items: center;
+  height: var(--hexStepY);          /* ✅ rows overlap correctly */
   width: fit-content;
   margin: 0 auto;
   position: relative;
@@ -1346,7 +1356,7 @@ display: grid;
 ========================================================= */
 .hexSlot{
   width: var(--hexStepX);
-  height: var(--hexHMain);
+  height: var(--hexStepY);
   display: grid;
   place-items: center;
   flex: 0 0 var(--hexStepX);
@@ -1355,7 +1365,7 @@ display: grid;
 
 .hex{
   width: var(--hexWMain);
-  height: var(--hexHMain);
+ height: var(--hexStepY);  
 
   padding: 0;
   border: none;
@@ -1876,7 +1886,7 @@ flex: 0 0 var(--hexWMain);
 
 .ghostRow{
   display: flex;
-  height: var(--hexHMain);
+ height: var(--hexStepY);  
   align-items: center;
 
   /* ✅ this is the centering fix */
@@ -1888,7 +1898,7 @@ flex: 0 0 var(--hexWMain);
 
 .ghostSlot{
   width: var(--hexStepX);
-  height: var(--hexHMain);
+ height: var(--hexStepY);  
   display: grid;
   place-items: center;
   flex: 0 0 var(--hexStepX);
@@ -1896,7 +1906,7 @@ flex: 0 0 var(--hexWMain);
 
 .ghostHex{
   width: var(--hexWMain);
-  height: var(--hexHMain);
+ height: var(--hexStepY);  
   clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
   border: 1px dashed rgba(255,255,255,.35);
   background: rgba(0,0,0,.12);
@@ -3179,19 +3189,22 @@ if (side === "right") {
 
   const goalLayer = goalId ? idToCoord(goalId)?.layer ?? null : null;
 
-  const hexH = readPxVar(document.documentElement as any, "--hexHMain", 84);
+ const segH = readPxVar(document.documentElement as any, "--layerSegH", 84);
 
-  const goalTopPx =
-    goalLayer && goalLayer >= 1 && goalLayer <= 7
-      ? (7 - goalLayer) * hexH + hexH / 2
-      : null;
+const goalTopPx =
+  goalLayer && goalLayer >= 1 && goalLayer <= 7
+    ? (7 - goalLayer) * segH + segH / 2
+    : null;
+
+const playerTopPx =
+  playerLayerBar && playerLayerBar >= 1 && playerLayerBar <= 7
+    ? (7 - playerLayerBar) * segH + segH / 2
+    : null;
+
 
   const playerLayerBar = playerId ? idToCoord(playerId)?.layer ?? null : null;
 
-  const playerTopPx =
-    playerLayerBar && playerLayerBar >= 1 && playerLayerBar <= 7
-      ? (7 - playerLayerBar) * hexH + hexH / 2
-      : null;
+
 
   return (
     <div className="barWrap barRight">
