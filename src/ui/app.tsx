@@ -4384,32 +4384,7 @@ return (
     <div className="topbar">
      
 
-<div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
-  <div
-    className="cube"
-    style={{
-      transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)",
-    }}
-  >
-    <div className="face face-front"  style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }} />
-    <div className="face face-back"   style={{ backgroundImage: "url(" + diceImg(5) + ")" }} />
-    <div className="face face-right"  style={{ backgroundImage: "url(" + diceImg(3) + ")" }} />
-    <div className="face face-left"   style={{ backgroundImage: "url(" + diceImg(4) + ")" }} />
-    <div className="face face-top"    style={{ backgroundImage: "url(" + diceImg(1) + ")" }} />
-    <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }} />
-  </div>
 
-  {/* corners overlay ONCE */}
-  <DiceCorners />
-
-  {/* optional: if you use this in topbar too, keep consistent */}
-  {DICE_BORDER_IMG ? (
-    <div
-      className="diceBorder"
-      style={{ backgroundImage: "url(" + toPublicUrl(DICE_BORDER_IMG) + ")" }}
-    />
-  ) : null}
-</div>
 
       <div className="items">
         {items.map((it) => (
