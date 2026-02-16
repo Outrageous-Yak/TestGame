@@ -3127,15 +3127,49 @@ const canGoUp = currentLayer < scenarioLayerCount;
      ✅ AFTER playerId exists
   ========================= */
 
-  const isPlayerHere = useCallback(
-    (id: string) => {
-      return !!playerId && playerId === id;
-    },
-    [playerId]
+const rows = useMemo(() => Array.from({ length: ROW_LENS.length }, (_, i) => i), []);
+
+const viewState = useMemo(() => { ... }, [state, scenarioLayerCount, getLayerMoves]);
+
+function GhostGrid(props: { layer: number }) {
+  const layer = props.layer;
+  return (
+    <div className="ghostGrid" aria-hidden="true">
+      {rows.map((r) => {
+        const cols = ROW_LENS[r] ?? 0;
+        const isOffset = cols === 6;
+
+        const engineShiftRaw =
+          (viewState as any)?.rowShifts?.[layer]?.[r] ??
+          (viewState as any)?.rowShifts?.["L" + layer]?.[r];
+
+        const engineShift = Number(engineShiftRaw ?? 0);
+
+        const rawShift =
+          Number.isFinite(engineShift) && engineShift !== 0
+            ? engineShift
+            : derivedRowShiftUnits(viewState as any, layer, r, getLayerMoves(layer));
+
+        const ns = normalizeRowShift(rawShift, cols);
+        const shiftVisual = ns.visual;
+
+        const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+        const tx = "calc(" + base + " + (" + shiftVisual + " * var(--hexStepX)))";
+
+        return (
+          <div key={"gRow-" + r} className="ghostRow" style={{ transform: "translateX(" + tx + ")" }}>
+            {Array.from({ length: cols }, (_, c) => (
+              <div key={"g-" + r + "-" + c} className="ghostSlot">
+                <div className="ghostHex" />
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
   );
-  const rows = useMemo(() => {
-    return Array.from({ length: ROW_LENS.length }, (_, i) => i);
-  }, []);
+}
+
    const viewState = useMemo(() => {
   if (!state) return null;
 
@@ -3186,25 +3220,20 @@ function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
 if (side === "right") {
   const segments = [7, 6, 5, 4, 3, 2, 1];
 
-
   const goalLayer = goalId ? idToCoord(goalId)?.layer ?? null : null;
-
- const segH = readPxVar(document.documentElement as any, "--layerSegH", 84);
-
-const goalTopPx =
-  goalLayer && goalLayer >= 1 && goalLayer <= 7
-    ? (7 - goalLayer) * segH + segH / 2
-    : null;
-
-const playerTopPx =
-  playerLayerBar && playerLayerBar >= 1 && playerLayerBar <= 7
-    ? (7 - playerLayerBar) * segH + segH / 2
-    : null;
-
-
   const playerLayerBar = playerId ? idToCoord(playerId)?.layer ?? null : null;
 
+  const segH = readPxVar(document.documentElement as any, "--layerSegH", 84);
 
+  const goalTopPx =
+    goalLayer && goalLayer >= 1 && goalLayer <= 7
+      ? (7 - goalLayer) * segH + segH / 2
+      : null;
+
+  const playerTopPx =
+    playerLayerBar && playerLayerBar >= 1 && playerLayerBar <= 7
+      ? (7 - playerLayerBar) * segH + segH / 2
+      : null;
 
   return (
     <div className="barWrap barRight">
@@ -3220,7 +3249,6 @@ const playerTopPx =
           );
         })}
 
-        {/* ✅ MINI PLAYER SPRITE (behind goal marker) */}
         {playerTopPx !== null ? (
           <div className="barPlayerMini" style={{ top: playerTopPx }}>
             <div
@@ -3240,7 +3268,6 @@ const playerTopPx =
           </div>
         ) : null}
 
-        {/* ✅ GOAL MARKER (above sprite) */}
         {goalTopPx !== null ? (
           <div className="goalMarker" style={{ top: goalTopPx }}>
             G
@@ -3250,8 +3277,6 @@ const playerTopPx =
     </div>
   );
 }
-
-
 
   return (
     <div className="barWrap barLeft">
@@ -4748,7 +4773,7 @@ return (
 
 
 
-{encounter ? ( <div className="encounterCard riskCard">
+{encounter ? (
   <div
     className="encounterScene"
     role="dialog"
@@ -4758,71 +4783,38 @@ return (
         ? "url(" + toPublicUrl(DICE_BORDER_IMG) + ")"
         : "none",
     }}
-  >  
-    
-
-       
-           
-
-
+  >
     <div className="encounterGrid">
-      {/* LEFT: big villain card */}
-        
-    <div className="encounterCard riskCard">
-  <div className="riskCardFx" />
+      {/* LEFT */}
+      <div className="encounterCard riskCard">
+        <div className="riskCardFx" />
+        <img
+          className="riskVillainImg"
+          src={villainImg(encounter.villainKey)}
+          alt={encounter.villainKey}
+        />
+      </div>
 
-  <img
-    className="riskVillainImg"
-    src={villainImg(encounter.villainKey)}
-    alt={encounter.villainKey}
-  />
-</div>
-
-
-      {/* RIGHT: big die + info + controls */}
+      {/* RIGHT */}
       <div className="encounterRight">
-       
         <div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
-
-                
           <div
             className="cube"
             style={{
-              transform:
-                "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)",
+              transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)",
             }}
           >
-         
-            <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}>
-              <DiceCorners />
-            </div>
-
-            <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
-              <DiceCorners />
-            </div>
-
-            <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }}>
-              <DiceCorners />
-            </div>
-
-            <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }}>
-              <DiceCorners />
-            </div>
-
-            <div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }}>
-              <DiceCorners />
-            </div>
-
-            <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}>
-              <DiceCorners />
-            </div>
+            <div className="face face-front"  style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}><DiceCorners /></div>
+            <div className="face face-back"   style={{ backgroundImage: "url(" + diceImg(5) + ")" }}><DiceCorners /></div>
+            <div className="face face-right"  style={{ backgroundImage: "url(" + diceImg(3) + ")" }}><DiceCorners /></div>
+            <div className="face face-left"   style={{ backgroundImage: "url(" + diceImg(4) + ")" }}><DiceCorners /></div>
+            <div className="face face-top"    style={{ backgroundImage: "url(" + diceImg(1) + ")" }}><DiceCorners /></div>
+            <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}><DiceCorners /></div>
           </div>
+        </div>
 
-       
-     </div>
         <div className="encounterInfo">
           <div className="encounterTitle">ENCOUNTER!</div>
-
           <div className="encounterSub">
             Roll a <b>6</b> to continue
             <span className="encounterTries">
@@ -4831,12 +4823,7 @@ return (
           </div>
 
           <div className="row" style={{ justifyContent: "center", marginTop: 12 }}>
-            <button
-              className="btn primary"
-              disabled={diceRolling}
-              onClick={() => rollDice()}
-              title="Roll the die"
-            >
+            <button className="btn primary" disabled={diceRolling} onClick={rollDice}>
               {diceRolling ? "Rolling…" : "Roll"}
             </button>
 
@@ -4848,7 +4835,6 @@ return (
                 setEncounter(null);
                 pushLog("Encounter dismissed (debug)", "info");
               }}
-              title="Debug: dismiss encounter"
             >
               Dismiss
             </button>
@@ -4857,12 +4843,12 @@ return (
           <div className="encounterRollPill">
             Roll = <b>{diceValue}</b>
           </div>
-     </div>
         </div>
       </div>
     </div>
   </div>
 ) : null}
+
 
 
 
