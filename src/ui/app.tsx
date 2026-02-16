@@ -4769,6 +4769,7 @@ return (
   >
     <div className="encounterGrid">
       {/* LEFT: big villain card */}
+        <div className="encounterCard riskCard">
     <div className="encounterCard riskCard">
   <div className="riskCardFx" />
 
@@ -4778,13 +4779,13 @@ return (
     alt={encounter.villainKey}
   />
 </div>
-
+</div>
 
       {/* RIGHT: big die + info + controls */}
       <div className="encounterRight">
        
         <div className={"dice3d encounterDice " + (diceRolling ? "rolling" : "")}>
-                <div className="encounterCard riskCard"> 
+                
           <div
             className="cube"
             style={{
@@ -4819,7 +4820,7 @@ return (
           </div>
 
         </div>
-       </div>
+     
         <div className="encounterInfo">
           <div className="encounterTitle">ENCOUNTER!</div>
 
