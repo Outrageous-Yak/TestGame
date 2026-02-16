@@ -969,18 +969,20 @@ body{
 .pillText{ font-weight: 800; font-size: 13px; color: rgba(255,255,255,.88); }
 
 /* =========================================================
-   DICE 3D
+   DICE 3D (variable-sized, stays sharp)
 ========================================================= */
+
 .dice3d{
-  --diceBox: 58px;
-  --cube: 46px;
-  --z: 23px;
+  /* defaults (topbar) */
+  --diceBox: 58px;   /* overall wrapper */
+  --cube: 46px;      /* cube size */
+  --z: 23px;         /* translateZ depth (half cube) */
 
   width: var(--diceBox);
   height: var(--diceBox);
   position: relative;
-  display:grid;
-  place-items:center;
+  display: grid;
+  place-items: center;
   perspective: 700px;
 }
 
@@ -992,23 +994,8 @@ body{
   transition: transform 180ms ease;
 }
 
-/* use --z instead of hardcoded 23px */
-.dice3d .face-front{  transform: rotateY(  0deg) translateZ(var(--z)); }
-.dice3d .face-back{   transform: rotateY(180deg) translateZ(var(--z)); }
-.dice3d .face-right{  transform: rotateY( 90deg) translateZ(var(--z)); }
-.dice3d .face-left{   transform: rotateY(-90deg) translateZ(var(--z)); }
-.dice3d .face-top{    transform: rotateX( 90deg) translateZ(var(--z)); }
-.dice3d .face-bottom{ transform: rotateX(-90deg) translateZ(var(--z)); }
-
-/* BIG encounter variant */
-.dice3d.diceLg{
-  --diceBox: 210px;
-  --cube: 168px;
-  --z: 84px; /* cube/2 */
-  perspective: 1600px;
-}
-
 .dice3d.rolling .cube{ animation: cubeWobble .35s ease-in-out infinite; }
+
 @keyframes cubeWobble{
   0%{ transform: rotateX(0deg) rotateY(0deg); }
   25%{ transform: rotateX(18deg) rotateY(-16deg); }
@@ -1016,8 +1003,10 @@ body{
   75%{ transform: rotateX(14deg) rotateY(16deg); }
   100%{ transform: rotateX(0deg) rotateY(0deg); }
 }
+
 .dice3d .face{
-  position:absolute; inset:0;
+  position:absolute;
+  inset:0;
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,.14);
   background-size: cover;
@@ -1025,13 +1014,17 @@ body{
   background-repeat: no-repeat;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), 0 10px 22px rgba(0,0,0,.35);
   backface-visibility: hidden;
+  transform: translateZ(var(--z)); /* default; overridden per-face below */
 }
-.dice3d .face-front{  transform: rotateY(  0deg) translateZ(23px); }
-.dice3d .face-back{   transform: rotateY(180deg) translateZ(23px); }
-.dice3d .face-right{  transform: rotateY( 90deg) translateZ(23px); }
-.dice3d .face-left{   transform: rotateY(-90deg) translateZ(23px); }
-.dice3d .face-top{    transform: rotateX( 90deg) translateZ(23px); }
-.dice3d .face-bottom{ transform: rotateX(-90deg) translateZ(23px); }
+
+/* faces use --z */
+.dice3d .face-front{  transform: rotateY(  0deg) translateZ(var(--z)); }
+.dice3d .face-back{   transform: rotateY(180deg) translateZ(var(--z)); }
+.dice3d .face-right{  transform: rotateY( 90deg) translateZ(var(--z)); }
+.dice3d .face-left{   transform: rotateY(-90deg) translateZ(var(--z)); }
+.dice3d .face-top{    transform: rotateX( 90deg) translateZ(var(--z)); }
+.dice3d .face-bottom{ transform: rotateX(-90deg) translateZ(var(--z)); }
+
 .diceBorder{
   position:absolute; inset: 0;
   pointer-events:none;
@@ -1040,6 +1033,14 @@ body{
   opacity: .95;
   filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
 }
+/* Large dice used in encounter (no transform scaling) */
+.dice3d.diceLg{
+  --diceBox: 210px;
+  --cube: 168px;
+  --z: 84px;        /* half of cube */
+  perspective: 1200px;
+}
+
 .hexface{
   position: absolute;
   inset: 0;
@@ -4383,7 +4384,7 @@ return (
     <div className="topbar">
      
 
-<div className={"dice3d diceLg encounterDice " + (diceRolling ? "rolling" : "")}>
+<div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
   <div
     className="cube"
     style={{
@@ -4793,7 +4794,8 @@ return (
       {/* RIGHT: big die + info + controls */}
       <div className="encounterRight">
        
-        <div className={"dice3d encounterDice " + (diceRolling ? "rolling" : "")}>
+        <div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
+
                 
           <div
             className="cube"
