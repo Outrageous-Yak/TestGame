@@ -4770,7 +4770,7 @@ return (
     
 
         <div className="encounterCard riskCard">
-         </div>  
+           
 
 
     <div className="encounterGrid">
@@ -4826,7 +4826,7 @@ return (
           </div>
 
        
-     
+     </div>
         <div className="encounterInfo">
           <div className="encounterTitle">ENCOUNTER!</div>
 
