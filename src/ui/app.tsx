@@ -658,7 +658,12 @@ const baseCss = `
   --hexStepX: 90px; /* horizontal spacing between centers */
   --hexStepY: calc(var(--hexHMain) * 0.75);
   /* derived: used by bars (match board height incl padding) */
-  --hexFieldH: calc((var(--hexHMain) * 7) + var(--boardPadTop) + var(--boardPadBottom));
+ --hexFieldH: calc(
+  (var(--hexStepY) * 6) +
+  var(--hexHMain) +
+  var(--boardPadTop) +
+  var(--boardPadBottom)
+);
 
   /* side columns */
   --barColW: 86px;
@@ -1334,13 +1339,13 @@ display: grid;
   margin: 0 auto;
   position: relative;
 
-  /* ✅ row spacing */
+  /* 🔥 this is the key */
   height: var(--hexStepY);
 }
 
-/* ✅ overlap rows (84 - 63 = 21px overlap) */
+/* overlap rows */
 .hexRow:not(:first-child){
-  margin-top: calc(var(--hexStepY) - var(--hexHMain)); /* negative */
+  margin-top: calc(var(--hexStepY) - var(--hexHMain));
 }
 .hexGrid{
   width: fit-content;
@@ -1354,7 +1359,7 @@ display: grid;
 ========================================================= */
 .hexSlot{
   width: var(--hexStepX);
-  height: var(--hexStepY);          /* ✅ match row height */
+  height: var(--hexStepY);        /* ✅ match row height */
   display: grid;
   place-items: center;
   flex: 0 0 var(--hexStepX);
