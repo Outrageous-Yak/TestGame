@@ -4825,7 +4825,7 @@ return (
             </div>
           </div>
 
-        </div>
+       
      
         <div className="encounterInfo">
           <div className="encounterTitle">ENCOUNTER!</div>
@@ -4864,7 +4864,7 @@ return (
           <div className="encounterRollPill">
             Roll = <b>{diceValue}</b>
           </div>
-    
+     </div>
         </div>
       </div>
     </div>
