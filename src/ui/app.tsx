@@ -4770,6 +4770,7 @@ return (
     <div className="encounterGrid">
       {/* LEFT: big villain card */}
         <div className="encounterCard riskCard">
+         </div>  
     <div className="encounterCard riskCard">
   <div className="riskCardFx" />
 
@@ -4779,7 +4780,7 @@ return (
     alt={encounter.villainKey}
   />
 </div>
-</div>
+
 
       {/* RIGHT: big die + info + controls */}
       <div className="encounterRight">
