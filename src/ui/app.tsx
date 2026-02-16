@@ -4784,7 +4784,7 @@ return (
       <div className="encounterRight">
        
         <div className={"dice3d encounterDice " + (diceRolling ? "rolling" : "")}>
-          
+                <div className="encounterCard riskCard"> 
           <div
             className="cube"
             style={{
@@ -4792,7 +4792,7 @@ return (
                 "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)",
             }}
           >
-               <div className="encounterCard riskCard"> 
+         
             <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}>
               <DiceCorners />
             </div>
@@ -4819,7 +4819,7 @@ return (
           </div>
 
         </div>
-
+       </div>
         <div className="encounterInfo">
           <div className="encounterTitle">ENCOUNTER!</div>
 
@@ -4857,7 +4857,7 @@ return (
           <div className="encounterRollPill">
             Roll = <b>{diceValue}</b>
           </div>
-           </div>
+    
         </div>
       </div>
     </div>
