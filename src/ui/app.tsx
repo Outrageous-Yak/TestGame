@@ -4545,7 +4545,7 @@ return (
                     return <div key={id} className="hexSlot empty" />;
 
                   const isSel = selectedId === id;
-                  const isPlayerHere = useCallback((id: string) => !!playerId && playerId === id, [playerId]);
+                const isPlayer = playerId === id;
                   const isStart = startHexId === id;
 
                   const isReach =
