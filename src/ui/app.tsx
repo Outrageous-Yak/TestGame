@@ -1347,7 +1347,7 @@ height: var(--hexHMain);
 align-items: center; 
 justify-content: flex-start; 
 }
-.hexRow.odd{ padding-left: calc(var(--hexPitch) / -2); }
+.hexRow.odd{ padding-left: calc(var(--hexPitch) / 12); }
 .hexGrid{
   width: fit-content;
   margin: 0 auto;
