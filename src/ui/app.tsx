@@ -3150,12 +3150,16 @@ function GhostGrid(props: { layer: number }) {
 
         const ns = normalizeRowShift(rawShift, cols);
         const shiftVisual = ns.visual;
+      const shiftWrapped = ns.wrapped; // ✅ keep for mapping only
+const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
-        const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
-        const tx = "calc(" + base + " + (" + shiftVisual + " * var(--hexStepX)))";
-
-        return (
-          <div key={"gRow-" + r} className="ghostRow" style={{ transform: "translateX(" + tx + ")" }}>
+return (
+  <div
+    key={"row-" + r}
+    className="hexRow"
+    // ✅ fixed honeycomb indent only; NO shifting
+    style={{ transform: "translateX(" + base + ")" }}
+  >
             {Array.from({ length: cols }, (_, c) => (
               <div key={"g-" + r + "-" + c} className="ghostSlot">
                 <div className="ghostHex" />
