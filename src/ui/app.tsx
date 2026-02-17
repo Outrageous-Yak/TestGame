@@ -4521,7 +4521,7 @@ return (
               <div
                 key={"row-" + r}
                 className="hexRow"
-                style={{ transform: "translateX(" + tx + ")" }}
+                style={{ transform: "translateX(" + base + ")" }}
               >
                 {Array.from({ length: cols }, (_, c) => {
                   // VISUAL SLOT → LOGICAL HEX
