@@ -1347,13 +1347,13 @@ height: var(--hexHMain);
 align-items: center; 
 justify-content: flex-start; 
 }
-.hexRow.even{ padding-left: calc(var(--hexPitch) / 2); }
+.hexRow.even{ padding-left: calc(var(--hexPitch) / -2); }
 .hexGrid{
   width: fit-content;
   margin: 0 auto;
   position: relative;
 }
-
+.hexGrid.even{ padding-left: calc(var(--hexPitch) / -2); }
 /* =========================================================
    HEX SLOTS + HEX BUTTON
    ✅ FIX: removed invalid nested ".hex{ .hex{ ... } }"
