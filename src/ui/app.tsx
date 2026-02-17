@@ -2832,54 +2832,7 @@ function applyPortalIfAny(
 /* =========================================================
    App
 ========================================================= */
-function GhostGrid(props: { layer: number }) {
-  const layer = props.layer;
-  return (
-    <div className="ghostGrid" aria-hidden="true">
-      {rows.map((r) => {
-        const cols = ROW_LENS[r] ?? 0;
-        const isOffset = cols === 6;
 
-        // Use the SAME shift math as the real board so the honeycomb matches
-        const engineShiftRaw =
-          (viewState as any)?.rowShifts?.[layer]?.[r] ??
-          (viewState as any)?.rowShifts?.["L" + layer]?.[r];
-
-        const engineShift = Number(engineShiftRaw ?? 0);
-
-        const rawShift =
-          Number.isFinite(engineShift) && engineShift !== 0
-            ? engineShift
-            : derivedRowShiftUnits(
-                viewState as any,
-                layer,
-                r,
-                getLayerMoves(layer)
-              );
-
-        const ns = normalizeRowShift(rawShift, cols);
-        const shiftVisual = ns.visual;
-
-        const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
-        const tx = "calc(" + base + " + (" + shiftVisual + " * var(--hexStepX)))";
-
-        return (
-          <div
-            key={"gRow-" + r}
-            className="ghostRow"
-            style={{ transform: "translateX(" + tx + ")" }}
-          >
-            {Array.from({ length: cols }, (_, c) => (
-              <div key={"g-" + r + "-" + c} className="ghostSlot">
-                <div className="ghostHex" />
-              </div>
-            ))}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 function parseVillainsFromScenario(s: any): VillainTrigger[] {
   const src =
@@ -3128,48 +3081,6 @@ const canGoUp = currentLayer < scenarioLayerCount;
   ========================= */
 
 const rows = useMemo(() => Array.from({ length: ROW_LENS.length }, (_, i) => i), []);
-
-const viewState = useMemo(() => { ... }, [state, scenarioLayerCount, getLayerMoves]);
-
-function GhostGrid(props: { layer: number }) {
-  const layer = props.layer;
-  return (
-    <div className="ghostGrid" aria-hidden="true">
-      {rows.map((r) => {
-        const cols = ROW_LENS[r] ?? 0;
-        const isOffset = cols === 6;
-
-        const engineShiftRaw =
-          (viewState as any)?.rowShifts?.[layer]?.[r] ??
-          (viewState as any)?.rowShifts?.["L" + layer]?.[r];
-
-        const engineShift = Number(engineShiftRaw ?? 0);
-
-        const rawShift =
-          Number.isFinite(engineShift) && engineShift !== 0
-            ? engineShift
-            : derivedRowShiftUnits(viewState as any, layer, r, getLayerMoves(layer));
-
-        const ns = normalizeRowShift(rawShift, cols);
-        const shiftVisual = ns.visual;
-
-        const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
-        const tx = "calc(" + base + " + (" + shiftVisual + " * var(--hexStepX)))";
-
-        return (
-          <div key={"gRow-" + r} className="ghostRow" style={{ transform: "translateX(" + tx + ")" }}>
-            {Array.from({ length: cols }, (_, c) => (
-              <div key={"g-" + r + "-" + c} className="ghostSlot">
-                <div className="ghostHex" />
-              </div>
-            ))}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
    const viewState = useMemo(() => {
   if (!state) return null;
 
@@ -3211,6 +3122,47 @@ function GhostGrid(props: { layer: number }) {
   injected.rowShifts = rowShifts;
   return injected as any;
 }, [state, scenarioLayerCount, getLayerMoves]);
+
+
+function GhostGrid(props: { layer: number }) {
+  const layer = props.layer;
+  return (
+    <div className="ghostGrid" aria-hidden="true">
+      {rows.map((r) => {
+        const cols = ROW_LENS[r] ?? 0;
+        const isOffset = cols === 6;
+
+        const engineShiftRaw =
+          (viewState as any)?.rowShifts?.[layer]?.[r] ??
+          (viewState as any)?.rowShifts?.["L" + layer]?.[r];
+
+        const engineShift = Number(engineShiftRaw ?? 0);
+
+        const rawShift =
+          Number.isFinite(engineShift) && engineShift !== 0
+            ? engineShift
+            : derivedRowShiftUnits(viewState as any, layer, r, getLayerMoves(layer));
+
+        const ns = normalizeRowShift(rawShift, cols);
+        const shiftVisual = ns.visual;
+
+        const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+        const tx = "calc(" + base + " + (" + shiftVisual + " * var(--hexStepX)))";
+
+        return (
+          <div key={"gRow-" + r} className="ghostRow" style={{ transform: "translateX(" + tx + ")" }}>
+            {Array.from({ length: cols }, (_, c) => (
+              <div key={"g-" + r + "-" + c} className="ghostSlot">
+                <div className="ghostHex" />
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 
 function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
   const side = props.side;
@@ -4593,7 +4545,7 @@ return (
                     return <div key={id} className="hexSlot empty" />;
 
                   const isSel = selectedId === id;
-                  const isPlayer = isPlayerHere(id);
+                  const isPlayerHere = useCallback((id: string) => !!playerId && playerId === id, [playerId]);
                   const isStart = startHexId === id;
 
                   const isReach =
