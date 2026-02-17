@@ -656,6 +656,11 @@ const baseCss = `
    --hexWMain: 96px;
   --hexHMain: 84px;
   --hexStepX: 90px;
+  --hexGap: 10px;
+  --hexOverlap: 0.0;
+  --hexPitch: calc(var(--hexW) * (1 - var(--hexOverlap)) + var(--hexGap));
+  --maxCols: 7;
+  
 
   /* ✅ THIS is the honeycomb vertical spacing */
   --hexStepY: calc(var(--hexHMain) * 0.75);
@@ -1342,7 +1347,7 @@ height: var(--hexHMain);
 align-items: center; 
 justify-content: flex-start; 
 }
-
+.hexRow.even{ padding-left: calc(var(--hexPitch) / 2); }
 .hexGrid{
   width: fit-content;
   margin: 0 auto;
@@ -1364,7 +1369,8 @@ justify-content: flex-start;
 
 .hex{
   width: var(--hexWMain);
- height: var(--hexHMain);  
+  height: var(--hexHMain); 
+  margin-right: calc(var(--hexPitch) - var(--hexWMain));
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
   padding: 0;
   border: 0px solid rgba(0,0,0,.75);
