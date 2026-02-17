@@ -1336,14 +1336,13 @@ display: grid;
 /* =========================================================
    HEX ROWS (7676767)
 ========================================================= */
-.hexRow{
-  display: flex;
-  align-items: center;
-  height: var(--hexStepY);          /* ✅ rows overlap correctly */
-  width: fit-content;
-  margin: 0 auto;
-  position: relative;
+.hexRow{ display:flex; 
+width: 100%; 
+height: var(--hexHMain); 
+align-items: center; 
+justify-content: flex-start; 
 }
+
 .hexGrid{
   width: fit-content;
   margin: 0 auto;
