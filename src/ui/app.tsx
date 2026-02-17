@@ -1368,7 +1368,7 @@ display: grid;
  height: var(--hexHMain);  
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
   padding: 0;
-  border: 1px solid rgba(0,0,0,.75);
+  border: 0px solid rgba(0,0,0,.75);
   background: rgba(255,255,255,.14);
   cursor: pointer;
   box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 6px 16px rgba(0,0,0,.10);
