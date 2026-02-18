@@ -1341,11 +1341,13 @@ display: grid;
 /* =========================================================
    HEX ROWS (7676767)
 ========================================================= */
-.hexRow{ display:flex; 
-width: 100%; 
+.hexRow{
+  display: flex;
+  width: fit-content;
+  margin: 0 auto;
 
-align-items: center; 
-justify-content: flex-start; 
+  height: var(--hexStepY);     /* ✅ honeycomb vertical spacing */
+  align-items: center;
 }
 .hexRow.odd{ padding-left: calc(var(--hexPitch) / -12); }
 .hexGrid{
