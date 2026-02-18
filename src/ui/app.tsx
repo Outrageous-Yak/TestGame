@@ -1117,7 +1117,7 @@ body{
 
 .layerBar{
   width: var(--barW);
-  height: var(--hexStepY);
+  height: var(--hexFieldH);
   border-radius: 999px;
   overflow: hidden;
   border: 1px solid rgba(255,255,255,.16);
