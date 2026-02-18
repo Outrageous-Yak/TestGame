@@ -1349,7 +1349,7 @@ display: grid;
   height: var(--hexStepY);     /* ✅ honeycomb vertical spacing */
   align-items: center;
 }
-.hexRow.odd{ padding-left: calc(var(--hexPitch) / -12); }
+
 .hexGrid{
   width: fit-content;
   margin: 0 auto;
