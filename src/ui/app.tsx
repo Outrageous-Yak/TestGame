@@ -1417,7 +1417,7 @@ flex: 0 0 var(--hexWMain);
   background-size: cover;
   background-position: center;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
-  overflow:hidden;
+  overflow:visible;
 }
 .hexInner::before{
   content:"";
