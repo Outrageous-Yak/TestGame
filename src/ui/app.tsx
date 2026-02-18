@@ -1234,27 +1234,7 @@ body{
   z-index: 5;
 }
 
-/* sprite sheet renderer for the mini */
-.barPlayerMini .miniSprite{
-  width: 22px;
-  height: 22px;
-
-  image-rendering: pixelated;
-  background-image: var(--spriteImg);
-  background-repeat: no-repeat;
-  background-size:
-    calc(var(--frameW) * var(--cols) * 1px)
-    calc(var(--frameH) * var(--rows) * 1px);
-
-  /* pick a frame (same as your main sprite) */
-  background-position:
-    calc(var(--frameW) * -1px * var(--frameX))
-    calc(var(--frameH) * -1px * var(--frameY));
-
-  transform: scale(0.22);
-  transform-origin: center;
-  filter: drop-shadow(0 3px 6px rgba(0,0,0,.55));
-}
+/* mini sprite in the RIGHT layer bar */
 .barPlayerMini{
   position: absolute;
   left: 50%;
@@ -1270,12 +1250,13 @@ body{
     0 10px 22px rgba(0,0,0,.40),
     0 0 0 3px rgba(255,255,255,.06);
   pointer-events: none;
-
-  z-index: 4; /* ✅ behind goalMarker (which is 5) */
+  z-index: 4; /* behind goalMarker */
 }
 
+/* make sure goal marker stays above */
 .goalMarker{ z-index: 5; }
 
+/* sprite sheet renderer for the mini */
 .barPlayerMini .miniSprite{
   width: 22px;
   height: 22px;
@@ -1348,6 +1329,7 @@ display: grid;
   padding: var(--boardPadTop) 0 var(--boardPadBottom);
   position: relative;
  height: var(--hexFieldH);
+ overflow: visible;
 }
 
 
@@ -1396,7 +1378,8 @@ display: grid;
   transition: transform 140ms ease, filter 140ms ease;
   position: relative;
   overflow: visible;
-
+ position: relative;
+  z-index: 1;
   --hexGlow: rgba(120,255,210,.51);
 flex: 0 0 var(--hexWMain);
 }
