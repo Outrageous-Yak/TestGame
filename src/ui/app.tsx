@@ -3153,7 +3153,7 @@ function GhostGrid(props: { layer: number }) {
         const ns = normalizeRowShift(rawShift, cols);
         const shiftVisual = ns.visual;
       const shiftWrapped = ns.wrapped; // ✅ keep for mapping only
-const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
 
 return (
   <div
