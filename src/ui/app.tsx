@@ -1334,7 +1334,7 @@ display: grid;
   margin: 0 auto;
   padding: var(--boardPadTop) 0 var(--boardPadBottom);
   position: relative;
-  height: calc((var(--hexStepY) * 6) + var(--hexHMain));
+  height: calc((var(--hexStepY) * 12) + var(--hexHMain));
 }
 
 
