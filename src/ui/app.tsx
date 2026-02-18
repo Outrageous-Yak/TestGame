@@ -663,7 +663,7 @@ const baseCss = `
   
 
   /* ✅ THIS is the honeycomb vertical spacing */
-  --hexStepY: calc(var(--hexHMain) * 0.75);
+  --hexStepY: calc(var(--hexHMain) * 0.5);
 
   /* ✅ derived board field height with overlap (7 rows) */
   --hexFieldH: calc(
