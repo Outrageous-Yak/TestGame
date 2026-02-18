@@ -665,13 +665,15 @@ const baseCss = `
   /* ✅ THIS is the honeycomb vertical spacing */
   --hexStepY: calc(var(--hexHMain) * 1);
 
-  /* ✅ derived board field height with overlap (7 rows) */
-  --hexFieldH: calc(
-    (var(--hexStepY) * 6) + var(--hexHMain) + var(--boardPadTop) + var(--boardPadBottom)
-  );
+  /* ✅ height of JUST the 7 hex rows (no top/bottom padding) */
+  --hexRowsH: calc((var(--hexStepY) * 6) + var(--hexHMain));
 
-  /* ✅ layer bar segment height that matches new field height */
---layerSegH: var(--hexStepY);
+  /* ✅ height of rows + board padding */
+  --hexFieldH: calc(var(--hexRowsH) + var(--boardPadTop) + var(--boardPadBottom));
+
+  /* ✅ segment height should match a row block */
+  --layerSegH: calc(var(--hexRowsH) / 7);
+
 
   /* side columns */
   --barColW: 86px;
@@ -1108,23 +1110,33 @@ body{
 .barWrap{
   height: 100%;
   display: flex;
-  align-items: flex-start; 
+
+  /* ✅ critical: stop vertical centering */
+  align-items: flex-start;
+
   justify-content: center;
   z-index: 6;
+
+  /* ✅ match the board padding so bar starts where row 0 starts */
+  padding-top: var(--boardPadTop);
+  padding-bottom: var(--boardPadBottom);
 }
 .barLeft{ justify-content: flex-start; }
 .barRight{ justify-content: flex-end; }
 
 .layerBar{
   width: var(--barW);
-  height: var(--hexFieldH);
+
+  /* ✅ bar height = JUST the 7 row stack */
+  height: var(--hexRowsH);
+
   border-radius: 999px;
   overflow: hidden;
   border: 1px solid rgba(255,255,255,.16);
   background: rgba(0,0,0,.18);
   box-shadow: 0 18px 40px rgba(0,0,0,.35);
   display: flex;
-  flex-direction: column; 
+  flex-direction: column;
   position: relative;
 }
 .barSeg{ height: var(--layerSegH);   width: 100%; opacity: .95; }
@@ -1157,10 +1169,10 @@ body{
 }
 
 .rowShiftBar .rowSeg{
-  height: var(--hexStepY);
+  height: var(--layerSegH);   /* ✅ matches the right bar’s segments */
   display: grid;
-  place-items: center; /* ✅ centers text in each row block */
-  background: rgba(255,255,255,.03); /* subtle; optional */
+  place-items: center;
+  background: rgba(255,255,255,.03);
 }
 
 .rowShiftLabel{
@@ -1324,6 +1336,7 @@ display: grid;
   min-height: 0;
   overflow: hidden;
   padding: 0 10px;
+  
 
 }
 
@@ -1334,8 +1347,7 @@ display: grid;
   margin: 0 auto;
   padding: var(--boardPadTop) 0 var(--boardPadBottom);
   position: relative;
-
-  height: var(--hexFieldH);   /* ✅ MATCH THE BARS */
+ height: var(--hexFieldH);
 }
 
 
