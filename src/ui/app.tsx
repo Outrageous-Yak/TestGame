@@ -671,7 +671,7 @@ const baseCss = `
   );
 
   /* ✅ layer bar segment height that matches new field height */
-  --layerSegH: calc((var(--hexFieldH) - var(--boardPadTop) - var(--boardPadBottom)) / 7);
+--layerSegH: var(--hexStepY);
 
   /* side columns */
   --barColW: 86px;
@@ -1108,7 +1108,7 @@ body{
 .barWrap{
   height: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-start; 
   justify-content: center;
   z-index: 6;
 }
@@ -1322,7 +1322,7 @@ display: grid;
   z-index: 3;          /* above bg + overlay */
   height: 100%;        /* ✅ make it fill the stretched cell */
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   padding: 0 10px;
 
 }
@@ -1334,7 +1334,8 @@ display: grid;
   margin: 0 auto;
   padding: var(--boardPadTop) 0 var(--boardPadBottom);
   position: relative;
-  height: calc((var(--hexStepY) * 12) + var(--hexHMain));
+
+  height: var(--hexFieldH);   /* ✅ MATCH THE BARS */
 }
 
 
