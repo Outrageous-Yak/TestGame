@@ -3103,11 +3103,13 @@ const viewState = useMemo(() => {
       if (hasEngineShift) break;
     }
   }
-
   if (hasEngineShift) return state;
 
-  // ✅ KEEP Map + everything intact, only inject rowShifts
-  const injected: any = { ...(state as any) };
+  // ✅ preserve prototype + properties like Map, etc.
+  const injected: any = Object.assign(
+    Object.create(Object.getPrototypeOf(state)),
+    state
+  );
 
   const rowShifts: any = {};
   for (let layer = 1; layer <= scenarioLayerCount; layer++) {
@@ -3122,11 +3124,10 @@ const viewState = useMemo(() => {
 
   injected.rowShifts = rowShifts;
 
-  // ✅ belt & braces: keep scenario attached
   if (!injected.scenario && scenarioRef.current) injected.scenario = scenarioRef.current;
-
-  return injected as any;
+  return injected;
 }, [state, scenarioLayerCount, getLayerMoves]);
+
 
 function GhostGrid(props: { layer: number }) {
   const layer = props.layer;
@@ -4518,7 +4519,7 @@ return (
               <div
                 key={"row-" + r}
                 className="hexRow"
-                style={{ transform: "translateX(" + base + ")" }}
+              style={{ transform: "translateX(" + tx + ")" }}
               >
                 {Array.from({ length: cols }, (_, c) => {
                   // VISUAL SLOT → LOGICAL HEX
