@@ -1361,6 +1361,7 @@ display: grid;
   display: grid;
   place-items: center;
   flex: 0 0 var(--hexStepX);
+   position: relative;
 }
 .hexSlot.empty{ opacity: 0; }
 
@@ -4567,118 +4568,70 @@ return (
                   const tile = HEX_TILE
                     ? "url(" + toPublicUrl(HEX_TILE) + ")"
                     : "";
+return (
+  <div key={"v-" + r + "-" + c} className="hexSlot">
+    <button
+      ref={isPlayer ? playerBtnRef : null}
+      className={[
+        "hex",
+        isSel ? "sel" : "",
+        isReach ? "reach" : "",
+        bm.blocked ? "blocked" : "",
+        isPlayer ? "player" : "",
+        isGoal ? "goal" : "",
+        isTrigger ? "trigger" : "",
+        isStart ? "portalStart" : "",
+        isPortalUp ? "portalUp" : "",
+        isPortalDown ? "portalDown" : "",
+      ].join(" ")}
+      onClick={() => {
+        if (layerFx !== null) return;
+        if (playerLayer && currentLayer !== playerLayer) {
+          tryMoveToId(id);
+          return;
+        }
+        setSelectedId(id);
+        tryMoveToId(id);
+      }}
+      disabled={
+        !state || bm.blocked || bm.missing || encounterActive || layerFx !== null
+      }
+      style={
+        {
+          ["--hexGlow" as any]: layerCssVar(currentLayer),
+          ...(portalColor ? { ["--portalC" as any]: portalColor } : {}),
+        } as any
+      }
+      title={id}
+    >
+      <div className="hexAnchor">
+        <div className="hexInner" style={tile ? { backgroundImage: tile } : undefined}>
+          {/* ... all your portal/start/cardBadge/hexId/hexMarks ... */}
+        </div>
+      </div>
+    </button>
 
-                  return (
-                    <div key={"v-" + r + "-" + c} className="hexSlot">
-                      <button
-                        ref={isPlayer ? playerBtnRef : null}
-                        className={[
-                          "hex",
-                          isSel ? "sel" : "",
-                          isReach ? "reach" : "",
-                          bm.blocked ? "blocked" : "",
-                          isPlayer ? "player" : "",
-                          isGoal ? "goal" : "",
-                          isTrigger ? "trigger" : "",
-                          isStart ? "portalStart" : "",
-                          isPortalUp ? "portalUp" : "",
-                          isPortalDown ? "portalDown" : "",
-                        ].join(" ")}
-                        onClick={() => {
-                          if (layerFx !== null) return;
-                          if (playerLayer && currentLayer !== playerLayer) {
-                            tryMoveToId(id);
-                            return;
-                          }
-                          setSelectedId(id);
-                          tryMoveToId(id);
-                        }}
-                        disabled={
-                          !state ||
-                          bm.blocked ||
-                          bm.missing ||
-                          encounterActive ||
-                          layerFx !== null
-                        }
-                        style={
-                          {
-                            ["--hexGlow" as any]: layerCssVar(currentLayer),
-                            ...(portalColor
-                              ? { ["--portalC" as any]: portalColor }
-                              : {}),
-                          } as any
-                        }
-                        title={id}
-                      >
-                        <div className="hexAnchor">
-                          <div
-                            className="hexInner"
-                            style={
-                              tile ? { backgroundImage: tile } : undefined
-                            }
-                          >
-                            {isPortalUp || isPortalDown ? (
-                              <>
-                                <div className="pAura" />
-                                <div className="pOrbs" />
-                                <div className="pRim" />
-                                <div className="pOval" />
-                              </>
-                            ) : null}
+    {/* ✅ sprite is OUTSIDE the clipped button */}
+    {isPlayer ? (
+      <span
+        className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
+        style={
+          {
+            ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
+            ["--frameW" as any]: FRAME_W,
+            ["--frameH" as any]: FRAME_H,
+            ["--cols" as any]: SPRITE_COLS,
+            ["--rows" as any]: SPRITE_ROWS,
+            ["--frameX" as any]: walkFrame,
+            ["--frameY" as any]: facingRow(playerFacing),
+          } as any
+        }
+      />
+    ) : null}
+  </div>
+);
 
-                            {isStart ? (
-                              <>
-                                <div className="pAura" />
-                                <div className="pRunes" />
-                                <div className="pVortex" />
-                                <div className="pWell" />
-                                <div className="pShine" />
-                              </>
-                            ) : null}
-
-                            {cardHere ? (
-                              <div
-                                className={"cardBadge " + cardHere}
-                                title={cardHere}
-                              />
-                            ) : null}
-
-                            <div className="hexId">
-                              {r + "," + (lc ? lc.col : c)}
-                            </div>
-
-                            <div className="hexMarks">
-                              {isPortalUp ? <span className="mark">↑</span> : null}
-                              {isPortalDown ? <span className="mark">↓</span> : null}
-                              {isGoal ? <span className="mark g">G</span> : null}
-                              {isTrigger ? <span className="mark t">!</span> : null}
-                            </div>
-                          </div>
-
-                          {isPlayer ? (
-                            <span
-                              className={
-                                "playerSpriteSheet " +
-                                (isWalking ? "walking" : "")
-                              }
-                              style={
-                                {
-                                  ["--spriteImg" as any]:
-                                    "url(" + spriteSheetUrl() + ")",
-                                  ["--frameW" as any]: FRAME_W,
-                                  ["--frameH" as any]: FRAME_H,
-                                  ["--cols" as any]: SPRITE_COLS,
-                                  ["--rows" as any]: SPRITE_ROWS,
-                                  ["--frameX" as any]: walkFrame,
-                                  ["--frameY" as any]: facingRow(playerFacing),
-                                } as any
-                              }
-                            />
-                          ) : null}
-                        </div>
-                      </button>
-                    </div>
-                  );
+                
                 })}
               </div>
             );
