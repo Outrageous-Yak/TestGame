@@ -3108,7 +3108,7 @@ const rows = useMemo(() => Array.from({ length: ROW_LENS.length }, (_, i) => i),
 
   if (hasEngineShift) return state;
 
-  const injected: any = { ...(state as any) };
+  const injected: any = JSON.parse(JSON.stringify(state));
   const rowShifts: any = {};
 
   for (let layer = 1; layer <= scenarioLayerCount; layer++) {
