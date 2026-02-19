@@ -3085,9 +3085,10 @@ const canGoUp = currentLayer < scenarioLayerCount;
   ========================= */
 
 const rows = useMemo(() => Array.from({ length: ROW_LENS.length }, (_, i) => i), []);
-   const viewState = useMemo(() => {
+const viewState = useMemo(() => {
   if (!state) return null;
 
+  // if engine already provides rowShifts, just use state directly
   const rs = (state as any).rowShifts;
   let hasEngineShift = false;
 
@@ -3097,10 +3098,7 @@ const rows = useMemo(() => Array.from({ length: ROW_LENS.length }, (_, i) => i),
       if (!rowsObj || typeof rowsObj !== "object") continue;
       for (const rKey of Object.keys(rowsObj)) {
         const n = Number(rowsObj[rKey]);
-        if (Number.isFinite(n) && n !== 0) {
-          hasEngineShift = true;
-          break;
-        }
+        if (Number.isFinite(n) && n !== 0) { hasEngineShift = true; break; }
       }
       if (hasEngineShift) break;
     }
@@ -3108,25 +3106,27 @@ const rows = useMemo(() => Array.from({ length: ROW_LENS.length }, (_, i) => i),
 
   if (hasEngineShift) return state;
 
-  const injected: any = JSON.parse(JSON.stringify(state));
-  const rowShifts: any = {};
+  // ✅ KEEP Map + everything intact, only inject rowShifts
+  const injected: any = { ...(state as any) };
 
+  const rowShifts: any = {};
   for (let layer = 1; layer <= scenarioLayerCount; layer++) {
     const perRow: any = {};
     const mL = getLayerMoves(layer);
-
     for (let r = 0; r < ROW_LENS.length; r++) {
       perRow[r] = derivedRowShiftUnits(state as any, layer, r, mL);
     }
-
     rowShifts[layer] = perRow;
     rowShifts["L" + layer] = perRow;
   }
 
   injected.rowShifts = rowShifts;
+
+  // ✅ belt & braces: keep scenario attached
+  if (!injected.scenario && scenarioRef.current) injected.scenario = scenarioRef.current;
+
   return injected as any;
 }, [state, scenarioLayerCount, getLayerMoves]);
-
 
 function GhostGrid(props: { layer: number }) {
   const layer = props.layer;
@@ -3704,7 +3704,7 @@ if (!targetId) {
     const pidBefore = (viewState as any)?.playerHexId as string | null;
 
    
-    const res: any = tryMove(viewState as any, targetId);
+    const res: any = tryMove(state as any, targetId);
 let nextState = unwrapNextState(res); 
      if (nextState) ensureScenario(nextState);
 
@@ -4023,7 +4023,8 @@ const tryMoveToId = useCallback(
     }
 
  
-    const hex = getHexFromState(viewState as any, id) as any;
+ const hex = getHexFromState(state as any, id) as any;
+
     const bm = isBlockedOrMissing(hex);
     if (bm.missing) {
       pushLog("Missing tile.", "bad");
@@ -4033,8 +4034,7 @@ const tryMoveToId = useCallback(
       pushLog("Blocked tile.", "bad");
       return;
     }
-
-    const pidBefore = (viewState as any)?.playerHexId as string | null;
+const pidBefore = (state as any)?.playerHexId as string | null;
 
 
     const vk = findTriggerForHex(id);
@@ -4047,16 +4047,14 @@ const tryMoveToId = useCallback(
       return;
     }
 
-   
-    const res: any = tryMove(viewState as any, id);
+   const res: any = tryMove(state as any, id);
     let nextState = unwrapNextState(res); 
      if (nextState) ensureScenario(nextState);
 
 
     if (!nextState) {
       if (reachable.has(id) && viewState) {
-        const forced: any = { ...(viewState as any) };
-forced.playerHexId = id;
+        const forced: any = { ...(state as any), playerHexId: id };
 if (!forced.scenario && scenarioRef.current) forced.scenario = scenarioRef.current;
 nextState = forced as any;
         pushLog("Force-moved (engine rejected)", "info");
