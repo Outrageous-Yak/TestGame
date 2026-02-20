@@ -4654,9 +4654,27 @@ return (
 
   </div>
 </div>
+ </button>   {/* ✅ YOU WERE MISSING THIS */}
 
-              </div>
-            );
+  {/* sprite stays OUTSIDE the button */}
+  {isPlayer ? (
+    <span
+      className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
+      style={
+        {
+          ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
+          ["--frameW" as any]: FRAME_W,
+          ["--frameH" as any]: FRAME_H,
+          ["--cols" as any]: SPRITE_COLS,
+          ["--rows" as any]: SPRITE_ROWS,
+          ["--frameX" as any]: walkFrame,
+          ["--frameY" as any]: facingRow(playerFacing),
+        } as any
+      }
+    />
+  ) : null}
+</div>
+                 );
           })}
         </div>
       </div>
