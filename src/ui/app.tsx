@@ -1707,7 +1707,6 @@ flex: 0 0 var(--hexWMain);
     inset 0 0 0 1px rgba(0,0,0,.35),
     0 0 0 3px color-mix(in srgb, var(--portalC) 16%, transparent),
     0 0 16px color-mix(in srgb, var(--portalC) 22%, transparent);
-    z-index: -2;
 }
 
 /* aura bloom */
@@ -4593,9 +4592,7 @@ return (
         setSelectedId(id);
         tryMoveToId(id);
       }}
-      disabled={
-        !state || bm.blocked || bm.missing || encounterActive || layerFx !== null
-      }
+      disabled={!state || bm.blocked || bm.missing || encounterActive || layerFx !== null}
       style={
         {
           ["--hexGlow" as any]: layerCssVar(currentLayer),
@@ -4605,76 +4602,68 @@ return (
       title={id}
     >
       <div className="hexAnchor">
-  <div
-    className="hexInner"
-    style={tile ? ({ backgroundImage: tile } as any) : undefined}
-  >
+        <div
+          className="hexInner"
+          style={tile ? ({ backgroundImage: tile } as any) : undefined}
+        >
+          {/* 🔹 Portal FX */}
+          {isPortalUp || isPortalDown ? (
+            <>
+              <div className="pAura" />
+              <div className="pOrbs" />
+              <div className="pRim" />
+              <div className="pOval" />
+            </>
+          ) : null}
 
-    {/* 🔹 Portal FX */}
-    {isPortalUp || isPortalDown ? (
-      <>
-        <div className="pAura" />
-        <div className="pOrbs" />
-        <div className="pRim" />
-        <div className="pOval" />
-      </>
-    ) : null}
+          {/* 🔹 Start portal FX */}
+          {isStart ? (
+            <>
+              <div className="pAura" />
+              <div className="pRunes" />
+              <div className="pVortex" />
+              <div className="pWell" />
+              <div className="pShine" />
+            </>
+          ) : null}
 
-    {/* 🔹 Start portal FX */}
-    {isStart ? (
-      <>
-        <div className="pAura" />
-        <div className="pRunes" />
-        <div className="pVortex" />
-        <div className="pWell" />
-        <div className="pShine" />
-      </>
-    ) : null}
+          {/* 🔹 Card badge */}
+          {cardHere ? <div className={"cardBadge " + cardHere} title={cardHere} /> : null}
 
-    {/* 🔹 Card badge */}
-    {cardHere ? (
-      <div
-        className={"cardBadge " + cardHere}
-        title={cardHere}
+          {/* 🔹 Hex label */}
+          <div className="hexId">{r + "," + (lc ? lc.col : c)}</div>
+
+          {/* 🔹 Marks */}
+          <div className="hexMarks">
+            {isPortalUp ? <span className="mark">↑</span> : null}
+            {isPortalDown ? <span className="mark">↓</span> : null}
+            {isGoal ? <span className="mark g">G</span> : null}
+            {isTrigger ? <span className="mark t">!</span> : null}
+          </div>
+        </div>
+      </div>
+    </button>
+
+    {/* ✅ sprite OUTSIDE the clipped button (relative to .hexSlot) */}
+    {isPlayer ? (
+      <span
+        className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
+        style={
+          {
+            ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
+            ["--frameW" as any]: FRAME_W,
+            ["--frameH" as any]: FRAME_H,
+            ["--cols" as any]: SPRITE_COLS,
+            ["--rows" as any]: SPRITE_ROWS,
+            ["--frameX" as any]: walkFrame,
+            ["--frameY" as any]: facingRow(playerFacing),
+          } as any
+        }
       />
     ) : null}
-
-    {/* 🔹 Hex label */}
-    <div className="hexId">
-      {r + "," + (lc ? lc.col : c)}
-    </div>
-
-    {/* 🔹 Marks (goal / trigger / portal arrows) */}
-    <div className="hexMarks">
-      {isPortalUp ? <span className="mark">↑</span> : null}
-      {isPortalDown ? <span className="mark">↓</span> : null}
-      {isGoal ? <span className="mark g">G</span> : null}
-      {isTrigger ? <span className="mark t">!</span> : null}
-    </div>
-
   </div>
-</div>
- </button>   {/* ✅ YOU WERE MISSING THIS */}
+);
 
-  {/* sprite stays OUTSIDE the button */}
-  {isPlayer ? (
-    <span
-      className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
-      style={
-        {
-          ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
-          ["--frameW" as any]: FRAME_W,
-          ["--frameH" as any]: FRAME_H,
-          ["--cols" as any]: SPRITE_COLS,
-          ["--rows" as any]: SPRITE_ROWS,
-          ["--frameX" as any]: walkFrame,
-          ["--frameY" as any]: facingRow(playerFacing),
-        } as any
-      }
-    />
-  ) : null}
-</div>
-                 );
           })}
         </div>
       </div>
