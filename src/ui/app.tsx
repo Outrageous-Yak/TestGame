@@ -1,8 +1,5 @@
-
-
-// src/ui/app.tsx 
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-
+// src/ui/app.tsx
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { GameState, Scenario, Hex } from "../engine/types";
 import { assertScenario } from "../engine/scenario";
@@ -32,7 +29,12 @@ type PlayerChoice =
   | { kind: "custom"; name: string; imageDataUrl: string | null };
 
 type Coord = { layer: number; row: number; col: number };
-type LogEntry = { n: number; t: string; msg: string; kind?: "ok" | "bad" | "info" };
+type LogEntry = {
+  n: number;
+  t: string;
+  msg: string;
+  kind?: "ok" | "bad" | "info";
+};
 
 type LayerPalette = {
   L1: string;
@@ -75,8 +77,6 @@ type ScenarioEntry = {
   tracks?: Track[];
 };
 
-
-
 type WorldEntry = {
   id: string;
   name: string;
@@ -90,26 +90,10 @@ type VillainTrigger = { key: VillainKey; layer: number; row: number; cols?: "any
 type Encounter = null | { villainKey: VillainKey; tries: number };
 type CardKey = "cosmic" | "risk" | "terrain" | "shadow";
 type CardTrigger = { card: CardKey; layer: number; row: number; col: number };
+
 /* =========================================================
    Worlds registry helpers
 ========================================================= */
-function getVisualId(
-  state: GameState | null,
-  layer: number,
-  row: number,
-  col: number
-): string {
-  if (!state) return `L${layer}-R${row}-C${col}`;
-
- 
-
-  const shift = (state as any).layerShifts?.[layer] ?? 0;
-
-  const rowLen = ROW_LENS[row];
-  const adjustedCol = (col + shift + rowLen) % rowLen;
-
-  return `L${layer}-R${row}-C${adjustedCol}`;
-}
 
 function getRegisteredWorlds(): any[] {
   const anyMod: any = WorldsMod as any;
@@ -125,8 +109,9 @@ function getRegisteredWorlds(): any[] {
 function normalizeWorldEntry(raw: any): WorldEntry | null {
   if (!raw) return null;
   const w = raw.default ?? raw;
-const id = String(w.id ?? w.slug ?? w.key ?? "world");
-const name = String(w.name ?? w.title ?? id);
+
+  const id = String(w.id ?? w.slug ?? w.key ?? "world");
+  const name = String(w.name ?? w.title ?? id);
 
   const scenarios = Array.isArray(w.scenarios) ? w.scenarios : [];
 
@@ -210,6 +195,9 @@ function loadWorlds(): WorldEntry[] {
 /* =========================================================
    Helpers
 ========================================================= */
+
+const scenarioRef: { current: Scenario | null } = { current: null };
+
 function ensureScenario(st: any): any {
   if (st && !st.scenario && scenarioRef.current) {
     st.scenario = scenarioRef.current;
@@ -291,14 +279,12 @@ function findGoalId(s: any, fallbackLayer: number): string | null {
   }
   return null;
 }
-function getEngineHexIdForVisualPosition(layer: number, row: number, visualCol: number) {
-  return "L" + layer + "-R" + row + "-C" + visualCol;
-}
+
 function findFirstPlayableHexId(st: GameState | null, layer: number): string | null {
   for (let r = 0; r < ROW_LENS.length; r++) {
     const len = ROW_LENS[r];
     for (let c = 0; c < len; c++) {
-     const id = "L" + layer + "-R" + r + "-C" + c;
+      const id = "L" + layer + "-R" + r + "-C" + c;
       const hex = getHexFromState(st, id) as any;
       if (hex && !hex.blocked && !hex.missing) return id;
     }
@@ -306,19 +292,6 @@ function findFirstPlayableHexId(st: GameState | null, layer: number): string | n
   return null;
 }
 
-
-function facingFromMove(fromId: string | null, toId: string | null): "down" | "up" | "left" | "right" {
-  const a = fromId ? idToCoord(fromId) : null;
-  const b = toId ? idToCoord(toId) : null;
-  if (!a || !b) return "down";
-  if (a.layer !== b.layer) return "down";
-
-  const dRow = b.row - a.row;
-  const dCol = b.col - a.col;
-
-  if (Math.abs(dCol) >= Math.abs(dRow)) return dCol > 0 ? "right" : dCol < 0 ? "left" : "down";
-  return dRow > 0 ? "down" : "up";
-}
 function facingFromMoveVisual(
   st: any,
   fromId: string | null,
@@ -330,13 +303,11 @@ function facingFromMoveVisual(
   const b = toId ? idToCoord(toId) : null;
   if (!a || !b) return "down";
 
-
   if (a.layer !== b.layer) return "down";
 
   const lenA = ROW_LENS[a.row] ?? 7;
   const lenB = ROW_LENS[b.row] ?? 7;
 
-  
   const sAeng = getRowShiftUnits(st, a.layer, a.row);
   const sAraw = sAeng !== 0 ? sAeng : derivedRowShiftUnits(st, a.layer, a.row, movesTakenForLayer);
   const sA = normalizeRowShift(sAraw, lenA).visual;
@@ -345,21 +316,17 @@ function facingFromMoveVisual(
   const sBraw = sBeng !== 0 ? sBeng : derivedRowShiftUnits(st, b.layer, b.row, movesTakenForLayer);
   const sB = normalizeRowShift(sBraw, lenB).visual;
 
- 
   const slotA = slotOfId(a.row, a.col, sA);
   const slotB = slotOfId(b.row, b.col, sB);
 
-  
   let dxSlots = slotB - slotA;
   if (a.row === b.row) {
     const len = lenA;
-   
     dxSlots = ((dxSlots + len / 2) % len) - len / 2;
   }
 
   const dRow = b.row - a.row;
 
- 
   if (Math.abs(dxSlots) >= Math.abs(dRow) * 0.5) {
     return dxSlots > 0 ? "right" : dxSlots < 0 ? "left" : "down";
   }
@@ -367,58 +334,27 @@ function facingFromMoveVisual(
   return dRow > 0 ? "down" : "up";
 }
 
-
 function unwrapNextState(res: any): GameState | null {
   if (!res) return null;
 
-  
   if (typeof res === "object" && "state" in res) {
     const st = (res as any).state;
     if (st && typeof st === "object") {
       if (!(st as any).scenario && scenarioRef.current) {
-        (st as any).scenario = scenarioRef.current; 
+        (st as any).scenario = scenarioRef.current;
       }
       return st as GameState;
     }
     return null;
   }
 
-  
   if (typeof res === "object" && (("hexesById" in res) || ("playerHexId" in res))) {
     const st = res as any;
-    if (!st.scenario && scenarioRef.current) st.scenario = scenarioRef.current; 
+    if (!st.scenario && scenarioRef.current) st.scenario = scenarioRef.current;
     return st as GameState;
   }
 
   return null;
-}
-
-function getNeighborsSameLayer(st: any, pid: string): string[] {
-
-  try {
-    const b = (neighborIdsSameLayer as any)(st, pid);
-    if (Array.isArray(b)) return b;
-  } catch {}
-
- 
-  try {
-    const a = (neighborIdsSameLayer as any)(pid);
-    if (Array.isArray(a)) return a;
-  } catch {}
-
-  return [];
-}
-
-function cloneReachMap(rm: any): ReachMap {
-  if (!rm) return {} as any;
-
-
-  if (typeof rm?.entries === "function") {
-    return new Map(rm) as any;
-  }
-
-
-  return { ...(rm as any) } as any;
 }
 
 function getRowShiftUnits(st: any, layer: number, row: number): number {
@@ -431,6 +367,7 @@ function getRowShiftUnits(st: any, layer: number, row: number): number {
   const n = Number(a);
   return Number.isFinite(n) ? n : 0;
 }
+
 function getMovementPattern(st: any, layer: number): string {
   const sc = st?.scenario ?? st;
   if (!sc) return "NONE";
@@ -441,7 +378,6 @@ function getMovementPattern(st: any, layer: number): string {
   const v = m[layer] ?? m[String(layer)] ?? m["L" + layer];
   return typeof v === "string" ? v : "NONE";
 }
-
 
 function derivedRowShiftUnits(st: any, layer: number, row: number, movesTaken: number): number {
   if (!st) return 0;
@@ -457,66 +393,25 @@ function derivedRowShiftUnits(st: any, layer: number, row: number, movesTaken: n
   return 0;
 }
 
-
-function posForHex(
-  st: any,
-  layer: number,
-  row: number,
-  col: number,
-  movesTaken: number,
-  stepX: number,
-  stepY: number
-) {
-  const cols = ROW_LENS[row] ?? 7;
-  const isOffset = cols === 6;
-
-
-  const base = isOffset ? (-stepX / 2) : 0;
-const engineShift = getRowShiftUnits(st, layer, row);
-const shift =
-  engineShift !== 0
-    ? engineShift
-    : derivedRowShiftUnits(st, layer, row, movesTaken);
-
-
-  const x = base + (col * stepX) + (shift * stepX);
-  const y = row * stepY;
-
-  return { x, y };
-}
-
-
 function getShiftedNeighborsSameLayer(st: any, pid: string, movesTaken: number): string[] {
   const c = idToCoord(pid);
   if (!c) return [];
 
- 
-const engineShiftCur = getRowShiftUnits(st, c.layer, c.row);
-const shiftCur =
-  engineShiftCur !== 0
-    ? engineShiftCur
-    : derivedRowShiftUnits(st, c.layer, c.row, movesTaken);
-
-
-
+  const engineShiftCur = getRowShiftUnits(st, c.layer, c.row);
+  const shiftCur =
+    engineShiftCur !== 0 ? engineShiftCur : derivedRowShiftUnits(st, c.layer, c.row, movesTaken);
 
   const slotC = slotOfId(c.row, c.col, shiftCur);
-
 
   const slots = neighborSlots(c.row, slotC);
 
   const out: string[] = [];
   for (const s of slots) {
     const cols = ROW_LENS[s.r] ?? 7;
-const engineShift = getRowShiftUnits(st, c.layer, s.r);
-const shift =
-  engineShift !== 0
-    ? engineShift
-    : derivedRowShiftUnits(st, c.layer, s.r, movesTaken);
 
+    const engineShift = getRowShiftUnits(st, c.layer, s.r);
+    const shift = engineShift !== 0 ? engineShift : derivedRowShiftUnits(st, c.layer, s.r, movesTaken);
 
-
-  
     if (s.c < 0 || s.c >= cols) continue;
 
     const id = idAtSlot(c.layer, s.r, s.c, shift);
@@ -534,25 +429,22 @@ function mod(n: number, m: number) {
   return ((n % m) + m) % m;
 }
 
-
 function idAtSlot(layer: number, row: number, slotCol: number, shift: number) {
   const len = ROW_LENS[row] ?? 7;
-  const origCol = mod(slotCol - shift, len); 
+  const origCol = mod(slotCol - shift, len);
   return "L" + layer + "-R" + row + "-C" + origCol;
 }
 
 function slotOfId(row: number, origCol: number, shift: number) {
   const len = ROW_LENS[row] ?? 7;
-  return mod(origCol + shift, len); 
+  return mod(origCol + shift, len);
 }
-
 
 function neighborSlots(row: number, col: number) {
   const out: Array<{ r: number; c: number }> = [];
 
   const len = ROW_LENS[row] ?? 7;
 
- 
   if (col - 1 >= 0) out.push({ r: row, c: col - 1 });
   if (col + 1 < len) out.push({ r: row, c: col + 1 });
 
@@ -563,7 +455,6 @@ function neighborSlots(row: number, col: number) {
   const lenDn = dn < ROW_LENS.length ? (ROW_LENS[dn] ?? 7) : 0;
 
   const curIs6 = (ROW_LENS[row] ?? 7) === 6;
-
 
   const upA = curIs6 ? col : col - 1;
   const upB = curIs6 ? col + 1 : col;
@@ -583,14 +474,15 @@ function neighborSlots(row: number, col: number) {
 
   return out;
 }
+
 function readPxVar(el: HTMLElement | null, name: string, fallback: number) {
   if (!el) return fallback;
-  const v = getComputedStyle(el).getPropertyValue(name).trim(); 
+  const v = getComputedStyle(el).getPropertyValue(name).trim();
   const n = Number(v.replace("px", ""));
   return Number.isFinite(n) ? n : fallback;
 }
-function normalizeRowShift(rawShift: number, rowLen: number) {
 
+function normalizeRowShift(rawShift: number, rowLen: number) {
   let wrapped = ((rawShift % rowLen) + rowLen) % rowLen;
 
   let visual = wrapped;
@@ -598,6 +490,7 @@ function normalizeRowShift(rawShift: number, rowLen: number) {
 
   return { wrapped, visual };
 }
+
 function parseCardTriggersFromScenario(s: any): CardTrigger[] {
   const src = (Array.isArray(s?.cardTriggers) && s.cardTriggers) || [];
   const allowed: CardKey[] = ["cosmic", "risk", "terrain", "shadow"];
@@ -623,11 +516,12 @@ function parseCardTriggersFromScenario(s: any): CardTrigger[] {
 
   return out;
 }
+
 function pickRiskVillain(): VillainKey {
   const pool: VillainKey[] = ["bad1", "bad2", "bad3"];
   return pool[Math.floor(Math.random() * pool.length)];
 }
-const scenarioRef: { current: Scenario | null } = { current: null };
+
 /* =========================================================
    CSS
 ========================================================= */
@@ -653,27 +547,28 @@ const baseCss = `
   --boardPadBottom: 18px;
 
   /* hex geometry (7676767) */
-   --hexWMain: 96px;
+  --hexWMain: 96px;
   --hexHMain: 84px;
   --hexStepX: 90px;
   --hexGap: 10px;
   --hexOverlap: 0.0;
-  --hexPitch: calc(var(--hexW) * (1 - var(--hexOverlap)) + var(--hexGap));
-  --maxCols: 7;
-  
 
-  /* ✅ THIS is the honeycomb vertical spacing */
+  /* ✅ FIX: --hexW did not exist */
+  --hexPitch: calc(var(--hexWMain) * (1 - var(--hexOverlap)) + var(--hexGap));
+
+  --maxCols: 7;
+
+  /* honeycomb vertical spacing */
   --hexStepY: calc(var(--hexHMain) * 1);
 
-  /* ✅ height of JUST the 7 hex rows (no top/bottom padding) */
+  /* height of JUST the 7 hex rows (no top/bottom padding) */
   --hexRowsH: calc((var(--hexStepY) * 6) + var(--hexHMain));
 
-  /* ✅ height of rows + board padding */
+  /* height of rows + board padding */
   --hexFieldH: calc(var(--hexRowsH) + var(--boardPadTop) + var(--boardPadBottom));
 
-  /* ✅ segment height should match a row block */
+  /* segment height should match a row block */
   --layerSegH: calc(var(--hexRowsH) / 7);
-
 
   /* side columns */
   --barColW: 86px;
@@ -799,8 +694,8 @@ body{
 
   position: relative;
   border-radius: 22px;
-  overflow: hidden;              /* ✅ clips any animated/shine layers if you add them later */
-  backface-visibility: hidden;   /* ✅ reduces edge shimmer */
+  overflow: hidden;
+  backface-visibility: hidden;
   will-change: transform;
 
   transition:
@@ -822,46 +717,8 @@ body{
   box-shadow: 0 0 0 3px rgba(120,255,210,.12), 0 16px 45px rgba(0,0,0,.42);
 }
 
-.cardTitle{
-  font-weight: 900;
-}
-
-.cardDesc{
-  margin-top: 6px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.customBox{
-  margin-top: 14px;
-  display: grid;
-  gap: 10px;
-}
-
-.lbl{
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.inp{
-  width: 100%;
-  padding: 12px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--stroke);
-  background: rgba(0,0,0,.24);
-  color: var(--text);
-  outline: none;
-}
-
-.portrait{
-  width: 120px;
-  height: 120px;
-  border-radius: 18px;
-  object-fit: cover;
-  border: 1px solid rgba(255,255,255,.12);
-  background: rgba(0,0,0,.25);
-  box-shadow: 0 14px 40px rgba(0,0,0,.28);
-}
+.cardTitle{ font-weight: 900; }
+.cardDesc{ margin-top: 6px; color: var(--muted); font-size: 13px; }
 
 .tracks{
   margin-top: 14px;
@@ -898,43 +755,8 @@ body{
 }
 
 /* =========================================================
-   TOPBAR HUD GROUPS + ITEMS
+   TOPBAR ITEMS
 ========================================================= */
-.hudGroup{
-  display:flex;
-  align-items:center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.22);
-  box-shadow: 0 12px 30px rgba(0,0,0,.22);
-}
-.hudStat{
-  padding: 8px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.22);
-  min-width: 86px;
-}
-.hudStat .k{
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: .35px;
-  text-transform: uppercase;
-}
-.hudStat .v{
-  margin-top: 4px;
-  font-weight: 900;
-  font-size: 13px;
-}
-.mutedSmall{
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  margin-left: 6px;
-}
-
 .items{ display:flex; gap: 10px; flex-wrap: nowrap; }
 .itemBtn{
   display:grid;
@@ -966,32 +788,13 @@ body{
 }
 
 /* =========================================================
-   PILL
-========================================================= */
-.pill{
-  display:inline-flex; align-items:center; gap:10px;
-  padding: 9px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(0,0,0,.22);
-  box-shadow: 0 12px 35px rgba(0,0,0,.25);
-}
-.dot{
-  width:10px; height:10px; border-radius:50%;
-  background: radial-gradient(circle at 30% 30%, rgba(120,255,210,.95), rgba(120,150,255,.65));
-  box-shadow: 0 0 0 3px rgba(120,255,210,.10);
-}
-.pillText{ font-weight: 800; font-size: 13px; color: rgba(255,255,255,.88); }
-
-/* =========================================================
-   DICE 3D (variable-sized, stays sharp)
+   DICE 3D
 ========================================================= */
 
 .dice3d{
-  /* defaults (topbar) */
-  --diceBox: 58px;   /* overall wrapper */
-  --cube: 46px;      /* cube size */
-  --z: 23px;         /* translateZ depth (half cube) */
+  --diceBox: 58px;
+  --cube: 46px;
+  --z: 23px;
 
   width: var(--diceBox);
   height: var(--diceBox);
@@ -1029,10 +832,9 @@ body{
   background-repeat: no-repeat;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), 0 10px 22px rgba(0,0,0,.35);
   backface-visibility: hidden;
-  transform: translateZ(var(--z)); /* default; overridden per-face below */
+  transform: translateZ(var(--z));
 }
 
-/* faces use --z */
 .dice3d .face-front{  transform: rotateY(  0deg) translateZ(var(--z)); }
 .dice3d .face-back{   transform: rotateY(180deg) translateZ(var(--z)); }
 .dice3d .face-right{  transform: rotateY( 90deg) translateZ(var(--z)); }
@@ -1040,30 +842,11 @@ body{
 .dice3d .face-top{    transform: rotateX( 90deg) translateZ(var(--z)); }
 .dice3d .face-bottom{ transform: rotateX(-90deg) translateZ(var(--z)); }
 
-.diceBorder{
-  position:absolute; inset: 0;
-  pointer-events:none;
-  background-size: cover;
-  background-position: center;
-  opacity: .95;
-  filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
-}
-/* Large dice used in encounter (no transform scaling) */
 .dice3d.diceLg{
   --diceBox: 210px;
   --cube: 168px;
-  --z: 84px;        /* half of cube */
+  --z: 84px;
   perspective: 1200px;
-}
-
-.hexface{
-  position: absolute;
-  inset: 0;
-  border-radius: 18px;
-  overflow: hidden;
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
 }
 
 /* corners */
@@ -1074,7 +857,7 @@ body{
   pointer-events:none;
   z-index: 5;
 
- background-image: var(--diceBorderUrl);
+  background-image: var(--diceBorderUrl);
   background-repeat: no-repeat;
   background-size: contain;
   background-position: top left;
@@ -1096,28 +879,23 @@ body{
   z-index: 3;
   height: calc(100vh - 64px);
   display: grid;
-  grid-template-columns: 1fr var(--sideColW); /* ✅ only board + sidebar */
+  grid-template-columns: 1fr var(--sideColW);
   gap: 14px;
   padding: 14px;
-  grid-template-rows: 1fr;     /* ✅ IMPORTANT */
-  min-height: 0;              /* ✅ keep */
+  grid-template-rows: 1fr;
+  min-height: 0;
   opacity: 1;
 }
 
 /* =========================================================
-   LAYER BARS (HEIGHT MATCHES HEX FIELD + ACTIVE GLOW)
+   LAYER BARS
 ========================================================= */
 .barWrap{
   height: 100%;
   display: flex;
-
-  /* ✅ critical: stop vertical centering */
   align-items: flex-start;
-
   justify-content: center;
   z-index: 6;
-
-  /* ✅ match the board padding so bar starts where row 0 starts */
   padding-top: var(--boardPadTop);
   padding-bottom: var(--boardPadBottom);
 }
@@ -1126,10 +904,7 @@ body{
 
 .layerBar{
   width: var(--barW);
-
-  /* ✅ bar height = JUST the 7 row stack */
   height: var(--hexRowsH);
-
   border-radius: 999px;
   overflow: hidden;
   border: 1px solid rgba(255,255,255,.16);
@@ -1139,7 +914,7 @@ body{
   flex-direction: column;
   position: relative;
 }
-.barSeg{ height: var(--layerSegH);   width: 100%; opacity: .95; }
+.barSeg{ height: var(--layerSegH); width: 100%; opacity: .95; }
 .barSeg[data-layer="7"]{ background: var(--L7); }
 .barSeg[data-layer="6"]{ background: var(--L6); }
 .barSeg[data-layer="5"]{ background: var(--L5); }
@@ -1155,26 +930,14 @@ body{
     0 0 18px 6px rgba(255,255,255,.10);
   position: relative;
 }
-.barSeg.isActive::after{
-  content:"";
-  position:absolute;
-  inset: -6px;
-  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.35), transparent 60%);
-  opacity: .55;
-  pointer-events:none;
-}
-/* LEFT BAR: row shift labels */
-.rowShiftBar{
-  position: relative;
-}
 
+.rowShiftBar{ position: relative; }
 .rowShiftBar .rowSeg{
-  height: var(--layerSegH);   /* ✅ matches the right bar’s segments */
+  height: var(--layerSegH);
   display: grid;
   place-items: center;
   background: rgba(255,255,255,.03);
 }
-
 .rowShiftLabel{
   font-weight: 1000;
   font-size: 12px;
@@ -1183,6 +946,7 @@ body{
   text-shadow: 0 2px 10px rgba(0,0,0,.45);
   user-select: none;
 }
+
 .goalMarker{
   position: absolute;
   left: 50%;
@@ -1195,7 +959,6 @@ body{
   font-weight: 1000;
   font-size: 12px;
   letter-spacing: .2px;
-
   color: rgba(255, 220, 120, .95);
   background: rgba(0,0,0,.45);
   border: 1px solid rgba(255, 220, 120, .55);
@@ -1205,36 +968,7 @@ body{
   z-index: 5;
   pointer-events: none;
 }
-/* mini sprite in the RIGHT layer bar */
-.barPlayerMini{
-  position: absolute;
-  left: 50%;
-  transform: translate(-50%, -50%);
 
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-
-  display: grid;
-  place-items: center;
-
-  /* keep it visible on dark bar */
-  background: rgba(0,0,0,.35);
-  border: 1px solid rgba(255,255,255,.18);
-  box-shadow:
-    0 10px 22px rgba(0,0,0,.40),
-    0 0 0 3px rgba(255,255,255,.06);
-
-  pointer-events: none;
-  z-index: 4; /* goalMarker is 5, so sprite is BEHIND it */
-}
-
-/* make sure goal marker stays above */
-.goalMarker{
-  z-index: 5;
-}
-
-/* mini sprite in the RIGHT layer bar */
 .barPlayerMini{
   position: absolute;
   left: 50%;
@@ -1250,13 +984,9 @@ body{
     0 10px 22px rgba(0,0,0,.40),
     0 0 0 3px rgba(255,255,255,.06);
   pointer-events: none;
-  z-index: 4; /* behind goalMarker */
+  z-index: 4;
 }
 
-/* make sure goal marker stays above */
-.goalMarker{ z-index: 5; }
-
-/* sprite sheet renderer for the mini */
 .barPlayerMini .miniSprite{
   width: 22px;
   height: 22px;
@@ -1283,17 +1013,15 @@ body{
   border: 1px solid rgba(255,255,255,.08);
   background: rgba(0,0,0,.50);
   box-shadow: var(--shadow2);
-  overflow: hidden;           /* ✅ important: contain scroll/overlays */
---boardInset: calc((100% - (var(--barColW) * 2) - var(--boardW)) / 2);
-display: grid;
+  overflow: hidden;
+  --boardInset: calc((100% - (var(--barColW) * 2) - var(--boardW)) / 2);
+  display: grid;
   grid-template-columns: var(--barColW) 1fr var(--barColW);
-  align-items: stretch;       /* ✅ WAS center — this is the big bug */
+  align-items: stretch;
   opacity: 1;
-
-   height: 100%;               /* ✅ IMPORTANT */
+  height: 100%;
   min-height: 0;
 }
-
 
 .boardLayerBg{
   position:absolute; inset:0;
@@ -1312,26 +1040,24 @@ display: grid;
 .boardScroll{
   grid-column: 2;
   position: relative;
-  z-index: 3;          /* above bg + overlay */
-  height: 100%;        /* ✅ make it fill the stretched cell */
+  z-index: 3;
+  height: 100%;
   min-height: 0;
   overflow: hidden;
   padding: 0 10px;
-  
-
 }
 
 .barWrap.barLeft{ grid-column: 1; }
 .barWrap.barRight{ grid-column: 3; }
+
 .board{
   width: var(--boardW);
   margin: 0 auto;
   padding: var(--boardPadTop) 0 var(--boardPadBottom);
   position: relative;
- height: var(--hexFieldH);
- overflow: visible;
+  height: var(--hexFieldH);
+  overflow: visible;
 }
-
 
 /* =========================================================
    HEX ROWS (7676767)
@@ -1340,8 +1066,7 @@ display: grid;
   display: flex;
   width: fit-content;
   margin: 0 auto;
-
-  height: var(--hexStepY);     /* ✅ honeycomb vertical spacing */
+  height: var(--hexStepY);
   align-items: center;
 }
 
@@ -1353,7 +1078,6 @@ display: grid;
 
 /* =========================================================
    HEX SLOTS + HEX BUTTON
-   ✅ FIX: removed invalid nested ".hex{ .hex{ ... } }"
 ========================================================= */
 .hexSlot{
   width: var(--hexStepX);
@@ -1361,28 +1085,29 @@ display: grid;
   display: grid;
   place-items: center;
   flex: 0 0 var(--hexStepX);
-   position: relative;
+  position: relative;
 }
 .hexSlot.empty{ opacity: 0; }
 
 .hex{
   width: var(--hexWMain);
-  height: var(--hexHMain); 
-  margin-right: calc(var(--hexPitch) - var(--hexWMain));
+  height: var(--hexHMain);
+
+  /* ✅ FIX: spacing is controlled by .hexSlot; remove old flex-era margin hacks */
+  margin: 0;
+
   clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
   padding: 0;
-  border: 0px solid rgba(0,0,0,.75);
+  border: 0;
   background: rgba(255,255,255,.14);
   cursor: pointer;
   box-shadow: 0 0 0 1px rgba(0,0,0,.35) inset, 0 6px 16px rgba(0,0,0,.10);
   filter: drop-shadow(0 10px 16px rgba(0,0,0,.35));
   transition: transform 140ms ease, filter 140ms ease;
   position: relative;
-  overflow: visible;
- position: relative;
   z-index: 1;
+  overflow: visible;
   --hexGlow: rgba(120,255,210,.51);
-flex: 0 0 var(--hexWMain);
 }
 .hex:hover{
   transform: translateY(-2px);
@@ -1416,435 +1141,24 @@ flex: 0 0 var(--hexWMain);
   box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
   overflow:visible;
 }
-.hexInner::before{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  opacity:.18;
-  background:
-    radial-gradient(circle at 20% 20%, rgba(255,255,255,.35), transparent 55%),
-    radial-gradient(circle at 80% 80%, rgba(255,255,255,.25), transparent 55%);
-  pointer-events:none;
-}
-/* =========================================================
-   START TILE PORTAL FX (Bonus: Portal Hex recreated)
-   Uses your per-hex color: --hexGlow
-========================================================= */
 
-.hex.portalStart{
-  --portalC: var(--hexGlow);
-}
-
-/* layers inside hexInner (already clipped) */
-.hex .hexInner .pAura,
-.hex .hexInner .pRunes,
-.hex .hexInner .pVortex,
-.hex .hexInner .pWell,
-.hex .hexInner .pShine{
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  border-radius: 10px;
-  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
-}
-
-.hex.portalStart .hexInner{
-  border-color: color-mix(in srgb, var(--portalC) 55%, rgba(255,255,255,.14));
-  box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,.35),
-    0 0 0 3px color-mix(in srgb, var(--portalC) 18%, transparent),
-    0 0 18px color-mix(in srgb, var(--portalC) 22%, transparent);
-}
-
-/* Aura bloom */
-.hex.portalStart .hexInner .pAura{
-  inset:-14%;
-  background:
-    radial-gradient(circle at 50% 50%,
-      color-mix(in srgb, var(--portalC) 70%, transparent),
-      transparent 60%),
-    radial-gradient(circle at 60% 78%,
-      rgba(0,255,195,0.18),
-      transparent 64%);
-  filter: blur(14px) saturate(1.15);
-  opacity: 0.95;
-  animation: portalBreathe 2.6s ease-in-out infinite;
-}
-@keyframes portalBreathe{
-  0%,100%{ transform: scale(0.99); filter: blur(12px) saturate(1.05); }
-  50%{ transform: scale(1.12); filter: blur(16px) saturate(1.25); }
-}
-
-/* Vortex (twirl) */
-.hex.portalStart .hexInner .pVortex{
-  inset: 9%;
-  overflow:hidden;
-  filter: saturate(1.15);
-  opacity: 0.95;
-}
-.hex.portalStart .hexInner .pVortex::before{
-  content:"";
-  position:absolute; inset:-25%;
-  background:
-    conic-gradient(from 0deg,
-      rgba(0,0,0,0) 0 10%,
-      color-mix(in srgb, var(--portalC) 70%, transparent) 18%,
-      rgba(0,255,195,0.22) 28%,
-      rgba(255,80,170,0.16) 40%,
-      color-mix(in srgb, var(--portalC) 50%, transparent) 54%,
-      rgba(0,0,0,0) 70% 100%),
-    radial-gradient(circle at 50% 50%,
-      rgba(0,0,0,0.0) 0 42%,
-      rgba(0,0,0,0.75) 64% 100%);
-  mix-blend-mode: screen;
-  animation: portalVortex 1.45s linear infinite;
-}
-@keyframes portalVortex{
-  0%{ transform: rotate(0deg) scale(1.03); }
-  100%{ transform: rotate(360deg) scale(1.03); }
-}
-
-/* Runic ring */
-.hex.portalStart .hexInner .pRunes{
-  inset: 2%;
-  opacity: 0.85;
-  background:
-    repeating-conic-gradient(
-      from 10deg,
-      rgba(255,255,255,0.0) 0 10deg,
-      color-mix(in srgb, var(--portalC) 55%, transparent) 10deg 12deg,
-      rgba(255,255,255,0.0) 12deg 18deg
-    );
-  filter: blur(0.35px);
-  animation: portalRunes 3.4s linear infinite reverse;
-  mix-blend-mode: screen;
-}
-@keyframes portalRunes{
-  0%{ transform: rotate(0deg); }
-  100%{ transform: rotate(360deg); }
-}
-
-/* Depth “well” */
-.hex.portalStart .hexInner .pWell{
-  inset: 26%;
-  background:
-    radial-gradient(circle at 50% 52%,
-      rgba(0,0,0,0.0) 0 35%,
-      rgba(0,0,0,0.9) 70% 100%),
-    radial-gradient(circle at 45% 40%,
-      rgba(255,255,255,0.12),
-      transparent 55%);
-  opacity: 0.95;
-}
-
-/* Shimmer sweep */
-.hex.portalStart .hexInner .pShine{
-  inset:-25%;
-  background:
-    conic-gradient(from 210deg,
-      transparent 0 45%,
-      rgba(255,255,255,0.18) 48%,
-      transparent 52% 100%);
-  opacity:0.40;
-  mix-blend-mode: screen;
-  animation: portalShine 1.6s linear infinite;
-}
-@keyframes portalShine{
-  0%{ transform: rotate(0deg); }
-  100%{ transform: rotate(360deg); }
-}
-
-/* =========================================================
-   REACHABLE (ONLY CHANGES: use layer color via --hexGlow)
-   - keeps your inset/padding exactly as-is
-   - keeps your ring thickness/shape exactly as-is
-========================================================= */
-
-.hex.reach .hexInner{
-  position: relative;
-  background: transparent !important;
-  background-image: none !important;
-
-  /* ✅ changed from fixed pink -> layer color */
-  border-color: color-mix(in srgb, var(--hexGlow) 90%, white 10%);
-  box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,.4);
-}
-
-.hex.reach .hexInner::after{
-  content:"";
-  position:absolute;
-
-  /* keep your inset exactly */
-  inset: 1px;
-
-  /* keep your hex clip exactly */
-  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
-
-  /* keep your padding (ring thickness) exactly */
-  padding: 6px;
-  pointer-events:none;
-
-  /* ✅ changed all pink stops -> layer color */
-  background:
-    conic-gradient(
-      from var(--reachSpin),
-      color-mix(in srgb, var(--hexGlow) 0%, transparent) 0deg,
-      color-mix(in srgb, var(--hexGlow) 35%, transparent) 40deg,
-      color-mix(in srgb, var(--hexGlow) 100%, transparent) 90deg,
-      color-mix(in srgb, var(--hexGlow) 35%, transparent) 140deg,
-      color-mix(in srgb, var(--hexGlow) 0%, transparent) 210deg,
-      color-mix(in srgb, var(--hexGlow) 0%, transparent) 360deg
-    );
-
-  /* keep your cutout exactly */
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-
-  opacity: 1;
-
-  /* ✅ changed pink glow -> layer color */
-  filter:
-    drop-shadow(0 0 10px color-mix(in srgb, var(--hexGlow) 95%, transparent))
-    drop-shadow(0 0 22px color-mix(in srgb, var(--hexGlow) 35%, transparent));
-
-  animation:
-    reachSpin 1.8s linear infinite,
-    reachPulse .9s ease-in-out infinite;
-
-  transform: translateZ(0);
-  will-change: transform;
-}
-
-@property --reachSpin {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
-
-@keyframes reachSpin {
-  to { --reachSpin: 360deg; }
-}
-
-@keyframes reachPulse {
-  0%,100% { opacity: .85; }
-  50%     { opacity: 1; }
-}
-
-@keyframes reachPulse{
-  0%{ filter: brightness(1); }
-  50%{ filter: brightness(1.15); }
-  100%{ filter: brightness(1); }
-}
-
-.hex.sel .hexInner{
-  border-color: rgba(255,221,121,.55);
-  box-shadow: inset 0 0 0 1px rgba(255,221,121,.20), 0 0 0 3px rgba(255,221,121,.10);
-}
-.hex.blocked .hexInner{
-  border-color: rgba(255,93,122,.22);
-  background: rgba(0,0,0,.55);
-  filter: grayscale(.15) brightness(.9);
-}
-.hex.player .hexInner{
-  border-color: rgba(120,255,210,.55);
-  box-shadow: inset 0 0 0 1px rgba(120,255,210,.20), 0 0 0 3px rgba(120,255,210,.10);
-}
-.hex.goal .hexInner{
-  border-color: rgba(255,211,106,.55);
-  box-shadow: inset 0 0 0 1px rgba(255,211,106,.20), 0 0 0 3px rgba(255,211,106,.10);
-}
-.hex.trigger .hexInner{
-  border-color: rgba(255,122,209,.40);
-  box-shadow: inset 0 0 0 1px rgba(255,122,209,.18), 0 0 0 3px rgba(255,122,209,.08);
-}
-
-/* current layer glow */
-.hex.sel{
-  filter:
-    drop-shadow(0 12px 18px rgba(0,0,0,.40))
-    drop-shadow(0 0 14px color-mix(in srgb, var(--hexGlow) 70%, transparent));
-}
-.hex.reach{
-  filter:
-    drop-shadow(0 12px 18px rgba(0,0,0,.40))
-    drop-shadow(0 0 10px color-mix(in srgb, var(--hexGlow) 55%, transparent));
-}
-
-/* =========================================================
-   PORTAL TILE FX (uses destination color: --portalC)
-   (keeps your existing tile bg / marks / borders)
-========================================================= */
-
-.hex.portalUp,
-.hex.portalDown{
-  --portalC: var(--hexGlow); /* fallback */
-}
-
-.hex.portalUp .hexInner .pAura,
-.hex.portalDown .hexInner .pAura,
-.hex.portalUp .hexInner .pOrbs,
-.hex.portalDown .hexInner .pOrbs,
-.hex.portalUp .hexInner .pRim,
-.hex.portalDown .hexInner .pRim,
-.hex.portalUp .hexInner .pOval,
-.hex.portalDown .hexInner .pOval{
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  border-radius: 10px;
-  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
-}
-
-/* glow framing (subtle so your existing look stays) */
-.hex.portalUp .hexInner,
-.hex.portalDown .hexInner{
-  border-color: color-mix(in srgb, var(--portalC) 55%, rgba(255,255,255,.12));
-  box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,.35),
-    0 0 0 3px color-mix(in srgb, var(--portalC) 16%, transparent),
-    0 0 16px color-mix(in srgb, var(--portalC) 22%, transparent);
-}
-
-/* aura bloom */
-.hex.portalUp .hexInner .pAura,
-.hex.portalDown .hexInner .pAura{
-  inset:-14%;
-  background:
-    radial-gradient(circle at 50% 50%,
-      color-mix(in srgb, var(--portalC) 70%, transparent),
-      transparent 60%);
-  filter: blur(14px) saturate(1.15);
-  opacity: .95;
-  animation: pBreathe 2.6s ease-in-out infinite;
-    
-}
-@keyframes pBreathe{
-  0%,100%{ transform: scale(.99); opacity:.75; }
-  50%{ transform: scale(1.12); opacity:1; }
-}
-
-/* crisp floating orbs (same idea as your demo) */
-.hex.portalUp .hexInner .pOrbs,
-.hex.portalDown .hexInner .pOrbs{
-  inset: 0;
-  background:
-    radial-gradient(6px 5px at 20% 30%, rgba(255,255,255,0.18), transparent 58%),
-    radial-gradient(7px 6px at 35% 22%, color-mix(in srgb, var(--portalC) 35%, transparent), transparent 58%),
-    radial-gradient(6px 5px at 55% 18%, rgba(0,255,220,0.18), transparent 58%),
-    radial-gradient(7px 6px at 72% 26%, color-mix(in srgb, var(--portalC) 28%, transparent), transparent 58%);
-  mix-blend-mode: screen;
-  filter: blur(0.25px);
-  opacity: .95;
-  animation: pOrbs 3.2s ease-in-out infinite;
-}
-@keyframes pOrbs{
-  0%,100%{ transform: translateY(0); opacity:.75; }
-  50%{ transform: translateY(-6px); opacity:1; }
-}
-
-/* oval + rim twirl (centered on hex) */
-.hex.portalUp .hexInner .pOval,
-.hex.portalDown .hexInner .pOval,
-.hex.portalUp .hexInner .pRim,
-.hex.portalDown .hexInner .pRim{
-  left:50%;
-  top:50%;
-  width: 80%;
-  height: 46%;
-  transform:
-    translate(-50%,-50%)
-    rotate(-18deg)
-    skewX(-10deg)
-    perspective(800px)
-    rotateX(60deg);
-  border-radius: 999px;
-}
-
-.hex.portalUp .hexInner .pOval,
-.hex.portalDown .hexInner .pOval{
-  inset: auto;
-  overflow:visible;
-  background:
-    radial-gradient(circle at 50% 50%,
-      rgba(0,0,0,0) 0 38%,
-      rgba(0,0,0,0.90) 70%),
-    radial-gradient(circle at 45% 50%,
-      color-mix(in srgb, var(--portalC) 35%, transparent),
-      transparent 65%);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
-}
-.hex.portalUp .hexInner .pOval::before,
-.hex.portalDown .hexInner .pOval::before{
-  content:"";
-  position:absolute;
-  inset:-32%;
-  background:
-    conic-gradient(
-      rgba(0,0,0,0) 0 14%,
-      color-mix(in srgb, var(--portalC) 95%, transparent) 22%,
-      rgba(0,255,220,0.20) 32%,
-      rgba(255,80,170,0.12) 44%,
-      color-mix(in srgb, var(--portalC) 60%, transparent) 58%,
-      rgba(0,0,0,0) 72% 100%);
-  mix-blend-mode: screen;
-  animation: pSpin 1.25s linear infinite;
-}
-@keyframes pSpin{ to{ transform: rotate(360deg); } }
-
-.hex.portalUp .hexInner .pRim,
-.hex.portalDown .hexInner .pRim{
-  inset:auto;
-  background:
-    conic-gradient(
-      transparent 0 18%,
-      rgba(255,255,255,0.22) 22%,
-      color-mix(in srgb, var(--portalC) 95%, transparent) 32%,
-      transparent 55% 100%);
-  filter: blur(0.6px);
-  mix-blend-mode: screen;
-  animation: pRim 1.55s linear infinite;
-  
-}
-@keyframes pRim{
-  to{
-    transform:
-      translate(-50%,-50%)
-      rotate(-18deg)
-      skewX(-10deg)
-      perspective(800px)
-      rotateX(60deg)
-      rotate(360deg);
-  }
-}
-
-/* =========================================================
-   HEX TEXT / MARKS
-========================================================= */
 .hexId{
   position: absolute;
-  inset: 0;                 /* fill the hex */
+  inset: 0;
   display: grid;
-  place-items: center;      /* ✅ dead-center */
+  place-items: center;
   font-size: 13px;
   font-weight: 900;
   color: rgba(255,255,255,.82);
   font-variant-numeric: tabular-nums;
-
-  /* remove the pill look */
   padding: 0;
   border: none;
   background: transparent;
-
-  /* keep it readable */
   text-shadow: 0 2px 10px rgba(0,0,0,.55);
-
   pointer-events: none;
   z-index: 5;
 }
+
 .hexMarks{
   position:absolute;
   right: 9px;
@@ -1876,6 +1190,7 @@ flex: 0 0 var(--hexWMain);
   color: rgba(255,122,209,.95);
   background: rgba(255,122,209,.10);
 }
+
 /* =========================================================
    GHOST GRID (unshifted reference)
 ========================================================= */
@@ -1883,25 +1198,22 @@ flex: 0 0 var(--hexWMain);
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 2;           /* behind real hexes (board content is z-index 3+) */
+  z-index: 2;
   opacity: 0.35;
 }
 
 .ghostRow{
   display: flex;
- height: var(--hexStepY);  
+  height: var(--hexStepY);
   align-items: center;
-
-  /* ✅ this is the centering fix */
   width: fit-content;
   margin: 0 auto;
-
   position: relative;
 }
 
 .ghostSlot{
   width: var(--hexStepX);
- height: var(--hexStepY);  
+  height: var(--hexStepY);
   display: grid;
   place-items: center;
   flex: 0 0 var(--hexStepX);
@@ -1909,22 +1221,15 @@ flex: 0 0 var(--hexWMain);
 
 .ghostHex{
   width: var(--hexWMain);
- height: var(--hexStepY);  
+  height: var(--hexHMain); /* ✅ FIX: match real hex height */
   clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
   border: 1px dashed rgba(255,255,255,.35);
   background: rgba(0,0,0,.12);
   box-shadow: inset 0 0 0 1px rgba(0,0,0,.25);
 }
 
-.ghostText{
-  position: absolute;
-  font-size: 10px;
-  color: rgba(255,255,255,.50);
-  transform: translateY(-2px);
-}
-
 /* =========================================================
-   SPRITE (LARGER)
+   SPRITE
 ========================================================= */
 .playerSpriteSheet{
   position: absolute;
@@ -1933,7 +1238,7 @@ flex: 0 0 var(--hexWMain);
   width: calc(var(--frameW) * 1px);
   height: calc(var(--frameH) * 1px);
 
-  --spriteScale: 0.78;  /* medium bigger */
+  --spriteScale: 0.78;
   --footX: -10px;
   --footY: 0px;
 
@@ -2012,8 +1317,7 @@ flex: 0 0 var(--hexWMain);
 .logRow.info .lm{ color: rgba(119,168,255,.92); }
 
 /* =========================================================
-   DECK CARDS (PINNED TO GUTTERS)
-   Continuous layer-colored border + constant inner motion
+   DECK CARDS
 ========================================================= */
 
 .hexDeckOverlay{
@@ -2028,10 +1332,6 @@ flex: 0 0 var(--hexWMain);
 }
 
 .hexDeckCol{ display: contents; }
-
-/* =========================================================
-   BASE CARD
-========================================================= */
 
 .hexDeckCard{
   position: absolute;
@@ -2055,10 +1355,6 @@ flex: 0 0 var(--hexWMain);
     0 0 0 1px rgba(255,255,255,.06) inset;
 }
 
-/* =========================================================
-   CARD POSITIONS
-========================================================= */
-
 .hexDeckCard.cosmic{
   left: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
   top: calc(var(--boardPadTop) + var(--deckPadY));
@@ -2080,10 +1376,6 @@ flex: 0 0 var(--hexWMain);
   transform: translateX(45%);
 }
 
-/* =========================================================
-   INNER FX LAYER (ambient motion, seamless loop)
-========================================================= */
-
 .hexDeckCard .deckFx{
   position:absolute;
   inset:0;
@@ -2093,7 +1385,6 @@ flex: 0 0 var(--hexWMain);
   transform: translateZ(0);
 }
 
-/* static glow + pattern */
 .hexDeckCard .deckFx::before{
   content:"";
   position:absolute;
@@ -2115,7 +1406,6 @@ flex: 0 0 var(--hexWMain);
   mix-blend-mode: overlay;
 }
 
-/* constant inner movement (no visible loop reset) */
 @keyframes deckInnerDrift{
   from { transform: translate3d(-90%,-90%,0) rotate(0deg); }
   to   { transform: translate3d( 90%, 90%,0) rotate(360deg); }
@@ -2150,10 +1440,6 @@ flex: 0 0 var(--hexWMain);
   will-change: transform;
   animation: deckInnerDrift 8s linear infinite;
 }
-
-/* =========================================================
-   FULL 360° LAYER-COLORED BORDER (continuous loop)
-========================================================= */
 
 @property --spin {
   syntax: "<angle>";
@@ -2208,16 +1494,17 @@ flex: 0 0 var(--hexWMain);
     deckBorderSpin 2.8s linear infinite,
     deckBorderBreath 1.35s ease-in-out infinite;
 }
+
 .cardBadge{
   position: absolute;
   left: 50%;
-  top: 18px;                 /* ✅ keeps it well below the top point */
+  top: 18px;
   transform: translateX(-50%);
   width: 20px;
   height: 12px;
   border-radius: 4px;
 
-  z-index: 6;                /* ✅ ABOVE .hexId (which is z-index: 5) */
+  z-index: 6;
   box-shadow: 0 6px 14px rgba(0,0,0,.35);
   border: 1px solid rgba(255,255,255,.18);
   pointer-events: none;
@@ -2229,136 +1516,257 @@ flex: 0 0 var(--hexWMain);
 .cardBadge.terrain { background: linear-gradient(135deg,#0E3B2E,#1FA88A); }
 .cardBadge.shadow  { background: linear-gradient(135deg,#1B1B1E,#2A1E3F); }
 
-/* =========================================================
-   CARD THEMES
-========================================================= */
-
 .hexDeckCard.cosmic  { --a:#0C1026; --b:#1A1F4A; }
 .hexDeckCard.risk    { --a:#12090A; --b:#6E0F1B; }
 .hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; }
 .hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; }
 
-@media (prefers-reduced-motion: reduce){
-  .hexDeckCard::after,
-  .hexDeckCard .deckFx::after{
-    animation:none !important;
+/* =========================================================
+   CARD FLIP OVERLAY (FULLSCREEN)
+========================================================= */
+
+.cardFlipOverlay{
+  --flipDur: 1400ms;
+
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+  animation: cardFlipFade var(--flipDur) ease-out forwards;
+}
+
+@keyframes cardFlipFade{
+  0%   { opacity: 0; }
+  12%  { opacity: 1; }
+  75%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.cardFlipCard{
+  width: min(420px, 78vw);
+  aspect-ratio: 3 / 4;
+  border-radius: 28px;
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow:
+    0 28px 90px rgba(0,0,0,.65),
+    0 0 0 1px rgba(255,255,255,.06) inset;
+  overflow: hidden;
+  position: relative;
+  transform-origin: center;
+  animation: cardFlipPop var(--flipDur) ease-out forwards;
+}
+
+@keyframes cardFlipPop{
+  0%   { transform: translateY(18px) scale(.92) rotateX(12deg); filter: blur(2px); opacity: 0; }
+  12%  { transform: translateY(0)    scale(1)  rotateX(0deg);  filter: blur(0);  opacity: 1; }
+  70%  { transform: translateY(0)    scale(1)  rotateX(0deg);  filter: blur(0);  opacity: 1; }
+  100% { transform: translateY(-10px) scale(.98); filter: blur(1px); opacity: 0; }
+}
+
+.cardFlipCard.cosmic  { background: linear-gradient(135deg,#0C1026,#1A1F4A); }
+.cardFlipCard.risk    { background: linear-gradient(135deg,#12090A,#6E0F1B); }
+.cardFlipCard.terrain { background: linear-gradient(135deg,#0E3B2E,#1FA88A); }
+.cardFlipCard.shadow  { background: linear-gradient(135deg,#1B1B1E,#2A1E3F); }
+
+.cardFlipCard::before{
+  content:"";
+  position:absolute;
+  inset:-30%;
+  background:
+    radial-gradient(80% 60% at 30% 20%, rgba(255,255,255,.14), transparent 65%),
+    radial-gradient(70% 55% at 75% 80%, rgba(255,255,255,.10), transparent 65%),
+    repeating-linear-gradient(115deg, rgba(255,255,255,0) 0 14px, rgba(255,255,255,.10) 18px, rgba(255,255,255,0) 22px);
+  opacity: .55;
+  mix-blend-mode: overlay;
+  animation: flipDrift var(--flipDur) linear forwards;
+}
+
+@keyframes flipDrift{
+  from { transform: translate3d(-12%, -10%, 0) rotate(0deg); }
+  to   { transform: translate3d( 12%,  10%, 0) rotate(14deg); }
+}
+
+.cardFlipCard::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events:none;
+  background:
+    conic-gradient(
+      from 0deg,
+      rgba(255,255,255,.28),
+      rgba(255,255,255,.08),
+      rgba(255,255,255,.28)
+    );
+
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+
+  opacity: .9;
+}
+
+.cardFlipLabel{
+  position:absolute;
+  left: 18px;
+  bottom: 16px;
+  font-weight: 1000;
+  letter-spacing: .45px;
+  font-size: 13px;
+  color: rgba(255,255,255,.90);
+  text-transform: uppercase;
+  text-shadow: 0 10px 26px rgba(0,0,0,.55);
+}
+
+.cardFlipVillain{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 5;
+  opacity: 0;
+  animation: villainFadeIn 700ms ease-out forwards;
+  animation-delay: 350ms;
+  filter: drop-shadow(0 18px 40px rgba(0,0,0,.55));
+}
+
+@keyframes villainFadeIn{
+  from { opacity: 0; transform: scale(1.02); }
+  to   { opacity: 1; transform: scale(1.00); }
+}
+
+/* =========================================================
+   FLY-OUT CARD (deck -> center -> flip)
+========================================================= */
+.flyCardOverlay{
+  position: fixed;
+  inset: 0;
+  z-index: 1900;
+  pointer-events: none;
+}
+
+.flyCard{
+  position: fixed;
+  left: 0;
+  top: 0;
+
+  width: var(--fromW);
+  height: var(--fromH);
+
+  transform-style: preserve-3d;
+  transform-origin: center;
+  border-radius: 22px;
+  overflow: hidden;
+
+  transform: translate3d(var(--fromX), var(--fromY), 0) scale(1);
+
+  animation: flyToCenter 1.15s ease-out forwards;
+  box-shadow: 0 28px 90px rgba(0,0,0,.65);
+}
+
+.flyCard.cosmic  { background: linear-gradient(135deg,#0C1026,#1A1F4A); }
+.flyCard.risk    { background: linear-gradient(135deg,#12090A,#6E0F1B); }
+.flyCard.terrain { background: linear-gradient(135deg,#0E3B2E,#1FA88A); }
+.flyCard.shadow  { background: linear-gradient(135deg,#1B1B1E,#2A1E3F); }
+
+.flyFace{
+  position:absolute;
+  inset:0;
+  backface-visibility: hidden;
+  border-radius: 22px;
+  overflow:hidden;
+}
+.flyFront{ transform: rotateY(0deg); }
+.flyBack{
+  transform: rotateY(180deg);
+  filter: brightness(1.05) saturate(1.1);
+}
+
+.flyLabel{
+  position:absolute;
+  left: 18px;
+  bottom: 16px;
+  font-weight: 1000;
+  letter-spacing: .45px;
+  font-size: 13px;
+  color: rgba(255,255,255,.92);
+  text-transform: uppercase;
+  text-shadow: 0 10px 26px rgba(0,0,0,.55);
+}
+
+@keyframes flyToCenter{
+  0%{
+    opacity: 1;
+    transform: translate3d(var(--fromX), var(--fromY), 0)
+               scale(1)
+               rotateY(0deg);
+  }
+
+  45%{
+    opacity: 1;
+    transform:
+      translate3d(
+        calc(50vw - (var(--fromW) / 2)),
+        calc(50vh - (var(--fromH) / 2)),
+        0
+      )
+      scale(1.3)
+      rotateY(0deg);
+  }
+
+  70%{
+    opacity: 1;
+    transform:
+      translate3d(
+        calc(50vw - (var(--fromW) / 2)),
+        calc(50vh - (var(--fromH) / 2)),
+        0
+      )
+      scale(1.3)
+      rotateY(0deg);
+  }
+
+  85%{
+    opacity: 1;
+    transform:
+      translate3d(
+        calc(50vw - (var(--fromW) / 2)),
+        calc(50vh - (var(--fromH) / 2)),
+        0
+      )
+      scale(1.3)
+      rotateY(180deg);
+  }
+
+  100%{
+    opacity: 0;
+    transform:
+      translate3d(
+        calc(50vw - (var(--fromW) / 2)),
+        calc(50vh - (var(--fromH) / 2)),
+        0
+      )
+      scale(1.25)
+      rotateY(180deg);
   }
 }
 
-
 /* =========================================================
-   OVERLAY / ENCOUNTER
+   ENCOUNTER SCENE
 ========================================================= */
-.overlay{
-  position:absolute;
-  inset:0;
-  z-index: 50;
-  display:grid;
-  place-items: center;
-  background: rgba(0,0,0,.55);
-  backdrop-filter: blur(8px);
-}
-.overlayCard{
-  width: min(560px, 92vw);
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.14);
-  background: rgba(10,14,24,.92);
-  box-shadow: 0 24px 70px rgba(0,0,0,.55);
-  padding: 16px;
-}
-.overlayTitle{
-  font-size: 16px;
-  font-weight: 1000;
-  letter-spacing: .35px;
-  text-transform: uppercase;
-}
-.overlaySub{
-  margin-top: 8px;
-  color: rgba(255,255,255,.78);
-  font-size: 13px;
-  line-height: 1.35;
-}
-.villainBox{
-  margin-top: 14px;
-  display:grid;
-  grid-template-columns: 120px 1fr;
-  gap: 14px;
-  align-items:center;
-  padding: 0;
-  border: none;
-  background: transparent;
-}
-.villainImg{
-  width: 120px;
-  height: 120px;
-  border-radius: 16px;
-  object-fit: cover;
-  border: 1px solid rgba(255,255,255,.12);
-  box-shadow: 0 14px 40px rgba(0,0,0,.35);
-  background: rgba(0,0,0,.25);
-}
-.villainMeta{ display:grid; gap: 10px; }
-.layerFxOverlay{
-  position: absolute;
-  inset: 0;
-  z-index: 999;               /* higher than board + pieces */
-  pointer-events: auto;       /* blocks clicks */
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-}
-
-/* Flash */
-.layerFxOverlay::before{
-  content: "";
-  position: absolute;
-  inset: -20%;
-  background: var(--layerFxColor, rgba(255,255,255,.35));
-  animation: layerFlash 3s ease-out forwards;
-}
-
-/* Center textbox */
-.layerFxCard{
-  position: relative;
-  z-index: 1;
-  padding: 18px 22px;
-  border-radius: 16px;
-  background: rgba(10,12,18,.72);
-  border: 1px solid rgba(255,255,255,.18);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 18px 60px rgba(0,0,0,.45);
-  animation: layerCardPop 3s ease-out forwards;
-}
-
-.layerFxTitle{
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: .5px;
-  color: rgba(255,255,255,.92);
-}
-
-@keyframes layerFlash{
-  0%   { opacity: 0; transform: scale(1.02); }
-  8%   { opacity: 1; }
-  55%  { opacity: .65; }
-  100% { opacity: 0; transform: scale(1.06); }
-}
-
-@keyframes layerCardPop{
-  0%   { opacity: 0; transform: translateY(10px) scale(.98); }
-  10%  { opacity: 1; transform: translateY(0) scale(1); }
-  70%  { opacity: 1; }
-  100% { opacity: 0; transform: translateY(-6px) scale(.99); }
-}
-/* =========================================================
-   ENCOUNTER SCENE (FULLSCREEN like old version)
-========================================================= */
-
 .encounterScene{
   position: fixed;
   inset: 0;
-  z-index: 2200; /* above cardFlipOverlay(2000) */
+  z-index: 2200;
   display: grid;
   place-items: center;
   background: rgba(0,0,0,.62);
@@ -2373,7 +1781,6 @@ flex: 0 0 var(--hexWMain);
   align-items: center;
 }
 
-
 .encounterCard{
   width: 100%;
   aspect-ratio: 3 / 4;
@@ -2383,14 +1790,13 @@ flex: 0 0 var(--hexWMain);
   box-shadow: 0 28px 90px rgba(0,0,0,.65);
   background: rgba(0,0,0,.25);
 }
-/* Use your existing risk gradient */
+
 .encounterCard.riskCard {
   background: linear-gradient(135deg,#12090A,#6E0F1B);
   position: relative;
   overflow: hidden;
 }
 
-/* optional inner animated glow (like deck cards) */
 .riskCardFx {
   position: absolute;
   inset: -30%;
@@ -2406,27 +1812,16 @@ flex: 0 0 var(--hexWMain);
   to   { transform: translate3d( 12%,  10%, 0) rotate(14deg); }
 }
 
-/* Villain sits on top of red card */
 .riskVillainImg {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-
   z-index: 5;
-
   animation: villainFadeIn 700ms ease-out forwards;
   animation-delay: 300ms;
-
   filter: drop-shadow(0 18px 40px rgba(0,0,0,.55));
-}
-
-.encounterCardImg{
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
 }
 
 .encounterRight{
@@ -2435,9 +1830,6 @@ flex: 0 0 var(--hexWMain);
   align-items: center;
   justify-content: center;
 }
-
-
-
 
 .encounterInfo{
   text-align: center;
@@ -2473,132 +1865,12 @@ flex: 0 0 var(--hexWMain);
   font-weight: 900;
 }
 
-/* responsive stack */
 @media (max-width: 860px){
   .encounterGrid{
     grid-template-columns: 1fr;
     gap: 18px;
   }
- 
 }
-/* =========================================================
-   CARD FLIP OVERLAY (FULLSCREEN)
-   Shows a big themed card for 1400ms when a card triggers
-========================================================= */
-
-.cardFlipOverlay{
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  display: grid;
-  place-items: center;
-  background: rgba(0,0,0,.55);
-  backdrop-filter: blur(10px);
-  pointer-events: none; /* doesn't block clicks */
-  animation: cardFlipFade 1400ms ease-out forwards;
-}
-
-@keyframes cardFlipFade{
-  0%   { opacity: 0; }
-  12%  { opacity: 1; }
-  75%  { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-.cardFlipCard{
-  width: min(420px, 78vw);
-  aspect-ratio: 3 / 4;
-  border-radius: 28px;
-  border: 1px solid rgba(255,255,255,.18);
-  box-shadow:
-    0 28px 90px rgba(0,0,0,.65),
-    0 0 0 1px rgba(255,255,255,.06) inset;
-  overflow: hidden;
-  position: relative;
-  transform-origin: center;
-  animation: cardFlipPop 1400ms ease-out forwards;
-}
-
-@keyframes cardFlipPop{
-  0%   { transform: translateY(18px) scale(.92) rotateX(12deg); filter: blur(2px); opacity: 0; }
-  12%  { transform: translateY(0)    scale(1)  rotateX(0deg);  filter: blur(0);  opacity: 1; }
-  70%  { transform: translateY(0)    scale(1)  rotateX(0deg);  filter: blur(0);  opacity: 1; }
-  100% { transform: translateY(-10px) scale(.98); filter: blur(1px); opacity: 0; }
-}
-
-/* Theme backgrounds (match your deck cards) */
-.cardFlipCard.cosmic  { background: linear-gradient(135deg,#0C1026,#1A1F4A); }
-.cardFlipCard.risk    { background: linear-gradient(135deg,#12090A,#6E0F1B); }
-.cardFlipCard.terrain { background: linear-gradient(135deg,#0E3B2E,#1FA88A); }
-.cardFlipCard.shadow  { background: linear-gradient(135deg,#1B1B1E,#2A1E3F); }
-
-/* Nice inner motion + border */
-.cardFlipCard::before{
-  content:"";
-  position:absolute;
-  inset:-30%;
-  background:
-    radial-gradient(80% 60% at 30% 20%, rgba(255,255,255,.14), transparent 65%),
-    radial-gradient(70% 55% at 75% 80%, rgba(255,255,255,.10), transparent 65%),
-    repeating-linear-gradient(115deg, rgba(255,255,255,0) 0 14px, rgba(255,255,255,.10) 18px, rgba(255,255,255,0) 22px);
-  opacity: .55;
-  mix-blend-mode: overlay;
-  animation: flipDrift 1400ms linear forwards;
-}
-
-@keyframes flipDrift{
-  from { transform: translate3d(-12%, -10%, 0) rotate(0deg); }
-  to   { transform: translate3d( 12%,  10%, 0) rotate(14deg); }
-}
-
-.cardFlipCard::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  border-radius: inherit;
-  padding: 2px;
-  pointer-events:none;
-  background:
-    conic-gradient(
-      from 0deg,
-      rgba(255,255,255,.28),
-      rgba(255,255,255,.08),
-      rgba(255,255,255,.28)
-    );
-
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-
-  opacity: .9;
-}
-
-/* Optional label */
-.cardFlipLabel{
-  position:absolute;
-  left: 18px;
-  bottom: 16px;
-  font-weight: 1000;
-  letter-spacing: .45px;
-  font-size: 13px;
-  color: rgba(255,255,255,.90);
-  text-transform: uppercase;
-  text-shadow: 0 10px 26px rgba(0,0,0,.55);
-}
-
-/* =========================================================
-   SCROLLBARS
-========================================================= */
-*::-webkit-scrollbar{ width: 10px; height: 10px; }
-*::-webkit-scrollbar-thumb{
-  background: rgba(255,255,255,.12);
-  border-radius: 999px;
-  border: 2px solid rgba(0,0,0,.25);
-}
-*::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.18); }
-*::-webkit-scrollbar-corner{ background: transparent; }
 
 @media (max-width: 980px){
   body{ overflow:auto; }
@@ -2607,161 +1879,11 @@ flex: 0 0 var(--hexWMain);
   .side{ order: 10; }
   .board{ width: min(var(--boardW), 96vw); }
 }
-/* =========================================================
-   FLY-OUT CARD (deck -> center -> flip)
-========================================================= */
-.flyCardOverlay{
-  position: fixed;
-  inset: 0;
-  z-index: 1900; /* below cardFlipOverlay=2000, above everything else */
-  pointer-events: none;
-}
-
-.flyCard{
-  position: fixed;
-  left: 0;
-  top: 0;
-
-  width: var(--fromW);
-  height: var(--fromH);
-
-  transform-style: preserve-3d;
-  transform-origin: center;
-  border-radius: 22px;
-  overflow: hidden;
-
-  /* start at deck position */
-  transform: translate3d(var(--fromX), var(--fromY), 0) scale(1);
-
-  animation: flyToCenter 1.15s ease-out forwards;
-  box-shadow: 0 28px 90px rgba(0,0,0,.65);
-}
-
-/* reuse your theme backgrounds */
-.flyCard.cosmic  { background: linear-gradient(135deg,#0C1026,#1A1F4A); }
-.flyCard.risk    { background: linear-gradient(135deg,#12090A,#6E0F1B); }
-.flyCard.terrain { background: linear-gradient(135deg,#0E3B2E,#1FA88A); }
-.flyCard.shadow  { background: linear-gradient(135deg,#1B1B1E,#2A1E3F); }
-
-/* two faces for a real flip */
-.flyFace{
-  position:absolute;
-  inset:0;
-  backface-visibility: hidden;
-  border-radius: 22px;
-  overflow:hidden;
-}
-
-.flyFront{ transform: rotateY(0deg); }
-.flyBack{
-  transform: rotateY(180deg);
-  /* slight difference so you "feel" the flip */
-  filter: brightness(1.05) saturate(1.1);
-}
-
-.flyLabel{
-  position:absolute;
-  left: 18px;
-  bottom: 16px;
-  font-weight: 1000;
-  letter-spacing: .45px;
-  font-size: 13px;
-  color: rgba(255,255,255,.92);
-  text-transform: uppercase;
-  text-shadow: 0 10px 26px rgba(0,0,0,.55);
-}
-
-/* keyframe:
-   0%: at deck rect
-   ~55%: reach center, scale up
-   then flip near the end
-*/
-@keyframes flyToCenter{
-  0%{
-    opacity: 1;
-    transform: translate3d(var(--fromX), var(--fromY), 0)
-               scale(1)
-               rotateY(0deg);
-  }
-
-  /* arrive at center */
-  45%{
-    opacity: 1;
-    transform:
-      translate3d(
-        calc(50vw - (var(--fromW) / 2)),
-        calc(50vh - (var(--fromH) / 2)),
-0
-      )
-      scale(1.3)
-      rotateY(0deg);
-  }
-
-  /* HOLD large */
-  70%{
-    opacity: 1;
-    transform:
-      translate3d(
-        calc(50vw - (var(--fromW) / 2)),
-        calc(50vh - (var(--fromH) / 2)),
-0
-      )
-      scale(1.3)
-      rotateY(0deg);
-  }
-
-  /* flip after hold */
-  85%{
-    opacity: 1;
-    transform:
-      translate3d(
-        calc(50vw - (var(--fromW) / 2)),
-        calc(50vh - (var(--fromH) / 2)),
-0
-      )
-      scale(1.3)
-      rotateY(180deg);
-  }
-
-  /* fade out */
-  100%{
-    opacity: 0;
-    transform:
-      translate3d(
-        calc(50vw - (var(--fromW) / 2)),
-        calc(50vh - (var(--fromH) / 2)),
-0
-      )
-      scale(1.25)
-      rotateY(180deg);
-  }
-}
-.cardFlipVillain{
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-
-  /* sits over the big card */
-  z-index: 5;
-
-  /* fade in AFTER the card is visible */
-  opacity: 0;
-  animation: villainFadeIn 700ms ease-out forwards;
-  animation-delay: 350ms;
-
-  /* optional: make it feel “on top” */
-  filter: drop-shadow(0 18px 40px rgba(0,0,0,.55));
-}
-
-@keyframes villainFadeIn{
-  from { opacity: 0; transform: scale(1.02); }
-  to   { opacity: 1; transform: scale(1.00); }
-}
-
 `;
 
+/* =========================================================
+   Portals
+========================================================= */
 
 function findPortalTransition(
   transitions: any[] | undefined,
@@ -2787,8 +1909,6 @@ function findPortalTransition(
     const fc = normCol(Number(from.col));
 
     if (!Number.isFinite(fl) || !Number.isFinite(fr) || !Number.isFinite(fc)) continue;
-
-    
     if (fl !== c.layer || fr !== c.row || fc !== c.col) continue;
 
     const type: "UP" | "DOWN" = t?.type === "DOWN" ? "DOWN" : "UP";
@@ -2811,10 +1931,7 @@ function findPortalTransition(
   return null;
 }
 
-function applyPortalIfAny(
-  st: any,
-  landedId: string
-): { next: any; finalId: string } {
+function applyPortalIfAny(st: any, landedId: string): { next: any; finalId: string } {
   const tr = findPortalTransition(st?.scenario?.transitions, landedId);
   if (!tr) return { next: st, finalId: landedId };
 
@@ -2822,7 +1939,6 @@ function applyPortalIfAny(
 
   const destHex = getHexFromState(st as any, destId) as any;
   if (!destHex || destHex.missing || destHex.blocked) {
- 
     return { next: st, finalId: landedId };
   }
 
@@ -2830,12 +1946,9 @@ function applyPortalIfAny(
   return { next, finalId: destId };
 }
 
-
-
 /* =========================================================
-   App
+   Villains
 ========================================================= */
-
 
 function parseVillainsFromScenario(s: any): VillainTrigger[] {
   const src =
@@ -2878,12 +1991,15 @@ function parseVillainsFromScenario(s: any): VillainTrigger[] {
     }
 
     if (!Number.isFinite(layer) || !Number.isFinite(row)) continue;
-
     out.push({ key, layer, row, cols });
   }
 
   return out;
 }
+
+/* =========================================================
+   App
+========================================================= */
 
 export default function App() {
   /* =========================
@@ -2902,10 +2018,7 @@ export default function App() {
   const [worlds, setWorlds] = useState<WorldEntry[]>([]);
   const [worldId, setWorldId] = useState<string | null>(null);
 
-  const world = useMemo(
-    () => worlds.find((w) => w.id === worldId) ?? null,
-    [worlds, worldId]
-  );
+  const world = useMemo(() => worlds.find((w) => w.id === worldId) ?? null, [worlds, worldId]);
 
   const [scenarioId, setScenarioId] = useState<string | null>(null);
   const scenarioEntry = useMemo(
@@ -2937,8 +2050,9 @@ export default function App() {
 
   const [currentLayer, setCurrentLayer] = useState<number>(1);
   const [scenarioLayerCount, setScenarioLayerCount] = useState<number>(1);
-const canGoDown = currentLayer > 1;
-const canGoUp = currentLayer < scenarioLayerCount;
+  const canGoDown = currentLayer > 1;
+  const canGoUp = currentLayer < scenarioLayerCount;
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [startHexId, setStartHexId] = useState<string | null>(null);
 
@@ -2954,9 +2068,7 @@ const canGoUp = currentLayer < scenarioLayerCount;
      Per-layer move counters (for shifting)
   ========================= */
   const [layerMoves, setLayerMoves] = useState<Record<number, number>>({});
-  const [layerMoveArmed, setLayerMoveArmed] = useState<Record<number, boolean>>(
-    {}
-  );
+  const [layerMoveArmed, setLayerMoveArmed] = useState<Record<number, boolean>>({});
 
   const getLayerMoves = useCallback(
     (layer: number) => {
@@ -2969,9 +2081,7 @@ const canGoUp = currentLayer < scenarioLayerCount;
   /* =========================
      Layer flash overlay
   ========================= */
-  const [layerFx, setLayerFx] = useState<null | { key: number; layer: number }>(
-    null
-  );
+  const [layerFx, setLayerFx] = useState<null | { key: number; layer: number }>(null);
   const layerFxTimerRef = useRef<number | null>(null);
 
   const triggerLayerFx = useCallback((layer: number) => {
@@ -3053,6 +2163,7 @@ const canGoUp = currentLayer < scenarioLayerCount;
     ]);
 
     setLayerFx(null);
+    setShowGhost(false);
     setScreen("start");
   }, []);
 
@@ -3080,249 +2191,213 @@ const canGoUp = currentLayer < scenarioLayerCount;
 
   /* =========================
      Render helpers/components (INSIDE App)
-     ✅ AFTER playerId exists
   ========================= */
 
-const rows = useMemo(() => Array.from({ length: ROW_LENS.length }, (_, i) => i), []);
-   const viewState = useMemo(() => {
-  if (!state) return null;
+  const rows = useMemo(() => Array.from({ length: ROW_LENS.length }, (_, i) => i), []);
 
-  const rs = (state as any).rowShifts;
-  let hasEngineShift = false;
+  const viewState = useMemo(() => {
+    if (!state) return null;
 
-  if (rs && typeof rs === "object") {
-    for (const k of Object.keys(rs)) {
-      const rowsObj = rs[k];
-      if (!rowsObj || typeof rowsObj !== "object") continue;
-      for (const rKey of Object.keys(rowsObj)) {
-        const n = Number(rowsObj[rKey]);
-        if (Number.isFinite(n) && n !== 0) {
-          hasEngineShift = true;
-          break;
+    const rs = (state as any).rowShifts;
+    let hasEngineShift = false;
+
+    if (rs && typeof rs === "object") {
+      for (const k of Object.keys(rs)) {
+        const rowsObj = rs[k];
+        if (!rowsObj || typeof rowsObj !== "object") continue;
+        for (const rKey of Object.keys(rowsObj)) {
+          const n = Number(rowsObj[rKey]);
+          if (Number.isFinite(n) && n !== 0) {
+            hasEngineShift = true;
+            break;
+          }
         }
+        if (hasEngineShift) break;
       }
-      if (hasEngineShift) break;
-    }
-  }
-
-  if (hasEngineShift) return state;
-
-  const injected: any = { ...(state as any) };
-  const rowShifts: any = {};
-
-  for (let layer = 1; layer <= scenarioLayerCount; layer++) {
-    const perRow: any = {};
-    const mL = getLayerMoves(layer);
-
-    for (let r = 0; r < ROW_LENS.length; r++) {
-      perRow[r] = derivedRowShiftUnits(state as any, layer, r, mL);
     }
 
-    rowShifts[layer] = perRow;
-    rowShifts["L" + layer] = perRow;
-  }
+    if (hasEngineShift) return state;
 
-  injected.rowShifts = rowShifts;
-  return injected as any;
-}, [state, scenarioLayerCount, getLayerMoves]);
+    const injected: any = { ...(state as any) };
+    const rowShifts: any = {};
 
+    for (let layer = 1; layer <= scenarioLayerCount; layer++) {
+      const perRow: any = {};
+      const mL = getLayerMoves(layer);
 
-function GhostGrid(props: { layer: number }) {
-  const layer = props.layer;
-  return (
-    <div className="ghostGrid" aria-hidden="true">
-      {rows.map((r) => {
-        const cols = ROW_LENS[r] ?? 0;
-        const isOffset = cols === 6;
+      for (let r = 0; r < ROW_LENS.length; r++) {
+        perRow[r] = derivedRowShiftUnits(state as any, layer, r, mL);
+      }
 
-        const engineShiftRaw =
-          (viewState as any)?.rowShifts?.[layer]?.[r] ??
-          (viewState as any)?.rowShifts?.["L" + layer]?.[r];
+      rowShifts[layer] = perRow;
+      rowShifts["L" + layer] = perRow;
+    }
 
-        const engineShift = Number(engineShiftRaw ?? 0);
+    injected.rowShifts = rowShifts;
+    return injected as any;
+  }, [state, scenarioLayerCount, getLayerMoves]);
 
-        const rawShift =
-          Number.isFinite(engineShift) && engineShift !== 0
-            ? engineShift
-            : derivedRowShiftUnits(viewState as any, layer, r, getLayerMoves(layer));
+  function GhostGrid(props: { layer: number }) {
+    const layer = props.layer;
 
-        const ns = normalizeRowShift(rawShift, cols);
-        const shiftVisual = ns.visual;
-      const shiftWrapped = ns.wrapped; // ✅ keep for mapping only
-const base = isOffset ? "calc(var(--hexStepX) / -5)" : "0px";
-
-return (
-  <div
-    key={"row-" + r}
-    className="hexRow"
-    // ✅ fixed honeycomb indent only; NO shifting
-    style={{ transform: "translateX(" + base + ")" }}
-  >
-            {Array.from({ length: cols }, (_, c) => (
-              <div key={"g-" + r + "-" + c} className="ghostSlot">
-                <div className="ghostHex" />
-              </div>
-            ))}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-
-function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
-  const side = props.side;
-  const currentLayerLocal = props.currentLayer;
-
-
-if (side === "right") {
-  const segments = [7, 6, 5, 4, 3, 2, 1];
-
-  const goalLayer = goalId ? idToCoord(goalId)?.layer ?? null : null;
-  const playerLayerBar = playerId ? idToCoord(playerId)?.layer ?? null : null;
-
-  const segH = readPxVar(document.documentElement as any, "--layerSegH", 84);
-
-  const goalTopPx =
-    goalLayer && goalLayer >= 1 && goalLayer <= 7
-      ? (7 - goalLayer) * segH + segH / 2
-      : null;
-
-  const playerTopPx =
-    playerLayerBar && playerLayerBar >= 1 && playerLayerBar <= 7
-      ? (7 - playerLayerBar) * segH + segH / 2
-      : null;
-
-  return (
-    <div className="barWrap barRight">
-      <div className="layerBar">
-        {segments.map((layerVal) => {
-          const active = layerVal === currentLayerLocal;
-          return (
-            <div
-              key={layerVal}
-              className={"barSeg" + (active ? " isActive" : "")}
-              data-layer={layerVal}
-            />
-          );
-        })}
-
-        {playerTopPx !== null ? (
-          <div className="barPlayerMini" style={{ top: playerTopPx }}>
-            <div
-              className="miniSprite"
-              style={
-                {
-                  ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
-                  ["--frameW" as any]: FRAME_W,
-                  ["--frameH" as any]: FRAME_H,
-                  ["--cols" as any]: SPRITE_COLS,
-                  ["--rows" as any]: SPRITE_ROWS,
-                  ["--frameX" as any]: walkFrame,
-                  ["--frameY" as any]: facingRow(playerFacing),
-                } as any
-              }
-            />
-          </div>
-        ) : null}
-
-        {goalTopPx !== null ? (
-          <div className="goalMarker" style={{ top: goalTopPx }}>
-            G
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-  return (
-    <div className="barWrap barLeft">
-      <div className="layerBar rowShiftBar">
+    return (
+      <div className="ghostGrid" aria-hidden="true">
         {rows.map((r) => {
-          const cols = ROW_LENS[r] ?? 7;
+          const cols = ROW_LENS[r] ?? 0;
+          const isOffset = cols === 6;
 
-          const engineShiftRaw =
-            (viewState as any)?.rowShifts?.[currentLayerLocal]?.[r] ??
-            (viewState as any)?.rowShifts?.["L" + currentLayerLocal]?.[r];
-
-          const engineShift = Number(engineShiftRaw ?? 0);
-
-          const rawShift =
-            Number.isFinite(engineShift) && engineShift !== 0
-              ? engineShift
-              : derivedRowShiftUnits(
-                  viewState as any,
-                  currentLayerLocal,
-                  r,
-                  getLayerMoves(currentLayerLocal)
-                );
-
-          const ns = normalizeRowShift(rawShift, cols);
-          const shift = ns.visual; 
-
-          const label =
-            shift === 0 ? "" : shift < 0 ? "L" + Math.abs(shift) : "R" + shift;
+          // ✅ must match REAL grid base indent
+          const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
 
           return (
-            <div key={"rowSeg-" + r} className="barSeg rowSeg">
-              {label ? <span className="rowShiftLabel">{label}</span> : null}
+            <div
+              key={"ghost-row-" + layer + "-" + r}
+              className="ghostRow"
+              style={{ transform: "translateX(" + base + ")" }}
+            >
+              {Array.from({ length: cols }, (_, c) => (
+                <div key={"g-" + layer + "-" + r + "-" + c} className="ghostSlot">
+                  <div className="ghostHex" />
+                </div>
+              ))}
             </div>
           );
         })}
       </div>
-    </div>
-  );
-}
+    );
+  }
 
+  function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
+    const side = props.side;
+    const currentLayerLocal = props.currentLayer;
 
-function HexDeckCardsOverlay(props: { glowVar: string }) {
-  const overlayStyle = {
-    ["--cardGlow" as any]: props.glowVar,
-  } as React.CSSProperties;
+    if (side === "right") {
+      const segments = [7, 6, 5, 4, 3, 2, 1];
 
-  return (
-    <div className="hexDeckOverlay" style={overlayStyle}>
-      <div className="hexDeckCol left">
-        <div
-          className="hexDeckCard cosmic"
-          ref={(el) => (deckRefs.current.cosmic = el)}
-        >
-          <div className="deckFx" />
+      const goalLayer = goalId ? idToCoord(goalId)?.layer ?? null : null;
+      const playerLayerBar = playerId ? idToCoord(playerId)?.layer ?? null : null;
+
+      const segH =
+        typeof document !== "undefined"
+          ? readPxVar(document.documentElement as any, "--layerSegH", 84)
+          : 84;
+
+      const goalTopPx =
+        goalLayer && goalLayer >= 1 && goalLayer <= 7 ? (7 - goalLayer) * segH + segH / 2 : null;
+
+      const playerTopPx =
+        playerLayerBar && playerLayerBar >= 1 && playerLayerBar <= 7
+          ? (7 - playerLayerBar) * segH + segH / 2
+          : null;
+
+      return (
+        <div className="barWrap barRight">
+          <div className="layerBar">
+            {segments.map((layerVal) => {
+              const active = layerVal === currentLayerLocal;
+              return (
+                <div
+                  key={layerVal}
+                  className={"barSeg" + (active ? " isActive" : "")}
+                  data-layer={layerVal}
+                />
+              );
+            })}
+
+            {playerTopPx !== null ? (
+              <div className="barPlayerMini" style={{ top: playerTopPx }}>
+                <div
+                  className="miniSprite"
+                  style={
+                    {
+                      ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
+                      ["--frameW" as any]: FRAME_W,
+                      ["--frameH" as any]: FRAME_H,
+                      ["--cols" as any]: SPRITE_COLS,
+                      ["--rows" as any]: SPRITE_ROWS,
+                      ["--frameX" as any]: walkFrame,
+                      ["--frameY" as any]: facingRow(playerFacing),
+                    } as any
+                  }
+                />
+              </div>
+            ) : null}
+
+            {goalTopPx !== null ? (
+              <div className="goalMarker" style={{ top: goalTopPx }}>
+                G
+              </div>
+            ) : null}
+          </div>
         </div>
+      );
+    }
 
-        <div
-          className="hexDeckCard risk"
-          ref={(el) => (deckRefs.current.risk = el)}
-        >
-          <div className="deckFx" />
+    return (
+      <div className="barWrap barLeft">
+        <div className="layerBar rowShiftBar">
+          {rows.map((r) => {
+            const cols = ROW_LENS[r] ?? 7;
+
+            const engineShiftRaw =
+              (viewState as any)?.rowShifts?.[currentLayerLocal]?.[r] ??
+              (viewState as any)?.rowShifts?.["L" + currentLayerLocal]?.[r];
+
+            const engineShift = Number(engineShiftRaw ?? 0);
+
+            const rawShift =
+              Number.isFinite(engineShift) && engineShift !== 0
+                ? engineShift
+                : derivedRowShiftUnits(viewState as any, currentLayerLocal, r, getLayerMoves(currentLayerLocal));
+
+            const ns = normalizeRowShift(rawShift, cols);
+            const shift = ns.visual;
+
+            const label = shift === 0 ? "" : shift < 0 ? "L" + Math.abs(shift) : "R" + shift;
+
+            return (
+              <div key={"rowSeg-" + r} className="barSeg rowSeg">
+                {label ? <span className="rowShiftLabel">{label}</span> : null}
+              </div>
+            );
+          })}
         </div>
       </div>
+    );
+  }
 
-      <div className="hexDeckCol right">
-        <div
-          className="hexDeckCard terrain"
-          ref={(el) => (deckRefs.current.terrain = el)}
-        >
-          <div className="deckFx" />
+  function HexDeckCardsOverlay(props: { glowVar: string }) {
+    const overlayStyle = {
+      ["--cardGlow" as any]: props.glowVar,
+    } as React.CSSProperties;
+
+    return (
+      <div className="hexDeckOverlay" style={overlayStyle}>
+        <div className="hexDeckCol left">
+          <div className="hexDeckCard cosmic" ref={(el) => (deckRefs.current.cosmic = el)}>
+            <div className="deckFx" />
+          </div>
+
+          <div className="hexDeckCard risk" ref={(el) => (deckRefs.current.risk = el)}>
+            <div className="deckFx" />
+          </div>
         </div>
 
-        <div
-          className="hexDeckCard shadow"
-          ref={(el) => (deckRefs.current.shadow = el)}
-        >
-          <div className="deckFx" />
+        <div className="hexDeckCol right">
+          <div className="hexDeckCard terrain" ref={(el) => (deckRefs.current.terrain = el)}>
+            <div className="deckFx" />
+          </div>
+
+          <div className="hexDeckCard shadow" ref={(el) => (deckRefs.current.shadow = el)}>
+            <div className="deckFx" />
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
-
+    );
+  }
 
   /* =========================
      Moves / optimal / log
-     ✅ MUST be before reachable (reachable depends on per-layer moves)
   ========================= */
 
   const [movesTaken, setMovesTaken] = useState(0);
@@ -3352,11 +2427,6 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
     setLog((prev) => [e, ...prev].slice(0, 24));
   }, []);
 
-
-
-
-
-
   /* =========================
      Reachability (1-step neighbors)
   ========================= */
@@ -3366,7 +2436,6 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
     if (!viewState) return set;
     if (!playerId) return set;
 
-   
     if (playerLayer !== currentLayer) return set;
 
     const nbs = getShiftedNeighborsSameLayer(
@@ -3393,9 +2462,7 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
 
   const GAME__URL = activeTheme?.assets.backgroundGame ?? "";
 
-
-  const backgroundLayers: any =
-    (activeTheme && activeTheme.assets && activeTheme.assets.backgroundLayers) || {};
+  const backgroundLayers: any = (activeTheme && activeTheme.assets && activeTheme.assets.backgroundLayers) || {};
   const BOARD_LAYER_ = backgroundLayers["L" + currentLayer] || "";
 
   const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "images/dice";
@@ -3423,16 +2490,17 @@ function HexDeckCardsOverlay(props: { glowVar: string }) {
   function villainImg(key: VillainKey) {
     return toPublicUrl(VILLAINS_BASE + "/" + key + ".png");
   }
-function DiceCorners() {
-  return (
-    <>
-      <span className="diceCorner tl" />
-      <span className="diceCorner tr" />
-      <span className="diceCorner bl" />
-      <span className="diceCorner br" />
-    </>
-  );
-}
+
+  function DiceCorners() {
+    return (
+      <>
+        <span className="diceCorner tl" />
+        <span className="diceCorner tr" />
+        <span className="diceCorner bl" />
+        <span className="diceCorner br" />
+      </>
+    );
+  }
 
   /* =========================
      Sprite
@@ -3493,79 +2561,72 @@ function DiceCorners() {
     return f === "down" ? 0 : f === "left" ? 1 : f === "right" ? 2 : 3;
   }
 
+  /* =========================
+     Dice
+  ========================= */
+  const BASE_DICE_VIEW = { x: -28, y: -36 };
+  const [diceValue, setDiceValue] = useState<number>(2);
+  const [diceRolling, setDiceRolling] = useState(false);
+  const [diceRot, setDiceRot] = useState<{ x: number; y: number }>(BASE_DICE_VIEW);
+  const diceTimer = useRef<number | null>(null);
 
- /* =========================
-   Dice
-========================= */
-const BASE_DICE_VIEW = { x: -28, y: -36 };
-const [diceValue, setDiceValue] = useState<number>(2);
-const [diceRolling, setDiceRolling] = useState(false);
-const [diceRot, setDiceRot] = useState<{ x: number; y: number }>(
-  BASE_DICE_VIEW
-);
-const diceTimer = useRef<number | null>(null);
+  const lastRollValueRef = useRef<number>(2);
 
+  useEffect(() => {
+    return () => {
+      if (diceTimer.current) window.clearTimeout(diceTimer.current);
+    };
+  }, []);
 
-const lastRollValueRef = useRef<number>(2);
-
-useEffect(() => {
-  return () => {
-    if (diceTimer.current) window.clearTimeout(diceTimer.current);
-  };
-}, []);
-
-function rotForRoll(n: number) {
-  switch (n) {
-    case 1:
-      return { x: -90, y: 0 };
-    case 2:
-      return { x: 0, y: 0 };
-    case 3:
-      return { x: 0, y: -90 };
-    case 4:
-      return { x: 0, y: 90 };
-    case 5:
-      return { x: 0, y: 180 };
-    case 6:
-      return { x: 90, y: 0 };
-    default:
-      return { x: 0, y: 0 };
-  }
-}
-
-const rollDice = useCallback(() => {
-  if (diceRolling) return;
-
-  setDiceRolling(true);
-
-  const start = performance.now();
-  const duration = 650;
-
-  const tick = () => {
-    const elapsed = performance.now() - start;
-
-   
-    const flicker = 1 + Math.floor(Math.random() * 6);
-    setDiceValue(flicker);
-    setDiceRot(rotForRoll(flicker));
-
-    if (elapsed < duration) {
-      diceTimer.current = window.setTimeout(tick, 55);
-    } else {
-  
-      const final = 1 + Math.floor(Math.random() * 6);
-
-      lastRollValueRef.current = final; 
-      setDiceValue(final);
-      setDiceRot(rotForRoll(final));
-
-      setDiceRolling(false);
+  function rotForRoll(n: number) {
+    switch (n) {
+      case 1:
+        return { x: -90, y: 0 };
+      case 2:
+        return { x: 0, y: 0 };
+      case 3:
+        return { x: 0, y: -90 };
+      case 4:
+        return { x: 0, y: 90 };
+      case 5:
+        return { x: 0, y: 180 };
+      case 6:
+        return { x: 90, y: 0 };
+      default:
+        return { x: 0, y: 0 };
     }
-  };
+  }
 
-  tick();
-}, [diceRolling]);
+  const rollDice = useCallback(() => {
+    if (diceRolling) return;
 
+    setDiceRolling(true);
+
+    const start = performance.now();
+    const duration = 650;
+
+    const tick = () => {
+      const elapsed = performance.now() - start;
+
+      const flicker = 1 + Math.floor(Math.random() * 6);
+      setDiceValue(flicker);
+      setDiceRot(rotForRoll(flicker));
+
+      if (elapsed < duration) {
+        diceTimer.current = window.setTimeout(tick, 55);
+      } else {
+        const final = 1 + Math.floor(Math.random() * 6);
+
+        lastRollValueRef.current = final;
+        setDiceValue(final);
+        setDiceRot(rotForRoll(final));
+
+        setDiceRolling(false);
+      }
+    };
+
+    tick();
+  }, [diceRolling]);
 
   /* =========================
      Reveal helpers
@@ -3615,9 +2676,7 @@ const rollDice = useCallback(() => {
       if (!it || it.charges <= 0) return;
 
       setItems((prev) =>
-        prev.map((x) =>
-          x.id === id ? { ...x, charges: Math.max(0, x.charges - 1) } : x
-        )
+        prev.map((x) => (x.id === id ? { ...x, charges: Math.max(0, x.charges - 1) } : x))
       );
 
       if (id === "reroll") {
@@ -3652,272 +2711,255 @@ const rollDice = useCallback(() => {
         return;
       }
     },
-    [items, rollDice, pushLog, state, revealRing, scenarioLayerCount, currentLayer, forceRender]
+    [items, rollDice, pushLog, state, revealRing, scenarioLayerCount, currentLayer]
   );
 
-/* =========================
-   Encounter resolution  ✅ FIXED (uses lastRollValueRef)
-========================= */
+  /* =========================
+     Encounter resolution
+  ========================= */
 
-const prevRollingRef = useRef(false);
+  const prevRollingRef = useRef(false);
 
-useEffect(() => {
-  const wasRolling = prevRollingRef.current;
-  prevRollingRef.current = diceRolling;
+  useEffect(() => {
+    const wasRolling = prevRollingRef.current;
+    prevRollingRef.current = diceRolling;
 
-  
-  if (!encounter) return;
-  if (diceRolling) return;
-  if (!wasRolling) return;
+    if (!encounter) return;
+    if (diceRolling) return;
+    if (!wasRolling) return;
 
-  try {
+    try {
+      setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
 
-    setEncounter((e) => (e ? { ...e, tries: e.tries + 1 } : e));
+      const rolled = lastRollValueRef.current;
+      if (rolled !== 6) return;
 
-    const rolled = lastRollValueRef.current;
-    if (rolled !== 6) return;
+      const targetId = pendingEncounterMoveIdRef.current;
 
- const targetId = pendingEncounterMoveIdRef.current;
-
-
-if (!targetId) {
-  pushLog("Encounter cleared — risk event passed.", "ok");
-  setEncounter(null);
-  return;
-}
-
-
-   
-    if (!viewState) {
-      pushLog("Encounter error: viewState missing.", "bad");
-      return;
-    }
-
-    const pendingHex = getHexFromState(viewState as any, targetId) as any;
-    if (!pendingHex || pendingHex.missing || pendingHex.blocked) {
-      pushLog("Encounter target is invalid now — click another tile.", "bad");
-      pendingEncounterMoveIdRef.current = null;
-      return;
-    }
-
-    const pidBefore = (viewState as any)?.playerHexId as string | null;
-
-   
-    const res: any = tryMove(viewState as any, targetId);
-let nextState = unwrapNextState(res); 
-     if (nextState) ensureScenario(nextState);
-
-    if (!nextState) {
-      const msg =
-        (res &&
-          typeof res === "object" &&
-          "reason" in res &&
-          String((res as any).reason)) ||
-        "Move failed after rolling a 6 — click another tile and roll again.";
-
-      pushLog(msg, "bad");
-
-     
-      pendingEncounterMoveIdRef.current = null;
-
-      return;
-    }
-
-    const pidAfter = (nextState as any).playerHexId as string | null;
-let landedId = pidAfter ?? targetId;
-
-
-{
-  const ap = applyPortalIfAny(nextState as any, landedId);
-  nextState = ap.next as any;
-  landedId = ap.finalId;
-}
-
-    pendingEncounterMoveIdRef.current = null;
-    setEncounter(null);
-
-    const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
-    if (moved) {
-      setIsWalking(true);
-      if (walkTimer.current) window.clearTimeout(walkTimer.current);
-      walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-
-      const fromLayer =
-        (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
-
-      setPlayerFacing(
-        facingFromMoveVisual(
-          viewState as any,
-          pidBefore,
-          pidAfter,
-          fromLayer,
-          getLayerMoves(fromLayer)
-        )
-      );
-    }
-
-    setMovesTaken((n) => n + 1);
-
-    setState(nextState);
-    forceRender((n) => n + 1);
-
-    const c2 = pidAfter ? idToCoord(pidAfter) : null;
-    const nextLayer = c2?.layer ?? currentLayer;
-
-    if (Number.isFinite(nextLayer)) {
-      enterLayer(nextState, nextLayer);
-
-      if (nextLayer !== currentLayer) {
-        setCurrentLayer(nextLayer);
-        revealWholeLayer(nextState, nextLayer);
+      if (!targetId) {
+        pushLog("Encounter cleared — risk event passed.", "ok");
+        setEncounter(null);
+        return;
       }
+
+      if (!viewState) {
+        pushLog("Encounter error: viewState missing.", "bad");
+        return;
+      }
+
+      const pendingHex = getHexFromState(viewState as any, targetId) as any;
+      if (!pendingHex || pendingHex.missing || pendingHex.blocked) {
+        pushLog("Encounter target is invalid now — click another tile.", "bad");
+        pendingEncounterMoveIdRef.current = null;
+        return;
+      }
+
+      const pidBefore = (viewState as any)?.playerHexId as string | null;
+
+      const res: any = tryMove(viewState as any, targetId);
+      let nextState = unwrapNextState(res);
+      if (nextState) ensureScenario(nextState);
+
+      if (!nextState) {
+        const msg =
+          (res && typeof res === "object" && "reason" in res && String((res as any).reason)) ||
+          "Move failed after rolling a 6 — click another tile and roll again.";
+
+        pushLog(msg, "bad");
+        pendingEncounterMoveIdRef.current = null;
+        return;
+      }
+
+      const pidAfter = (nextState as any).playerHexId as string | null;
+      let landedId = pidAfter ?? targetId;
+
+      {
+        const ap = applyPortalIfAny(nextState as any, landedId);
+        nextState = ap.next as any;
+        landedId = ap.finalId;
+      }
+
+      pendingEncounterMoveIdRef.current = null;
+      setEncounter(null);
+
+      const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
+      if (moved) {
+        setIsWalking(true);
+        if (walkTimer.current) window.clearTimeout(walkTimer.current);
+        walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+
+        const fromLayer = (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
+
+        setPlayerFacing(
+          facingFromMoveVisual(viewState as any, pidBefore, pidAfter, fromLayer, getLayerMoves(fromLayer))
+        );
+      }
+
+      setMovesTaken((n) => n + 1);
+
+      setState(nextState);
+      forceRender((n) => n + 1);
+
+      const c2 = pidAfter ? idToCoord(pidAfter) : null;
+      const nextLayer = c2?.layer ?? currentLayer;
+
+      if (Number.isFinite(nextLayer)) {
+        enterLayer(nextState, nextLayer);
+
+        if (nextLayer !== currentLayer) {
+          setCurrentLayer(nextLayer);
+          revealWholeLayer(nextState, nextLayer);
+        }
+      }
+
+      const rm = getReachability(nextState) as any;
+      setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+
+      pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
+      if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
+    } catch (err: any) {
+      console.error("Encounter resolution crashed:", err);
+      pushLog("Encounter crashed: " + String(err?.message ?? err), "bad");
     }
+  }, [
+    encounter,
+    diceRolling,
+    viewState,
+    diceValue,
+    currentLayer,
+    goalId,
+    revealWholeLayer,
+    computeOptimalFromReachMap,
+    pushLog,
+    getLayerMoves,
+  ]);
 
-    const rm = getReachability(nextState) as any;
-    setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+  /* =========================
+     Card triggers + overlays
+  ========================= */
 
-    pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
-    if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
-  } catch (err: any) {
-    console.error("Encounter resolution crashed:", err);
-    pushLog("Encounter crashed: " + String(err?.message ?? err), "bad");
-   
-  }
-}, [
-  encounter,
-  diceRolling,
-  viewState,
-  diceValue, 
-  currentLayer,
-  goalId,
-  revealWholeLayer,
-  computeOptimalFromReachMap,
-  pushLog,
-  getLayerMoves,
-]);
+  const [cardTriggers, setCardTriggers] = useState<CardTrigger[]>([]);
+  const [cardFlip, setCardFlip] = useState<
+    null | { key: number; card: CardKey; durMs: number; villainKey?: VillainKey }
+  >(null);
 
+  const cardFlipTimerRef = useRef<number | null>(null);
 
+  const triggerCardFlip = useCallback(
+    (card: CardKey, opts?: { durMs?: number; villainKey?: VillainKey }) => {
+      if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
 
+      const key = Date.now();
+      const durMs = opts?.durMs ?? 1400;
 
-const [cardTriggers, setCardTriggers] = useState<CardTrigger[]>([]);
-const [cardFlip, setCardFlip] = useState<
-  null | { key: number; card: CardKey; durMs: number; villainKey?: VillainKey }
->(null);
-const cardFlipTimerRef = useRef<number | null>(null);
-const triggerCardFlip = useCallback(
-  (card: CardKey, opts?: { durMs?: number; villainKey?: VillainKey }) => {
-    if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
+      setCardFlip({ key, card, durMs, villainKey: opts?.villainKey });
 
-    const key = Date.now();
-    const durMs = opts?.durMs ?? 1400;
+      cardFlipTimerRef.current = window.setTimeout(() => {
+        setCardFlip(null);
+        cardFlipTimerRef.current = null;
+      }, durMs);
+    },
+    []
+  );
 
-    setCardFlip({ key, card, durMs, villainKey: opts?.villainKey });
+  useEffect(() => {
+    return () => {
+      if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
+    };
+  }, []);
 
-    cardFlipTimerRef.current = window.setTimeout(() => {
-      setCardFlip(null);
-      cardFlipTimerRef.current = null;
-    }, durMs);
-  },
-  []
-);
+  const findCardTriggerAt = useCallback(
+    (id: string): CardKey | null => {
+      const c = idToCoord(id);
+      if (!c) return null;
+      for (const t of cardTriggers) {
+        if (t.layer === c.layer && t.row === c.row && t.col === c.col) return t.card;
+      }
+      return null;
+    },
+    [cardTriggers]
+  );
 
-
-useEffect(() => {
-  return () => {
-    if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
+  type FlyCard = {
+    key: number;
+    card: CardKey;
+    from: { x: number; y: number; w: number; h: number };
   };
-}, []);
 
-   const findCardTriggerAt = useCallback(
-  (id: string): CardKey | null => {
-    const c = idToCoord(id);
-    if (!c) return null;
-    for (const t of cardTriggers) {
-      if (t.layer === c.layer && t.row === c.row && t.col === c.col) return t.card;
-    }
-    return null;
-  },
-  [cardTriggers]
-);
-type FlyCard = {
-  key: number;
-  card: CardKey;
-  from: { x: number; y: number; w: number; h: number };
-};
-
-const deckRefs = useRef<Record<CardKey, HTMLDivElement | null>>({
-  cosmic: null,
-  risk: null,
-  terrain: null,
-  shadow: null,
-});
-
-const [flyCard, setFlyCard] = useState<FlyCard | null>(null);
-const flyTimerRef = useRef<number | null>(null);
-
-useEffect(() => {
-  return () => {
-    if (flyTimerRef.current) window.clearTimeout(flyTimerRef.current);
-  };
-}, []);
-
-const triggerCardFlyout = useCallback((card: CardKey) => {
-  const el = deckRefs.current[card];
-  if (!el) {
-
-    triggerCardFlip(card);
-    return;
-  }
-
-  const r = el.getBoundingClientRect();
-
-  const key = Date.now();
-  setFlyCard({
-    key,
-    card,
-    from: { x: r.left, y: r.top, w: r.width, h: r.height },
+  const deckRefs = useRef<Record<CardKey, HTMLDivElement | null>>({
+    cosmic: null,
+    risk: null,
+    terrain: null,
+    shadow: null,
   });
 
-  flyTimerRef.current = window.setTimeout(() => {
-    triggerCardFlip(card);
-  }, 520);
+  const [flyCard, setFlyCard] = useState<FlyCard | null>(null);
+  const flyTimerRef = useRef<number | null>(null);
 
-  window.setTimeout(() => {
-    setFlyCard(null);
-  }, 1200);
-}, [triggerCardFlip]);
+  useEffect(() => {
+    return () => {
+      if (flyTimerRef.current) window.clearTimeout(flyTimerRef.current);
+    };
+  }, []);
 
-/* =========================
-   Start scenario
-========================= */
+  const triggerCardFlyout = useCallback(
+    (card: CardKey) => {
+      const el = deckRefs.current[card];
+      if (!el) {
+        triggerCardFlip(card);
+        return;
+      }
 
-const startScenario = useCallback(async () => {
-  if (!scenarioEntry) return;
+      const r = el.getBoundingClientRect();
 
-  const tracks = scenarioEntry.tracks ?? [];
-  const hasTracks = tracks.length > 1;
-  const chosenJson = hasTracks
-    ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson
-    : scenarioEntry.scenarioJson;
+      const key = Date.now();
+      setFlyCard({
+        key,
+        card,
+        from: { x: r.left, y: r.top, w: r.width, h: r.height },
+      });
 
-  const s = (await loadScenario(chosenJson)) as any;
-const cts = parseCardTriggersFromScenario(s);
-setCardTriggers(cts);
-pushLog("Card triggers loaded: " + cts.length, "info");
- 
-  const vts = parseVillainsFromScenario(s);
-  setVillainTriggers(vts);
-  pushLog("Villain triggers loaded: " + vts.length, "info");
+      flyTimerRef.current = window.setTimeout(() => {
+        triggerCardFlip(card);
+      }, 520);
 
-    setVillainTriggers(parseVillainsFromScenario(s));
+      window.setTimeout(() => {
+        setFlyCard(null);
+      }, 1200);
+    },
+    [triggerCardFlip]
+  );
+
+  /* =========================
+     Start scenario
+  ========================= */
+
+  const startScenario = useCallback(async () => {
+    if (!scenarioEntry) return;
+
+    const tracks = scenarioEntry.tracks ?? [];
+    const hasTracks = tracks.length > 1;
+
+    const chosenJson = hasTracks ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson : scenarioEntry.scenarioJson;
+
+    const s = (await loadScenario(chosenJson)) as any;
+
+    const cts = parseCardTriggersFromScenario(s);
+    setCardTriggers(cts);
+    pushLog("Card triggers loaded: " + cts.length, "info");
+
+    const vts = parseVillainsFromScenario(s);
+    setVillainTriggers(vts);
+    pushLog("Villain triggers loaded: " + vts.length, "info");
+
     setEncounter(null);
     pendingEncounterMoveIdRef.current = null;
 
-   scenarioRef.current = s;         
-const st: any = newGame(s);
-scenarioRef.current = s;
-st.scenario = s; 
-ensureScenario(st);
+    scenarioRef.current = s;
+
+    const st: any = newGame(s);
+    st.scenario = s;
+    ensureScenario(st);
 
     const layerCount = Math.max(1, Number(s?.layers ?? 1));
     setScenarioLayerCount(layerCount);
@@ -3931,7 +2973,7 @@ ensureScenario(st);
       (st as any).playerHexId = pid;
     }
 
-    const pidCoord = idToCoord(pid);
+    const pidCoord = pid ? idToCoord(pid) : null;
     if (pidCoord) layer = Math.max(1, Math.min(layerCount, pidCoord.layer));
 
     const gid = findGoalId(s, layer);
@@ -3979,13 +3021,7 @@ ensureScenario(st);
     }, 0);
 
     setScreen("game");
-  }, [
-    scenarioEntry,
-    trackEntry,
-    revealWholeLayer,
-    computeOptimalFromReachMap,
-    pushLog,
-  ]);
+  }, [scenarioEntry, trackEntry, revealWholeLayer, computeOptimalFromReachMap, pushLog]);
 
   useEffect(() => {
     if (pendingQuickStartRef.current && scenarioEntry) {
@@ -3994,198 +3030,156 @@ ensureScenario(st);
     }
   }, [scenarioEntry, startScenario]);
 
-/* =========================
-   Movement
-========================= */
+  /* =========================
+     Movement
+  ========================= */
 
+  const tryMoveToId = useCallback(
+    (id: string) => {
+      if (!state) return;
+      if (encounterActive) return;
 
-const tryMoveToId = useCallback(
-  (id: string) => {
-    if (!state) return;
-    if (encounterActive) return;
-
- 
-    if (playerLayer && currentLayer !== playerLayer) {
-      setCurrentLayer(playerLayer);
-      enterLayer(state, playerLayer);
-      revealWholeLayer(state, playerLayer);
-      forceRender((n) => n + 1);
-      pushLog(
-        "You were viewing layer " +
-          currentLayer +
-          " but the player is on layer " +
-          playerLayer +
-          " — switched back.",
-        "info"
-      );
-      return;
-    }
-
- 
-    const hex = getHexFromState(viewState as any, id) as any;
-    const bm = isBlockedOrMissing(hex);
-    if (bm.missing) {
-      pushLog("Missing tile.", "bad");
-      return;
-    }
-    if (bm.blocked) {
-      pushLog("Blocked tile.", "bad");
-      return;
-    }
-
-    const pidBefore = (viewState as any)?.playerHexId as string | null;
-
-
-    const vk = findTriggerForHex(id);
-    if (vk) {
-      pendingEncounterMoveIdRef.current = id;
-      setEncounter((prev) =>
-        prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }
-      );
-      pushLog("Encounter: " + vk + " — roll a 6 to continue", "bad");
-      return;
-    }
-
-   
-    const res: any = tryMove(viewState as any, id);
-    let nextState = unwrapNextState(res); 
-     if (nextState) ensureScenario(nextState);
-
-
-    if (!nextState) {
-      if (reachable.has(id) && viewState) {
-        const forced: any = { ...(viewState as any) };
-forced.playerHexId = id;
-if (!forced.scenario && scenarioRef.current) forced.scenario = scenarioRef.current;
-nextState = forced as any;
-        pushLog("Force-moved (engine rejected)", "info");
-      } else {
-        const msg =
-          (res &&
-            typeof res === "object" &&
-            "reason" in res &&
-            String((res as any).reason)) ||
-          "Move failed.";
-        pushLog(msg, "bad");
+      if (playerLayer && currentLayer !== playerLayer) {
+        setCurrentLayer(playerLayer);
+        enterLayer(state, playerLayer);
+        revealWholeLayer(state, playerLayer);
+        forceRender((n) => n + 1);
+        pushLog(
+          "You were viewing layer " + currentLayer + " but the player is on layer " + playerLayer + " — switched back.",
+          "info"
+        );
         return;
       }
-    }
 
-    const pidAfter = (nextState as any).playerHexId as string | null;
+      const hex = getHexFromState(viewState as any, id) as any;
+      const bm = isBlockedOrMissing(hex);
+      if (bm.missing) {
+        pushLog("Missing tile.", "bad");
+        return;
+      }
+      if (bm.blocked) {
+        pushLog("Blocked tile.", "bad");
+        return;
+      }
 
-    const fromLayer =
-      (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
+      const pidBefore = (viewState as any)?.playerHexId as string | null;
 
-    const toLayer = pidAfter ? idToCoord(pidAfter)?.layer ?? null : null;
+      const vk = findTriggerForHex(id);
+      if (vk) {
+        pendingEncounterMoveIdRef.current = id;
+        setEncounter((prev) => (prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }));
+        pushLog("Encounter: " + vk + " — roll a 6 to continue", "bad");
+        return;
+      }
 
-    const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
+      const res: any = tryMove(viewState as any, id);
+      let nextState = unwrapNextState(res);
+      if (nextState) ensureScenario(nextState);
 
+      if (!nextState) {
+        if (reachable.has(id) && viewState) {
+          const forced: any = { ...(viewState as any) };
+          forced.playerHexId = id;
+          if (!forced.scenario && scenarioRef.current) forced.scenario = scenarioRef.current;
+          nextState = forced as any;
+          pushLog("Force-moved (engine rejected)", "info");
+        } else {
+          const msg =
+            (res && typeof res === "object" && "reason" in res && String((res as any).reason)) || "Move failed.";
+          pushLog(msg, "bad");
+          return;
+        }
+      }
 
-    let landedId = pidAfter ?? id;
+      const pidAfter = (nextState as any).playerHexId as string | null;
 
-    {
-      const ap = applyPortalIfAny(nextState as any, landedId);
-      nextState = ap.next as any;
-      landedId = ap.finalId;
-    }
+      const fromLayer = (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
+      const toLayer = pidAfter ? idToCoord(pidAfter)?.layer ?? null : null;
 
+      const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
 
-    setMovesTaken((n) => n + 1);
+      let landedId = pidAfter ?? id;
 
-    if (fromLayer) {
-      setLayerMoves((prev) => ({
-        ...prev,
-        [fromLayer]: (prev[fromLayer] ?? 0) + 1,
-      }));
-      setLayerMoveArmed((prev) => ({ ...prev, [fromLayer]: true }));
-    }
+      {
+        const ap = applyPortalIfAny(nextState as any, landedId);
+        nextState = ap.next as any;
+        landedId = ap.finalId;
+      }
 
+      setMovesTaken((n) => n + 1);
 
-    const landedCoord = idToCoord(landedId);
-    const finalLayer = landedCoord?.layer ?? (toLayer ?? currentLayer);
+      if (fromLayer) {
+        setLayerMoves((prev) => ({ ...prev, [fromLayer]: (prev[fromLayer] ?? 0) + 1 }));
+        setLayerMoveArmed((prev) => ({ ...prev, [fromLayer]: true }));
+      }
 
-    if (finalLayer && fromLayer && finalLayer !== fromLayer) {
-      setLayerMoves((prev) => ({ ...prev, [finalLayer]: 0 }));
-      setLayerMoveArmed((prev) => ({ ...prev, [finalLayer]: true }));
-      triggerLayerFx(finalLayer);
-    }
+      const landedCoord = idToCoord(landedId);
+      const finalLayer = landedCoord?.layer ?? (toLayer ?? currentLayer);
 
-    if (moved) {
-      setIsWalking(true);
-      if (walkTimer.current) window.clearTimeout(walkTimer.current);
-      walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+      if (finalLayer && fromLayer && finalLayer !== fromLayer) {
+        setLayerMoves((prev) => ({ ...prev, [finalLayer]: 0 }));
+        setLayerMoveArmed((prev) => ({ ...prev, [finalLayer]: true }));
+        triggerLayerFx(finalLayer);
+      }
 
-      setPlayerFacing(
-        facingFromMoveVisual(
-          viewState as any,
-          pidBefore,
-          pidAfter,
-          fromLayer,
-          getLayerMoves(fromLayer)
-        )
-      );
-    }
+      if (moved) {
+        setIsWalking(true);
+        if (walkTimer.current) window.clearTimeout(walkTimer.current);
+        walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
 
+        setPlayerFacing(facingFromMoveVisual(viewState as any, pidBefore, pidAfter, fromLayer, getLayerMoves(fromLayer)));
+      }
 
-    setState(nextState);
-    setSelectedId(landedId);
-    forceRender((n) => n + 1);
+      setState(nextState);
+      setSelectedId(landedId);
+      forceRender((n) => n + 1);
 
-    enterLayer(nextState as any, finalLayer);
+      enterLayer(nextState as any, finalLayer);
 
-    if (finalLayer !== currentLayer) {
-      setCurrentLayer(finalLayer);
-      revealWholeLayer(nextState as any, finalLayer);
-    }
+      if (finalLayer !== currentLayer) {
+        setCurrentLayer(finalLayer);
+        revealWholeLayer(nextState as any, finalLayer);
+      }
 
- const landedCard = findCardTriggerAt(landedId);
-if (landedCard) {
-  if (landedCard === "risk") {
-    const vk = pickRiskVillain();
+      const landedCard = findCardTriggerAt(landedId);
+      if (landedCard) {
+        if (landedCard === "risk") {
+          const vkr = pickRiskVillain();
+          pendingEncounterMoveIdRef.current = null;
+          setEncounter({ villainKey: vkr, tries: 0 });
+          setDiceRot(BASE_DICE_VIEW);
+          pushLog("Risk triggered — encounter: " + vkr + " (roll a 6)", "bad");
+        } else {
+          // ✅ re-enabled
+          triggerCardFlyout(landedCard);
+          pushLog("Card triggered: " + landedCard, "info");
+        }
+      }
 
-  
-    pendingEncounterMoveIdRef.current = null;
-    setEncounter({ villainKey: vk, tries: 0 });
-     setDiceRot(BASE_DICE_VIEW);
-    pushLog("Risk triggered — encounter: " + vk + " (roll a 6)", "bad");
+      const rm = getReachability(nextState) as any;
+      setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
 
-    //triggerCardFlyout("risk");
-    //triggerCardFlip("risk", { durMs: 2400, villainKey: vk });
-
-  } else {
-    //triggerCardFlyout(landedCard);
-    //triggerCardFlip(landedCard); 
-    pushLog("Card triggered: " + landedCard, "info");
-  }
-}
-
-
-    const rm = getReachability(nextState) as any;
-    setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
-
-    pushLog("Moved to " + landedId, "ok");
-    if (goalId && landedId === goalId) pushLog("Goal reached!", "ok");
-  },
-  [
-    state,
-    viewState,
-    encounterActive,
-    reachable,
-    currentLayer,
-    playerLayer,
-    goalId,
-    pushLog,
-    revealWholeLayer,
-    computeOptimalFromReachMap,
-    findTriggerForHex,
-    getLayerMoves,
-    triggerLayerFx,
-    findCardTriggerAt,
-    triggerCardFlyout,
-     triggerCardFlip,
-  ]
-);
-
+      pushLog("Moved to " + landedId, "ok");
+      if (goalId && landedId === goalId) pushLog("Goal reached!", "ok");
+    },
+    [
+      state,
+      viewState,
+      encounterActive,
+      reachable,
+      currentLayer,
+      playerLayer,
+      goalId,
+      pushLog,
+      revealWholeLayer,
+      computeOptimalFromReachMap,
+      findTriggerForHex,
+      getLayerMoves,
+      triggerLayerFx,
+      findCardTriggerAt,
+      triggerCardFlyout,
+    ]
+  );
 
   /* =========================
      Screens
@@ -4219,581 +3213,540 @@ if (landedCard) {
     );
   }
 
- if (screen !== "game") {
-  return (
-    <div className="appRoot" style={themeVars}>
-      <div className="screen center">
-        <div className="panel wide">
-          <div className="title">Choose your run</div>
-          <div className="sub">
-            Pick a world, then a scenario, then (optionally) a track.
-          </div>
+  if (screen !== "game") {
+    return (
+      <div className="appRoot" style={themeVars}>
+        <div className="screen center">
+          <div className="panel wide">
+            <div className="title">Choose your run</div>
+            <div className="sub">Pick a world, then a scenario, then (optionally) a track.</div>
 
-          {/* WORLD PICKER */}
-          <div className="grid" style={{ marginTop: 14 }}>
-            {worlds.map((w) => {
-              const active = w.id === worldId;
-              return (
-                <button
-                  key={w.id}
-                  className={"card " + (active ? "active" : "")}
-                  onClick={() => {
-                    setWorldId(w.id);
+            {/* WORLD PICKER */}
+            <div className="grid" style={{ marginTop: 14 }}>
+              {worlds.map((w) => {
+                const active = w.id === worldId;
+                return (
+                  <button
+                    key={w.id}
+                    className={"card " + (active ? "active" : "")}
+                    onClick={() => {
+                      setWorldId(w.id);
 
-                    const s0 = w.scenarios && w.scenarios.length ? w.scenarios[0] : null;
-                    setScenarioId(s0 ? s0.id : null);
+                      const s0 = w.scenarios && w.scenarios.length ? w.scenarios[0] : null;
+                      setScenarioId(s0 ? s0.id : null);
 
-                    const t0 = s0 && s0.tracks && s0.tracks.length ? s0.tracks[0] : null;
+                      const t0 = s0 && s0.tracks && s0.tracks.length ? s0.tracks[0] : null;
+                      setTrackId(t0 ? t0.id : null);
+
+                      setScreen("scenario");
+                    }}
+                  >
+                    <div className="cardTitle">{w.name}</div>
+                    <div className="cardDesc">{w.desc ?? ""}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* SCENARIO PICKER */}
+            {world ? (
+              <div style={{ marginTop: 16 }}>
+                <div className="tracksTitle">Scenarios</div>
+                <div className="grid">
+                  {world.scenarios.map((s) => {
+                    const active = s.id === scenarioId;
+                    return (
+                      <button
+                        key={s.id}
+                        className={"card " + (active ? "active" : "")}
+                        onClick={() => {
+                          setScenarioId(s.id);
+                          const t0 = s.tracks && s.tracks.length ? s.tracks[0] : null;
+                          setTrackId(t0 ? t0.id : null);
+                          setScreen("scenario");
+                        }}
+                      >
+                        <div className="cardTitle">{s.name}</div>
+                        <div className="cardDesc">{s.desc ?? ""}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            {/* TRACK PICKER */}
+            {scenarioEntry && scenarioEntry.tracks && scenarioEntry.tracks.length > 1 ? (
+              <div className="tracks">
+                <div className="tracksTitle">Tracks</div>
+                <div className="tracksRow">
+                  {scenarioEntry.tracks.map((t) => {
+                    const active = t.id === trackId;
+                    return (
+                      <button
+                        key={t.id}
+                        className={"chip " + (active ? "active" : "")}
+                        onClick={() => setTrackId(t.id)}
+                      >
+                        {t.name}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="hint">
+                  Selected: <b>{trackEntry ? trackEntry.name : "—"}</b>
+                </div>
+              </div>
+            ) : scenarioEntry ? (
+              <div className="hint" style={{ marginTop: 12 }}>
+                {scenarioEntry.tracks && scenarioEntry.tracks.length === 1
+                  ? "Only one track available."
+                  : "No tracks for this scenario (it will start normally)."}
+              </div>
+            ) : null}
+
+            <div className="row">
+              <button className="btn" onClick={resetAll}>
+                Back
+              </button>
+
+              <button className="btn primary" disabled={!scenarioEntry} onClick={startScenario}>
+                Start
+              </button>
+
+              <button
+                className="btn"
+                onClick={() => {
+                  const w0 = worlds[0];
+                  const s0 = w0 && w0.scenarios ? w0.scenarios[0] : null;
+
+                  if (w0 && s0) {
+                    setWorldId(w0.id);
+                    setScenarioId(s0.id);
+
+                    const t0 = s0.tracks && s0.tracks.length ? s0.tracks[0] : null;
                     setTrackId(t0 ? t0.id : null);
 
-                    setScreen("scenario");
-                  }}
-                >
-                  <div className="cardTitle">{w.name}</div>
-                  <div className="cardDesc">{w.desc ?? ""}</div>
-                </button>
-              );
-            })}
+                    pendingQuickStartRef.current = true;
+                  }
+                }}
+              >
+                Quick start (debug)
+              </button>
+            </div>
+
+            <div className="hint" style={{ marginTop: 10 }}>
+              World: <b>{world ? world.name : "—"}</b> · Scenario: <b>{scenarioEntry ? scenarioEntry.name : "—"}</b>
+            </div>
           </div>
+        </div>
 
-          {/* SCENARIO PICKER */}
-          {world ? (
-            <div style={{ marginTop: 16 }}>
-              <div className="tracksTitle">Scenarios</div>
-              <div className="grid">
-                {world.scenarios.map((s) => {
-                  const active = s.id === scenarioId;
+        <style>{baseCss}</style>
+      </div>
+    );
+  }
+
+  /* =========================
+     GAME screen
+  ========================= */
+
+  return (
+    <div className="appRoot game" style={themeVars}>
+      <div
+        className="gameBg"
+        style={{
+          backgroundImage: GAME__URL ? "url(" + toPublicUrl(GAME__URL) + ")" : undefined,
+        }}
+      />
+
+      <div className="topbar">
+        <div className="items">
+          {items.map((it) => (
+            <button
+              key={it.id}
+              className={"itemBtn " + (it.charges <= 0 ? "off" : "")}
+              disabled={it.charges <= 0 || !state || (encounterActive && it.id !== "reroll") || layerFx !== null}
+              onClick={() => useItem(it.id)}
+              title={it.name + " (" + it.charges + ")"}
+            >
+              <span className="itemIcon">{it.icon}</span>
+              <span className="itemName">{it.name}</span>
+              <span className="itemCharges">{it.charges}</span>
+            </button>
+          ))}
+        </div>
+
+        <button className="btn" disabled={!state || layerFx !== null} onClick={() => setShowGhost((v) => !v)}>
+          {showGhost ? "Hide Ghost" : "Show Ghost"}
+        </button>
+
+        <button
+          className="btn"
+          disabled={!state || !canGoDown || encounterActive || layerFx !== null}
+          onClick={() => {
+            if (!state) return;
+            const next = Math.max(1, currentLayer - 1);
+
+            const st2: any = ensureScenario(state);
+            setCurrentLayer(next);
+            enterLayer(st2, next);
+            revealWholeLayer(st2, next);
+
+            forceRender((n) => n + 1);
+            pushLog("Layer " + next, "info");
+            triggerLayerFx(next);
+          }}
+        >
+          − Layer
+        </button>
+
+        <button
+          className="btn"
+          disabled={!state || !canGoUp || encounterActive || layerFx !== null}
+          onClick={() => {
+            if (!state) return;
+            const next = Math.min(scenarioLayerCount, currentLayer + 1);
+
+            const st2: any = ensureScenario(state);
+            setCurrentLayer(next);
+            enterLayer(st2, next);
+            revealWholeLayer(st2, next);
+
+            forceRender((n) => n + 1);
+            pushLog("Layer " + next, "info");
+            triggerLayerFx(next);
+          }}
+        >
+          + Layer
+        </button>
+
+        <div className="spacer" />
+
+        <button className="btn" onClick={resetAll}>
+          Reset
+        </button>
+      </div>
+
+      <div className="gameLayout">
+        <div className="boardWrap">
+          <SideBar side="left" currentLayer={currentLayer} />
+
+          <div
+            key={currentLayer}
+            className="boardLayerBg"
+            style={{
+              backgroundImage: BOARD_LAYER_ ? "url(" + toPublicUrl(BOARD_LAYER_) + ")" : undefined,
+            }}
+          />
+
+          <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
+
+          <div className="boardScroll" ref={scrollRef}>
+            <div className="board" ref={boardRef}>
+              <div className="hexGrid">
+                {showGhost ? <GhostGrid layer={currentLayer} /> : null}
+
+                {layerFx ? (
+                  <div key={layerFx.key} className="layerFxOverlay" style={layerFxStyle} aria-live="polite">
+                    <div className="layerFxCard">
+                      <div className="layerFxTitle">Layer {layerFx.layer}</div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* REAL HEX BOARD */}
+                {rows.map((r) => {
+                  const cols = ROW_LENS[r] ?? 0;
+                  const isOffset = cols === 6;
+
+                  const engineShiftRaw =
+                    (viewState as any)?.rowShifts?.[currentLayer]?.[r] ?? (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
+
+                  const engineShift = Number(engineShiftRaw ?? 0);
+
+                  const rawShift =
+                    Number.isFinite(engineShift) && engineShift !== 0
+                      ? engineShift
+                      : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
+
+                  const ns = normalizeRowShift(rawShift, cols);
+                  const shiftWrapped = ns.wrapped;
+
+                  const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+
                   return (
-                    <button
-                      key={s.id}
-                      className={"card " + (active ? "active" : "")}
-                      onClick={() => {
-                        setScenarioId(s.id);
+                    <div key={"row-" + r} className="hexRow" style={{ transform: "translateX(" + base + ")" }}>
+                      {Array.from({ length: cols }, (_, c) => {
+                        const id = idAtSlot(currentLayer, r, c, shiftWrapped);
+                        const lc = idToCoord(id);
 
-                       
-                        const t0 = s.tracks && s.tracks.length ? s.tracks[0] : null;
-                        setTrackId(t0 ? t0.id : null);
+                        const tr = findPortalTransition((viewState as any)?.scenario?.transitions, id);
 
-                        setScreen("scenario");
-                      }}
-                    >
-                      <div className="cardTitle">{s.name}</div>
-                      <div className="cardDesc">{s.desc ?? ""}</div>
-                    </button>
+                        const isPortalUp = tr?.type === "UP";
+                        const isPortalDown = tr?.type === "DOWN";
+
+                        const portalTargetLayer = tr?.to?.layer ?? null;
+                        const portalColor = portalTargetLayer ? layerCssVar(portalTargetLayer) : null;
+
+                        const hex = getHexFromState(viewState as any, id) as any;
+                        const bm = isBlockedOrMissing(hex);
+
+                        if (bm.missing) return <div key={id} className="hexSlot empty" />;
+
+                        const isSel = selectedId === id;
+                        const isPlayer = playerId === id;
+                        const isStart = startHexId === id;
+
+                        const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
+
+                        const cardHere = findCardTriggerAt(id);
+                        const isGoal = goalId === id;
+                        const isTrigger = !!findTriggerForHex(id);
+
+                        const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
+
+                        return (
+                          <div key={"v-" + r + "-" + c} className="hexSlot">
+                            <button
+                              ref={isPlayer ? playerBtnRef : undefined}
+                              className={[
+                                "hex",
+                                isSel ? "sel" : "",
+                                isReach ? "reach" : "",
+                                bm.blocked ? "blocked" : "",
+                                isPlayer ? "player" : "",
+                                isGoal ? "goal" : "",
+                                isTrigger ? "trigger" : "",
+                                isStart ? "portalStart" : "",
+                                isPortalUp ? "portalUp" : "",
+                                isPortalDown ? "portalDown" : "",
+                              ].join(" ")}
+                              onClick={() => {
+                                if (layerFx !== null) return;
+                                if (playerLayer && currentLayer !== playerLayer) {
+                                  tryMoveToId(id);
+                                  return;
+                                }
+                                setSelectedId(id);
+                                tryMoveToId(id);
+                              }}
+                              disabled={!state || bm.blocked || bm.missing || encounterActive || layerFx !== null}
+                              style={
+                                {
+                                  ["--hexGlow" as any]: layerCssVar(currentLayer),
+                                  ...(portalColor ? { ["--portalC" as any]: portalColor } : {}),
+                                } as any
+                              }
+                              title={id}
+                            >
+                              <div className="hexAnchor">
+                                <div className="hexInner" style={tile ? ({ backgroundImage: tile } as any) : undefined}>
+                                  {cardHere ? <div className={"cardBadge " + cardHere} title={cardHere} /> : null}
+                                  <div className="hexId">{r + "," + (lc ? lc.col : c)}</div>
+                                  <div className="hexMarks">
+                                    {isPortalUp ? <span className="mark">↑</span> : null}
+                                    {isPortalDown ? <span className="mark">↓</span> : null}
+                                    {isGoal ? <span className="mark g">G</span> : null}
+                                    {isTrigger ? <span className="mark t">!</span> : null}
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+
+                            {isPlayer ? (
+                              <span
+                                className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
+                                style={
+                                  {
+                                    ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
+                                    ["--frameW" as any]: FRAME_W,
+                                    ["--frameH" as any]: FRAME_H,
+                                    ["--cols" as any]: SPRITE_COLS,
+                                    ["--rows" as any]: SPRITE_ROWS,
+                                    ["--frameX" as any]: walkFrame,
+                                    ["--frameY" as any]: facingRow(playerFacing),
+                                  } as any
+                                }
+                              />
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
                   );
                 })}
               </div>
             </div>
-          ) : null}
-
-          {/* TRACK PICKER */}
-          {scenarioEntry && scenarioEntry.tracks && scenarioEntry.tracks.length > 1 ? (
-            <div className="tracks">
-              <div className="tracksTitle">Tracks</div>
-              <div className="tracksRow">
-                {scenarioEntry.tracks.map((t) => {
-                  const active = t.id === trackId;
-                  return (
-                    <button
-                      key={t.id}
-                      className={"chip " + (active ? "active" : "")}
-                      onClick={() => setTrackId(t.id)}
-                    >
-                      {t.name}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="hint">
-                Selected: <b>{trackEntry ? trackEntry.name : "—"}</b>
-              </div>
-            </div>
-          ) : scenarioEntry ? (
-            <div className="hint" style={{ marginTop: 12 }}>
-              {scenarioEntry.tracks && scenarioEntry.tracks.length === 1
-                ? "Only one track available."
-                : "No tracks for this scenario (it will start normally)."}
-            </div>
-          ) : null}
-
-          <div className="row">
-            <button className="btn" onClick={resetAll}>
-              Back
-            </button>
-
-            <button
-              className="btn primary"
-              disabled={!scenarioEntry}
-              onClick={startScenario}
-            >
-              Start
-            </button>
-
-            <button
-              className="btn"
-              onClick={() => {
-                const w0 = worlds[0];
-                const s0 = w0 && w0.scenarios ? w0.scenarios[0] : null;
-
-                if (w0 && s0) {
-                  setWorldId(w0.id);
-                  setScenarioId(s0.id);
-
-                  const t0 = s0.tracks && s0.tracks.length ? s0.tracks[0] : null;
-                  setTrackId(t0 ? t0.id : null);
-
-                  pendingQuickStartRef.current = true;
-                }
-              }}
-            >
-              Quick start (debug)
-            </button>
           </div>
 
-          <div className="hint" style={{ marginTop: 10 }}>
-            World: <b>{world ? world.name : "—"}</b> · Scenario:{" "}
-            <b>{scenarioEntry ? scenarioEntry.name : "—"}</b>
+          <SideBar side="right" currentLayer={currentLayer} />
+        </div>
+
+        {/* SIDE PANEL */}
+        <div className="side">
+          <div className="panelMini">
+            <div className="miniTitle">Status</div>
+            <div className="miniRow">
+              <span className="k">Layer</span>
+              <span className="v">
+                {currentLayer}/{scenarioLayerCount}
+              </span>
+            </div>
+            <div className="miniRow">
+              <span className="k">Moves</span>
+              <span className="v">{movesTaken}</span>
+            </div>
+            <div className="miniRow">
+              <span className="k">Optimal (start)</span>
+              <span className="v">{optimalAtStart ?? "-"}</span>
+            </div>
+            <div className="miniRow">
+              <span className="k">Optimal (now)</span>
+              <span className="v">{optimalFromNow ?? "-"}</span>
+            </div>
+          </div>
+
+          <div className="panelMini">
+            <div className="miniTitle">Log</div>
+            <div className="log">
+              {log.map((e) => (
+                <div key={e.n} className={"logRow " + (e.kind ?? "")}>
+                  <div className="lt">{e.t}</div>
+                  <div className="lm">{e.msg}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Fly-out card overlay */}
+      {flyCard ? (
+        <div className="flyCardOverlay" aria-hidden="true">
+          <div
+            key={flyCard.key}
+            className={"flyCard " + flyCard.card}
+            style={
+              {
+                ["--fromX" as any]: flyCard.from.x + "px",
+                ["--fromY" as any]: flyCard.from.y + "px",
+                ["--fromW" as any]: flyCard.from.w + "px",
+                ["--fromH" as any]: flyCard.from.h + "px",
+              } as any
+            }
+          >
+            <div className="flyFace flyFront">
+              <div className="flyLabel">{flyCard.card}</div>
+            </div>
+            <div className="flyFace flyBack">
+              <div className="flyLabel">{flyCard.card}</div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Card flip overlay */}
+      {cardFlip ? (
+        <div
+          key={cardFlip.key}
+          className="cardFlipOverlay"
+          aria-hidden="true"
+          style={
+            {
+              ["--flipDur" as any]: cardFlip.durMs + "ms",
+            } as any
+          }
+        >
+          <div className={"cardFlipCard " + cardFlip.card}>
+            {cardFlip.card === "risk" && cardFlip.villainKey ? (
+              <img className="cardFlipVillain" src={villainImg(cardFlip.villainKey)} alt={cardFlip.villainKey} />
+            ) : null}
+
+            <div className="cardFlipLabel">{cardFlip.card}</div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Encounter overlay */}
+      {encounter ? (
+        <div
+          className="encounterScene"
+          role="dialog"
+          aria-modal="true"
+          style={
+            {
+              ["--diceBorderUrl" as any]: DICE_BORDER_IMG ? "url(" + toPublicUrl(DICE_BORDER_IMG) + ")" : "none",
+            } as any
+          }
+        >
+          <div className="encounterGrid">
+            <div className="encounterCard riskCard">
+              <div className="riskCardFx" />
+              <img className="riskVillainImg" src={villainImg(encounter.villainKey)} alt={encounter.villainKey} />
+            </div>
+
+            <div className="encounterRight">
+              <div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
+                <div className="cube" style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}>
+                  <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}>
+                    <DiceCorners />
+                  </div>
+                  <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
+                    <DiceCorners />
+                  </div>
+                  <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }}>
+                    <DiceCorners />
+                  </div>
+                  <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }}>
+                    <DiceCorners />
+                  </div>
+                  <div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }}>
+                    <DiceCorners />
+                  </div>
+                  <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}>
+                    <DiceCorners />
+                  </div>
+                </div>
+              </div>
+
+              <div className="encounterInfo">
+                <div className="encounterTitle">ENCOUNTER!</div>
+                <div className="encounterSub">
+                  Roll a <b>6</b> to continue
+                  <span className="encounterTries">
+                    Tries: <b>{encounter.tries}</b>
+                  </span>
+                </div>
+
+                <div className="row" style={{ justifyContent: "center", marginTop: 12 }}>
+                  <button className="btn primary" disabled={diceRolling} onClick={rollDice}>
+                    {diceRolling ? "Rolling…" : "Roll"}
+                  </button>
+
+                  <button
+                    className="btn"
+                    disabled={diceRolling}
+                    onClick={() => {
+                      pendingEncounterMoveIdRef.current = null;
+                      setEncounter(null);
+                      pushLog("Encounter dismissed (debug)", "info");
+                    }}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+
+                <div className="encounterRollPill">
+                  Roll = <b>{diceValue}</b>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <style>{baseCss}</style>
     </div>
   );
-}
-
-/* =========================
-   GAME screen (complete)
-========================= */
-
-return (
-  <div className="appRoot game" style={themeVars}>
-    <div
-      className="gameBg"
-      style={{
-        backgroundImage: GAME__URL
-          ? "url(" + toPublicUrl(GAME__URL) + ")"
-          : undefined,
-      }}
-    />
-
-    <div className="topbar">
-     
-
-
-
-      <div className="items">
-        {items.map((it) => (
-          <button
-            key={it.id}
-            className={"itemBtn " + (it.charges <= 0 ? "off" : "")}
-            disabled={
-              it.charges <= 0 ||
-              !state ||
-              (encounterActive && it.id !== "reroll") ||
-              (layerFx !== null)
-            }
-            onClick={() => useItem(it.id)}
-            title={it.name + " (" + it.charges + ")"}
-          >
-            <span className="itemIcon">{it.icon}</span>
-            <span className="itemName">{it.name}</span>
-            <span className="itemCharges">{it.charges}</span>
-          </button>
-        ))}
-      </div>
-
-    <button
-  className="btn"
-  disabled={!state || !canGoDown || encounterActive || layerFx !== null}
-  onClick={() => {
-    if (!state) return;
-    const next = Math.max(1, currentLayer - 1);
-
-    const st2: any = ensureScenario(state);  
-    setCurrentLayer(next);
-    enterLayer(st2, next);
-    revealWholeLayer(st2, next);
-
-    forceRender((n) => n + 1);
-    pushLog("Layer " + next, "info");
-    triggerLayerFx(next);
-  }}
->
-  − Layer
-</button>
-
-
-<button
-  className="btn"
-  disabled={!state || !canGoUp || encounterActive || layerFx !== null}
-  onClick={() => {
-    if (!state) return;
-    const next = Math.min(scenarioLayerCount, currentLayer + 1);
-
-    const st2: any = ensureScenario(state);    
-    setCurrentLayer(next);
-    enterLayer(st2, next);
-    revealWholeLayer(st2, next);
-
-    forceRender((n) => n + 1);
-    pushLog("Layer " + next, "info");
-    triggerLayerFx(next);
-  }}
->
-  + Layer
-</button>
-
-    </div>
-
-  <div className="gameLayout">
-  <div className="boardWrap">
-    <SideBar side="left" currentLayer={currentLayer} />
-
-    <div
-      key={currentLayer}
-      className="boardLayerBg"
-      style={{
-        backgroundImage: BOARD_LAYER_
-          ? "url(" + toPublicUrl(BOARD_LAYER_) + ")"
-          : undefined,
-      }}
-    />
-
-    <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
-
-    <div className="boardScroll" ref={scrollRef}>
-      <div className="board" ref={boardRef}>
-        <div className="hexGrid">
-           {showGhost ? <GhostGrid layer={currentLayer} /> : null}
-
-          {layerFx ? (
-            <div
-              key={layerFx.key}
-              className="layerFxOverlay"
-              style={layerFxStyle}
-              aria-live="polite"
-            >
-              <div className="layerFxCard">
-                <div className="layerFxTitle">Layer {layerFx.layer}</div>
-              </div>
-            </div>
-          ) : null}
-
-          {/* =========================
-             REAL HEX BOARD (FIXED SHIFT)
-          ========================= */}
-          {rows.map((r) => {
-            const cols = ROW_LENS[r] ?? 0;
-            const isOffset = cols === 6;
-
-            const engineShiftRaw =
-              (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
-              (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
-
-            const engineShift = Number(engineShiftRaw ?? 0);
-
-            const rawShift =
-              Number.isFinite(engineShift) && engineShift !== 0
-                ? engineShift
-                : derivedRowShiftUnits(
-                    viewState as any,
-                    currentLayer,
-                    r,
-                    getLayerMoves(currentLayer)
-                  );
-
-            const ns = normalizeRowShift(rawShift, cols);
-
-         
-            const shiftVisual = ns.visual;  
-            const shiftWrapped = ns.wrapped; 
-
-            const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
-
-            const tx =
-              "calc(" + base + " + (" + shiftVisual + " * var(--hexStepX)))";
-
-            return (
-              <div
-                key={"row-" + r}
-                className="hexRow"
-                style={{ transform: "translateX(" + base + ")" }}
-              >
-                {Array.from({ length: cols }, (_, c) => {
-                  // VISUAL SLOT → LOGICAL HEX
-                  const id = idAtSlot(
-                    currentLayer,
-                    r,
-                    c,
-                    shiftWrapped
-                  );
-
-                  const lc = idToCoord(id);
-
-                  const tr = findPortalTransition(
-                    (viewState as any)?.scenario?.transitions,
-                    id
-                  );
-
-                  const isPortalUp = tr?.type === "UP";
-                  const isPortalDown = tr?.type === "DOWN";
-
-                  const portalTargetLayer = tr?.to?.layer ?? null;
-                  const portalColor = portalTargetLayer
-                    ? layerCssVar(portalTargetLayer)
-                    : null;
-
-                  const hex = getHexFromState(viewState as any, id) as any;
-                  const bm = isBlockedOrMissing(hex);
-
-                  if (bm.missing)
-                    return <div key={id} className="hexSlot empty" />;
-
-                  const isSel = selectedId === id;
-                const isPlayer = playerId === id;
-                  const isStart = startHexId === id;
-
-                  const isReach =
-                    playerLayer === currentLayer &&
-                    !isPlayer &&
-                    reachable.has(id);
-
-                  const cardHere = findCardTriggerAt(id);
-                  const isGoal = goalId === id;
-                  const isTrigger = !!findTriggerForHex(id);
-
-                  const tile = HEX_TILE
-                    ? "url(" + toPublicUrl(HEX_TILE) + ")"
-                    : "";
-return (
-  <div key={"v-" + r + "-" + c} className="hexSlot">
-    <button
-      ref={isPlayer ? playerBtnRef : null}
-      className={[
-        "hex",
-        isSel ? "sel" : "",
-        isReach ? "reach" : "",
-        bm.blocked ? "blocked" : "",
-        isPlayer ? "player" : "",
-        isGoal ? "goal" : "",
-        isTrigger ? "trigger" : "",
-        isStart ? "portalStart" : "",
-        isPortalUp ? "portalUp" : "",
-        isPortalDown ? "portalDown" : "",
-      ].join(" ")}
-      onClick={() => {
-        if (layerFx !== null) return;
-        if (playerLayer && currentLayer !== playerLayer) {
-          tryMoveToId(id);
-          return;
-        }
-        setSelectedId(id);
-        tryMoveToId(id);
-      }}
-      disabled={!state || bm.blocked || bm.missing || encounterActive || layerFx !== null}
-      style={
-        {
-          ["--hexGlow" as any]: layerCssVar(currentLayer),
-          ...(portalColor ? { ["--portalC" as any]: portalColor } : {}),
-        } as any
-      }
-      title={id}
-    >
-      <div className="hexAnchor">
-        <div
-          className="hexInner"
-          style={tile ? ({ backgroundImage: tile } as any) : undefined}
-        >
-          {/* 🔹 Portal FX */}
-          {isPortalUp || isPortalDown ? (
-            <>
-              <div className="pAura" />
-              <div className="pOrbs" />
-              <div className="pRim" />
-              <div className="pOval" />
-            </>
-          ) : null}
-
-          {/* 🔹 Start portal FX */}
-          {isStart ? (
-            <>
-              <div className="pAura" />
-              <div className="pRunes" />
-              <div className="pVortex" />
-              <div className="pWell" />
-              <div className="pShine" />
-            </>
-          ) : null}
-
-          {/* 🔹 Card badge */}
-          {cardHere ? <div className={"cardBadge " + cardHere} title={cardHere} /> : null}
-
-          {/* 🔹 Hex label */}
-          <div className="hexId">{r + "," + (lc ? lc.col : c)}</div>
-
-          {/* 🔹 Marks */}
-          <div className="hexMarks">
-            {isPortalUp ? <span className="mark">↑</span> : null}
-            {isPortalDown ? <span className="mark">↓</span> : null}
-            {isGoal ? <span className="mark g">G</span> : null}
-            {isTrigger ? <span className="mark t">!</span> : null}
-          </div>
-        </div>
-      </div>
-    </button>
-
-    {/* ✅ sprite OUTSIDE the clipped button (relative to .hexSlot) */}
-    {isPlayer ? (
-      <span
-        className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
-        style={
-          {
-            ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
-            ["--frameW" as any]: FRAME_W,
-            ["--frameH" as any]: FRAME_H,
-            ["--cols" as any]: SPRITE_COLS,
-            ["--rows" as any]: SPRITE_ROWS,
-            ["--frameX" as any]: walkFrame,
-            ["--frameY" as any]: facingRow(playerFacing),
-          } as any
-        }
-      />
-    ) : null}
-  </div>
-);
-
-          })}
-        </div>
-      </div>
-    </div>
-
-    <SideBar side="right" currentLayer={currentLayer} />
-  </div>
-
-  {/* SIDE PANEL */}
-  <div className="side">
-    <div className="panelMini">
-      <div className="miniTitle">Status</div>
-      <div className="miniRow">
-        <span className="k">Layer</span>
-        <span className="v">
-          {currentLayer}/{scenarioLayerCount}
-        </span>
-      </div>
-      <div className="miniRow">
-        <span className="k">Moves</span>
-        <span className="v">{movesTaken}</span>
-      </div>
-      <div className="miniRow">
-        <span className="k">Optimal (start)</span>
-        <span className="v">{optimalAtStart ?? "-"}</span>
-      </div>
-      <div className="miniRow">
-        <span className="k">Optimal (now)</span>
-        <span className="v">{optimalFromNow ?? "-"}</span>
-      </div>
-    </div>
-
-    <div className="panelMini">
-      <div className="miniTitle">Log</div>
-      <div className="log">
-        {log.map((e) => (
-          <div key={e.n} className={"logRow " + (e.kind ?? "")}>
-            <div className="lt">{e.t}</div>
-            <div className="lm">{e.msg}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
-</div>
-
-
-
-
-
-{encounter ? (
-  <div
-    className="encounterScene"
-    role="dialog"
-    aria-modal="true"
-    style={{
-      ["--diceBorderUrl" as any]: DICE_BORDER_IMG
-        ? "url(" + toPublicUrl(DICE_BORDER_IMG) + ")"
-        : "none",
-    }}
-  >
-    <div className="encounterGrid">
-      {/* LEFT */}
-      <div className="encounterCard riskCard">
-        <div className="riskCardFx" />
-        <img
-          className="riskVillainImg"
-          src={villainImg(encounter.villainKey)}
-          alt={encounter.villainKey}
-        />
-      </div>
-
-      {/* RIGHT */}
-      <div className="encounterRight">
-        <div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
-          <div
-            className="cube"
-            style={{
-              transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)",
-            }}
-          >
-            <div className="face face-front"  style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}><DiceCorners /></div>
-            <div className="face face-back"   style={{ backgroundImage: "url(" + diceImg(5) + ")" }}><DiceCorners /></div>
-            <div className="face face-right"  style={{ backgroundImage: "url(" + diceImg(3) + ")" }}><DiceCorners /></div>
-            <div className="face face-left"   style={{ backgroundImage: "url(" + diceImg(4) + ")" }}><DiceCorners /></div>
-            <div className="face face-top"    style={{ backgroundImage: "url(" + diceImg(1) + ")" }}><DiceCorners /></div>
-            <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}><DiceCorners /></div>
-          </div>
-        </div>
-
-        <div className="encounterInfo">
-          <div className="encounterTitle">ENCOUNTER!</div>
-          <div className="encounterSub">
-            Roll a <b>6</b> to continue
-            <span className="encounterTries">
-              Tries: <b>{encounter.tries}</b>
-            </span>
-          </div>
-
-          <div className="row" style={{ justifyContent: "center", marginTop: 12 }}>
-            <button className="btn primary" disabled={diceRolling} onClick={rollDice}>
-              {diceRolling ? "Rolling…" : "Roll"}
-            </button>
-
-            <button
-              className="btn"
-              disabled={diceRolling}
-              onClick={() => {
-                pendingEncounterMoveIdRef.current = null;
-                setEncounter(null);
-                pushLog("Encounter dismissed (debug)", "info");
-              }}
-            >
-              Dismiss
-            </button>
-          </div>
-
-          <div className="encounterRollPill">
-            Roll = <b>{diceValue}</b>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-) : null}
-
-
-
-
-    <style>{baseCss}</style>
-  </div>
-);
 }
