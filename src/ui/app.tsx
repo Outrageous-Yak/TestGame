@@ -435,6 +435,14 @@ function idAtSlot(layer: number, row: number, slotCol: number, shift: number) {
   return "L" + layer + "-R" + row + "-C" + origCol;
 }
 
+/** Place a hex on the shared 14-column honeycomb grid (odd rows offset by half a step). */
+function hexGridPlacement(row: number, col: number): { gridColumn: string; gridRow: number } {
+  const len = ROW_LENS[row] ?? 7;
+  const isOffset = len === 6;
+  const gridCol = isOffset ? col * 2 + 2 : col * 2 + 1;
+  return { gridColumn: gridCol + " / span 2", gridRow: row + 1 };
+}
+
 function slotOfId(row: number, origCol: number, shift: number) {
   const len = ROW_LENS[row] ?? 7;
   return mod(origCol + shift, len);
@@ -1061,40 +1069,30 @@ body{
 }
 
 /* =========================================================
-   HEX ROWS (7676767)
+   HEX GRID (7676767) — shared 14-col honeycomb grid
 ========================================================= */
-.hexRow{
-  display: flex;
-  width: 100%;
-  margin: 0;
-  height: var(--hexHMain);
-  align-items: center;
-}
-
-.hexRow--offset{
-  padding-left: calc(var(--hexStepX) / 2);
-}
-
-.hexRow + .hexRow{
-  margin-top: calc(var(--hexHMain) * -0.25);
-}
-
 .hexGrid{
-  /* shared origin for all rows — do NOT center each row independently */
+  display: grid;
+  grid-template-columns: repeat(14, calc(var(--hexStepX) / 2));
   width: calc(var(--hexStepX) * var(--maxCols));
+  grid-auto-rows: var(--hexHMain);
+  row-gap: calc(var(--hexHMain) * -0.25);
   margin: 0 auto;
   position: relative;
+}
+
+.hexRow{
+  display: contents;
 }
 
 /* =========================================================
    HEX SLOTS + HEX BUTTON
 ========================================================= */
 .hexSlot{
-  width: var(--hexStepX);
+  width: 100%;
   height: var(--hexHMain);
   display: grid;
   place-items: center;
-  flex: 0 0 var(--hexStepX);
   position: relative;
 }
 .hexSlot.empty{ opacity: 0; }
@@ -1210,31 +1208,21 @@ body{
   pointer-events: none;
   z-index: 2;
   opacity: 0.35;
+  display: grid;
+  grid-template-columns: repeat(14, calc(var(--hexStepX) / 2));
+  grid-auto-rows: var(--hexHMain);
+  row-gap: calc(var(--hexHMain) * -0.25);
 }
 
 .ghostRow{
-  display: flex;
-  height: var(--hexHMain);
-  align-items: center;
-  width: 100%;
-  margin: 0;
-  position: relative;
-}
-
-.ghostRow--offset{
-  padding-left: calc(var(--hexStepX) / 2);
-}
-
-.ghostRow + .ghostRow{
-  margin-top: calc(var(--hexHMain) * -0.25);
+  display: contents;
 }
 
 .ghostSlot{
-  width: var(--hexStepX);
+  width: 100%;
   height: var(--hexHMain);
   display: grid;
   place-items: center;
-  flex: 0 0 var(--hexStepX);
 }
 
 .ghostHex{
@@ -2360,15 +2348,15 @@ export default function App() {
       <div className="ghostGrid" aria-hidden="true">
         {rows.map((r) => {
           const cols = ROW_LENS[r] ?? 0;
-          const isOffset = cols === 6;
 
           return (
-            <div
-              key={"ghost-row-" + layer + "-" + r}
-              className={"ghostRow" + (isOffset ? " ghostRow--offset" : "")}
-            >
+            <div key={"ghost-row-" + layer + "-" + r} className="ghostRow">
               {Array.from({ length: cols }, (_, c) => (
-                <div key={"g-" + layer + "-" + r + "-" + c} className="ghostSlot">
+                <div
+                  key={"g-" + layer + "-" + r + "-" + c}
+                  className="ghostSlot"
+                  style={hexGridPlacement(r, c)}
+                >
                   <div className="ghostHex" />
                 </div>
               ))}
@@ -3570,7 +3558,6 @@ export default function App() {
                 {/* REAL HEX BOARD */}
                 {rows.map((r) => {
                   const cols = ROW_LENS[r] ?? 0;
-                  const isOffset = cols === 6;
 
                   const engineShiftRaw =
                     (viewState as any)?.rowShifts?.[currentLayer]?.[r] ?? (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
@@ -3586,10 +3573,11 @@ export default function App() {
                   const shiftWrapped = ns.wrapped;
 
                   return (
-                    <div key={"row-" + r} className={"hexRow" + (isOffset ? " hexRow--offset" : "")}>
+                    <div key={"row-" + r} className="hexRow">
                       {Array.from({ length: cols }, (_, c) => {
                         const id = idAtSlot(currentLayer, r, c, shiftWrapped);
                         const lc = idToCoord(id);
+                        const cellStyle = hexGridPlacement(r, c);
 
                         const tr = findPortalTransition((viewState as any)?.scenario?.transitions, id);
 
@@ -3602,7 +3590,7 @@ export default function App() {
                         const hex = getHexFromState(viewState as any, id) as any;
                         const bm = isBlockedOrMissing(hex);
 
-                        if (bm.missing) return <div key={id} className="hexSlot empty" />;
+                        if (bm.missing) return <div key={id} className="hexSlot empty" style={cellStyle} />;
 
                         const isSel = selectedId === id;
                         const isPlayer = playerId === id;
@@ -3617,7 +3605,7 @@ export default function App() {
                         const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
 
                         return (
-                          <div key={"v-" + r + "-" + c} className="hexSlot">
+                          <div key={"v-" + r + "-" + c} className="hexSlot" style={cellStyle}>
                             <button
                               ref={isPlayer ? playerBtnRef : undefined}
                               className={[
