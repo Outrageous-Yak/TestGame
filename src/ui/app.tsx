@@ -1169,31 +1169,29 @@ body{
 .hexCoords{
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   pointer-events: none;
-  z-index: 5;
+  z-index: 14;
 }
 
 .hexId{
-  font-size: 17px;
+  font-size: calc(var(--hexWMain) * 0.26);
   font-weight: 900;
   color: #fff;
   font-variant-numeric: tabular-nums;
-  padding: 0;
-  border: none;
-  background: transparent;
+  letter-spacing: 0.03em;
   line-height: 1;
-  -webkit-text-stroke: 1.25px #000;
-  paint-order: stroke fill;
+  white-space: nowrap;
   text-shadow:
-    -1px -1px 0 #000,
-     1px -1px 0 #000,
-    -1px  1px 0 #000,
-     1px  1px 0 #000,
-     0 2px 6px rgba(0,0,0,.45);
+    -1.5px -1.5px 0 #000,
+     1.5px -1.5px 0 #000,
+    -1.5px  1.5px 0 #000,
+     1.5px  1.5px 0 #000,
+     0 -1.5px 0 #000,
+     0  1.5px 0 #000,
+    -1.5px  0   0 #000,
+     1.5px  0   0 #000;
 }
 
 .hexMarks{
@@ -2534,7 +2532,7 @@ body{
     --hexHMain: calc(var(--hexWMain) * var(--hexAspect));
   }
 
-  .hexId{ font-size: clamp(11px, 2.8vw, 15px); -webkit-text-stroke: 1px #000; }
+  .hexId{ font-size: calc(var(--hexWMain) * 0.28); }
   .mark{ width: 14px; height: 14px; font-size: 8px; }
 }
 `;
@@ -4229,7 +4227,7 @@ export default function App() {
                                 <div className="hexInner" style={tile ? ({ backgroundImage: tile } as any) : undefined}>
                                   {cardHere ? <div className={"cardBadge " + cardHere} title={cardHere} /> : null}
                                   <div className="hexCoords">
-                                    <div className="hexId">{r + "," + c}</div>
+                                    <div className="hexId">{r + ", " + c}</div>
                                   </div>
                                   {isPortalUp || isPortalDown ? (
                                     <div className="portalFx">
