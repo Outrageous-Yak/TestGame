@@ -15,6 +15,12 @@ import {
   updateReaderState,
 } from '@/application/services/planningService';
 import { dismissFinding as dismissFindingSvc } from '@/application/services/validationService';
+import { historyService } from '@/application/services/historyService';
+import {
+  createNamedSnapshot,
+  listProjectSnapshots,
+  restoreSnapshot as restoreSnapshotSvc,
+} from '@/application/services/snapshotService';
 import { createWalkSeedProject } from '@/application/services/walkSeed';
 import { searchNodes } from '@/domain/validation/rules';
 
@@ -53,8 +59,15 @@ interface AppState {
   getFilteredNodes: () => Node[];
   getSelectedNode: () => Node | null;
   exportCurrentProject: () => ProjectExport | null;
-  importProjectData: (data: ProjectExport) => Promise<void>;
+  importProjectData: (data: ProjectExport, mode?: 'replace' | 'merge') => Promise<void>;
   refreshProject: () => Promise<void>;
+  undo: () => Promise<void>;
+  redo: () => Promise<void>;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+  listSnapshots: () => Promise<import('@/domain/types').Snapshot[]>;
+  createSnapshot: (name: string) => Promise<void>;
+  restoreSnapshot: (snapshotId: string) => Promise<void>;
 }
 
 async function withProject<T>(
@@ -64,6 +77,7 @@ async function withProject<T>(
 ): Promise<T | void> {
   const { currentProject } = get();
   if (!currentProject) return;
+  historyService.pushBefore(currentProject);
   set({ loading: true, error: null });
   try {
     const result = await fn(currentProject.project.id);
@@ -112,6 +126,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const data = await projectService.loadProjectExport(projectId);
+      historyService.clear();
       set({ currentProject: data, selectedNodeId: null, loading: false });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to open project', loading: false });
@@ -123,6 +138,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const data = await projectService.createProject(name);
       await get().loadProjects();
+      historyService.clear();
       set({ currentProject: data, loading: false });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to create project', loading: false });
@@ -134,6 +150,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const data = await createWalkSeedProject();
       await get().loadProjects();
+      historyService.clear();
       set({ currentProject: data, loading: false });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to create Walk project', loading: false });
@@ -233,14 +250,73 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   exportCurrentProject: () => get().currentProject,
 
-  importProjectData: async (data) => {
+  importProjectData: async (data, mode = 'replace') => {
+    const { currentProject } = get();
+    if (currentProject) historyService.pushBefore(currentProject);
     set({ loading: true, error: null });
     try {
-      const imported = await projectService.importProject(data, 'replace');
+      const projectId = currentProject?.project.id;
+      const imported = await projectService.importProject(data, mode, projectId);
       await get().loadProjects();
       set({ currentProject: imported, loading: false });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Import failed', loading: false });
+    }
+  },
+
+  undo: async () => {
+    const { currentProject } = get();
+    if (!currentProject) return;
+    const prev = historyService.undo(currentProject);
+    if (!prev) return;
+    set({ loading: true });
+    try {
+      const data = await projectService.saveProjectExport(prev);
+      set({ currentProject: data, loading: false });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Undo failed', loading: false });
+    }
+  },
+
+  redo: async () => {
+    const { currentProject } = get();
+    if (!currentProject) return;
+    const next = historyService.redo(currentProject);
+    if (!next) return;
+    set({ loading: true });
+    try {
+      const data = await projectService.saveProjectExport(next);
+      set({ currentProject: data, loading: false });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Redo failed', loading: false });
+    }
+  },
+
+  canUndo: () => historyService.canUndo(),
+  canRedo: () => historyService.canRedo(),
+
+  listSnapshots: async () => {
+    const { currentProject } = get();
+    if (!currentProject) return [];
+    return listProjectSnapshots(currentProject.project.id);
+  },
+
+  createSnapshot: async (name) => {
+    const { currentProject } = get();
+    if (!currentProject) return;
+    await createNamedSnapshot(currentProject.project.id, name);
+  },
+
+  restoreSnapshot: async (snapshotId) => {
+    const { currentProject } = get();
+    if (!currentProject) return;
+    if (currentProject) historyService.pushBefore(currentProject);
+    set({ loading: true, error: null });
+    try {
+      const data = await restoreSnapshotSvc(currentProject.project.id, snapshotId);
+      set({ currentProject: data, loading: false });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Restore failed', loading: false });
     }
   },
 }));

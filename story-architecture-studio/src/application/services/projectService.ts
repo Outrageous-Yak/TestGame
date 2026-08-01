@@ -17,6 +17,7 @@ import {
 } from '@/domain/types';
 import { nowIso, slugify, uniqueSlug } from '@/domain/utils';
 import { validateExport } from '@/domain/validation/rules';
+import { applyMerge } from '@/application/services/historyService';
 import { getPersistenceAdapter } from '@/infrastructure/persistence/indexedDbAdapter';
 
 function emptyExport(project: Project): ProjectExport {
@@ -294,20 +295,53 @@ export class ProjectService {
     return this.requireProjectData(projectId);
   }
 
-  async importProject(data: ProjectExport, mode: 'replace' | 'merge' = 'replace'): Promise<ProjectExport> {
+  async importProject(
+    data: ProjectExport,
+    mode: 'replace' | 'merge' = 'replace',
+    targetProjectId?: string,
+  ): Promise<ProjectExport> {
     const errors = validateExport(data);
     if (errors.length > 0) {
       throw new Error(`Import validation failed:\n${errors.join('\n')}`);
     }
 
     if (mode === 'replace') {
-      await this.adapter.createSnapshot(data.project.id, 'Pre-import backup', 'import', await this.requireProjectData(data.project.id).catch(() => data));
-      await this.adapter.saveProject(data.project);
-      await this.adapter.saveProjectData(data);
-      return data;
+      const projectId = targetProjectId ?? data.project.id;
+      const replaceData = targetProjectId
+        ? { ...data, project: { ...data.project, id: projectId } }
+        : data;
+      await this.adapter.createSnapshot(
+        projectId,
+        'Pre-import backup',
+        'import',
+        await this.requireProjectData(projectId).catch(() => replaceData),
+      );
+      await this.adapter.saveProject(replaceData.project);
+      await this.adapter.saveProjectData(replaceData);
+      return replaceData;
     }
 
-    throw new Error('Merge import not yet implemented');
+    if (mode === 'merge') {
+      const projectId = targetProjectId ?? data.project.id;
+      const current = await this.requireProjectData(projectId);
+      await this.adapter.createSnapshot(current.project.id, 'Pre-merge backup', 'import', current);
+      const incoming: ProjectExport = {
+        ...data,
+        project: { ...data.project, id: projectId },
+        nodes: data.nodes.map((n) => ({ ...n, projectId })),
+        relationships: data.relationships.map((r) => ({ ...r, projectId })),
+      };
+      const merged = applyMerge(current, incoming);
+      await this.persist(merged);
+      return merged;
+    }
+
+    throw new Error(`Unknown import mode: ${mode}`);
+  }
+
+  async saveProjectExport(data: ProjectExport): Promise<ProjectExport> {
+    await this.persist(data);
+    return data;
   }
 
   async createManualSnapshot(projectId: string, name: string): Promise<void> {

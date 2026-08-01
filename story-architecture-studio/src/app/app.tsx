@@ -14,6 +14,7 @@ import { PagePlannerPage } from '@/features/pages/PagePlannerPage';
 import { ValidationPage } from '@/features/validation/ValidationPage';
 import { TimelinePage } from '@/features/timeline/TimelinePage';
 import { ReaderKnowledgePage } from '@/features/readerTree/ReaderKnowledgePage';
+import { SnapshotsPage } from '@/features/backup/SnapshotsPage';
 
 export function App() {
   const initialize = useAppStore((s) => s.initialize);
@@ -37,6 +38,7 @@ export function App() {
           <Route path="mermaid" element={<MermaidPage />} />
           <Route path="reader-knowledge" element={<ReaderKnowledgePage />} />
           <Route path="validation" element={<ValidationPage />} />
+          <Route path="snapshots" element={<SnapshotsPage />} />
           <Route path="import-export" element={<ImportExportPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
