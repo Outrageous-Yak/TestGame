@@ -646,6 +646,10 @@ body{
 }
 .spacer{ flex:1; }
 
+.topbar .dice3d{
+  flex: 0 0 auto;
+}
+
 /* =========================================================
    PANELS / COMMON UI
 ========================================================= */
@@ -3488,6 +3492,44 @@ export default function App() {
     }, 40);
   }, [diceRolling]);
 
+  const diceBorderStyle = {
+    ["--diceBorderUrl" as any]: DICE_BORDER_IMG ? "url(" + toPublicUrl(DICE_BORDER_IMG) + ")" : "none",
+  } as React.CSSProperties;
+
+  function Dice3d(props: { large?: boolean }) {
+    return (
+      <div
+        className={"dice3d" + (props.large ? " diceLg" : "") + (diceRolling ? " rolling" : "")}
+        style={diceBorderStyle}
+        aria-label={"Dice showing " + diceValue}
+      >
+        <div
+          className={"cube" + (diceSpinning ? " isSpinning" : "")}
+          style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}
+        >
+          <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(2) + ")" }}>
+            <DiceCorners />
+          </div>
+          <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
+            <DiceCorners />
+          </div>
+          <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }}>
+            <DiceCorners />
+          </div>
+          <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }}>
+            <DiceCorners />
+          </div>
+          <div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }}>
+            <DiceCorners />
+          </div>
+          <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}>
+            <DiceCorners />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   /* =========================
      Reveal helpers
   ========================= */
@@ -4251,6 +4293,8 @@ export default function App() {
       />
 
       <div className="topbar">
+        {!encounterActive ? <Dice3d /> : null}
+
         <div className="items">
           {items.map((it) => (
             <button
@@ -4589,31 +4633,7 @@ export default function App() {
 
             <div className="riskEncounterControls">
               <div className="encounterActionRow">
-                <div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
-                  <div
-                    className={"cube" + (diceSpinning ? " isSpinning" : "")}
-                    style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}
-                  >
-                    <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(2) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                  </div>
-                </div>
+                <Dice3d large />
 
                 <div className="encounterInfo">
                   <div className="encounterTitle">ENCOUNTER!</div>
@@ -4686,31 +4706,7 @@ export default function App() {
 
             <div className="encounterRight">
               <div className="encounterActionRow">
-                <div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
-                  <div
-                    className={"cube" + (diceSpinning ? " isSpinning" : "")}
-                    style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}
-                  >
-                    <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(2) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                  </div>
-                </div>
+                <Dice3d large />
 
                 <div className="encounterInfo">
                   <div className="encounterTitle">ENCOUNTER!</div>
