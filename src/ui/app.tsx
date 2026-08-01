@@ -557,12 +557,12 @@ const baseCss = `
   /* hex geometry (7676767) — flat-top honeycomb */
   --hexWMain: 96px;
   --hexHMain: 84px;
-  /* horizontal center-to-center for flat-top hexes */
-  --hexStepX: calc(var(--hexWMain) * 0.75);
+  /* same-row spacing: point-to-point (full width between centers) */
+  --hexStepX: var(--hexWMain);
   --hexGap: 0px;
   --hexOverlap: 0.0;
-  /* grid footprint: 7 * 0.75 = 5.25 wide, 5.5 tall (with row overlap) */
-  --hexGridWFactor: 5.25;
+  /* grid footprint: 7 wide (point-to-point), 5.5 tall (with row overlap) */
+  --hexGridWFactor: 7;
   --hexGridHFactor: 5.5;
   --hexAspect: 0.875; /* hexHMain / hexWMain */
 
@@ -1985,35 +1985,38 @@ body{
 
 @media (max-width: 980px){
   body{ overflow:auto; }
-  .gameLayout{ grid-template-columns: 1fr; height:auto; min-height: calc(100vh - 64px); }
+  .gameLayout{ grid-template-columns: 1fr; height:auto; min-height: calc(100dvh - 64px); }
   .barWrap{ display:none; }
   .side{ order: 10; }
   .boardWrap{
     grid-template-columns: 1fr;
-    min-height: min(62vh, calc(var(--hexFieldH) + 28px));
+    height: auto;
+    min-height: 0;
+    overflow: visible;
   }
   .boardScroll{
     grid-column: 1;
-    padding: 10px 8px;
+    padding: 8px 6px;
     overflow: visible;
+    height: auto;
   }
   .board{
     width: calc(var(--hexStepX) * var(--maxCols));
     max-width: 100%;
   }
   :root{
-    --boardPadTop: 10px;
-    --boardPadBottom: 10px;
-    /* shrink hexes to fit the visible board on narrow screens */
+    --boardPadTop: 8px;
+    --boardPadBottom: 8px;
+    /* fit full 7x7 grid in viewport above status panel */
     --hexWMain: min(
-      96px,
-      calc((100vw - 32px) / var(--hexGridWFactor)),
-      calc((100vh - 240px) / (var(--hexGridHFactor) * var(--hexAspect)))
+      72px,
+      calc((100vw - 20px) / var(--hexGridWFactor)),
+      calc((100dvh - 300px) / (var(--hexGridHFactor) * var(--hexAspect)))
     );
     --hexHMain: calc(var(--hexWMain) * var(--hexAspect));
   }
-  .hexId{ font-size: clamp(9px, 2.6vw, 12px); }
-  .mark{ width: 18px; height: 18px; font-size: 10px; }
+  .hexId{ font-size: clamp(8px, 2.2vw, 11px); }
+  .mark{ width: 16px; height: 16px; font-size: 9px; }
 }
 `;
 
