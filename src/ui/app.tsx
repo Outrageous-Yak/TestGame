@@ -546,11 +546,12 @@ const baseCss = `
   --boardPadTop: 18px;
   --boardPadBottom: 18px;
 
-  /* hex geometry (7676767) */
+  /* hex geometry (7676767) — flat-top honeycomb */
   --hexWMain: 96px;
   --hexHMain: 84px;
-  --hexStepX: 90px;
-  --hexGap: 10px;
+  /* horizontal center-to-center for flat-top hexes */
+  --hexStepX: calc(var(--hexWMain) * 0.75);
+  --hexGap: 0px;
   --hexOverlap: 0.0;
 
   /* ✅ FIX: --hexW did not exist */
@@ -558,8 +559,8 @@ const baseCss = `
 
   --maxCols: 7;
 
-  /* honeycomb vertical spacing */
-  --hexStepY: calc(var(--hexHMain) * 1);
+  /* vertical center-to-center between row centers (3/4 height for flat-top) */
+  --hexStepY: calc(var(--hexHMain) * 0.75);
 
   /* height of JUST the 7 hex rows (no top/bottom padding) */
   --hexRowsH: calc((var(--hexStepY) * 6) + var(--hexHMain));
@@ -1066,8 +1067,12 @@ body{
   display: flex;
   width: fit-content;
   margin: 0 auto;
-  height: var(--hexStepY);
+  height: var(--hexHMain);
   align-items: center;
+}
+
+.hexRow + .hexRow{
+  margin-top: calc(var(--hexHMain) * -0.25);
 }
 
 .hexGrid{
@@ -1081,7 +1086,7 @@ body{
 ========================================================= */
 .hexSlot{
   width: var(--hexStepX);
-  height: var(--hexStepY);
+  height: var(--hexHMain);
   display: grid;
   place-items: center;
   flex: 0 0 var(--hexStepX);
@@ -1204,16 +1209,20 @@ body{
 
 .ghostRow{
   display: flex;
-  height: var(--hexStepY);
+  height: var(--hexHMain);
   align-items: center;
   width: fit-content;
   margin: 0 auto;
   position: relative;
 }
 
+.ghostRow + .ghostRow{
+  margin-top: calc(var(--hexHMain) * -0.25);
+}
+
 .ghostSlot{
   width: var(--hexStepX);
-  height: var(--hexStepY);
+  height: var(--hexHMain);
   display: grid;
   place-items: center;
   flex: 0 0 var(--hexStepX);
@@ -2344,8 +2353,8 @@ export default function App() {
           const cols = ROW_LENS[r] ?? 0;
           const isOffset = cols === 6;
 
-          // ✅ must match REAL grid base indent
-          const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+          // Odd rows (6 hexes) nest halfway between the 7-hex row above
+          const base = isOffset ? "calc(var(--hexStepX) / 2)" : "0px";
 
           return (
             <div
@@ -3571,7 +3580,8 @@ export default function App() {
                   const ns = normalizeRowShift(rawShift, cols);
                   const shiftWrapped = ns.wrapped;
 
-                  const base = isOffset ? "calc(var(--hexStepX) / -2)" : "0px";
+                  // Odd rows (6 hexes) nest halfway between the 7-hex row above
+                  const base = isOffset ? "calc(var(--hexStepX) / 2)" : "0px";
 
                   return (
                     <div key={"row-" + r} className="hexRow" style={{ transform: "translateX(" + base + ")" }}>
