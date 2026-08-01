@@ -227,6 +227,7 @@ export interface ProjectExport {
   pages: Page[];
   panelBeats: PanelBeat[];
   readerStates: ReaderState[];
+  validationFindings: ValidationFinding[];
   savedViews: unknown[];
   settings: ProjectSettings;
 }

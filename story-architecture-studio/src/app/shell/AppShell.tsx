@@ -23,7 +23,9 @@ export function AppShell() {
         <nav className="sidebar" aria-label="Main navigation">
           <NavLink to="/" end>Dashboard</NavLink>
           <NavLink to="/explorer">Explorer</NavLink>
+          <NavLink to="/graph">Graph</NavLink>
           <NavLink to="/issues">Issue Board</NavLink>
+          <NavLink to="/reader-knowledge">Reader Knowledge</NavLink>
           <NavLink to="/timeline">Timeline</NavLink>
           <NavLink to="/mermaid">Mermaid</NavLink>
           <NavLink to="/validation">Validation</NavLink>
@@ -45,7 +47,7 @@ export function AppShell() {
       </div>
 
       <footer className="app-footer">
-        <span>v0.1 — vertical slice</span>
+        <span>v0.1 — Phase 4+8</span>
         <span>
           {currentProject
             ? `${currentProject.nodes.filter((n) => !n.archivedAt).length} nodes · ${currentProject.issues.length} issues`

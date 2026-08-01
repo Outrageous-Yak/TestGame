@@ -7,5 +7,6 @@ export function normalizeProjectExport(data: ProjectExport): ProjectExport {
       ...p,
       assignedNodeIds: p.assignedNodeIds ?? [],
     })),
+    validationFindings: data.validationFindings ?? [],
   };
 }

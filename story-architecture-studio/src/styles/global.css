@@ -299,6 +299,17 @@ button.small { padding: 0.2rem 0.5rem; font-size: 0.8rem; }
 .timeline-title { background: transparent; color: var(--accent); border: none; padding: 0; font-size: 1.1rem; font-weight: 600; text-align: left; cursor: pointer; }
 .meta { font-size: 0.8rem; color: var(--muted); }
 
+.graph-page .graph-canvas { height: 520px; padding: 0; overflow: hidden; }
+.graph-page .react-flow { background: #faf8f5; border-radius: var(--radius); }
+.flow-node-label { text-align: left; }
+.flow-node-title { font-weight: 600; margin-bottom: 0.25rem; }
+.flow-node-meta { display: flex; gap: 0.35rem; font-size: 0.7rem; color: var(--muted); }
+.path-finder { margin-top: 1rem; }
+.dismiss-form { margin-top: 0.5rem; }
+
+.reader-list { list-style: none; padding: 0; display: grid; gap: 0.75rem; }
+.reader-card textarea { width: 100%; margin: 0.5rem 0; }
+
 @media (max-width: 960px) {
   .app-body { grid-template-columns: 1fr; }
   .sidebar { display: none; }

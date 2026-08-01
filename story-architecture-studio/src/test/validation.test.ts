@@ -77,6 +77,7 @@ describe('validation rules', () => {
       pages: [],
       panelBeats: [],
       readerStates: [],
+      validationFindings: [],
       savedViews: [],
       settings: DEFAULT_PROJECT_SETTINGS,
     };

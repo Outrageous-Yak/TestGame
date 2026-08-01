@@ -195,6 +195,24 @@ export async function addReaderState(
   return save(data);
 }
 
+export async function updateReaderState(
+  projectId: string,
+  stateId: string,
+  updates: Partial<Pick<ReaderState, 'recordType' | 'content' | 'nodeId' | 'issueId' | 'sortOrder'>>,
+): Promise<ProjectExport> {
+  const data = await load(projectId);
+  const idx = data.readerStates.findIndex((s) => s.id === stateId);
+  if (idx === -1) throw new Error(`Reader state not found: ${stateId}`);
+  data.readerStates[idx] = { ...data.readerStates[idx]!, ...updates, updatedAt: nowIso() };
+  return save(data);
+}
+
+export async function deleteReaderState(projectId: string, stateId: string): Promise<ProjectExport> {
+  const data = await load(projectId);
+  data.readerStates = data.readerStates.filter((s) => s.id !== stateId);
+  return save(data);
+}
+
 export function getIssuePages(data: ProjectExport, issueId: string): Page[] {
   return data.pages
     .filter((p) => p.issueId === issueId)

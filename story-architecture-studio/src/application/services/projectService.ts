@@ -31,6 +31,7 @@ function emptyExport(project: Project): ProjectExport {
     pages: [],
     panelBeats: [],
     readerStates: [],
+    validationFindings: [],
     savedViews: [],
     settings: project.settings,
   };

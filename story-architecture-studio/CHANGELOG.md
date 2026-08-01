@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0] — 2026-08-01
+
+### Added
+
+- React Flow 2D relationship graph with depth, type/canon filters, and node focus
+- Path-between-nodes finder on graph page
+- Reader knowledge editor (add/edit/delete per issue)
+- Persisted validation dismissals
+- Playwright e2e smoke tests (3 tests)
+- Graph view model unit tests
+
+### Changed
+
+- Validation page supports dismiss with reason
+- Navigation includes Graph and Reader Knowledge links
+
 ## [0.2.0] — 2026-08-01
 
 ### Added

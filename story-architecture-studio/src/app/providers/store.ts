@@ -1,16 +1,20 @@
 import { create } from 'zustand';
-import type { Issue, Node, NodeType, Page, Project, ProjectExport, Relationship } from '@/domain/types';
+import type { Issue, Node, NodeType, Page, Project, ProjectExport, ReaderState, Relationship, ValidationFinding } from '@/domain/types';
 import { projectService } from '@/application/services/projectService';
 import {
   addPanelBeat,
+  addReaderState,
   assignNodeToPage,
+  deleteReaderState,
   ensureIssueSeries,
   reorderIssues as reorderIssuesSvc,
   unassignNodeFromPage,
   updateIssue as updateIssueSvc,
   updatePage as updatePageSvc,
   updatePanelBeat,
+  updateReaderState,
 } from '@/application/services/planningService';
+import { dismissFinding as dismissFindingSvc } from '@/application/services/validationService';
 import { createWalkSeedProject } from '@/application/services/walkSeed';
 import { searchNodes } from '@/domain/validation/rules';
 
@@ -39,6 +43,10 @@ interface AppState {
   unassignFromPage: (pageId: string, nodeId: string) => Promise<void>;
   addPanelBeat: (pageId: string) => Promise<void>;
   updatePanelBeat: (beatId: string, updates: Parameters<typeof updatePanelBeat>[2]) => Promise<void>;
+  addReaderState: (input: Pick<ReaderState, 'issueId' | 'recordType' | 'content' | 'nodeId' | 'sortOrder'>) => Promise<void>;
+  updateReaderState: (stateId: string, updates: Partial<Pick<ReaderState, 'recordType' | 'content' | 'nodeId' | 'issueId' | 'sortOrder'>>) => Promise<void>;
+  deleteReaderState: (stateId: string) => Promise<void>;
+  dismissFinding: (finding: Pick<ValidationFinding, 'code' | 'message' | 'nodeIds'>, reason: string) => Promise<void>;
   selectNode: (nodeId: string | null) => void;
   setSearchQuery: (query: string) => void;
   setTypeFilter: (type: NodeType | 'ALL') => void;
@@ -185,6 +193,22 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   updatePanelBeat: async (beatId, updates) => {
     await withProject(get, set, (id) => updatePanelBeat(id, beatId, updates));
+  },
+
+  addReaderState: async (input) => {
+    await withProject(get, set, (id) => addReaderState(id, input));
+  },
+
+  updateReaderState: async (stateId, updates) => {
+    await withProject(get, set, (id) => updateReaderState(id, stateId, updates));
+  },
+
+  deleteReaderState: async (stateId) => {
+    await withProject(get, set, (id) => deleteReaderState(id, stateId));
+  },
+
+  dismissFinding: async (finding, reason) => {
+    await withProject(get, set, (id) => dismissFindingSvc(id, finding, reason));
   },
 
   selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
