@@ -1771,19 +1771,23 @@ body{
   place-items: center;
   background: rgba(0,0,0,.62);
   backdrop-filter: blur(10px);
+  overflow-y: auto;
+  padding: 16px;
+  box-sizing: border-box;
 }
 
 .encounterGrid{
   width: min(1200px, 94vw);
   display: grid;
-  grid-template-columns: 480px 1fr;
-  gap: 80px;
+  grid-template-columns: minmax(280px, 480px) 1fr;
+  gap: 48px;
   align-items: center;
 }
 
 .encounterCard{
   width: 100%;
   aspect-ratio: 3 / 4;
+  max-height: min(72vh, 640px);
   border-radius: 28px;
   overflow: hidden;
   border: 1px solid rgba(255,255,255,.18);
@@ -1829,11 +1833,28 @@ body{
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 16px;
+}
+
+.encounterActionRow{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
 }
 
 .encounterInfo{
   text-align: center;
-  width: min(520px, 90%);
+  width: min(520px, 100%);
+}
+
+.encounterButtons{
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 12px;
 }
 
 .encounterTitle{
@@ -1866,9 +1887,86 @@ body{
 }
 
 @media (max-width: 860px){
+  .encounterScene{
+    place-items: start center;
+    align-content: start;
+    padding: 10px 10px 24px;
+  }
+
   .encounterGrid{
     grid-template-columns: 1fr;
-    gap: 18px;
+    gap: 12px;
+    width: 100%;
+    max-width: 100%;
+    margin: auto 0;
+  }
+
+  .encounterCard{
+    aspect-ratio: 16 / 10;
+    max-height: 34vh;
+    min-height: 120px;
+    border-radius: 18px;
+  }
+
+  .encounterRight{
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .encounterActionRow{
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .dice3d.diceLg{
+    --diceBox: 88px;
+    --cube: 70px;
+    --z: 35px;
+    perspective: 700px;
+    flex: 0 0 auto;
+    margin-top: 4px;
+  }
+
+  .encounterInfo{
+    text-align: left;
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
+
+  .encounterTitle{
+    font-size: 16px;
+  }
+
+  .encounterSub{
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .encounterTries{
+    display: block;
+    margin-left: 0;
+    margin-top: 4px;
+  }
+
+  .encounterButtons{
+    justify-content: flex-start;
+    margin-top: 10px;
+    gap: 8px;
+  }
+
+  .encounterButtons .btn{
+    padding: 9px 14px;
+    font-size: 14px;
+    border-radius: 12px;
+  }
+
+  .encounterRollPill{
+    margin-top: 8px;
+    font-size: 12px;
+    padding: 6px 10px;
   }
 }
 
@@ -3687,58 +3785,60 @@ export default function App() {
             </div>
 
             <div className="encounterRight">
-              <div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
-                <div className="cube" style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}>
-                  <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}>
-                    <DiceCorners />
-                  </div>
-                  <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
-                    <DiceCorners />
-                  </div>
-                  <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }}>
-                    <DiceCorners />
-                  </div>
-                  <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }}>
-                    <DiceCorners />
-                  </div>
-                  <div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }}>
-                    <DiceCorners />
-                  </div>
-                  <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}>
-                    <DiceCorners />
+              <div className="encounterActionRow">
+                <div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
+                  <div className="cube" style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}>
+                    <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}>
+                      <DiceCorners />
+                    </div>
+                    <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
+                      <DiceCorners />
+                    </div>
+                    <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }}>
+                      <DiceCorners />
+                    </div>
+                    <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }}>
+                      <DiceCorners />
+                    </div>
+                    <div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }}>
+                      <DiceCorners />
+                    </div>
+                    <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}>
+                      <DiceCorners />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="encounterInfo">
-                <div className="encounterTitle">ENCOUNTER!</div>
-                <div className="encounterSub">
-                  Roll a <b>6</b> to continue
-                  <span className="encounterTries">
-                    Tries: <b>{encounter.tries}</b>
-                  </span>
-                </div>
+                <div className="encounterInfo">
+                  <div className="encounterTitle">ENCOUNTER!</div>
+                  <div className="encounterSub">
+                    Roll a <b>6</b> to continue
+                    <span className="encounterTries">
+                      Tries: <b>{encounter.tries}</b>
+                    </span>
+                  </div>
 
-                <div className="row" style={{ justifyContent: "center", marginTop: 12 }}>
-                  <button className="btn primary" disabled={diceRolling} onClick={rollDice}>
-                    {diceRolling ? "Rolling…" : "Roll"}
-                  </button>
+                  <div className="encounterButtons">
+                    <button className="btn primary" disabled={diceRolling} onClick={rollDice}>
+                      {diceRolling ? "Rolling…" : "Roll"}
+                    </button>
 
-                  <button
-                    className="btn"
-                    disabled={diceRolling}
-                    onClick={() => {
-                      pendingEncounterMoveIdRef.current = null;
-                      setEncounter(null);
-                      pushLog("Encounter dismissed (debug)", "info");
-                    }}
-                  >
-                    Dismiss
-                  </button>
-                </div>
+                    <button
+                      className="btn"
+                      disabled={diceRolling}
+                      onClick={() => {
+                        pendingEncounterMoveIdRef.current = null;
+                        setEncounter(null);
+                        pushLog("Encounter dismissed (debug)", "info");
+                      }}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
 
-                <div className="encounterRollPill">
-                  Roll = <b>{diceValue}</b>
+                  <div className="encounterRollPill">
+                    Roll = <b>{diceValue}</b>
+                  </div>
                 </div>
               </div>
             </div>
