@@ -1143,6 +1143,7 @@ body{
   display: grid;
   place-items: center;
   position: relative;
+  overflow: visible;
 }
 .hexSlot.empty{ opacity: 0; }
 
@@ -1899,7 +1900,7 @@ body{
 .cardBadge{
   position: absolute;
   left: 50%;
-  top: 6%;
+  top: 0;
   transform: translate(-50%, -50%);
   width: calc(var(--hexWMain) * 0.20);
   aspect-ratio: 3 / 4;
@@ -1915,10 +1916,10 @@ body{
   pointer-events: none;
 }
 
-.hexInner .cardBadge.hexDeckCard{
+.hexSlot > .cardBadge.hexDeckCard{
   position: absolute;
   left: 50%;
-  top: 6%;
+  top: 0;
   width: calc(var(--hexWMain) * 0.20);
   max-width: none;
   aspect-ratio: 3 / 4;
@@ -4296,14 +4297,15 @@ export default function App() {
                                     {isGoal ? <span className="mark g">G</span> : null}
                                     {isTrigger ? <span className="mark t">!</span> : null}
                                   </div>
-                                  {cardHere ? (
-                                    <div className={"cardBadge hexDeckCard " + cardHere} title={cardHere}>
-                                      <div className="deckFx" />
-                                    </div>
-                                  ) : null}
                                 </div>
                               </div>
                             </button>
+
+                            {cardHere ? (
+                              <div className={"cardBadge hexDeckCard " + cardHere} title={cardHere}>
+                                <div className="deckFx" />
+                              </div>
+                            ) : null}
 
                             {isPlayer ? (
                               <span
