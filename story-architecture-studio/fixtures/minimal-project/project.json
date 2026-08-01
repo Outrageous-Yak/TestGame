@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "description": "Minimal empty project fixture for tests",
+  "project": {
+    "name": "Minimal",
+    "defaultIssueCount": 1,
+    "defaultPageCount": 20
+  }
+}

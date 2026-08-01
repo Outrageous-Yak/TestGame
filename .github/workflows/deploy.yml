@@ -25,13 +25,28 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '22'
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install and build Hex Game
+        run: |
+          npm install
+          npm run build
 
-      - name: Build
-        run: npm run build
+      - name: Install and build Story Architecture Studio
+        if: hashFiles('story-architecture-studio/package.json') != ''
+        working-directory: story-architecture-studio
+        run: |
+          npm ci
+          npm run build
+          cp dist/index.html dist/404.html
+        env:
+          BASE_PATH: /TestGame/studio/
+
+      - name: Combine site artifacts
+        if: hashFiles('story-architecture-studio/package.json') != ''
+        run: |
+          mkdir -p dist/studio
+          cp -r story-architecture-studio/dist/* dist/studio/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
