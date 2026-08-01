@@ -2147,13 +2147,24 @@ body{
 
   transform-style: preserve-3d;
   transform-origin: center;
-  border-radius: 22px;
+  border-radius: var(--fromRadius, 10px);
   overflow: hidden;
+  isolation: isolate;
+  border: 1px solid rgba(255,255,255,.18);
 
   transform: translate3d(var(--fromX), var(--fromY), 0) scale(1);
 
   animation: flyToCenter 1.15s ease-out forwards;
-  box-shadow: 0 28px 90px rgba(0,0,0,.65);
+  box-shadow: 0 8px 18px rgba(0,0,0,.45);
+}
+
+.flyCard .deckFx{
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  overflow: hidden;
+  transform: translateZ(0);
 }
 
 .flyCard.cosmic  { background: linear-gradient(135deg,#0C1026,#1A1F4A); }
@@ -2165,7 +2176,7 @@ body{
   position:absolute;
   inset:0;
   backface-visibility: hidden;
-  border-radius: 22px;
+  border-radius: inherit;
   overflow:hidden;
 }
 .flyFront{ transform: rotateY(0deg); }
@@ -2202,7 +2213,7 @@ body{
         calc(50vh - (var(--fromH) / 2)),
         0
       )
-      scale(1.3)
+      scale(1)
       rotateY(0deg);
   }
 
@@ -2214,7 +2225,7 @@ body{
         calc(50vh - (var(--fromH) / 2)),
         0
       )
-      scale(1.3)
+      scale(1)
       rotateY(0deg);
   }
 
@@ -2226,7 +2237,7 @@ body{
         calc(50vh - (var(--fromH) / 2)),
         0
       )
-      scale(1.3)
+      scale(1)
       rotateY(180deg);
   }
 
@@ -2238,7 +2249,7 @@ body{
         calc(50vh - (var(--fromH) / 2)),
         0
       )
-      scale(1.25)
+      scale(1)
       rotateY(180deg);
   }
 }
@@ -3626,7 +3637,7 @@ export default function App() {
   type FlyCard = {
     key: number;
     card: CardKey;
-    from: { x: number; y: number; w: number; h: number };
+    from: { x: number; y: number; w: number; h: number; borderRadius: string };
   };
 
   const [flyCard, setFlyCard] = useState<FlyCard | null>(null);
@@ -3640,19 +3651,24 @@ export default function App() {
 
   const triggerCardFlyout = useCallback(
     (card: CardKey) => {
-      const el = deckRefs.current[card];
+      const el =
+        deckRefs.current[card] ??
+        (typeof document !== "undefined"
+          ? (document.querySelector(".mobileDeckRow .mobileDeckCard." + card) as HTMLDivElement | null)
+          : null);
       if (!el) {
         triggerCardFlip(card);
         return;
       }
 
       const r = el.getBoundingClientRect();
+      const borderRadius = window.getComputedStyle(el).borderRadius || "10px";
 
       const key = Date.now();
       setFlyCard({
         key,
         card,
-        from: { x: r.left, y: r.top, w: r.width, h: r.height },
+        from: { x: r.left, y: r.top, w: r.width, h: r.height, borderRadius },
       });
 
       flyTimerRef.current = window.setTimeout(() => {
@@ -4388,21 +4404,22 @@ export default function App() {
         <div className="flyCardOverlay" aria-hidden="true">
           <div
             key={flyCard.key}
-            className={"flyCard " + flyCard.card}
+            className={"flyCard hexDeckCard " + flyCard.card}
             style={
               {
                 ["--fromX" as any]: flyCard.from.x + "px",
                 ["--fromY" as any]: flyCard.from.y + "px",
                 ["--fromW" as any]: flyCard.from.w + "px",
                 ["--fromH" as any]: flyCard.from.h + "px",
+                ["--fromRadius" as any]: flyCard.from.borderRadius,
               } as any
             }
           >
             <div className="flyFace flyFront">
-              <div className="flyLabel">{flyCard.card}</div>
+              <div className="deckFx" />
             </div>
             <div className="flyFace flyBack">
-              <div className="flyLabel">{flyCard.card}</div>
+              <div className="deckFx" />
             </div>
           </div>
         </div>
