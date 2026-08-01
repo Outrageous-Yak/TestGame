@@ -1548,14 +1548,18 @@ body{
   display: none;
   gap: 8px;
   padding: 0 2px;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.mobileDeckCard{
+.mobileDeckRow .mobileDeckCard{
   position: relative;
-  flex: 1 1 0;
-  min-width: 0;
-  aspect-ratio: 3 / 4;
+  flex: 0 0 calc(56px * 3 / 4);
+  width: calc(56px * 3 / 4);
+  height: 56px;
+  max-width: calc(56px * 3 / 4);
   max-height: 56px;
+  min-width: 0;
   border-radius: 10px;
   overflow: hidden;
   isolation: isolate;
@@ -1563,9 +1567,15 @@ body{
   right: auto;
   top: auto;
   bottom: auto;
-  width: auto;
-  max-width: none;
-  margin: 0 auto;
+  margin: 0;
+  transform: none;
+}
+
+.mobileDeckRow .mobileDeckCard.cosmic,
+.mobileDeckRow .mobileDeckCard.risk,
+.mobileDeckRow .mobileDeckCard.terrain,
+.mobileDeckRow .mobileDeckCard.shadow{
+  transform: none;
 }
 
 .mobileDeckCard .deckFx{
