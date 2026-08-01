@@ -1899,16 +1899,41 @@ body{
 .cardBadge{
   position: absolute;
   left: 50%;
-  top: 18px;
-  transform: translateX(-50%);
-  width: 20px;
-  height: 12px;
-  border-radius: 4px;
+  top: 6%;
+  transform: translate(-50%, -50%);
+  width: calc(var(--hexWMain) * 0.20);
+  aspect-ratio: 3 / 4;
+  height: auto;
+  max-width: none;
+  border-radius: 8px;
+  overflow: hidden;
+  isolation: isolate;
 
-  z-index: 6;
-  box-shadow: 0 6px 14px rgba(0,0,0,.35);
+  z-index: 22;
+  box-shadow: 0 6px 14px rgba(0,0,0,.45);
   border: 1px solid rgba(255,255,255,.18);
   pointer-events: none;
+}
+
+.hexInner .cardBadge.hexDeckCard{
+  position: absolute;
+  left: 50%;
+  top: 6%;
+  width: calc(var(--hexWMain) * 0.20);
+  max-width: none;
+  aspect-ratio: 3 / 4;
+  height: auto;
+  transform: translate(-50%, -50%);
+  border-radius: 8px;
+}
+
+.cardBadge .deckFx{
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  overflow: hidden;
+  transform: translateZ(0);
 }
 
 /* 4 color themes */
@@ -4245,7 +4270,6 @@ export default function App() {
                             >
                               <div className="hexAnchor">
                                 <div className="hexInner" style={tile ? ({ backgroundImage: tile } as any) : undefined}>
-                                  {cardHere ? <div className={"cardBadge " + cardHere} title={cardHere} /> : null}
                                   <div className="hexCoords">
                                     <div className="hexId">{r + "," + c}</div>
                                   </div>
@@ -4272,6 +4296,11 @@ export default function App() {
                                     {isGoal ? <span className="mark g">G</span> : null}
                                     {isTrigger ? <span className="mark t">!</span> : null}
                                   </div>
+                                  {cardHere ? (
+                                    <div className={"cardBadge hexDeckCard " + cardHere} title={cardHere}>
+                                      <div className="deckFx" />
+                                    </div>
+                                  ) : null}
                                 </div>
                               </div>
                             </button>
