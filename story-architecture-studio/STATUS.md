@@ -33,4 +33,7 @@ npm run tauri:dev     # desktop + SQLite (requires Rust 1.88+)
 
 ## Deployment
 
-GitHub Pages workflow at `.github/workflows/deploy-sas.yml` — enable Pages on the repo for `https://<user>.github.io/TestGame/`.
+Deployed via GitHub Actions on push to `main` (`.github/workflows/deploy.yml`).
+
+- **Hex Game:** https://outrageous-yak.github.io/TestGame/
+- **Story Architecture Studio:** https://outrageous-yak.github.io/TestGame/studio/

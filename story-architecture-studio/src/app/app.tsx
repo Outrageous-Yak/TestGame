@@ -25,7 +25,7 @@ export function App() {
   }, [initialize]);
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || undefined}>
       <Routes>
         <Route path="/" element={<AppShell />}>
           <Route index element={<DashboardPage />} />

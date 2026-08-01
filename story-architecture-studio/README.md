@@ -16,6 +16,12 @@ npm run dev          # includes --host for phone preview on same WiFi
 
 Open http://localhost:5173
 
+### GitHub Pages (phone-friendly)
+
+**https://outrageous-yak.github.io/TestGame/studio/**
+
+Deployed automatically on push to `main` via `.github/workflows/deploy.yml` (alongside the Hex Game at `/TestGame/`).
+
 ### Desktop (Tauri + SQLite)
 
 Requires Rust 1.88+ and platform libraries (GTK on Linux, Xcode on macOS).

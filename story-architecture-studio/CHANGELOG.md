@@ -2,6 +2,10 @@
 
 ## [1.0.0] — 2026-08-01
 
+### Changed
+
+- GitHub Pages deploy path: `/TestGame/studio/` (coexists with Hex Game at repo root)
+
 ### Added
 
 - Crash recovery pipeline with autosave checkpoints and recovery modal

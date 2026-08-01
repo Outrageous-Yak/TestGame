@@ -6,11 +6,11 @@
 
 **Reason:** User requested building "parallel here" without replacing existing workspace content.
 
-## D002 — IndexedDB over SQLite for v0.1 foundation
+## D002 — Dual persistence: IndexedDB (browser) + SQLite (Tauri)
 
-**Decision:** Use IndexedDB with an abstracted `PersistenceAdapter` for Phase 0–2.
+**Decision:** Browser builds use IndexedDB. Tauri desktop builds use SQLite via `@tauri-apps/plugin-sql` and `SqliteAdapter`, selected at runtime by `initPersistenceAdapter()`.
 
-**Reason:** Cloud agent environment supports browser-based development immediately. Spec allows browser-only PoC when persistence is isolated. Tauri/SQLite deferred to a later phase.
+**Reason:** Enables immediate browser development while satisfying the desktop persistence requirement through the shared `PersistenceAdapter` interface.
 
 ## D003 — Zustand for UI state
 
