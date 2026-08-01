@@ -165,6 +165,7 @@ export interface Page {
   layoutNotes: string;
   panelCount: number | null;
   density: string | null;
+  assignedNodeIds: string[];
   createdAt: string;
   updatedAt: string;
 }

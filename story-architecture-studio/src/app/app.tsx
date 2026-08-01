@@ -6,6 +6,12 @@ import { DashboardPage } from '@/features/projects/DashboardPage';
 import { ExplorerPage } from '@/features/explorer/ExplorerPage';
 import { ImportExportPage } from '@/features/projects/ImportExportPage';
 import { MermaidPage } from '@/features/graph/MermaidPage';
+import { TreePage } from '@/features/trees/TreePage';
+import { IssueBoardPage } from '@/features/issues/IssueBoardPage';
+import { IssuePlannerPage } from '@/features/issues/IssuePlannerPage';
+import { PagePlannerPage } from '@/features/pages/PagePlannerPage';
+import { ValidationPage } from '@/features/validation/ValidationPage';
+import { TimelinePage } from '@/features/timeline/TimelinePage';
 
 export function App() {
   const initialize = useAppStore((s) => s.initialize);
@@ -20,7 +26,13 @@ export function App() {
         <Route path="/" element={<AppShell />}>
           <Route index element={<DashboardPage />} />
           <Route path="explorer" element={<ExplorerPage />} />
+          <Route path="trees/:kind" element={<TreePage />} />
+          <Route path="issues" element={<IssueBoardPage />} />
+          <Route path="issues/:issueId/plan" element={<IssuePlannerPage />} />
+          <Route path="issues/:issueId/pages/:pageId" element={<PagePlannerPage />} />
+          <Route path="timeline" element={<TimelinePage />} />
           <Route path="mermaid" element={<MermaidPage />} />
+          <Route path="validation" element={<ValidationPage />} />
           <Route path="import-export" element={<ImportExportPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

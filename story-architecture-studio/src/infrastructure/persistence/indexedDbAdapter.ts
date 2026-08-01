@@ -1,6 +1,7 @@
 import { CURRENT_MIGRATION_VERSION } from '../migrations';
 import type { PersistenceAdapter } from './types';
 import type { ProjectExport } from '@/domain/types';
+import { normalizeProjectExport } from './normalize';
 
 const DB_NAME = 'story-architecture-studio';
 const DB_VERSION = CURRENT_MIGRATION_VERSION;
@@ -129,7 +130,7 @@ export class IndexedDbAdapter implements PersistenceAdapter {
     const row = await withStore<{ projectId: string; data: ProjectExport }>('projectData', 'readonly', (store) =>
       store.get(projectId),
     );
-    return row?.data ?? null;
+    return row?.data ? normalizeProjectExport(row.data) : null;
   }
 
   async saveProjectData(data: ProjectExport): Promise<void> {

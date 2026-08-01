@@ -53,3 +53,19 @@ export const CANON_STATUS_LABELS = {
   CONFLICTED: 'Conflicted',
   RETIRED: 'Retired',
 } as const;
+
+export function defaultPageRole(pageNumber: number): string {
+  if (pageNumber === 1) return 'cover';
+  if (pageNumber === 2) return 'opening';
+  if (pageNumber === 19) return 'ending';
+  if (pageNumber === 20) return 'epilogue';
+  return 'story';
+}
+
+export function estimatePageDensity(panelCount: number | null, assignedCount: number, beatCount: number): string {
+  const score = (panelCount ?? 0) + assignedCount * 2 + beatCount;
+  if (score === 0) return 'light';
+  if (score <= 4) return 'balanced';
+  if (score <= 8) return 'dense';
+  return 'overloaded';
+}

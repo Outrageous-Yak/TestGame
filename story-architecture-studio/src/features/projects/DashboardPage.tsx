@@ -85,12 +85,27 @@ export function DashboardPage() {
         </article>
 
         <article className="card">
+          <h2>Quick start</h2>
+          <ol>
+            <li>Create <strong>The Walk</strong> seed (32 issues included)</li>
+            <li>Browse <strong>Explorer</strong> and <strong>Character Tree</strong></li>
+            <li>Open <strong>Issue Board</strong> → plan Issue 1 pages</li>
+            <li>Export production brief from page planner</li>
+          </ol>
+          {currentProject && (
+            <button type="button" onClick={() => navigate('/issues')}>Go to Issue Board</button>
+          )}
+        </article>
+
+        <article className="card">
           <h2>Phase status</h2>
           <ul className="phase-list">
-            <li className="done">Phase 0 — Repository &amp; docs</li>
-            <li className="done">Phase 1 — Domain &amp; persistence</li>
-            <li className="partial">Phase 2 — Explorer, inspector, search</li>
-            <li className="pending">Phase 3–10 — Trees, graph, issues, validation</li>
+            <li className="done">Phase 0–1 — Foundation &amp; persistence</li>
+            <li className="done">Phase 2 — Explorer &amp; inspector</li>
+            <li className="done">Phase 3 — Seven master trees</li>
+            <li className="partial">Phase 4 — Mermaid &amp; timeline (no 2D graph yet)</li>
+            <li className="done">Phase 5–7 — Issue board, planner, page brief export</li>
+            <li className="partial">Phase 8–10 — Validation UI, backup hardening</li>
           </ul>
           <p className="hint">See STATUS.md for exact completion details.</p>
         </article>

@@ -1,6 +1,16 @@
 import { create } from 'zustand';
-import type { Node, NodeType, Project, ProjectExport, Relationship } from '@/domain/types';
+import type { Issue, Node, NodeType, Page, Project, ProjectExport, Relationship } from '@/domain/types';
 import { projectService } from '@/application/services/projectService';
+import {
+  addPanelBeat,
+  assignNodeToPage,
+  ensureIssueSeries,
+  reorderIssues as reorderIssuesSvc,
+  unassignNodeFromPage,
+  updateIssue as updateIssueSvc,
+  updatePage as updatePageSvc,
+  updatePanelBeat,
+} from '@/application/services/planningService';
 import { createWalkSeedProject } from '@/application/services/walkSeed';
 import { searchNodes } from '@/domain/validation/rules';
 
@@ -21,6 +31,14 @@ interface AppState {
   createNode: (type: NodeType, title: string) => Promise<void>;
   updateNode: (nodeId: string, updates: Partial<Node>) => Promise<void>;
   createRelationship: (sourceId: string, targetId: string, type: Relationship['relationshipType']) => Promise<void>;
+  ensureIssues: () => Promise<void>;
+  reorderIssues: (orderedIds: string[]) => Promise<void>;
+  updateIssue: (issueId: string, updates: Partial<Issue>) => Promise<void>;
+  updatePage: (pageId: string, updates: Partial<Page>) => Promise<void>;
+  assignToPage: (pageId: string, nodeId: string) => Promise<void>;
+  unassignFromPage: (pageId: string, nodeId: string) => Promise<void>;
+  addPanelBeat: (pageId: string) => Promise<void>;
+  updatePanelBeat: (beatId: string, updates: Parameters<typeof updatePanelBeat>[2]) => Promise<void>;
   selectNode: (nodeId: string | null) => void;
   setSearchQuery: (query: string) => void;
   setTypeFilter: (type: NodeType | 'ALL') => void;
@@ -28,6 +46,25 @@ interface AppState {
   getSelectedNode: () => Node | null;
   exportCurrentProject: () => ProjectExport | null;
   importProjectData: (data: ProjectExport) => Promise<void>;
+  refreshProject: () => Promise<void>;
+}
+
+async function withProject<T>(
+  get: () => AppState,
+  set: (partial: Partial<AppState>) => void,
+  fn: (projectId: string) => Promise<T>,
+): Promise<T | void> {
+  const { currentProject } = get();
+  if (!currentProject) return;
+  set({ loading: true, error: null });
+  try {
+    const result = await fn(currentProject.project.id);
+    const data = await projectService.loadProjectExport(currentProject.project.id);
+    set({ currentProject: data, loading: false });
+    return result;
+  } catch (err) {
+    set({ error: err instanceof Error ? err.message : 'Operation failed', loading: false });
+  }
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -54,6 +91,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadProjects: async () => {
     const projects = await projectService.listProjects();
     set({ projects });
+  },
+
+  refreshProject: async () => {
+    const { currentProject } = get();
+    if (!currentProject) return;
+    const data = await projectService.loadProjectExport(currentProject.project.id);
+    set({ currentProject: data });
   },
 
   openProject: async (projectId: string) => {
@@ -89,43 +133,58 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   createNode: async (type: NodeType, title: string) => {
-    const { currentProject } = get();
-    if (!currentProject) return;
-    set({ loading: true, error: null });
-    try {
-      const data = await projectService.createNode(currentProject.project.id, { type, title });
-      set({ currentProject: data, loading: false });
-    } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Failed to create node', loading: false });
-    }
+    await withProject(get, set, (id) => projectService.createNode(id, { type, title }));
   },
 
   updateNode: async (nodeId: string, updates: Partial<Node>) => {
-    const { currentProject } = get();
-    if (!currentProject) return;
-    set({ loading: true, error: null });
-    try {
-      const data = await projectService.updateNode(currentProject.project.id, nodeId, updates);
-      set({ currentProject: data, loading: false });
-    } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Failed to update node', loading: false });
-    }
+    await withProject(get, set, (id) => projectService.updateNode(id, nodeId, updates));
   },
 
   createRelationship: async (sourceId, targetId, type) => {
-    const { currentProject } = get();
-    if (!currentProject) return;
-    set({ loading: true, error: null });
-    try {
-      const data = await projectService.createRelationship(currentProject.project.id, {
-        sourceNodeId: sourceId,
-        targetNodeId: targetId,
-        relationshipType: type,
-      });
-      set({ currentProject: data, loading: false });
-    } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Failed to create relationship', loading: false });
-    }
+    await withProject(get, set, (id) =>
+      projectService.createRelationship(id, { sourceNodeId: sourceId, targetNodeId: targetId, relationshipType: type }),
+    );
+  },
+
+  ensureIssues: async () => {
+    await withProject(get, set, (id) => ensureIssueSeries(id));
+  },
+
+  reorderIssues: async (orderedIds) => {
+    await withProject(get, set, (id) => reorderIssuesSvc(id, orderedIds));
+  },
+
+  updateIssue: async (issueId, updates) => {
+    await withProject(get, set, (id) =>
+      updateIssueSvc(id, issueId, {
+        title: updates.title,
+        logline: updates.logline,
+        purpose: updates.purpose,
+        cliffhanger: updates.cliffhanger,
+        status: updates.status,
+        arcId: updates.arcId,
+      }),
+    );
+  },
+
+  updatePage: async (pageId, updates) => {
+    await withProject(get, set, (id) => updatePageSvc(id, pageId, updates));
+  },
+
+  assignToPage: async (pageId, nodeId) => {
+    await withProject(get, set, (id) => assignNodeToPage(id, pageId, nodeId));
+  },
+
+  unassignFromPage: async (pageId, nodeId) => {
+    await withProject(get, set, (id) => unassignNodeFromPage(id, pageId, nodeId));
+  },
+
+  addPanelBeat: async (pageId) => {
+    await withProject(get, set, (id) => addPanelBeat(id, pageId, {}));
+  },
+
+  updatePanelBeat: async (beatId, updates) => {
+    await withProject(get, set, (id) => updatePanelBeat(id, beatId, updates));
   },
 
   selectNode: (nodeId) => set({ selectedNodeId: nodeId }),

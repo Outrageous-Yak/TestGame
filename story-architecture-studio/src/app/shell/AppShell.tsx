@@ -23,22 +23,19 @@ export function AppShell() {
         <nav className="sidebar" aria-label="Main navigation">
           <NavLink to="/" end>Dashboard</NavLink>
           <NavLink to="/explorer">Explorer</NavLink>
+          <NavLink to="/issues">Issue Board</NavLink>
+          <NavLink to="/timeline">Timeline</NavLink>
           <NavLink to="/mermaid">Mermaid</NavLink>
+          <NavLink to="/validation">Validation</NavLink>
           <NavLink to="/import-export">Import / Export</NavLink>
           <div className="nav-section">Trees</div>
-          <span className="nav-disabled" title="Phase 3">Story Tree</span>
-          <span className="nav-disabled" title="Phase 3">Character Tree</span>
-          <span className="nav-disabled" title="Phase 3">Reader Tree</span>
-          <span className="nav-disabled" title="Phase 3">World Tree</span>
-          <span className="nav-disabled" title="Phase 3">Mythology Tree</span>
-          <span className="nav-disabled" title="Phase 3">Creature Tree</span>
-          <span className="nav-disabled" title="Phase 3">Adaptation Tree</span>
-          <div className="nav-section">Planning</div>
-          <span className="nav-disabled" title="Phase 5">Issue Board</span>
-          <span className="nav-disabled" title="Phase 6">Issue Planner</span>
-          <span className="nav-disabled" title="Phase 4">Graph</span>
-          <span className="nav-disabled" title="Phase 4">Timeline</span>
-          <span className="nav-disabled" title="Phase 8">Validation</span>
+          <NavLink to="/trees/story">Story Tree</NavLink>
+          <NavLink to="/trees/character">Character Tree</NavLink>
+          <NavLink to="/trees/reader">Reader Tree</NavLink>
+          <NavLink to="/trees/world">World Tree</NavLink>
+          <NavLink to="/trees/mythology">Mythology Tree</NavLink>
+          <NavLink to="/trees/creature">Creature Tree</NavLink>
+          <NavLink to="/trees/adaptation">Adaptation Tree</NavLink>
         </nav>
 
         <main className="workspace">
@@ -48,8 +45,12 @@ export function AppShell() {
       </div>
 
       <footer className="app-footer">
-        <span>v0.1 — Phase 0–2 foundation</span>
-        <span>{currentProject ? `${currentProject.nodes.filter((n) => !n.archivedAt).length} nodes` : 'No project open'}</span>
+        <span>v0.1 — vertical slice</span>
+        <span>
+          {currentProject
+            ? `${currentProject.nodes.filter((n) => !n.archivedAt).length} nodes · ${currentProject.issues.length} issues`
+            : 'No project open'}
+        </span>
       </footer>
     </div>
   );

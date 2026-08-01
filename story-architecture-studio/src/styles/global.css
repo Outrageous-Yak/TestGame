@@ -244,10 +244,65 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 .hint { font-size: 0.85rem; color: var(--muted); }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap; }
+
+.back-link, .link-btn { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
+.link-btn.small { font-size: 0.8rem; }
+button.small { padding: 0.2rem 0.5rem; font-size: 0.8rem; }
+
+.tree-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.tree-panel { min-height: 400px; }
+.tree-root, .tree-children { list-style: none; padding-left: 0; margin: 0; }
+.tree-children { padding-left: 1.25rem; border-left: 2px solid var(--border); margin-left: 0.5rem; }
+.tree-row { display: flex; align-items: center; gap: 0.35rem; margin: 0.25rem 0; }
+.tree-toggle { width: 1.5rem; background: transparent; color: var(--text); border: none; padding: 0; }
+.tree-toggle.spacer { visibility: hidden; }
+.tree-node-btn { flex: 1; text-align: left; background: transparent; color: var(--text); border: 1px solid transparent; display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.tree-row.selected .tree-node-btn, .tree-node-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+.tree-summary { margin: 0 0 0.5rem 2rem; color: var(--muted); font-size: 0.85rem; }
+.tree-focus-btn { font-size: 0.75rem; padding: 0.2rem 0.4rem; }
+
+.issue-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+.issue-card { display: flex; gap: 0.5rem; }
+.drag-handle { background: transparent; color: var(--muted); border: none; cursor: grab; font-size: 1.2rem; padding: 0.25rem; }
+.issue-card-body h3 { margin: 0 0 0.35rem; font-size: 1rem; }
+.issue-inline-edit { display: flex; gap: 0.5rem; margin-top: 0.35rem; margin-bottom: 1rem; }
+.issue-inline-edit input { flex: 1; font-size: 0.85rem; }
+
+.page-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+.page-card header { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.5rem; }
+.page-card input { width: 100%; margin-bottom: 0.5rem; font-size: 0.85rem; }
+.assigned-list { list-style: none; padding: 0; margin: 0 0 0.5rem; font-size: 0.85rem; }
+.assigned-list li { display: flex; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.25rem; }
+.chip-tray { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.chip { background: var(--accent-soft); color: var(--accent); padding: 0.3rem 0.6rem; border-radius: 999px; font-size: 0.85rem; }
+.chip.draggable { cursor: grab; }
+.density-overloaded { border-color: #c44; }
+.density-badge.overloaded { background: #fde8e8; color: #8b2e2e; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.form-grid .full { grid-column: 1 / -1; }
+.form-grid label { display: block; font-size: 0.85rem; }
+.form-grid input, .form-grid textarea { width: 100%; margin-top: 0.25rem; }
+.section-header { display: flex; justify-content: space-between; align-items: center; }
+.beat-list { display: grid; gap: 0.75rem; }
+.beat-card { border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; display: grid; gap: 0.5rem; }
+.beat-card label { font-size: 0.85rem; }
+.beat-card input, .beat-card textarea { width: 100%; margin-top: 0.2rem; }
+
+.finding-list { list-style: none; padding: 0; display: grid; gap: 0.75rem; }
+.finding-card p { margin: 0.5rem 0; }
+.badge.warning { background: #fff3cd; color: #856404; }
+.summary-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+
+.timeline { list-style: none; padding: 0; display: grid; gap: 0.75rem; }
+.timeline-title { background: transparent; color: var(--accent); border: none; padding: 0; font-size: 1.1rem; font-weight: 600; text-align: left; cursor: pointer; }
+.meta { font-size: 0.8rem; color: var(--muted); }
 
 @media (max-width: 960px) {
   .app-body { grid-template-columns: 1fr; }
   .sidebar { display: none; }
   .explorer-layout { grid-template-columns: 1fr; }
+  .tree-layout { grid-template-columns: 1fr; }
+  .form-grid { grid-template-columns: 1fr; }
 }
