@@ -1,0 +1,250 @@
+{
+  "id": "prism_path_bm22",
+  "name": "Brain Melter X — Meltdown",
+  "layers": 7,
+  "objective": "Reach the goal hex.",
+  "description": "Seven-layer summit at the southeast peak. Six villains, four shifting layers, final exam.",
+  "notes": [
+    "The ultimate Brain Melter.",
+    "Layers 2–5 shift."
+  ],
+  "villains": {
+    "requiredRoll": 6,
+    "triggers": [
+      {
+        "id": "bm22a",
+        "layer": 1,
+        "row": 2,
+        "col": 6
+      },
+      {
+        "id": "bm22b",
+        "layer": 2,
+        "row": 5,
+        "col": 6
+      },
+      {
+        "id": "bm22c",
+        "layer": 3,
+        "row": 1,
+        "col": 1
+      },
+      {
+        "id": "bm22d",
+        "layer": 4,
+        "row": 4,
+        "col": 4
+      },
+      {
+        "id": "bm22e",
+        "layer": 5,
+        "row": 0,
+        "col": 5
+      },
+      {
+        "id": "bm22f",
+        "layer": 6,
+        "row": 3,
+        "col": 2
+      }
+    ]
+  },
+  "cardTriggers": [
+    {
+      "card": "terrain",
+      "layer": 1,
+      "row": 6,
+      "col": 6
+    },
+    {
+      "card": "shadow",
+      "layer": 1,
+      "row": 0,
+      "col": 6
+    },
+    {
+      "card": "cosmic",
+      "layer": 5,
+      "row": 3,
+      "col": 3
+    }
+  ],
+  "start": {
+    "layer": 1,
+    "row": 6,
+    "col": 6
+  },
+  "goal": {
+    "layer": 7,
+    "row": 6,
+    "col": 6
+  },
+  "missing": [
+    {
+      "layer": 1,
+      "row": 1,
+      "col": 1
+    },
+    {
+      "layer": 1,
+      "row": 1,
+      "col": 2
+    },
+    {
+      "layer": 1,
+      "row": 1,
+      "col": 3
+    },
+    {
+      "layer": 1,
+      "row": 1,
+      "col": 4
+    },
+    {
+      "layer": 1,
+      "row": 1,
+      "col": 5
+    },
+    {
+      "layer": 1,
+      "row": 3,
+      "col": 0
+    },
+    {
+      "layer": 1,
+      "row": 3,
+      "col": 1
+    },
+    {
+      "layer": 1,
+      "row": 3,
+      "col": 2
+    },
+    {
+      "layer": 1,
+      "row": 3,
+      "col": 3
+    },
+    {
+      "layer": 1,
+      "row": 3,
+      "col": 4
+    },
+    {
+      "layer": 1,
+      "row": 5,
+      "col": 1
+    },
+    {
+      "layer": 1,
+      "row": 5,
+      "col": 2
+    },
+    {
+      "layer": 1,
+      "row": 5,
+      "col": 3
+    },
+    {
+      "layer": 1,
+      "row": 5,
+      "col": 4
+    },
+    {
+      "layer": 1,
+      "row": 5,
+      "col": 5
+    }
+  ],
+  "blocked": [],
+  "movement": {
+    "1": "NONE",
+    "2": "SEVEN_LEFT_SIX_RIGHT",
+    "3": "SEVEN_LEFT_SIX_RIGHT",
+    "4": "SEVEN_LEFT_SIX_RIGHT",
+    "5": "SEVEN_LEFT_SIX_RIGHT",
+    "6": "NONE",
+    "7": "NONE"
+  },
+  "transitions": [
+    {
+      "type": "UP",
+      "from": {
+        "layer": 1,
+        "row": 0,
+        "col": 6
+      },
+      "to": {
+        "layer": 2,
+        "row": 6,
+        "col": 6
+      }
+    },
+    {
+      "type": "UP",
+      "from": {
+        "layer": 2,
+        "row": 0,
+        "col": 6
+      },
+      "to": {
+        "layer": 3,
+        "row": 6,
+        "col": 6
+      }
+    },
+    {
+      "type": "UP",
+      "from": {
+        "layer": 3,
+        "row": 0,
+        "col": 6
+      },
+      "to": {
+        "layer": 4,
+        "row": 6,
+        "col": 6
+      }
+    },
+    {
+      "type": "UP",
+      "from": {
+        "layer": 4,
+        "row": 0,
+        "col": 6
+      },
+      "to": {
+        "layer": 5,
+        "row": 6,
+        "col": 6
+      }
+    },
+    {
+      "type": "UP",
+      "from": {
+        "layer": 5,
+        "row": 0,
+        "col": 6
+      },
+      "to": {
+        "layer": 6,
+        "row": 6,
+        "col": 6
+      }
+    },
+    {
+      "type": "UP",
+      "from": {
+        "layer": 6,
+        "row": 0,
+        "col": 6
+      },
+      "to": {
+        "layer": 7,
+        "row": 6,
+        "col": 6
+      }
+    }
+  ],
+  "revealOnEnterGuaranteedUp": false
+}

@@ -113,7 +113,7 @@ export function computeMinMovesToGoal(
   const seen = new Set<string>([signature(startDto, lm0)]);
 
   let explored = 0;
-  const MAX_NODES = 200000;
+  const MAX_NODES = 400000;
 
   while (head < q.length) {
     if (explored >= MAX_NODES) return null;
