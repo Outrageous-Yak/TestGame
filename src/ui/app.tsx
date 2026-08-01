@@ -561,9 +561,9 @@ const baseCss = `
   --hexStepX: var(--hexWMain);
   --hexGap: 0px;
   --hexOverlap: 0.0;
-  /* grid footprint: 7 wide (point-to-point), 5.5 tall (with row overlap) */
+  /* grid footprint: 7 wide (point-to-point), 5.8 tall (with row overlap) */
   --hexGridWFactor: 7;
-  --hexGridHFactor: 5.5;
+  --hexGridHFactor: 5.8;
   --hexAspect: 0.875; /* hexHMain / hexWMain */
 
   /* ✅ FIX: --hexW did not exist */
@@ -571,8 +571,8 @@ const baseCss = `
 
   --maxCols: 7;
 
-  /* vertical center-to-center between row centers (3/4 height for flat-top) */
-  --hexStepY: calc(var(--hexHMain) * 0.75);
+  /* vertical center-to-center between row centers (flat-top honeycomb, -0.20 row-gap) */
+  --hexStepY: calc(var(--hexHMain) * 0.80);
 
   /* height of JUST the 7 hex rows (no top/bottom padding) */
   --hexRowsH: calc((var(--hexStepY) * 6) + var(--hexHMain));
@@ -1125,7 +1125,7 @@ body{
   grid-template-columns: repeat(14, calc(var(--hexStepX) / 2));
   width: calc(var(--hexStepX) * var(--maxCols));
   grid-auto-rows: var(--hexHMain);
-  row-gap: calc(var(--hexHMain) * -0.25);
+  row-gap: calc(var(--hexHMain) * -0.20);
   margin: 0 auto;
   position: relative;
 }
@@ -1606,7 +1606,7 @@ body{
   display: grid;
   grid-template-columns: repeat(14, calc(var(--hexStepX) / 2));
   grid-auto-rows: var(--hexHMain);
-  row-gap: calc(var(--hexHMain) * -0.25);
+  row-gap: calc(var(--hexHMain) * -0.20);
 }
 
 .ghostRow{
