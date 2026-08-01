@@ -2,6 +2,7 @@
 import type { GameState, Scenario } from "./types";
 import { buildInitialState } from "./board";
 import { computeReachability } from "./reachability";
+import { computeMinMovesToGoal } from "./reachabilityOptimal";
 import { attemptMove, passTurn } from "./rules";
 
 export type ReachInfo = { reachable: boolean; distance: number | null; explored: number };
@@ -13,6 +14,14 @@ export function newGame(scenario: Scenario): GameState {
 
 export function getReachability(state: GameState): ReachMap {
   return computeReachability(state);
+}
+
+export function getMinMovesToGoal(
+  state: GameState,
+  layerMoves: Record<number, number>,
+  maxTurns?: number
+): number | null {
+  return computeMinMovesToGoal(state, layerMoves, maxTurns);
 }
 
 export function getReachable(state: GameState): Set<string> {
