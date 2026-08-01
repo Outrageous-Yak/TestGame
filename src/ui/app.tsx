@@ -561,6 +561,10 @@ const baseCss = `
   --hexStepX: calc(var(--hexWMain) * 0.75);
   --hexGap: 0px;
   --hexOverlap: 0.0;
+  /* grid footprint: 7 * 0.75 = 5.25 wide, 5.5 tall (with row overlap) */
+  --hexGridWFactor: 5.25;
+  --hexGridHFactor: 5.5;
+  --hexAspect: 0.875; /* hexHMain / hexWMain */
 
   /* ✅ FIX: --hexW did not exist */
   --hexPitch: calc(var(--hexWMain) * (1 - var(--hexOverlap)) + var(--hexGap));
@@ -1054,13 +1058,16 @@ body{
   min-height: 0;
   overflow: hidden;
   padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .barWrap.barLeft{ grid-column: 1; }
 .barWrap.barRight{ grid-column: 3; }
 
 .board{
-  width: var(--boardW);
+  width: calc(var(--hexStepX) * var(--maxCols));
   margin: 0 auto;
   padding: var(--boardPadTop) 0 var(--boardPadBottom);
   position: relative;
@@ -1978,10 +1985,35 @@ body{
 
 @media (max-width: 980px){
   body{ overflow:auto; }
-  .gameLayout{ grid-template-columns: 1fr; height:auto; }
+  .gameLayout{ grid-template-columns: 1fr; height:auto; min-height: calc(100vh - 64px); }
   .barWrap{ display:none; }
   .side{ order: 10; }
-  .board{ width: min(var(--boardW), 96vw); }
+  .boardWrap{
+    grid-template-columns: 1fr;
+    min-height: min(62vh, calc(var(--hexFieldH) + 28px));
+  }
+  .boardScroll{
+    grid-column: 1;
+    padding: 10px 8px;
+    overflow: visible;
+  }
+  .board{
+    width: calc(var(--hexStepX) * var(--maxCols));
+    max-width: 100%;
+  }
+  :root{
+    --boardPadTop: 10px;
+    --boardPadBottom: 10px;
+    /* shrink hexes to fit the visible board on narrow screens */
+    --hexWMain: min(
+      96px,
+      calc((100vw - 32px) / var(--hexGridWFactor)),
+      calc((100vh - 240px) / (var(--hexGridHFactor) * var(--hexAspect)))
+    );
+    --hexHMain: calc(var(--hexWMain) * var(--hexAspect));
+  }
+  .hexId{ font-size: clamp(9px, 2.6vw, 12px); }
+  .mark{ width: 18px; height: 18px; font-size: 10px; }
 }
 `;
 
