@@ -28,6 +28,16 @@ const tracks = [
   [10, "t10", "scenario9.json"],
   [11, "t11", "scenario10.json"],
   [12, "t12", "scenario11.json"],
+  [13, "t13", "scenario12.json"],
+  [14, "t14", "scenario13.json"],
+  [15, "t15", "scenario14.json"],
+  [16, "t16", "scenario15.json"],
+  [17, "t17", "scenario16.json"],
+  [18, "t18", "scenario17.json"],
+  [19, "t19", "scenario18.json"],
+  [20, "t20", "scenario19.json"],
+  [21, "t21", "scenario20.json"],
+  [22, "t22", "scenario21.json"],
 ];
 
 const basePath = join(root, "public/worlds/rainbow_realm/scenarios/prism_path");

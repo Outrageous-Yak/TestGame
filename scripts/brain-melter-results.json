@@ -1,0 +1,72 @@
+[
+  {
+    "trackId": "t13",
+    "file": "scenario12.json",
+    "min": 36,
+    "goalId": "L3-R6-C0",
+    "name": "Brain Melter I — Rim Runner"
+  },
+  {
+    "trackId": "t14",
+    "file": "scenario13.json",
+    "min": 39,
+    "goalId": "L3-R0-C0",
+    "name": "Brain Melter II — Deep Rim"
+  },
+  {
+    "trackId": "t15",
+    "file": "scenario14.json",
+    "min": 36,
+    "goalId": "L4-R6-C6",
+    "name": "Brain Melter III — Crux"
+  },
+  {
+    "trackId": "t16",
+    "file": "scenario15.json",
+    "min": 42,
+    "goalId": "L4-R0-C0",
+    "name": "Brain Melter IV — Crucible"
+  },
+  {
+    "trackId": "t17",
+    "file": "scenario16.json",
+    "min": 42,
+    "goalId": "L5-R6-C6",
+    "name": "Brain Melter V — Furnace"
+  },
+  {
+    "trackId": "t18",
+    "file": "scenario17.json",
+    "min": 51,
+    "goalId": "L5-R0-C0",
+    "name": "Brain Melter VI — Eclipse"
+  },
+  {
+    "trackId": "t19",
+    "file": "scenario18.json",
+    "min": 54,
+    "goalId": "L6-R0-C6",
+    "name": "Brain Melter VII — Abyss"
+  },
+  {
+    "trackId": "t20",
+    "file": "scenario19.json",
+    "min": 54,
+    "goalId": "L6-R6-C0",
+    "name": "Brain Melter VIII — Nightfall"
+  },
+  {
+    "trackId": "t21",
+    "file": "scenario20.json",
+    "min": 48,
+    "goalId": "L6-R6-C6",
+    "name": "Brain Melter IX — Night Ladder"
+  },
+  {
+    "trackId": "t22",
+    "file": "scenario21.json",
+    "min": 54,
+    "goalId": "L7-R6-C6",
+    "name": "Brain Melter X — Meltdown"
+  }
+]

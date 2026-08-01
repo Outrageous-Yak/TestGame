@@ -236,7 +236,7 @@ async function fetchJson<T>(path: string): Promise<T> {
 }
 
 async function loadScenario(path: string): Promise<Scenario> {
-  const cacheKey = "20260801d";
+  const cacheKey = "20260801e";
   const url = path + (path.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(cacheKey);
   const s = await fetchJson<Scenario>(url);
   assertScenario(s as any);
