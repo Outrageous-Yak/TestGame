@@ -1166,11 +1166,20 @@ body{
   overflow:visible;
 }
 
-.hexId{
+.hexCoords{
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1px;
+  padding-bottom: 8px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.hexId{
   font-size: 13px;
   font-weight: 900;
   color: rgba(255,255,255,.82);
@@ -1179,8 +1188,16 @@ body{
   border: none;
   background: transparent;
   text-shadow: 0 2px 10px rgba(0,0,0,.55);
-  pointer-events: none;
-  z-index: 5;
+  line-height: 1;
+}
+
+.hexSlotId{
+  font-size: 10px;
+  font-weight: 800;
+  color: rgba(255,255,255,.50);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 8px rgba(0,0,0,.55);
+  line-height: 1;
 }
 
 .hexMarks{
@@ -2187,6 +2204,7 @@ body{
   }
 
   .hexId{ font-size: clamp(7px, 2vw, 10px); }
+  .hexSlotId{ font-size: clamp(6px, 1.8vw, 9px); }
   .mark{ width: 14px; height: 14px; font-size: 8px; }
 }
 `;
@@ -3881,7 +3899,10 @@ export default function App() {
                               <div className="hexAnchor">
                                 <div className="hexInner" style={tile ? ({ backgroundImage: tile } as any) : undefined}>
                                   {cardHere ? <div className={"cardBadge " + cardHere} title={cardHere} /> : null}
-                                  <div className="hexId">{r + "," + (lc ? lc.col : c)}</div>
+                                  <div className="hexCoords">
+                                    <div className="hexId">{r + "," + (lc ? lc.col : c)}</div>
+                                    <div className="hexSlotId">{r + "," + c}</div>
+                                  </div>
                                   <div className="hexMarks">
                                     {isPortalUp ? <span className="mark">↑</span> : null}
                                     {isPortalDown ? <span className="mark">↓</span> : null}
