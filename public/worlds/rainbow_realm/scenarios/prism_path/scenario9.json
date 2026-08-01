@@ -1,18 +1,17 @@
 {
   "id": "prism_path_t10",
-  "name": "Northwest Maze",
+  "name": "Track 10",
   "layers": 7,
   "objective": "Reach the goal hex.",
-  "description": "Start in the northwest corner and thread a narrow passage to an early portal on row 2.",
+  "description": "Start in the northwest corner and follow the west edge down to the portal on row 3.",
   "notes": [
-    "A missing-tile wall blocks the center — route along the top edge.",
+    "Most of layer 1 is missing — climb down column 0, then cross row 3 to the portal.",
     "Layer 2 shifts after each turn."
   ],
   "villains": {
     "requiredRoll": 6,
     "triggers": [
-      { "id": "bad1", "layer": 1, "row": 1, "col": 4 },
-      { "id": "bad2", "layer": 2, "row": 0, "col": 2 }
+      { "id": "bad1", "layer": 1, "row": 3, "col": 4 }
     ]
   },
   "start": { "layer": 1, "row": 0, "col": 0 },
@@ -22,16 +21,17 @@
     { "layer": 1, "row": 0, "col": 4 },
     { "layer": 1, "row": 0, "col": 5 },
     { "layer": 1, "row": 0, "col": 6 },
+    { "layer": 1, "row": 1, "col": 1 },
+    { "layer": 1, "row": 1, "col": 2 },
+    { "layer": 1, "row": 1, "col": 3 },
+    { "layer": 1, "row": 1, "col": 4 },
+    { "layer": 1, "row": 1, "col": 5 },
+    { "layer": 1, "row": 2, "col": 1 },
+    { "layer": 1, "row": 2, "col": 2 },
     { "layer": 1, "row": 2, "col": 3 },
     { "layer": 1, "row": 2, "col": 4 },
     { "layer": 1, "row": 2, "col": 5 },
     { "layer": 1, "row": 2, "col": 6 },
-    { "layer": 1, "row": 3, "col": 0 },
-    { "layer": 1, "row": 3, "col": 1 },
-    { "layer": 1, "row": 3, "col": 2 },
-    { "layer": 1, "row": 3, "col": 3 },
-    { "layer": 1, "row": 3, "col": 4 },
-    { "layer": 1, "row": 3, "col": 5 },
     { "layer": 1, "row": 4, "col": 0 },
     { "layer": 1, "row": 4, "col": 1 },
     { "layer": 1, "row": 4, "col": 2 },
@@ -64,7 +64,7 @@
     "7": "NONE"
   },
   "transitions": [
-    { "type": "UP", "from": { "layer": 1, "row": 1, "col": 5 }, "to": { "layer": 2, "row": 2, "col": 2 } },
+    { "type": "UP", "from": { "layer": 1, "row": 3, "col": 5 }, "to": { "layer": 2, "row": 2, "col": 2 } },
     { "type": "UP", "from": { "layer": 2, "row": 3, "col": 5 }, "to": { "layer": 3, "row": 2, "col": 2 } },
     { "type": "UP", "from": { "layer": 3, "row": 3, "col": 5 }, "to": { "layer": 4, "row": 2, "col": 2 } },
     { "type": "UP", "from": { "layer": 4, "row": 3, "col": 5 }, "to": { "layer": 5, "row": 2, "col": 2 } }

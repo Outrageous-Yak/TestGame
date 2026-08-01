@@ -225,7 +225,9 @@ async function fetchJson<T>(path: string): Promise<T> {
 }
 
 async function loadScenario(path: string): Promise<Scenario> {
-  const s = await fetchJson<Scenario>(path);
+  const cacheKey = "20260801d";
+  const url = path + (path.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(cacheKey);
+  const s = await fetchJson<Scenario>(url);
   assertScenario(s as any);
   return s;
 }
@@ -2720,28 +2722,41 @@ body{
    Portals
 ========================================================= */
 
-function findPortalTransition(
-  transitions: any[] | undefined,
+function portalTransitionAt(
+  st: any,
   id: string
 ): null | {
   type: "UP" | "DOWN";
   to: { layer: number; row: number; col: number };
 } {
+  const map = st?.transitionsByFromId;
+  if (map?.get) {
+    const t = map.get(id);
+    if (t?.to) {
+      return {
+        type: t.type === "DOWN" ? "DOWN" : "UP",
+        to: {
+          layer: Number(t.to.layer),
+          row: Number(t.to.row),
+          col: Number(t.to.col),
+        },
+      };
+    }
+  }
+
+  const transitions = st?.scenario?.transitions;
   if (!transitions) return null;
 
   const c = idToCoord(id);
   if (!c) return null;
-
-  const normRow = (r: number) => (r >= 1 && r <= 7 ? r - 1 : r);
-  const normCol = (k: number) => (k >= 1 && k <= 7 ? k - 1 : k);
 
   for (const t of transitions) {
     const from = t?.from;
     if (!from) continue;
 
     const fl = Number(from.layer);
-    const fr = normRow(Number(from.row));
-    const fc = normCol(Number(from.col));
+    const fr = Number(from.row);
+    const fc = Number(from.col);
 
     if (!Number.isFinite(fl) || !Number.isFinite(fr) || !Number.isFinite(fc)) continue;
     if (fl !== c.layer || fr !== c.row || fc !== c.col) continue;
@@ -2750,8 +2765,8 @@ function findPortalTransition(
     const to = t?.to ?? {};
 
     const tl = Number(to.layer);
-    const tr = normRow(Number(to.row));
-    const tc = normCol(Number(to.col));
+    const tr = Number(to.row);
+    const tc = Number(to.col);
 
     return {
       type,
@@ -2767,7 +2782,7 @@ function findPortalTransition(
 }
 
 function applyPortalIfAny(st: any, landedId: string): { next: any; finalId: string } {
-  const tr = findPortalTransition(st?.scenario?.transitions, landedId);
+  const tr = portalTransitionAt(st, landedId);
   if (!tr) return { next: st, finalId: landedId };
 
   const destId = "L" + tr.to.layer + "-R" + tr.to.row + "-C" + tr.to.col;
@@ -4367,7 +4382,7 @@ export default function App() {
                         const id = idAtSlot(currentLayer, r, c, shiftWrapped);
                         const cellStyle = hexGridPlacement(r, c);
 
-                        const tr = findPortalTransition((viewState as any)?.scenario?.transitions, id);
+                        const tr = portalTransitionAt(viewState as any, id);
 
                         const isPortalUp = tr?.type === "UP";
                         const isPortalDown = tr?.type === "DOWN";
