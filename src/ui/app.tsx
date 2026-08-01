@@ -582,6 +582,7 @@ const baseCss = `
 
   /* segment height should match a row block */
   --layerSegH: calc(var(--hexRowsH) / 7);
+  --barH: 26px;
 
   /* side columns */
   --barColW: 86px;
@@ -913,30 +914,61 @@ body{
    LAYER BARS
 ========================================================= */
 .barWrap{
+  z-index: 6;
+}
+.barWrap.barLeft{
   height: 100%;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  z-index: 6;
   padding-top: var(--boardPadTop);
   padding-bottom: var(--boardPadBottom);
 }
 .barLeft{ justify-content: flex-start; }
-.barRight{ justify-content: flex-end; }
+
+.barWrap.barTop{
+  grid-column: 1 / -1;
+  grid-row: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px 6px;
+}
 
 .layerBar{
-  width: var(--barW);
-  height: var(--hexRowsH);
   border-radius: 999px;
   overflow: hidden;
   border: 1px solid rgba(255,255,255,.16);
   background: rgba(0,0,0,.18);
   box-shadow: 0 18px 40px rgba(0,0,0,.35);
   display: flex;
-  flex-direction: column;
   position: relative;
 }
-.barSeg{ height: var(--layerSegH); width: 100%; opacity: .95; }
+
+.layerBar.layerBarHorizontal{
+  width: min(100%, calc(var(--hexStepX) * var(--maxCols)));
+  height: var(--barH);
+  flex-direction: row;
+}
+
+.layerBar.rowShiftBar{
+  width: var(--barW);
+  height: var(--hexRowsH);
+  flex-direction: column;
+}
+
+.barSeg{ opacity: .95; }
+.layerBarHorizontal .barSeg{
+  flex: 1 1 0;
+  width: auto;
+  height: 100%;
+  min-width: 0;
+}
+.rowShiftBar .barSeg{
+  height: var(--layerSegH);
+  width: 100%;
+}
 .barSeg[data-layer="7"]{ background: var(--L7); }
 .barSeg[data-layer="6"]{ background: var(--L6); }
 .barSeg[data-layer="5"]{ background: var(--L5); }
@@ -971,7 +1003,7 @@ body{
 
 .goalMarker{
   position: absolute;
-  left: 50%;
+  top: 50%;
   transform: translate(-50%, -50%);
   width: 26px;
   height: 26px;
@@ -993,7 +1025,7 @@ body{
 
 .barPlayerMini{
   position: absolute;
-  left: 50%;
+  top: 50%;
   transform: translate(-50%, -50%);
   width: 28px;
   height: 28px;
@@ -1036,9 +1068,10 @@ body{
   background: rgba(0,0,0,.50);
   box-shadow: var(--shadow2);
   overflow: hidden;
-  --boardInset: calc((100% - (var(--barColW) * 2) - var(--boardW)) / 2);
+  --boardInset: calc((100% - var(--barColW) - var(--boardW)) / 2);
   display: grid;
-  grid-template-columns: var(--barColW) 1fr var(--barColW);
+  grid-template-columns: var(--barColW) 1fr;
+  grid-template-rows: auto 1fr;
   align-items: stretch;
   opacity: 1;
   height: 100%;
@@ -1061,6 +1094,7 @@ body{
 
 .boardScroll{
   grid-column: 2;
+  grid-row: 2;
   position: relative;
   z-index: 3;
   height: 100%;
@@ -1072,8 +1106,7 @@ body{
   justify-content: center;
 }
 
-.barWrap.barLeft{ grid-column: 1; }
-.barWrap.barRight{ grid-column: 3; }
+.barWrap.barLeft{ grid-column: 1; grid-row: 2; }
 
 .board{
   width: calc(var(--hexStepX) * var(--maxCols));
@@ -1734,12 +1767,12 @@ body{
   transform: translateX(-45%);
 }
 .hexDeckCard.terrain{
-  right: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
+  right: calc(var(--boardInset) - var(--deckPadX));
   top: calc(var(--boardPadTop) + var(--deckPadY));
   transform: translateX(45%);
 }
 .hexDeckCard.shadow{
-  right: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
+  right: calc(var(--boardInset) - var(--deckPadX));
   bottom: calc(var(--boardPadBottom) + var(--deckPadY));
   transform: translateX(45%);
 }
@@ -2426,7 +2459,8 @@ body{
   .boardWrap{
     grid-column: 1;
     grid-row: 1;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
     height: 100%;
     min-height: 0;
     overflow: hidden;
@@ -2435,28 +2469,23 @@ body{
 
   .barWrap.barLeft{ display: none !important; }
 
-  .barWrap.barRight{
-    display: flex !important;
-    grid-column: 2;
+  .barWrap.barTop{
+    grid-column: 1;
     grid-row: 1;
-    width: auto;
-    padding: 4px 4px 4px 0;
-    align-items: center;
-    justify-content: center;
+    padding: 6px 8px 4px;
   }
 
-  .barWrap.barRight .layerBar{
-    width: 20px;
-    height: min(var(--hexRowsH), 100%);
-    max-height: 100%;
+  .barWrap.barTop .layerBarHorizontal{
+    width: min(100%, calc(var(--hexStepX) * var(--maxCols)));
+    height: 22px;
   }
 
-  .barWrap.barRight .barPlayerMini{
+  .barWrap.barTop .barPlayerMini{
     width: 20px;
     height: 20px;
   }
 
-  .barWrap.barRight .goalMarker{
+  .barWrap.barTop .goalMarker{
     width: 18px;
     height: 18px;
     font-size: 9px;
@@ -2464,7 +2493,7 @@ body{
 
   .boardScroll{
     grid-column: 1;
-    grid-row: 1;
+    grid-row: 2;
     padding: 4px 2px 4px 6px;
     overflow: hidden;
     height: 100%;
@@ -2523,11 +2552,12 @@ body{
     --boardPadTop: 4px;
     --boardPadBottom: 4px;
     --barW: 20px;
-    /* one-screen fit: topbar + deck row + status + gaps */
+    --barH: 22px;
+    /* one-screen fit: topbar + layer bar + deck row + status + gaps */
     --hexWMain: min(
       64px,
-      calc((100vw - 56px) / var(--hexGridWFactor)),
-      calc((100dvh - 210px) / (var(--hexGridHFactor) * var(--hexAspect)))
+      calc((100vw - 32px) / var(--hexGridWFactor)),
+      calc((100dvh - 232px) / (var(--hexGridHFactor) * var(--hexAspect)))
     );
     --hexHMain: calc(var(--hexWMain) * var(--hexAspect));
   }
@@ -2937,32 +2967,21 @@ export default function App() {
     );
   }
 
-  function SideBar(props: { side: "left" | "right"; currentLayer: number }) {
+  function SideBar(props: { side: "left" | "top"; currentLayer: number }) {
     const side = props.side;
     const currentLayerLocal = props.currentLayer;
 
-    if (side === "right") {
-      const segments = [7, 6, 5, 4, 3, 2, 1];
+    if (side === "top") {
+      const segments = [1, 2, 3, 4, 5, 6, 7];
 
       const goalLayer = goalId ? idToCoord(goalId)?.layer ?? null : null;
       const playerLayerBar = playerId ? idToCoord(playerId)?.layer ?? null : null;
 
-      const segH =
-        typeof document !== "undefined"
-          ? readPxVar(document.documentElement as any, "--layerSegH", 84)
-          : 84;
-
-      const goalTopPx =
-        goalLayer && goalLayer >= 1 && goalLayer <= 7 ? (7 - goalLayer) * segH + segH / 2 : null;
-
-      const playerTopPx =
-        playerLayerBar && playerLayerBar >= 1 && playerLayerBar <= 7
-          ? (7 - playerLayerBar) * segH + segH / 2
-          : null;
+      const markerLeftPct = (layer: number) => `${((layer - 0.5) / 7) * 100}%`;
 
       return (
-        <div className="barWrap barRight">
-          <div className="layerBar">
+        <div className="barWrap barTop">
+          <div className="layerBar layerBarHorizontal">
             {segments.map((layerVal) => {
               const active = layerVal === currentLayerLocal;
               return (
@@ -2974,8 +2993,8 @@ export default function App() {
               );
             })}
 
-            {playerTopPx !== null ? (
-              <div className="barPlayerMini" style={{ top: playerTopPx }}>
+            {playerLayerBar && playerLayerBar >= 1 && playerLayerBar <= 7 ? (
+              <div className="barPlayerMini" style={{ left: markerLeftPct(playerLayerBar) }}>
                 <div
                   className="miniSprite"
                   style={
@@ -2993,8 +3012,8 @@ export default function App() {
               </div>
             ) : null}
 
-            {goalTopPx !== null ? (
-              <div className="goalMarker" style={{ top: goalTopPx }}>
+            {goalLayer && goalLayer >= 1 && goalLayer <= 7 ? (
+              <div className="goalMarker" style={{ left: markerLeftPct(goalLayer) }}>
                 G
               </div>
             ) : null}
@@ -4116,6 +4135,7 @@ export default function App() {
       <div className="gameLayout">
         <div className="playColumn">
           <div className="boardWrap">
+            <SideBar side="top" currentLayer={currentLayer} />
             <SideBar side="left" currentLayer={currentLayer} />
 
             <div
@@ -4281,8 +4301,6 @@ export default function App() {
               </div>
             </div>
           </div>
-
-            <SideBar side="right" currentLayer={currentLayer} />
           </div>
 
           {isMobile ? <HexDeckCardsRow glowVar={layerCssVar(currentLayer)} /> : null}
