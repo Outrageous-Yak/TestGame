@@ -826,14 +826,12 @@ body{
   transition: transform 180ms ease;
 }
 
-.dice3d.rolling .cube{ animation: cubeWobble .35s ease-in-out infinite; }
+.dice3d.rolling .cube:not(.isSpinning){
+  transition: none;
+}
 
-@keyframes cubeWobble{
-  0%{ transform: rotateX(0deg) rotateY(0deg); }
-  25%{ transform: rotateX(18deg) rotateY(-16deg); }
-  50%{ transform: rotateX(-16deg) rotateY(22deg); }
-  75%{ transform: rotateX(14deg) rotateY(16deg); }
-  100%{ transform: rotateX(0deg) rotateY(0deg); }
+.dice3d .cube.isSpinning{
+  transition: transform 900ms cubic-bezier(.12,.85,.18,1);
 }
 
 .dice3d .face{
@@ -3425,8 +3423,10 @@ export default function App() {
      Dice
   ========================= */
   const BASE_DICE_VIEW = { x: -28, y: -36 };
+  const DICE_SPIN_MS = 900;
   const [diceValue, setDiceValue] = useState<number>(2);
   const [diceRolling, setDiceRolling] = useState(false);
+  const [diceSpinning, setDiceSpinning] = useState(false);
   const [diceRot, setDiceRot] = useState<{ x: number; y: number }>(BASE_DICE_VIEW);
   const diceTimer = useRef<number | null>(null);
 
@@ -3457,35 +3457,35 @@ export default function App() {
     }
   }
 
+  function diceRotForValue(n: number) {
+    const face = rotForRoll(n);
+    return { x: BASE_DICE_VIEW.x + face.x, y: BASE_DICE_VIEW.y + face.y };
+  }
+
   const rollDice = useCallback(() => {
     if (diceRolling) return;
 
+    const final = 1 + Math.floor(Math.random() * 6);
+    lastRollValueRef.current = final;
+    setDiceValue(final);
+
+    const finalRot = diceRotForValue(final);
+    const extraX = 360 * (1 + Math.floor(Math.random() * 2));
+    const extraY = 360 * (2 + Math.floor(Math.random() * 2));
+
     setDiceRolling(true);
+    setDiceSpinning(false);
+    setDiceRot({ x: finalRot.x - extraX, y: finalRot.y - extraY });
 
-    const start = performance.now();
-    const duration = 650;
+    diceTimer.current = window.setTimeout(() => {
+      setDiceSpinning(true);
+      setDiceRot(finalRot);
 
-    const tick = () => {
-      const elapsed = performance.now() - start;
-
-      const flicker = 1 + Math.floor(Math.random() * 6);
-      setDiceValue(flicker);
-      setDiceRot(rotForRoll(flicker));
-
-      if (elapsed < duration) {
-        diceTimer.current = window.setTimeout(tick, 55);
-      } else {
-        const final = 1 + Math.floor(Math.random() * 6);
-
-        lastRollValueRef.current = final;
-        setDiceValue(final);
-        setDiceRot(rotForRoll(final));
-
+      diceTimer.current = window.setTimeout(() => {
         setDiceRolling(false);
-      }
-    };
-
-    tick();
+        setDiceSpinning(false);
+      }, DICE_SPIN_MS);
+    }, 40);
   }, [diceRolling]);
 
   /* =========================
@@ -3779,6 +3779,7 @@ export default function App() {
           const vkr = pickRiskVillain();
           pendingEncounterMoveIdRef.current = null;
           setEncounter({ villainKey: vkr, tries: 0 });
+          setDiceValue(2);
           setDiceRot(BASE_DICE_VIEW);
           triggerCardFlip("risk", { villainKey: vkr, mode: "riskEncounter" });
           pushLog("Risk triggered — encounter: " + vkr + " (roll a 6)", "bad");
@@ -3964,6 +3965,8 @@ export default function App() {
       if (vk) {
         pendingEncounterMoveIdRef.current = id;
         setEncounter((prev) => (prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }));
+        setDiceValue(2);
+        setDiceRot(BASE_DICE_VIEW);
         pushLog("Encounter: " + vk + " — roll a 6 to continue", "bad");
         return;
       }
@@ -4587,8 +4590,11 @@ export default function App() {
             <div className="riskEncounterControls">
               <div className="encounterActionRow">
                 <div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
-                  <div className="cube" style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}>
-                    <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}>
+                  <div
+                    className={"cube" + (diceSpinning ? " isSpinning" : "")}
+                    style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}
+                  >
+                    <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(2) + ")" }}>
                       <DiceCorners />
                     </div>
                     <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
@@ -4681,8 +4687,11 @@ export default function App() {
             <div className="encounterRight">
               <div className="encounterActionRow">
                 <div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
-                  <div className="cube" style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}>
-                    <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}>
+                  <div
+                    className={"cube" + (diceSpinning ? " isSpinning" : "")}
+                    style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}
+                  >
+                    <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(2) + ")" }}>
                       <DiceCorners />
                     </div>
                     <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
