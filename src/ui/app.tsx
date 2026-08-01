@@ -1065,10 +1065,14 @@ body{
 ========================================================= */
 .hexRow{
   display: flex;
-  width: fit-content;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   height: var(--hexHMain);
   align-items: center;
+}
+
+.hexRow--offset{
+  padding-left: calc(var(--hexStepX) / 2);
 }
 
 .hexRow + .hexRow{
@@ -1076,7 +1080,8 @@ body{
 }
 
 .hexGrid{
-  width: fit-content;
+  /* shared origin for all rows — do NOT center each row independently */
+  width: calc(var(--hexStepX) * var(--maxCols));
   margin: 0 auto;
   position: relative;
 }
@@ -1211,9 +1216,13 @@ body{
   display: flex;
   height: var(--hexHMain);
   align-items: center;
-  width: fit-content;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   position: relative;
+}
+
+.ghostRow--offset{
+  padding-left: calc(var(--hexStepX) / 2);
 }
 
 .ghostRow + .ghostRow{
@@ -2353,14 +2362,10 @@ export default function App() {
           const cols = ROW_LENS[r] ?? 0;
           const isOffset = cols === 6;
 
-          // Odd rows (6 hexes) nest halfway between the 7-hex row above
-          const base = isOffset ? "calc(var(--hexStepX) / 2)" : "0px";
-
           return (
             <div
               key={"ghost-row-" + layer + "-" + r}
-              className="ghostRow"
-              style={{ transform: "translateX(" + base + ")" }}
+              className={"ghostRow" + (isOffset ? " ghostRow--offset" : "")}
             >
               {Array.from({ length: cols }, (_, c) => (
                 <div key={"g-" + layer + "-" + r + "-" + c} className="ghostSlot">
@@ -3580,11 +3585,8 @@ export default function App() {
                   const ns = normalizeRowShift(rawShift, cols);
                   const shiftWrapped = ns.wrapped;
 
-                  // Odd rows (6 hexes) nest halfway between the 7-hex row above
-                  const base = isOffset ? "calc(var(--hexStepX) / 2)" : "0px";
-
                   return (
-                    <div key={"row-" + r} className="hexRow" style={{ transform: "translateX(" + base + ")" }}>
+                    <div key={"row-" + r} className={"hexRow" + (isOffset ? " hexRow--offset" : "")}>
                       {Array.from({ length: cols }, (_, c) => {
                         const id = idAtSlot(currentLayer, r, c, shiftWrapped);
                         const lc = idToCoord(id);
