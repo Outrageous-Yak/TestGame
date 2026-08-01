@@ -4227,7 +4227,7 @@ export default function App() {
                                 <div className="hexInner" style={tile ? ({ backgroundImage: tile } as any) : undefined}>
                                   {cardHere ? <div className={"cardBadge " + cardHere} title={cardHere} /> : null}
                                   <div className="hexCoords">
-                                    <div className="hexId">{r + ", " + c}</div>
+                                    <div className="hexId">{r + "," + c}</div>
                                   </div>
                                   {isPortalUp || isPortalDown ? (
                                     <div className="portalFx">
