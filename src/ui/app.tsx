@@ -1902,30 +1902,41 @@ body{
   left: 50%;
   top: 0;
   transform: translate(-50%, -50%);
-  width: calc(var(--hexWMain) * 0.20);
-  aspect-ratio: 3 / 4;
-  height: auto;
-  max-width: none;
-  border-radius: 8px;
-  overflow: hidden;
-  isolation: isolate;
-
-  z-index: 22;
-  box-shadow: 0 6px 14px rgba(0,0,0,.45);
-  border: 1px solid rgba(255,255,255,.18);
   pointer-events: none;
+  z-index: 22;
 }
 
 .hexSlot > .cardBadge.hexDeckCard{
   position: absolute;
   left: 50%;
   top: 0;
-  width: calc(var(--hexWMain) * 0.20);
+  right: auto;
+  bottom: auto;
+  /* match mobile deck row: 42×56 portrait, radius 10 */
+  width: calc(var(--hexWMain) * 0.55 * 3 / 4);
+  height: calc(var(--hexWMain) * 0.55);
   max-width: none;
-  aspect-ratio: 3 / 4;
-  height: auto;
+  aspect-ratio: unset;
   transform: translate(-50%, -50%);
-  border-radius: 8px;
+  border-radius: calc(var(--hexWMain) * 0.55 * 10 / 56);
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid rgba(255,255,255,.18);
+  background: linear-gradient(135deg, var(--a), var(--b));
+  box-shadow:
+    0 8px 18px rgba(0,0,0,.45),
+    0 0 0 1px rgba(255,255,255,.06) inset;
+}
+
+.hexSlot > .cardBadge.hexDeckCard.cosmic,
+.hexSlot > .cardBadge.hexDeckCard.risk,
+.hexSlot > .cardBadge.hexDeckCard.terrain,
+.hexSlot > .cardBadge.hexDeckCard.shadow{
+  left: 50%;
+  top: 0;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -50%);
 }
 
 .cardBadge .deckFx{
@@ -1937,12 +1948,7 @@ body{
   transform: translateZ(0);
 }
 
-/* 4 color themes */
-.cardBadge.cosmic  { background: linear-gradient(135deg,#0C1026,#1A1F4A); }
-.cardBadge.risk    { background: linear-gradient(135deg,#12090A,#6E0F1B); }
-.cardBadge.terrain { background: linear-gradient(135deg,#0E3B2E,#1FA88A); }
-.cardBadge.shadow  { background: linear-gradient(135deg,#1B1B1E,#2A1E3F); }
-
+/* hex card markers reuse hexDeckCard theme vars */
 .hexDeckCard.cosmic  { --a:#0C1026; --b:#1A1F4A; }
 .hexDeckCard.risk    { --a:#12090A; --b:#6E0F1B; }
 .hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; }
