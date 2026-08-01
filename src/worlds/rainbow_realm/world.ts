@@ -39,12 +39,12 @@ export default {
 
           backgroundLayers: {
             L1: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/game-bg.png",
-            L2: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
-            L3: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
-            L4: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
-            L5: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
-            L6: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/IMG_4163.jpeg",
-            L7: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/bg-layer7.jpg", 
+            L2: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/game-bg.png",
+            L3: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/game-bg.png",
+            L4: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/game-bg.png",
+            L5: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/game-bg.png",
+            L6: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/game-bg.png",
+            L7: "worlds/rainbow_realm/scenarios/prism_path/assets/backgrounds/game-bg.png",
           },
         },
       },
