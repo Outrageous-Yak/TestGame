@@ -1233,6 +1233,70 @@ body{
 }
 
 /* =========================================================
+   REACHABLE HEX HIGHLIGHT
+========================================================= */
+.hex.reach .hexInner{
+  position: relative;
+  border-color: color-mix(in srgb, var(--hexGlow) 90%, white 10%);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.4);
+}
+
+.hex.reach .hexInner::after{
+  content:"";
+  position:absolute;
+  inset: 1px;
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+  padding: 6px;
+  pointer-events:none;
+  background:
+    conic-gradient(
+      from var(--reachSpin),
+      color-mix(in srgb, var(--hexGlow) 0%, transparent) 0deg,
+      color-mix(in srgb, var(--hexGlow) 35%, transparent) 40deg,
+      color-mix(in srgb, var(--hexGlow) 100%, transparent) 90deg,
+      color-mix(in srgb, var(--hexGlow) 35%, transparent) 140deg,
+      color-mix(in srgb, var(--hexGlow) 0%, transparent) 210deg,
+      color-mix(in srgb, var(--hexGlow) 0%, transparent) 360deg
+    );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 1;
+  filter:
+    drop-shadow(0 0 10px color-mix(in srgb, var(--hexGlow) 95%, transparent))
+    drop-shadow(0 0 22px color-mix(in srgb, var(--hexGlow) 35%, transparent));
+  animation:
+    reachSpin 1.8s linear infinite,
+    reachPulse .9s ease-in-out infinite;
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+@property --reachSpin {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes reachSpin {
+  to { --reachSpin: 360deg; }
+}
+
+@keyframes reachPulse {
+  0%,100% { opacity: .85; }
+  50%     { opacity: 1; }
+}
+
+.hex.reach{
+  filter:
+    drop-shadow(0 12px 18px rgba(0,0,0,.40))
+    drop-shadow(0 0 10px color-mix(in srgb, var(--hexGlow) 55%, transparent));
+}
+
+/* =========================================================
    GHOST GRID (unshifted reference)
 ========================================================= */
 .ghostGrid{
