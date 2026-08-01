@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useAppStore } from '@/app/providers/store';
+import type { CsvImportResult } from '@/application/services/csvImportService';
 import { downloadJson, parseImportJson } from '@/infrastructure/importExport';
 import { nodesToCsv, relationshipsToCsv } from '@/infrastructure/importExport';
 import { previewMerge } from '@/application/services/historyService';
@@ -8,11 +9,16 @@ import type { ProjectExport } from '@/domain/types';
 export function ImportExportPage() {
   const currentProject = useAppStore((s) => s.exportCurrentProject);
   const importProjectData = useAppStore((s) => s.importProjectData);
+  const importNodesCsv = useAppStore((s) => s.importNodesCsv);
+  const importRelationshipsCsv = useAppStore((s) => s.importRelationshipsCsv);
   const fileRef = useRef<HTMLInputElement>(null);
+  const nodesCsvRef = useRef<HTMLInputElement>(null);
+  const relCsvRef = useRef<HTMLInputElement>(null);
 
   const [pendingImport, setPendingImport] = useState<ProjectExport | null>(null);
   const [importMode, setImportMode] = useState<'replace' | 'merge'>('replace');
   const [mergePreview, setMergePreview] = useState<ReturnType<typeof previewMerge> | null>(null);
+  const [csvResult, setCsvResult] = useState<CsvImportResult | null>(null);
 
   const data = currentProject();
 
@@ -121,8 +127,67 @@ export function ImportExportPage() {
           </div>
         )}
       </section>
+
+      <section className="card">
+        <h2>CSV Import</h2>
+        {!data ? (
+          <p className="empty-state">Open a project to import CSV data.</p>
+        ) : (
+          <>
+            <p className="hint">Import nodes or relationships from CSV files matching the export format. Existing rows with matching IDs are updated.</p>
+            <div className="button-row">
+              <button type="button" className="secondary" onClick={() => nodesCsvRef.current?.click()}>
+                Import nodes CSV
+              </button>
+              <button type="button" className="secondary" onClick={() => relCsvRef.current?.click()}>
+                Import relationships CSV
+              </button>
+              <input
+                ref={nodesCsvRef}
+                type="file"
+                accept=".csv,text/csv"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleCsvImport(file, 'nodes');
+                  e.target.value = '';
+                }}
+              />
+              <input
+                ref={relCsvRef}
+                type="file"
+                accept=".csv,text/csv"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleCsvImport(file, 'relationships');
+                  e.target.value = '';
+                }}
+              />
+            </div>
+            {csvResult && (
+              <div className="import-preview">
+                <p>Added {csvResult.added}, updated {csvResult.updated}, skipped {csvResult.skipped}</p>
+                {csvResult.errors.length > 0 && (
+                  <ul className="merge-summary">
+                    {csvResult.errors.map((err) => <li key={err} className="warning-text">{err}</li>)}
+                  </ul>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </section>
     </div>
   );
+
+  async function handleCsvImport(file: File, kind: 'nodes' | 'relationships') {
+    const text = await file.text();
+    const result = kind === 'nodes'
+      ? await importNodesCsv(text)
+      : await importRelationshipsCsv(text);
+    if (result) setCsvResult(result);
+  }
 
   function handleExportCsv() {
     if (!data) return;

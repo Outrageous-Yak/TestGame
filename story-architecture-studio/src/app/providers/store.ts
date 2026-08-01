@@ -14,13 +14,20 @@ import {
   updatePanelBeat,
   updateReaderState,
 } from '@/application/services/planningService';
-import { dismissFinding as dismissFindingSvc } from '@/application/services/validationService';
 import { historyService } from '@/application/services/historyService';
+import { dismissFinding as dismissFindingSvc } from '@/application/services/validationService';
+import {
+  addSourceReference,
+  deleteSourceReference,
+  updateSourceReference,
+} from '@/application/services/sourceReferenceService';
 import {
   createNamedSnapshot,
   listProjectSnapshots,
   restoreSnapshot as restoreSnapshotSvc,
 } from '@/application/services/snapshotService';
+import { importNodesFromCsv, importRelationshipsFromCsv } from '@/application/services/csvImportService';
+import type { CsvImportResult } from '@/application/services/csvImportService';
 import { createWalkSeedProject } from '@/application/services/walkSeed';
 import { searchNodes } from '@/domain/validation/rules';
 
@@ -53,6 +60,9 @@ interface AppState {
   updateReaderState: (stateId: string, updates: Partial<Pick<ReaderState, 'recordType' | 'content' | 'nodeId' | 'issueId' | 'sortOrder'>>) => Promise<void>;
   deleteReaderState: (stateId: string) => Promise<void>;
   dismissFinding: (finding: Pick<ValidationFinding, 'code' | 'message' | 'nodeIds'>, reason: string) => Promise<void>;
+  addSourceReference: (nodeId: string, input: Parameters<typeof addSourceReference>[2]) => Promise<void>;
+  updateSourceReference: (refId: string, updates: Parameters<typeof updateSourceReference>[2]) => Promise<void>;
+  deleteSourceReference: (refId: string) => Promise<void>;
   selectNode: (nodeId: string | null) => void;
   setSearchQuery: (query: string) => void;
   setTypeFilter: (type: NodeType | 'ALL') => void;
@@ -68,6 +78,8 @@ interface AppState {
   listSnapshots: () => Promise<import('@/domain/types').Snapshot[]>;
   createSnapshot: (name: string) => Promise<void>;
   restoreSnapshot: (snapshotId: string) => Promise<void>;
+  importNodesCsv: (csv: string) => Promise<CsvImportResult | void>;
+  importRelationshipsCsv: (csv: string) => Promise<CsvImportResult | void>;
 }
 
 async function withProject<T>(
@@ -228,6 +240,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     await withProject(get, set, (id) => dismissFindingSvc(id, finding, reason));
   },
 
+  addSourceReference: async (nodeId, input) => {
+    await withProject(get, set, (id) => addSourceReference(id, nodeId, input));
+  },
+
+  updateSourceReference: async (refId, updates) => {
+    await withProject(get, set, (id) => updateSourceReference(id, refId, updates));
+  },
+
+  deleteSourceReference: async (refId) => {
+    await withProject(get, set, (id) => deleteSourceReference(id, refId));
+  },
+
   selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setTypeFilter: (type) => set({ typeFilter: type }),
@@ -318,5 +342,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Restore failed', loading: false });
     }
+  },
+
+  importNodesCsv: async (csv) => {
+    const { currentProject } = get();
+    if (!currentProject) return;
+    return withProject(get, set, (id) => importNodesFromCsv(id, csv));
+  },
+
+  importRelationshipsCsv: async (csv) => {
+    const { currentProject } = get();
+    if (!currentProject) return;
+    return withProject(get, set, (id) => importRelationshipsFromCsv(id, csv));
   },
 }));

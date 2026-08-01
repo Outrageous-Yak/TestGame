@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAppStore } from '@/app/providers/store';
 import { NODE_TYPE_LABELS } from '@/domain/utils';
 import type { Node, Relationship } from '@/domain/types';
+import { SourcePanel } from '@/components/SourcePanel';
 import { ImpactPanel } from '@/features/validation/ImpactPanel';
 
 interface InspectorPanelProps {
@@ -119,10 +120,7 @@ export function InspectorPanel({ node, backlinks, allNodes }: InspectorPanelProp
 
       <ImpactPanel nodeId={node.id} />
 
-      <section>
-        <h3>Source</h3>
-        <p className="hint">Source references and adaptation notes — Phase 2+</p>
-      </section>
+      <SourcePanel nodeId={node.id} />
     </aside>
   );
 }

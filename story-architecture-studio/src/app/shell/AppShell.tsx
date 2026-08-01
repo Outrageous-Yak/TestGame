@@ -1,5 +1,15 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Outlet } from 'react-router-dom';
 import { useAppStore } from '@/app/providers/store';
+import { NavLinks } from './NavLinks';
+
+type Theme = 'light' | 'dark';
+
+function getInitialTheme(): Theme {
+  const stored = localStorage.getItem('sas-theme');
+  if (stored === 'dark' || stored === 'light') return stored;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
 
 export function AppShell() {
   const currentProject = useAppStore((s) => s.currentProject);
@@ -10,41 +20,58 @@ export function AppShell() {
   const canUndo = useAppStore((s) => s.canUndo);
   const canRedo = useAppStore((s) => s.canRedo);
 
+  const [navOpen, setNavOpen] = useState(false);
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('sas-theme', theme);
+  }, [theme]);
+
   return (
     <div className="app-shell">
       <header className="app-header">
         <div className="brand">
+          <button
+            type="button"
+            className="nav-toggle secondary small"
+            onClick={() => setNavOpen((o) => !o)}
+            aria-label="Toggle navigation"
+            aria-expanded={navOpen}
+          >
+            ☰
+          </button>
           <strong>Story Architecture Studio</strong>
           {currentProject && <span className="project-name">{currentProject.project.name}</span>}
         </div>
         <div className="header-actions">
-          <button type="button" className="secondary small" onClick={() => void undo()} disabled={!canUndo()} title="Undo">↶ Undo</button>
-          <button type="button" className="secondary small" onClick={() => void redo()} disabled={!canRedo()} title="Redo">↷ Redo</button>
+          <button
+            type="button"
+            className="secondary small"
+            onClick={() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))}
+            title="Toggle theme"
+          >
+            {theme === 'light' ? '🌙' : '☀️'}
+          </button>
+          <button type="button" className="secondary small header-undo" onClick={() => void undo()} disabled={!canUndo()} title="Undo">↶</button>
+          <button type="button" className="secondary small header-undo" onClick={() => void redo()} disabled={!canRedo()} title="Redo">↷</button>
           {loading && <span className="status-pill">Saving…</span>}
           <span className="status-pill saved">Local · Autosaved</span>
         </div>
       </header>
 
+      {navOpen && (
+        <button
+          type="button"
+          className="nav-overlay"
+          aria-label="Close navigation"
+          onClick={() => setNavOpen(false)}
+        />
+      )}
+
       <div className="app-body">
-        <nav className="sidebar" aria-label="Main navigation">
-          <NavLink to="/" end>Dashboard</NavLink>
-          <NavLink to="/explorer">Explorer</NavLink>
-          <NavLink to="/graph">Graph</NavLink>
-          <NavLink to="/issues">Issue Board</NavLink>
-          <NavLink to="/reader-knowledge">Reader Knowledge</NavLink>
-          <NavLink to="/timeline">Timeline</NavLink>
-          <NavLink to="/mermaid">Mermaid</NavLink>
-          <NavLink to="/validation">Validation</NavLink>
-          <NavLink to="/snapshots">Snapshots</NavLink>
-          <NavLink to="/import-export">Import / Export</NavLink>
-          <div className="nav-section">Trees</div>
-          <NavLink to="/trees/story">Story Tree</NavLink>
-          <NavLink to="/trees/character">Character Tree</NavLink>
-          <NavLink to="/trees/reader">Reader Tree</NavLink>
-          <NavLink to="/trees/world">World Tree</NavLink>
-          <NavLink to="/trees/mythology">Mythology Tree</NavLink>
-          <NavLink to="/trees/creature">Creature Tree</NavLink>
-          <NavLink to="/trees/adaptation">Adaptation Tree</NavLink>
+        <nav className={`sidebar ${navOpen ? 'open' : ''}`} aria-label="Main navigation">
+          <NavLinks onNavigate={() => setNavOpen(false)} />
         </nav>
 
         <main className="workspace">
@@ -54,7 +81,7 @@ export function AppShell() {
       </div>
 
       <footer className="app-footer">
-        <span>v0.1 — Phase 8–9</span>
+        <span>v0.1</span>
         <span>
           {currentProject
             ? `${currentProject.nodes.filter((n) => !n.archivedAt).length} nodes · ${currentProject.issues.length} issues`

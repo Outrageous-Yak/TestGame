@@ -130,6 +130,54 @@ function computeFreshFindings(data: ProjectExport): ValidationFinding[] {
     }
   }
 
+  const linkedIds = new Set<string>();
+  for (const rel of data.relationships.filter((r) => !r.archivedAt)) {
+    linkedIds.add(rel.sourceNodeId);
+    linkedIds.add(rel.targetNodeId);
+  }
+  for (const page of data.pages) {
+    for (const id of page.assignedNodeIds) linkedIds.add(id);
+  }
+  const orphanedPrimary = data.nodes.filter(
+    (n) => !n.archivedAt && n.type === 'CHARACTER' && n.importance === 'PRIMARY' && !linkedIds.has(n.id),
+  );
+  for (const char of orphanedPrimary) {
+    findings.push({
+      id: uuidv4(),
+      projectId,
+      code: 'ORPHANED_PRIMARY',
+      message: `Primary character "${char.title}" has no relationships or page assignments`,
+      nodeIds: [char.id],
+      dismissed: false,
+      dismissReason: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  const titleGroups = new Map<string, string[]>();
+  for (const node of data.nodes.filter((n) => !n.archivedAt)) {
+    const key = `${node.type}:${node.title.toLowerCase()}`;
+    const ids = titleGroups.get(key) ?? [];
+    ids.push(node.id);
+    titleGroups.set(key, ids);
+  }
+  for (const [, ids] of titleGroups) {
+    if (ids.length > 1) {
+      findings.push({
+        id: uuidv4(),
+        projectId,
+        code: 'DUPLICATE_TITLE',
+        message: `Duplicate title across ${ids.length} nodes of the same type`,
+        nodeIds: ids,
+        dismissed: false,
+        dismissReason: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+  }
+
   return findings;
 }
 

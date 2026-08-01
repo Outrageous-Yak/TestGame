@@ -2,49 +2,37 @@
 
 Last updated: 2026-08-01
 
-## Overall: v0.1 (~75% of spec)
-
-Core workflow plus graph and reader knowledge editing:
-
-**source node → tree/graph view → issue → page → export brief**
+## Overall: v0.1 (~90% of spec)
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| 0 — Repository & decisions | **Complete** | |
-| 1 — Domain & persistence | **Complete** | |
-| 2 — Project shell & explorer | **Complete** | |
-| 3 — Trees | **Complete** | All 7 generated views |
-| 4 — Graph, Mermaid, timeline | **Complete** | React Flow graph, path finder, Mermaid, timeline |
-| 5 — Issue board | **Complete** | |
-| 6 — 20-page planner | **Complete** | |
-| 7 — Page details | **Complete** | |
-| 8 — Validation & impact | **Partial** | Validation UI + dismiss persistence; no impact reports |
-| 9 — Backup & hardening | **Partial** | Snapshots on delete/import; Playwright e2e scaffolded |
+| 0–7 | **Complete** | Foundation through page planner |
+| 8 — Validation & impact | **Complete** | Validation UI, dismissals, impact analysis, editorial reports |
+| 9 — Backup & hardening | **Partial** | Snapshots, undo/redo, CSV import; no Tauri/SQLite |
 | 10 — Walk seed | **Complete** | |
 
 ## New in this iteration
 
-- **2D relationship graph** (React Flow) with depth, type/canon filters, node focus
-- **Path between nodes** finder
-- **Reader knowledge editor** — add/edit/delete per issue
-- **Validation dismissals** persisted across runs
-- **Playwright e2e** — 3 smoke tests
+- **Mobile drawer navigation** — hamburger menu, overlay, slide-in sidebar
+- **Source references CRUD** — add/edit/remove in node inspector
+- **Editorial reports page** — unused nodes, mysteries, payoffs, adaptation gaps
+- **Dark mode** — theme toggle with system preference default
+- **CSV import** — nodes and relationships from exported CSV format
+- **GitHub Pages deploy workflow** — `.github/workflows/deploy-sas.yml`
+- **Extra validation rules** — `ORPHANED_PRIMARY`, `DUPLICATE_TITLE`
 
 ## Still missing
 
 - Tauri + SQLite desktop shell
-- Undo/redo
-- Merge import
-- Impact analysis reports
-- Recovery UI after crash
+- Full impact simulation (move reveal across issues)
+- Crash recovery UI
 
 ## Commands
 
 ```bash
 cd story-architecture-studio
 npm install
-npm test                 # unit tests (12)
-npm run test:e2e:install # first time only
-npm run test:e2e         # Playwright smoke tests
-npm run dev
+npm test          # 21 unit tests
+npm run test:e2e  # 3 Playwright tests
+npm run dev       # includes --host for phone on same WiFi
 ```

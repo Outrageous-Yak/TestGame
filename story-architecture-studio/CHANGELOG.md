@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.5.0] — 2026-08-01
+
+### Added
+
+- Mobile drawer navigation (hamburger menu, overlay, slide-in sidebar)
+- Source references CRUD in node inspector
+- Editorial reports page (unused nodes, mysteries, payoffs, adaptation gaps)
+- Dark mode theme toggle with CSS variables
+- CSV import for nodes and relationships
+- GitHub Pages deploy workflow
+- Validation rules: `ORPHANED_PRIMARY`, `DUPLICATE_TITLE`
+- 5 new unit tests (21 total)
+
+### Fixed
+
+- Missing `historyService` import in store
+- Mobile sidebar off-screen positioning
+
+## [0.4.0] — 2026-08-01
+
+### Added
+
+- Undo/redo with session command history (header buttons)
+- Snapshots & Recovery page (create, list, restore)
+- Merge import with preview (additions, updates, conflicts)
+- Impact analysis panel in node inspector
+- 4 new unit tests (16 total)
+
 ## [0.3.0] — 2026-08-01
 
 ### Added
