@@ -892,12 +892,21 @@ body{
   z-index: 3;
   height: calc(100vh - 64px);
   display: grid;
-  grid-template-columns: 1fr var(--sideColW);
+  grid-template-columns: 1fr;
   gap: 14px;
   padding: 14px;
   grid-template-rows: 1fr;
   min-height: 0;
   opacity: 1;
+}
+
+.playColumn{
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr var(--sideColW);
+  grid-template-rows: 1fr;
+  gap: 14px;
 }
 
 /* =========================================================
@@ -1534,6 +1543,46 @@ body{
 .hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; }
 .hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; }
 
+/* Mobile deck row (below board) */
+.mobileDeckRow{
+  display: none;
+  gap: 8px;
+  padding: 0 2px;
+}
+
+.mobileDeckCard{
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  aspect-ratio: 3 / 4;
+  max-height: 56px;
+  border-radius: 10px;
+  overflow: hidden;
+  isolation: isolate;
+  transform: none;
+  left: auto;
+  right: auto;
+  top: auto;
+  bottom: auto;
+  width: auto;
+  max-width: none;
+}
+
+.mobileDeckCard .deckFx{
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  overflow: hidden;
+  transform: translateZ(0);
+}
+
+.statusGrid{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
 /* =========================================================
    CARD FLIP OVERLAY (FULLSCREEN)
 ========================================================= */
@@ -1984,39 +2033,151 @@ body{
 }
 
 @media (max-width: 980px){
-  body{ overflow:auto; }
-  .gameLayout{ grid-template-columns: 1fr; height:auto; min-height: calc(100dvh - 64px); }
-  .barWrap{ display:none; }
-  .side{ order: 10; }
-  .boardWrap{
-    grid-template-columns: 1fr;
-    height: auto;
-    min-height: 0;
-    overflow: visible;
+  body{ overflow:hidden; }
+  .appRoot.game{
+    height: 100dvh;
+    overflow: hidden;
   }
+
+  .topbar{
+    height: 52px;
+    padding: 6px 8px;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  .itemBtn{ padding: 6px 8px; gap: 4px; }
+  .itemName{ display: none; }
+  .itemCharges{ font-size: 11px; }
+  .btn{ padding: 6px 10px; font-size: 12px; border-radius: 10px; }
+
+  .gameLayout{
+    height: calc(100dvh - 52px);
+    padding: 8px;
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .playColumn{
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    gap: 8px;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .boardWrap{
+    grid-column: 1;
+    grid-row: 1;
+    grid-template-columns: minmax(0, 1fr) auto;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 14px;
+  }
+
+  .barWrap.barLeft{ display: none !important; }
+
+  .barWrap.barRight{
+    display: flex !important;
+    grid-column: 2;
+    grid-row: 1;
+    width: auto;
+    padding: 4px 4px 4px 0;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .barWrap.barRight .layerBar{
+    width: 20px;
+    height: min(var(--hexRowsH), 100%);
+    max-height: 100%;
+  }
+
+  .barWrap.barRight .barPlayerMini{
+    width: 20px;
+    height: 20px;
+  }
+
+  .barWrap.barRight .goalMarker{
+    width: 18px;
+    height: 18px;
+    font-size: 9px;
+  }
+
   .boardScroll{
     grid-column: 1;
-    padding: 8px 6px;
-    overflow: visible;
-    height: auto;
+    grid-row: 1;
+    padding: 4px 2px 4px 6px;
+    overflow: hidden;
+    height: 100%;
   }
+
   .board{
     width: calc(var(--hexStepX) * var(--maxCols));
     max-width: 100%;
   }
+
+  .hexDeckOverlay{ display: none; }
+
+  .mobileDeckRow{
+    display: flex;
+    grid-row: 2;
+    flex-shrink: 0;
+  }
+
+  .side{
+    grid-row: 3;
+    order: unset;
+    gap: 0;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .logPanel{ display: none; }
+
+  .statusPanel{
+    padding: 10px 12px;
+  }
+
+  .statusPanel .miniTitle{
+    margin-bottom: 6px;
+  }
+
+  .statusGrid{
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 10px;
+  }
+
+  .statusGrid .miniRow{
+    padding: 4px 0;
+    border-bottom: none;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+  }
+
+  .statusGrid .miniRow .k,
+  .statusGrid .miniRow .v{
+    font-size: 11px;
+  }
+
   :root{
-    --boardPadTop: 8px;
-    --boardPadBottom: 8px;
-    /* fit full 7x7 grid in viewport above status panel */
+    --boardPadTop: 4px;
+    --boardPadBottom: 4px;
+    --barW: 20px;
+    /* one-screen fit: topbar + deck row + status + gaps */
     --hexWMain: min(
-      72px,
-      calc((100vw - 20px) / var(--hexGridWFactor)),
-      calc((100dvh - 300px) / (var(--hexGridHFactor) * var(--hexAspect)))
+      64px,
+      calc((100vw - 56px) / var(--hexGridWFactor)),
+      calc((100dvh - 210px) / (var(--hexGridHFactor) * var(--hexAspect)))
     );
     --hexHMain: calc(var(--hexWMain) * var(--hexAspect));
   }
-  .hexId{ font-size: clamp(8px, 2.2vw, 11px); }
-  .mark{ width: 16px; height: 16px; font-size: 9px; }
+
+  .hexId{ font-size: clamp(7px, 2vw, 10px); }
+  .mark{ width: 14px; height: 14px; font-size: 8px; }
 }
 `;
 
@@ -2197,9 +2358,27 @@ export default function App() {
 
   const [showGhost, setShowGhost] = useState(false);
 
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 980px)").matches : false
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 980px)");
+    const onChange = () => setIsMobile(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
   const boardRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const playerBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  const deckRefs = useRef<Record<CardKey, HTMLDivElement | null>>({
+    cosmic: null,
+    risk: null,
+    terrain: null,
+    shadow: null,
+  });
 
   const pendingQuickStartRef = useRef(false);
 
@@ -2527,6 +2706,28 @@ export default function App() {
             <div className="deckFx" />
           </div>
         </div>
+      </div>
+    );
+  }
+
+  function HexDeckCardsRow(props: { glowVar: string }) {
+    const rowStyle = {
+      ["--cardGlow" as any]: props.glowVar,
+    } as React.CSSProperties;
+
+    const cards: CardKey[] = ["cosmic", "risk", "terrain", "shadow"];
+
+    return (
+      <div className="mobileDeckRow" style={rowStyle}>
+        {cards.map((card) => (
+          <div
+            key={card}
+            className={"mobileDeckCard hexDeckCard " + card}
+            ref={(el) => (deckRefs.current[card] = el)}
+          >
+            <div className="deckFx" />
+          </div>
+        ))}
       </div>
     );
   }
@@ -3020,13 +3221,6 @@ export default function App() {
     card: CardKey;
     from: { x: number; y: number; w: number; h: number };
   };
-
-  const deckRefs = useRef<Record<CardKey, HTMLDivElement | null>>({
-    cosmic: null,
-    risk: null,
-    terrain: null,
-    shadow: null,
-  });
 
   const [flyCard, setFlyCard] = useState<FlyCard | null>(null);
   const flyTimerRef = useRef<number | null>(null);
@@ -3564,20 +3758,21 @@ export default function App() {
       </div>
 
       <div className="gameLayout">
-        <div className="boardWrap">
-          <SideBar side="left" currentLayer={currentLayer} />
+        <div className="playColumn">
+          <div className="boardWrap">
+            <SideBar side="left" currentLayer={currentLayer} />
 
-          <div
-            key={currentLayer}
-            className="boardLayerBg"
-            style={{
-              backgroundImage: BOARD_LAYER_ ? "url(" + toPublicUrl(BOARD_LAYER_) + ")" : undefined,
-            }}
-          />
+            <div
+              key={currentLayer}
+              className="boardLayerBg"
+              style={{
+                backgroundImage: BOARD_LAYER_ ? "url(" + toPublicUrl(BOARD_LAYER_) + ")" : undefined,
+              }}
+            />
 
-          <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />
+            {isMobile ? null : <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />}
 
-          <div className="boardScroll" ref={scrollRef}>
+            <div className="boardScroll" ref={scrollRef}>
             <div className="board" ref={boardRef}>
               <div className="hexGrid">
                 {showGhost ? <GhostGrid layer={currentLayer} /> : null}
@@ -3713,42 +3908,47 @@ export default function App() {
             </div>
           </div>
 
-          <SideBar side="right" currentLayer={currentLayer} />
-        </div>
-
-        {/* SIDE PANEL */}
-        <div className="side">
-          <div className="panelMini">
-            <div className="miniTitle">Status</div>
-            <div className="miniRow">
-              <span className="k">Layer</span>
-              <span className="v">
-                {currentLayer}/{scenarioLayerCount}
-              </span>
-            </div>
-            <div className="miniRow">
-              <span className="k">Moves</span>
-              <span className="v">{movesTaken}</span>
-            </div>
-            <div className="miniRow">
-              <span className="k">Optimal (start)</span>
-              <span className="v">{optimalAtStart ?? "-"}</span>
-            </div>
-            <div className="miniRow">
-              <span className="k">Optimal (now)</span>
-              <span className="v">{optimalFromNow ?? "-"}</span>
-            </div>
+            <SideBar side="right" currentLayer={currentLayer} />
           </div>
 
-          <div className="panelMini">
-            <div className="miniTitle">Log</div>
-            <div className="log">
-              {log.map((e) => (
-                <div key={e.n} className={"logRow " + (e.kind ?? "")}>
-                  <div className="lt">{e.t}</div>
-                  <div className="lm">{e.msg}</div>
+          {isMobile ? <HexDeckCardsRow glowVar={layerCssVar(currentLayer)} /> : null}
+
+          {/* SIDE PANEL */}
+          <div className="side">
+            <div className="panelMini statusPanel">
+              <div className="miniTitle">Status</div>
+              <div className="statusGrid">
+                <div className="miniRow">
+                  <span className="k">Layer</span>
+                  <span className="v">
+                    {currentLayer}/{scenarioLayerCount}
+                  </span>
                 </div>
-              ))}
+                <div className="miniRow">
+                  <span className="k">Moves</span>
+                  <span className="v">{movesTaken}</span>
+                </div>
+                <div className="miniRow">
+                  <span className="k">Optimal (start)</span>
+                  <span className="v">{optimalAtStart ?? "-"}</span>
+                </div>
+                <div className="miniRow">
+                  <span className="k">Optimal (now)</span>
+                  <span className="v">{optimalFromNow ?? "-"}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="panelMini logPanel">
+              <div className="miniTitle">Log</div>
+              <div className="log">
+                {log.map((e) => (
+                  <div key={e.n} className={"logRow " + (e.kind ?? "")}>
+                    <div className="lt">{e.t}</div>
+                    <div className="lm">{e.msg}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
