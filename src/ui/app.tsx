@@ -827,11 +827,7 @@ body{
   height: var(--cube);
   position: relative;
   transform-style: preserve-3d;
-  transition: transform 180ms ease;
-}
-
-.dice3d.rolling .cube:not(.isSpinning){
-  transition: none;
+  transition: transform 650ms cubic-bezier(.2,.9,.2,1);
 }
 
 .dice3d .cube.isSpinning{
@@ -3474,15 +3470,13 @@ export default function App() {
     setDiceValue(final);
 
     const finalRot = diceRotForValue(final);
-    const extraX = 360 * (1 + Math.floor(Math.random() * 2));
     const extraY = 360 * (2 + Math.floor(Math.random() * 2));
 
     setDiceRolling(true);
-    setDiceSpinning(false);
-    setDiceRot({ x: finalRot.x - extraX, y: finalRot.y - extraY });
+    setDiceSpinning(true);
+    setDiceRot({ x: finalRot.x, y: finalRot.y - extraY });
 
     diceTimer.current = window.setTimeout(() => {
-      setDiceSpinning(true);
       setDiceRot(finalRot);
 
       diceTimer.current = window.setTimeout(() => {
@@ -3499,7 +3493,7 @@ export default function App() {
   function Dice3d(props: { large?: boolean }) {
     return (
       <div
-        className={"dice3d" + (props.large ? " diceLg" : "") + (diceRolling ? " rolling" : "")}
+        className={"dice3d" + (props.large ? " diceLg" : "")}
         style={diceBorderStyle}
         aria-label={"Dice showing " + diceValue}
       >
