@@ -1299,53 +1299,100 @@ body{
 /* =========================================================
    START PORTAL FX
 ========================================================= */
-.hex.portalStart{
+.hex.portalStart,
+.hex.portalUp,
+.hex.portalDown{
   --portalC: var(--hexGlow);
+  z-index: 4;
+  filter:
+    drop-shadow(0 10px 16px rgba(0,0,0,.35))
+    drop-shadow(0 0 18px color-mix(in srgb, var(--portalC) 55%, transparent))
+    drop-shadow(0 0 34px color-mix(in srgb, var(--portalC) 30%, transparent));
+}
+
+.portalFx{
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12;
+  overflow: visible;
+}
+
+.portalFx::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+  background:
+    radial-gradient(circle at 50% 45%,
+      rgba(0,0,0,.18),
+      rgba(0,0,0,.62) 72%);
+  z-index: 0;
 }
 
 .hex .hexInner .pAura,
 .hex .hexInner .pRunes,
 .hex .hexInner .pVortex,
 .hex .hexInner .pWell,
-.hex .hexInner .pShine{
+.hex .hexInner .pShine,
+.hex .hexInner .pOrbs,
+.hex .hexInner .pRim,
+.hex .hexInner .pOval{
   position:absolute;
-  inset:0;
   pointer-events:none;
+}
+
+.hex .hexInner .pRunes,
+.hex .hexInner .pVortex,
+.hex .hexInner .pWell,
+.hex .hexInner .pShine,
+.hex .hexInner .pOrbs{
+  inset:0;
   border-radius: 10px;
   clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+  z-index: 2;
 }
 
-.hex.portalStart .hexInner{
-  border-color: color-mix(in srgb, var(--portalC) 55%, rgba(255,255,255,.14));
+.hex.portalStart .hexInner,
+.hex.portalUp .hexInner,
+.hex.portalDown .hexInner{
+  border-color: color-mix(in srgb, var(--portalC) 70%, rgba(255,255,255,.18));
   box-shadow:
     inset 0 0 0 1px rgba(0,0,0,.35),
-    0 0 0 3px color-mix(in srgb, var(--portalC) 18%, transparent),
-    0 0 18px color-mix(in srgb, var(--portalC) 22%, transparent);
+    inset 0 0 28px color-mix(in srgb, var(--portalC) 28%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--portalC) 28%, transparent),
+    0 0 22px color-mix(in srgb, var(--portalC) 38%, transparent);
 }
 
-.hex.portalStart .hexInner .pAura{
-  inset:-14%;
+.hex.portalStart .hexInner .pAura,
+.hex.portalUp .hexInner .pAura,
+.hex.portalDown .hexInner .pAura{
+  inset:-22%;
+  border-radius: 999px;
+  clip-path: none;
+  z-index: 1;
   background:
     radial-gradient(circle at 50% 50%,
-      color-mix(in srgb, var(--portalC) 70%, transparent),
-      transparent 60%),
+      color-mix(in srgb, var(--portalC) 85%, transparent),
+      transparent 58%),
     radial-gradient(circle at 60% 78%,
-      rgba(0,255,195,0.18),
+      rgba(0,255,195,0.28),
       transparent 64%);
-  filter: blur(14px) saturate(1.15);
-  opacity: 0.95;
+  filter: blur(10px) saturate(1.35);
+  opacity: 1;
   animation: portalBreathe 2.6s ease-in-out infinite;
 }
 @keyframes portalBreathe{
-  0%,100%{ transform: scale(0.99); filter: blur(12px) saturate(1.05); }
-  50%{ transform: scale(1.12); filter: blur(16px) saturate(1.25); }
+  0%,100%{ transform: scale(0.99); filter: blur(10px) saturate(1.2); }
+  50%{ transform: scale(1.14); filter: blur(14px) saturate(1.45); }
 }
 
 .hex.portalStart .hexInner .pVortex{
-  inset: 9%;
+  inset: 6%;
   overflow:hidden;
-  filter: saturate(1.15);
-  opacity: 0.95;
+  filter: saturate(1.35);
+  opacity: 1;
+  z-index: 4;
 }
 .hex.portalStart .hexInner .pVortex::before{
   content:"";
@@ -1353,14 +1400,14 @@ body{
   background:
     conic-gradient(from 0deg,
       rgba(0,0,0,0) 0 10%,
-      color-mix(in srgb, var(--portalC) 70%, transparent) 18%,
-      rgba(0,255,195,0.22) 28%,
-      rgba(255,80,170,0.16) 40%,
-      color-mix(in srgb, var(--portalC) 50%, transparent) 54%,
+      color-mix(in srgb, var(--portalC) 85%, transparent) 18%,
+      rgba(0,255,195,0.35) 28%,
+      rgba(255,80,170,0.24) 40%,
+      color-mix(in srgb, var(--portalC) 65%, transparent) 54%,
       rgba(0,0,0,0) 70% 100%),
     radial-gradient(circle at 50% 50%,
-      rgba(0,0,0,0.0) 0 42%,
-      rgba(0,0,0,0.75) 64% 100%);
+      rgba(0,0,0,0.0) 0 38%,
+      rgba(0,0,0,0.82) 64% 100%);
   mix-blend-mode: screen;
   animation: portalVortex 1.45s linear infinite;
 }
@@ -1371,12 +1418,13 @@ body{
 
 .hex.portalStart .hexInner .pRunes{
   inset: 2%;
-  opacity: 0.85;
+  opacity: 0.95;
+  z-index: 5;
   background:
     repeating-conic-gradient(
       from 10deg,
       rgba(255,255,255,0.0) 0 10deg,
-      color-mix(in srgb, var(--portalC) 55%, transparent) 10deg 12deg,
+      color-mix(in srgb, var(--portalC) 70%, transparent) 10deg 12deg,
       rgba(255,255,255,0.0) 12deg 18deg
     );
   filter: blur(0.35px);
@@ -1389,25 +1437,28 @@ body{
 }
 
 .hex.portalStart .hexInner .pWell{
-  inset: 26%;
+  inset: 22%;
+  z-index: 3;
   background:
     radial-gradient(circle at 50% 52%,
-      rgba(0,0,0,0.0) 0 35%,
-      rgba(0,0,0,0.9) 70% 100%),
+      rgba(0,0,0,0.0) 0 30%,
+      rgba(0,0,0,0.92) 68% 100%),
     radial-gradient(circle at 45% 40%,
-      rgba(255,255,255,0.12),
+      rgba(255,255,255,0.18),
       transparent 55%);
-  opacity: 0.95;
+  opacity: 1;
 }
 
 .hex.portalStart .hexInner .pShine{
-  inset:-25%;
+  inset:-20%;
+  z-index: 6;
+  clip-path: none;
   background:
     conic-gradient(from 210deg,
       transparent 0 45%,
-      rgba(255,255,255,0.18) 48%,
+      rgba(255,255,255,0.28) 48%,
       transparent 52% 100%);
-  opacity:0.40;
+  opacity:0.55;
   mix-blend-mode: screen;
   animation: portalShine 1.6s linear infinite;
 }
@@ -1419,66 +1470,22 @@ body{
 /* =========================================================
    PORTAL TILE FX (uses destination color: --portalC)
 ========================================================= */
-.hex.portalUp,
-.hex.portalDown{
-  --portalC: var(--hexGlow);
-}
-
-.hex.portalUp .hexInner .pAura,
-.hex.portalDown .hexInner .pAura,
-.hex.portalUp .hexInner .pOrbs,
-.hex.portalDown .hexInner .pOrbs,
-.hex.portalUp .hexInner .pRim,
-.hex.portalDown .hexInner .pRim,
-.hex.portalUp .hexInner .pOval,
-.hex.portalDown .hexInner .pOval{
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-  border-radius: 10px;
-  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
-}
-
-.hex.portalUp .hexInner,
-.hex.portalDown .hexInner{
-  border-color: color-mix(in srgb, var(--portalC) 55%, rgba(255,255,255,.12));
-  box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,.35),
-    0 0 0 3px color-mix(in srgb, var(--portalC) 16%, transparent),
-    0 0 16px color-mix(in srgb, var(--portalC) 22%, transparent);
-}
-
-.hex.portalUp .hexInner .pAura,
-.hex.portalDown .hexInner .pAura{
-  inset:-14%;
-  background:
-    radial-gradient(circle at 50% 50%,
-      color-mix(in srgb, var(--portalC) 70%, transparent),
-      transparent 60%);
-  filter: blur(14px) saturate(1.15);
-  opacity: .95;
-  animation: pBreathe 2.6s ease-in-out infinite;
-}
-@keyframes pBreathe{
-  0%,100%{ transform: scale(.99); opacity:.75; }
-  50%{ transform: scale(1.12); opacity:1; }
-}
-
 .hex.portalUp .hexInner .pOrbs,
 .hex.portalDown .hexInner .pOrbs{
   inset: 0;
+  z-index: 3;
   background:
-    radial-gradient(6px 5px at 20% 30%, rgba(255,255,255,0.18), transparent 58%),
-    radial-gradient(7px 6px at 35% 22%, color-mix(in srgb, var(--portalC) 35%, transparent), transparent 58%),
-    radial-gradient(6px 5px at 55% 18%, rgba(0,255,220,0.18), transparent 58%),
-    radial-gradient(7px 6px at 72% 26%, color-mix(in srgb, var(--portalC) 28%, transparent), transparent 58%);
+    radial-gradient(8px 7px at 20% 30%, rgba(255,255,255,0.28), transparent 58%),
+    radial-gradient(9px 8px at 35% 22%, color-mix(in srgb, var(--portalC) 55%, transparent), transparent 58%),
+    radial-gradient(8px 7px at 55% 18%, rgba(0,255,220,0.28), transparent 58%),
+    radial-gradient(9px 8px at 72% 26%, color-mix(in srgb, var(--portalC) 45%, transparent), transparent 58%);
   mix-blend-mode: screen;
-  filter: blur(0.25px);
-  opacity: .95;
+  filter: blur(0.2px);
+  opacity: 1;
   animation: pOrbs 3.2s ease-in-out infinite;
 }
 @keyframes pOrbs{
-  0%,100%{ transform: translateY(0); opacity:.75; }
+  0%,100%{ transform: translateY(0); opacity:.85; }
   50%{ transform: translateY(-6px); opacity:1; }
 }
 
@@ -1488,8 +1495,10 @@ body{
 .hex.portalDown .hexInner .pRim{
   left:50%;
   top:50%;
-  width: 80%;
-  height: 46%;
+  width: 88%;
+  height: 52%;
+  clip-path: none;
+  z-index: 5;
   transform:
     translate(-50%,-50%)
     rotate(-18deg)
@@ -1505,12 +1514,14 @@ body{
   overflow:visible;
   background:
     radial-gradient(circle at 50% 50%,
-      rgba(0,0,0,0) 0 38%,
-      rgba(0,0,0,0.90) 70%),
+      rgba(0,0,0,0) 0 34%,
+      rgba(0,0,0,0.92) 68%),
     radial-gradient(circle at 45% 50%,
-      color-mix(in srgb, var(--portalC) 35%, transparent),
-      transparent 65%);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
+      color-mix(in srgb, var(--portalC) 55%, transparent),
+      transparent 62%);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.14) inset,
+    0 0 18px color-mix(in srgb, var(--portalC) 45%, transparent);
 }
 .hex.portalUp .hexInner .pOval::before,
 .hex.portalDown .hexInner .pOval::before{
@@ -1520,10 +1531,10 @@ body{
   background:
     conic-gradient(
       rgba(0,0,0,0) 0 14%,
-      color-mix(in srgb, var(--portalC) 95%, transparent) 22%,
-      rgba(0,255,220,0.20) 32%,
-      rgba(255,80,170,0.12) 44%,
-      color-mix(in srgb, var(--portalC) 60%, transparent) 58%,
+      color-mix(in srgb, var(--portalC) 100%, transparent) 22%,
+      rgba(0,255,220,0.32) 32%,
+      rgba(255,80,170,0.20) 44%,
+      color-mix(in srgb, var(--portalC) 75%, transparent) 58%,
       rgba(0,0,0,0) 72% 100%);
   mix-blend-mode: screen;
   animation: pSpin 1.25s linear infinite;
@@ -1533,13 +1544,14 @@ body{
 .hex.portalUp .hexInner .pRim,
 .hex.portalDown .hexInner .pRim{
   inset:auto;
+  z-index: 6;
   background:
     conic-gradient(
       transparent 0 18%,
-      rgba(255,255,255,0.22) 22%,
-      color-mix(in srgb, var(--portalC) 95%, transparent) 32%,
+      rgba(255,255,255,0.32) 22%,
+      color-mix(in srgb, var(--portalC) 100%, transparent) 32%,
       transparent 55% 100%);
-  filter: blur(0.6px);
+  filter: blur(0.4px);
   mix-blend-mode: screen;
   animation: pRim 1.55s linear infinite;
 }
@@ -4221,28 +4233,28 @@ export default function App() {
                             >
                               <div className="hexAnchor">
                                 <div className="hexInner" style={tile ? ({ backgroundImage: tile } as any) : undefined}>
-                                  {isPortalUp || isPortalDown ? (
-                                    <>
-                                      <div className="pAura" />
-                                      <div className="pOrbs" />
-                                      <div className="pRim" />
-                                      <div className="pOval" />
-                                    </>
-                                  ) : null}
-                                  {isStart ? (
-                                    <>
-                                      <div className="pAura" />
-                                      <div className="pRunes" />
-                                      <div className="pVortex" />
-                                      <div className="pWell" />
-                                      <div className="pShine" />
-                                    </>
-                                  ) : null}
                                   {cardHere ? <div className={"cardBadge " + cardHere} title={cardHere} /> : null}
                                   <div className="hexCoords">
                                     <div className="hexId">{r + "," + c}</div>
                                     <div className="hexSlotId">{r + "," + (lc ? lc.col : c)}</div>
                                   </div>
+                                  {isPortalUp || isPortalDown ? (
+                                    <div className="portalFx">
+                                      <div className="pAura" />
+                                      <div className="pOrbs" />
+                                      <div className="pRim" />
+                                      <div className="pOval" />
+                                    </div>
+                                  ) : null}
+                                  {isStart ? (
+                                    <div className="portalFx">
+                                      <div className="pAura" />
+                                      <div className="pRunes" />
+                                      <div className="pVortex" />
+                                      <div className="pWell" />
+                                      <div className="pShine" />
+                                    </div>
+                                  ) : null}
                                   <div className="hexMarks">
                                     {isPortalUp ? <span className="mark">↑</span> : null}
                                     {isPortalDown ? <span className="mark">↓</span> : null}
