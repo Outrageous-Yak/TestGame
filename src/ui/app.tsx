@@ -1172,32 +1172,28 @@ body{
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  gap: 1px;
-  padding-bottom: 8px;
+  justify-content: center;
   pointer-events: none;
   z-index: 5;
 }
 
 .hexId{
-  font-size: 13px;
+  font-size: 17px;
   font-weight: 900;
-  color: rgba(255,255,255,.82);
+  color: #fff;
   font-variant-numeric: tabular-nums;
   padding: 0;
   border: none;
   background: transparent;
-  text-shadow: 0 2px 10px rgba(0,0,0,.55);
   line-height: 1;
-}
-
-.hexSlotId{
-  font-size: 10px;
-  font-weight: 800;
-  color: rgba(255,255,255,.50);
-  font-variant-numeric: tabular-nums;
-  text-shadow: 0 2px 8px rgba(0,0,0,.55);
-  line-height: 1;
+  -webkit-text-stroke: 1.25px #000;
+  paint-order: stroke fill;
+  text-shadow:
+    -1px -1px 0 #000,
+     1px -1px 0 #000,
+    -1px  1px 0 #000,
+     1px  1px 0 #000,
+     0 2px 6px rgba(0,0,0,.45);
 }
 
 .hexMarks{
@@ -2538,8 +2534,7 @@ body{
     --hexHMain: calc(var(--hexWMain) * var(--hexAspect));
   }
 
-  .hexId{ font-size: clamp(7px, 2vw, 10px); }
-  .hexSlotId{ font-size: clamp(6px, 1.8vw, 9px); }
+  .hexId{ font-size: clamp(11px, 2.8vw, 15px); -webkit-text-stroke: 1px #000; }
   .mark{ width: 14px; height: 14px; font-size: 8px; }
 }
 `;
@@ -4169,7 +4164,6 @@ export default function App() {
                     <div key={"row-" + r} className="hexRow">
                       {Array.from({ length: cols }, (_, c) => {
                         const id = idAtSlot(currentLayer, r, c, shiftWrapped);
-                        const lc = idToCoord(id);
                         const cellStyle = hexGridPlacement(r, c);
 
                         const tr = findPortalTransition((viewState as any)?.scenario?.transitions, id);
@@ -4236,7 +4230,6 @@ export default function App() {
                                   {cardHere ? <div className={"cardBadge " + cardHere} title={cardHere} /> : null}
                                   <div className="hexCoords">
                                     <div className="hexId">{r + "," + c}</div>
-                                    <div className="hexSlotId">{r + "," + (lc ? lc.col : c)}</div>
                                   </div>
                                   {isPortalUp || isPortalDown ? (
                                     <div className="portalFx">
