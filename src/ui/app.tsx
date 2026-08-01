@@ -1554,18 +1554,16 @@ body{
   position: relative;
   flex: 1 1 0;
   min-width: 0;
-  height: 56px;
-  width: calc(56px * 3 / 4);
+  aspect-ratio: 3 / 4;
   max-height: 56px;
   border-radius: 10px;
   overflow: hidden;
   isolation: isolate;
-  transform: rotate(90deg);
-  transform-origin: center center;
   left: auto;
   right: auto;
   top: auto;
   bottom: auto;
+  width: auto;
   max-width: none;
   margin: 0 auto;
 }
