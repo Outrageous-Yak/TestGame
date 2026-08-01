@@ -3650,14 +3650,28 @@ export default function App() {
   }, []);
 
   const triggerCardFlyout = useCallback(
-    (card: CardKey) => {
+    (card: CardKey, opts?: { then?: "flip" | "encounter" }) => {
+      const then = opts?.then ?? "flip";
+
+      const afterFly = () => {
+        if (then === "encounter") {
+          const vkr = pickRiskVillain();
+          pendingEncounterMoveIdRef.current = null;
+          setEncounter({ villainKey: vkr, tries: 0 });
+          setDiceRot(BASE_DICE_VIEW);
+          pushLog("Risk triggered — encounter: " + vkr + " (roll a 6)", "bad");
+          return;
+        }
+        triggerCardFlip(card);
+      };
+
       const el =
         deckRefs.current[card] ??
         (typeof document !== "undefined"
           ? (document.querySelector(".mobileDeckRow .mobileDeckCard." + card) as HTMLDivElement | null)
           : null);
       if (!el) {
-        triggerCardFlip(card);
+        afterFly();
         return;
       }
 
@@ -3671,15 +3685,13 @@ export default function App() {
         from: { x: r.left, y: r.top, w: r.width, h: r.height, borderRadius },
       });
 
-      flyTimerRef.current = window.setTimeout(() => {
-        triggerCardFlip(card);
-      }, 520);
+      flyTimerRef.current = window.setTimeout(afterFly, 520);
 
       window.setTimeout(() => {
         setFlyCard(null);
       }, 1200);
     },
-    [triggerCardFlip]
+    [triggerCardFlip, pushLog]
   );
 
   /* =========================
@@ -3895,17 +3907,8 @@ export default function App() {
 
       const landedCard = findCardTriggerAt(landedId);
       if (landedCard) {
-        if (landedCard === "risk") {
-          const vkr = pickRiskVillain();
-          pendingEncounterMoveIdRef.current = null;
-          setEncounter({ villainKey: vkr, tries: 0 });
-          setDiceRot(BASE_DICE_VIEW);
-          pushLog("Risk triggered — encounter: " + vkr + " (roll a 6)", "bad");
-        } else {
-          // ✅ re-enabled
-          triggerCardFlyout(landedCard);
-          pushLog("Card triggered: " + landedCard, "info");
-        }
+        triggerCardFlyout(landedCard, landedCard === "risk" ? { then: "encounter" } : undefined);
+        pushLog("Card triggered: " + landedCard, landedCard === "risk" ? "bad" : "info");
       }
 
       const rm = getReachability(nextState) as any;
