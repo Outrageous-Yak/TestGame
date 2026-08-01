@@ -25,6 +25,8 @@ export interface ProjectDataRepository {
   saveProjectData(data: ProjectExport): Promise<void>;
   createSnapshot(projectId: string, name: string, reason: string, data: ProjectExport): Promise<Snapshot>;
   listSnapshots(projectId: string): Promise<Snapshot[]>;
+  deleteSnapshot(snapshotId: string): Promise<void>;
+  deleteSnapshotsByReason(projectId: string, reason: string): Promise<void>;
 }
 
 export interface PersistenceAdapter extends ProjectRepository, ProjectDataRepository {

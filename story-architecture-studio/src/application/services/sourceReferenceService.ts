@@ -1,7 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { ProjectExport, SourceReference } from '@/domain/types';
 import { nowIso } from '@/domain/utils';
-import { getPersistenceAdapter } from '@/infrastructure/persistence/indexedDbAdapter';
+import { getPersistenceAdapter } from '@/infrastructure/persistence';
+import { persistProjectExport } from '@/infrastructure/persistence/persistHelper';
 
 async function load(projectId: string): Promise<ProjectExport> {
   const data = await getPersistenceAdapter().loadProjectData(projectId);
@@ -11,8 +12,7 @@ async function load(projectId: string): Promise<ProjectExport> {
 
 async function save(data: ProjectExport): Promise<ProjectExport> {
   data.project.updatedAt = nowIso();
-  await getPersistenceAdapter().saveProject(data.project);
-  await getPersistenceAdapter().saveProjectData(data);
+  await persistProjectExport(data);
   return data;
 }
 

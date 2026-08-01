@@ -22,10 +22,14 @@ import {
   updateSourceReference,
 } from '@/application/services/sourceReferenceService';
 import {
+  checkPendingRecovery,
   createNamedSnapshot,
+  discardRecovery as discardRecoverySvc,
   listProjectSnapshots,
+  restoreFromRecovery,
   restoreSnapshot as restoreSnapshotSvc,
 } from '@/application/services/snapshotService';
+import { applyRevealMove as applyRevealMoveSvc } from '@/application/services/planningService';
 import { importNodesFromCsv, importRelationshipsFromCsv } from '@/application/services/csvImportService';
 import type { CsvImportResult } from '@/application/services/csvImportService';
 import { createWalkSeedProject } from '@/application/services/walkSeed';
@@ -40,6 +44,7 @@ interface AppState {
   selectedNodeId: string | null;
   searchQuery: string;
   typeFilter: NodeType | 'ALL';
+  pendingRecovery: import('@/domain/types').Snapshot | null;
   initialize: () => Promise<void>;
   loadProjects: () => Promise<void>;
   openProject: (projectId: string) => Promise<void>;
@@ -47,7 +52,12 @@ interface AppState {
   createWalkProject: () => Promise<void>;
   createNode: (type: NodeType, title: string) => Promise<void>;
   updateNode: (nodeId: string, updates: Partial<Node>) => Promise<void>;
-  createRelationship: (sourceId: string, targetId: string, type: Relationship['relationshipType']) => Promise<void>;
+  createRelationship: (
+    sourceId: string,
+    targetId: string,
+    type: Relationship['relationshipType'],
+    options?: { issueStart?: number | null; issueEnd?: number | null },
+  ) => Promise<void>;
   ensureIssues: () => Promise<void>;
   reorderIssues: (orderedIds: string[]) => Promise<void>;
   updateIssue: (issueId: string, updates: Partial<Issue>) => Promise<void>;
@@ -80,6 +90,9 @@ interface AppState {
   restoreSnapshot: (snapshotId: string) => Promise<void>;
   importNodesCsv: (csv: string) => Promise<CsvImportResult | void>;
   importRelationshipsCsv: (csv: string) => Promise<CsvImportResult | void>;
+  applyRevealMove: (nodeId: string, targetIssueNumber: number) => Promise<void>;
+  acceptRecovery: () => Promise<void>;
+  discardRecovery: () => Promise<void>;
 }
 
 async function withProject<T>(
@@ -110,6 +123,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedNodeId: null,
   searchQuery: '',
   typeFilter: 'ALL',
+  pendingRecovery: null,
 
   initialize: async () => {
     set({ loading: true, error: null });
@@ -139,7 +153,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const data = await projectService.loadProjectExport(projectId);
       historyService.clear();
-      set({ currentProject: data, selectedNodeId: null, loading: false });
+      const recovery = await checkPendingRecovery(projectId);
+      set({
+        currentProject: data,
+        selectedNodeId: null,
+        loading: false,
+        pendingRecovery: recovery,
+      });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to open project', loading: false });
     }
@@ -177,9 +197,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     await withProject(get, set, (id) => projectService.updateNode(id, nodeId, updates));
   },
 
-  createRelationship: async (sourceId, targetId, type) => {
+  createRelationship: async (sourceId, targetId, type, options) => {
     await withProject(get, set, (id) =>
-      projectService.createRelationship(id, { sourceNodeId: sourceId, targetNodeId: targetId, relationshipType: type }),
+      projectService.createRelationship(id, {
+        sourceNodeId: sourceId,
+        targetNodeId: targetId,
+        relationshipType: type,
+        issueStart: options?.issueStart,
+        issueEnd: options?.issueEnd,
+      }),
     );
   },
 
@@ -354,5 +380,28 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { currentProject } = get();
     if (!currentProject) return;
     return withProject(get, set, (id) => importRelationshipsFromCsv(id, csv));
+  },
+
+  applyRevealMove: async (nodeId, targetIssueNumber) => {
+    await withProject(get, set, (id) => applyRevealMoveSvc(id, nodeId, targetIssueNumber));
+  },
+
+  acceptRecovery: async () => {
+    const { currentProject, pendingRecovery } = get();
+    if (!currentProject || !pendingRecovery) return;
+    set({ loading: true, error: null });
+    try {
+      const data = await restoreFromRecovery(currentProject.project.id);
+      set({ currentProject: data, pendingRecovery: null, loading: false });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Recovery failed', loading: false });
+    }
+  },
+
+  discardRecovery: async () => {
+    const { currentProject } = get();
+    if (!currentProject) return;
+    await discardRecoverySvc(currentProject.project.id);
+    set({ pendingRecovery: null });
   },
 }));

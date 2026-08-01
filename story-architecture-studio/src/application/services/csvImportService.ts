@@ -2,7 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Node, NodeType, ProjectExport, Relationship, RelationshipType } from '@/domain/types';
 import { nowIso, slugify, uniqueSlug } from '@/domain/utils';
 import { csvToRecords } from '@/infrastructure/importExport/csvParser';
-import { getPersistenceAdapter } from '@/infrastructure/persistence/indexedDbAdapter';
+import { getPersistenceAdapter } from '@/infrastructure/persistence';
+import { persistProjectExport } from '@/infrastructure/persistence/persistHelper';
 
 const NODE_TYPES = new Set<NodeType>([
   'BOOK', 'CHAPTER', 'CHARACTER', 'GROUP', 'EVENT', 'SCENE', 'LOCATION', 'CREATURE',
@@ -32,8 +33,7 @@ async function load(projectId: string): Promise<ProjectExport> {
 
 async function save(data: ProjectExport): Promise<ProjectExport> {
   data.project.updatedAt = nowIso();
-  await getPersistenceAdapter().saveProject(data.project);
-  await getPersistenceAdapter().saveProjectData(data);
+  await persistProjectExport(data);
   return data;
 }
 

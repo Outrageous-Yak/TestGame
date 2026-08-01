@@ -1,7 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
+import { applyRevealMoveToExport } from '@/application/services/historyService';
 import type { Issue, Page, PanelBeat, ProjectExport, ReaderState } from '@/domain/types';
 import { defaultPageRole, nowIso } from '@/domain/utils';
-import { getPersistenceAdapter } from '@/infrastructure/persistence/indexedDbAdapter';
+import { getPersistenceAdapter } from '@/infrastructure/persistence';
+import { persistProjectExport } from '@/infrastructure/persistence/persistHelper';
 
 async function load(projectId: string): Promise<ProjectExport> {
   const data = await getPersistenceAdapter().loadProjectData(projectId);
@@ -11,8 +13,7 @@ async function load(projectId: string): Promise<ProjectExport> {
 
 async function save(data: ProjectExport): Promise<ProjectExport> {
   data.project.updatedAt = nowIso();
-  await getPersistenceAdapter().saveProject(data.project);
-  await getPersistenceAdapter().saveProjectData(data);
+  await persistProjectExport(data);
   return data;
 }
 
@@ -225,4 +226,14 @@ export function getUnassignedScenes(data: ProjectExport, issueId: string): strin
   return data.nodes
     .filter((n) => !n.archivedAt && (n.type === 'SCENE' || n.type === 'EVENT') && !assigned.has(n.id))
     .map((n) => n.id);
+}
+
+export async function applyRevealMove(
+  projectId: string,
+  nodeId: string,
+  targetIssueNumber: number,
+): Promise<ProjectExport> {
+  const data = await load(projectId);
+  const updated = applyRevealMoveToExport(data, nodeId, targetIssueNumber);
+  return save(updated);
 }

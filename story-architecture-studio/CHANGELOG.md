@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.0] — 2026-08-01
+
+### Added
+
+- Crash recovery pipeline with autosave checkpoints and recovery modal
+- Full impact simulation: move reveal/mystery across issues with apply
+- Validation rules: `UNSEEDED_PAYOFF`, `FORESHADOW_AFTER_REVEAL`, `PAYOFF_BEFORE_REVEAL`, `ORPHANED_READER_STATE`
+- Relationship `issueStart` / `issueEnd` fields in inspector for foreshadow/payoff links
+- Tauri 2 desktop shell (`src-tauri/`) with SQLite persistence adapter
+- Persistence factory: IndexedDB in browser, SQLite in Tauri
+- Shared `persistProjectExport` helper for recovery-aware saves
+- 3 new unit tests (24 total)
+
 ## [0.5.0] — 2026-08-01
 
 ### Added

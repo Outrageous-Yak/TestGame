@@ -2,7 +2,9 @@ import type { ProjectExport, ValidationFinding } from '@/domain/types';
 import { detectBrokenLinks } from '@/domain/validation/rules';
 import { estimatePageDensity, nowIso } from '@/domain/utils';
 import { v4 as uuidv4 } from 'uuid';
-import { getPersistenceAdapter } from '@/infrastructure/persistence/indexedDbAdapter';
+import { getPersistenceAdapter } from '@/infrastructure/persistence';
+import { persistProjectExport } from '@/infrastructure/persistence/persistHelper';
+import { inferNodeIssueNumber, inferRelationshipIssue } from '@/domain/issueInference';
 
 function findingFingerprint(code: string, nodeIds: string[]): string {
   return `${code}:${[...nodeIds].sort().join(',')}`;
@@ -178,6 +180,83 @@ function computeFreshFindings(data: ProjectExport): ValidationFinding[] {
     }
   }
 
+  const activeRels = data.relationships.filter((r) => !r.archivedAt);
+  const nodeById = new Map(data.nodes.map((n) => [n.id, n]));
+
+  for (const rel of activeRels.filter((r) => r.relationshipType === 'PAYS_OFF')) {
+    const hasForeshadow = activeRels.some(
+      (r) => r.relationshipType === 'FORESHADOWS' && r.targetNodeId === rel.targetNodeId,
+    );
+    if (!hasForeshadow) {
+      findings.push({
+        id: uuidv4(),
+        projectId,
+        code: 'UNSEEDED_PAYOFF',
+        message: `PAYS_OFF link to "${nodeById.get(rel.targetNodeId)?.title ?? rel.targetNodeId}" lacks foreshadowing`,
+        nodeIds: [rel.sourceNodeId, rel.targetNodeId],
+        dismissed: false,
+        dismissReason: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+  }
+
+  for (const reveal of data.nodes.filter((n) => !n.archivedAt && (n.type === 'REVEAL' || n.type === 'MYSTERY'))) {
+    const revealIssue = inferNodeIssueNumber(data, reveal.id);
+    if (revealIssue === null) continue;
+    for (const rel of activeRels.filter((r) => r.relationshipType === 'FORESHADOWS' && r.targetNodeId === reveal.id)) {
+      const foreshadowIssue = inferRelationshipIssue(data, rel);
+      if (foreshadowIssue !== null && foreshadowIssue >= revealIssue) {
+        findings.push({
+          id: uuidv4(),
+          projectId,
+          code: 'FORESHADOW_AFTER_REVEAL',
+          message: `Foreshadowing for "${reveal.title}" occurs in issue ${foreshadowIssue}, not before reveal in issue ${revealIssue}`,
+          nodeIds: [rel.sourceNodeId, reveal.id],
+          dismissed: false,
+          dismissReason: null,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    }
+    for (const rel of activeRels.filter((r) => r.relationshipType === 'PAYS_OFF' && r.targetNodeId === reveal.id)) {
+      const payoffIssue = inferRelationshipIssue(data, rel, true);
+      if (payoffIssue !== null && payoffIssue <= revealIssue) {
+        findings.push({
+          id: uuidv4(),
+          projectId,
+          code: 'PAYOFF_BEFORE_REVEAL',
+          message: `Payoff for "${reveal.title}" in issue ${payoffIssue} lands before reveal in issue ${revealIssue}`,
+          nodeIds: [rel.sourceNodeId, reveal.id],
+          dismissed: false,
+          dismissReason: null,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    }
+  }
+
+  for (const state of data.readerStates) {
+    if (!state.nodeId) continue;
+    const node = nodeById.get(state.nodeId);
+    if (!node || node.archivedAt) {
+      findings.push({
+        id: uuidv4(),
+        projectId,
+        code: 'ORPHANED_READER_STATE',
+        message: `Reader state references missing or archived node`,
+        nodeIds: state.nodeId ? [state.nodeId] : [],
+        dismissed: false,
+        dismissReason: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+  }
+
   return findings;
 }
 
@@ -200,8 +279,7 @@ export async function dismissFinding(
   finding: Pick<ValidationFinding, 'code' | 'message' | 'nodeIds'>,
   reason: string,
 ): Promise<ProjectExport> {
-  const adapter = getPersistenceAdapter();
-  const data = await adapter.loadProjectData(projectId);
+  const data = await getPersistenceAdapter().loadProjectData(projectId);
   if (!data) throw new Error(`Project not found: ${projectId}`);
 
   const now = nowIso();
@@ -224,7 +302,6 @@ export async function dismissFinding(
 
   data.validationFindings = existing;
   data.project.updatedAt = now;
-  await adapter.saveProject(data.project);
-  await adapter.saveProjectData(data);
+  await persistProjectExport(data);
   return data;
 }

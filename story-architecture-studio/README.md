@@ -6,13 +6,28 @@ Local-first narrative knowledge graph and comic planning workspace. Built as a p
 
 ## Quick start
 
+### Browser
+
 ```bash
 cd story-architecture-studio
 npm install
-npm run dev
+npm run dev          # includes --host for phone preview on same WiFi
 ```
 
 Open http://localhost:5173
+
+### Desktop (Tauri + SQLite)
+
+Requires Rust 1.88+ and platform libraries (GTK on Linux, Xcode on macOS).
+
+```bash
+cd story-architecture-studio
+npm install
+npm run tauri:dev    # development
+npm run tauri:build  # production binary
+```
+
+In the desktop shell, persistence uses SQLite via `@tauri-apps/plugin-sql`. The browser build uses IndexedDB.
 
 ## Commands
 
@@ -20,31 +35,30 @@ Open http://localhost:5173
 |---------|---------|
 | `npm run dev` | Start development server |
 | `npm run build` | Production build |
-| `npm run test` | Run unit tests (Vitest) |
+| `npm run test` | Run unit tests (24 tests) |
+| `npm run test:e2e` | Playwright e2e tests |
 | `npm run typecheck` | TypeScript check |
+| `npm run tauri:dev` | Tauri desktop dev shell |
+| `npm run tauri:build` | Tauri production build |
 
 ## Architecture
 
-- **Domain layer** — canonical types, validation rules, utilities
-- **Application layer** — `ProjectService` commands (no direct UI → DB writes)
-- **Infrastructure** — IndexedDB adapter with migration support (isolated for future SQLite/Tauri)
+- **Domain layer** — canonical types, validation rules, issue inference utilities
+- **Application layer** — services and commands (no direct UI → DB writes)
+- **Infrastructure** — `PersistenceAdapter` with IndexedDB (browser) or SQLite (Tauri)
 - **UI** — React + Zustand + React Router
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) and [STATUS.md](./STATUS.md) for phase completion details.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) and [STATUS.md](./STATUS.md) for details.
 
-## Current scope (v0.1 foundation)
+## v1.0 scope (complete)
 
-Phases 0–2 are partially complete:
-
-- Project create/open/duplicate/archive/delete
-- Node and relationship CRUD with soft-delete
-- Explorer with search, type filter, inspector, backlinks
-- JSON import/export with validation
-- CSV export for nodes and relationships
-- Mermaid source generation from relationships
-- The Walk seed project (books 1–7, major characters/locations/creatures/themes)
-
-Not yet implemented: seven master trees, 2D graph, timeline, issue board, 20-page planner, validation UI, Tauri desktop shell.
+- Full planning workflow: nodes → 7 trees / graph → 32 issues → 20-page planner → page beats → Markdown export
+- Explorer, inspector, source references, impact analysis with reveal-move simulation
+- Validation UI with dismissals, editorial reports, timeline, reader knowledge editor
+- Undo/redo, snapshots, crash recovery, merge import, CSV import/export
+- Dark mode, mobile drawer navigation
+- Tauri 2 desktop shell with SQLite persistence adapter
+- The Walk seed project with Issue 1 vertical-slice content
 
 ## Folder structure
 
@@ -55,8 +69,8 @@ story-architecture-studio/
 ├── src/infrastructure/  # Persistence, import/export
 ├── src/features/        # UI feature pages
 ├── src/components/      # Shared UI
-├── fixtures/            # Test/seed data
-└── docs/                # Additional documentation
+├── src-tauri/           # Tauri desktop shell (Rust)
+└── e2e/                 # Playwright tests
 ```
 
 ## Specification

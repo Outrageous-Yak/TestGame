@@ -163,13 +163,29 @@ export class IndexedDbAdapter implements PersistenceAdapter {
       return index.getAll(projectId);
     });
   }
+
+  async deleteSnapshot(snapshotId: string): Promise<void> {
+    await withStore('snapshots', 'readwrite', (store) => store.delete(snapshotId));
+  }
+
+  async deleteSnapshotsByReason(projectId: string, reason: string): Promise<void> {
+    const snapshots = await this.listSnapshots(projectId);
+    for (const snapshot of snapshots.filter((s) => s.reason === reason)) {
+      await this.deleteSnapshot(snapshot.id);
+    }
+  }
 }
 
 let adapterInstance: IndexedDbAdapter | null = null;
 
-export function getPersistenceAdapter(): IndexedDbAdapter {
+export function getIndexedDbAdapter(): IndexedDbAdapter {
   if (!adapterInstance) {
     adapterInstance = new IndexedDbAdapter();
   }
   return adapterInstance;
+}
+
+/** @deprecated Use getPersistenceAdapter from ./index */
+export function getPersistenceAdapter(): IndexedDbAdapter {
+  return getIndexedDbAdapter();
 }

@@ -28,6 +28,8 @@ The `PersistenceAdapter` interface in `src/infrastructure/persistence/types.ts` 
 
 Planned: Tauri 2 + SQLite via SQLx when desktop packaging is added.
 
+**Implemented:** Tauri 2 shell in `src-tauri/` with `SqliteAdapter` implementing `PersistenceAdapter`. Browser builds continue to use `IndexedDbAdapter`. Selection happens in `src/infrastructure/persistence/index.ts` via `initPersistenceAdapter()`.
+
 ## State management
 
 **Zustand** store (`src/app/providers/store.ts`) holds UI state and delegates mutations to `ProjectService`.

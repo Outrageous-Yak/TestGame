@@ -61,7 +61,16 @@ export function SnapshotsPage() {
           <p className="empty-state">No snapshots yet. Snapshots are also created automatically before imports and restores.</p>
         ) : (
           <ul className="snapshot-list">
-            {snapshots.map((s) => (
+            {snapshots.filter((s) => s.reason === 'autosave-recovery').map((s) => (
+              <li key={s.id} className="snapshot-card recovery-card">
+                <div>
+                  <strong>Crash recovery checkpoint</strong>
+                  <span className="badge warning">recovery</span>
+                  <p className="meta">{new Date(s.createdAt).toLocaleString()}</p>
+                </div>
+              </li>
+            ))}
+            {snapshots.filter((s) => s.reason !== 'autosave-recovery').map((s) => (
               <li key={s.id} className="snapshot-card">
                 <div>
                   <strong>{s.name}</strong>

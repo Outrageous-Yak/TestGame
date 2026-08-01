@@ -2,37 +2,35 @@
 
 Last updated: 2026-08-01
 
-## Overall: v0.1 (~90% of spec)
+## Overall: v1.0 (spec complete)
 
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 0–7 | **Complete** | Foundation through page planner |
-| 8 — Validation & impact | **Complete** | Validation UI, dismissals, impact analysis, editorial reports |
-| 9 — Backup & hardening | **Partial** | Snapshots, undo/redo, CSV import; no Tauri/SQLite |
+| 8 — Validation & impact | **Complete** | Validation, dismissals, impact analysis, reveal-move simulation |
+| 9 — Backup & hardening | **Complete** | Snapshots, undo/redo, CSV import, crash recovery |
 | 10 — Walk seed | **Complete** | |
+| Desktop shell | **Complete** | Tauri 2 scaffold + SQLite adapter |
 
-## New in this iteration
+## v1.0 highlights
 
-- **Mobile drawer navigation** — hamburger menu, overlay, slide-in sidebar
-- **Source references CRUD** — add/edit/remove in node inspector
-- **Editorial reports page** — unused nodes, mysteries, payoffs, adaptation gaps
-- **Dark mode** — theme toggle with system preference default
-- **CSV import** — nodes and relationships from exported CSV format
-- **GitHub Pages deploy workflow** — `.github/workflows/deploy-sas.yml`
-- **Extra validation rules** — `ORPHANED_PRIMARY`, `DUPLICATE_TITLE`
-
-## Still missing
-
-- Tauri + SQLite desktop shell
-- Full impact simulation (move reveal across issues)
-- Crash recovery UI
+- **Crash recovery** — autosave checkpoints before persist; recovery modal on project open
+- **Impact simulation** — move reveals/mysteries across issues with validation delta preview
+- **Validation rules** — `UNSEEDED_PAYOFF`, `FORESHADOW_AFTER_REVEAL`, `PAYOFF_BEFORE_REVEAL`, `ORPHANED_READER_STATE`
+- **Relationship timing** — `issueStart` / `issueEnd` on foreshadow/payoff links in inspector
+- **Tauri + SQLite** — desktop shell in `src-tauri/`, `SqliteAdapter` swaps in at runtime
 
 ## Commands
 
 ```bash
 cd story-architecture-studio
 npm install
-npm test          # 21 unit tests
-npm run test:e2e  # 3 Playwright tests
-npm run dev       # includes --host for phone on same WiFi
+npm test              # 24 unit tests
+npm run test:e2e      # 3 Playwright tests
+npm run dev           # browser + IndexedDB
+npm run tauri:dev     # desktop + SQLite (requires Rust 1.88+)
 ```
+
+## Deployment
+
+GitHub Pages workflow at `.github/workflows/deploy-sas.yml` — enable Pages on the repo for `https://<user>.github.io/TestGame/`.

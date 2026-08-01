@@ -18,7 +18,8 @@ import {
 import { nowIso, slugify, uniqueSlug } from '@/domain/utils';
 import { validateExport } from '@/domain/validation/rules';
 import { applyMerge } from '@/application/services/historyService';
-import { getPersistenceAdapter } from '@/infrastructure/persistence/indexedDbAdapter';
+import { getPersistenceAdapter, initPersistenceAdapter } from '@/infrastructure/persistence';
+import { persistProjectExport } from '@/infrastructure/persistence/persistHelper';
 
 function emptyExport(project: Project): ProjectExport {
   return {
@@ -39,9 +40,12 @@ function emptyExport(project: Project): ProjectExport {
 }
 
 export class ProjectService {
-  private adapter = getPersistenceAdapter();
+  private get adapter() {
+    return getPersistenceAdapter();
+  }
 
   async initialize(): Promise<void> {
+    await initPersistenceAdapter();
     await this.adapter.initialize();
   }
 
@@ -246,6 +250,8 @@ export class ProjectService {
       inverseDisplayLabel?: string;
       canonStatus?: CanonStatus;
       confidence?: SourceConfidence;
+      issueStart?: number | null;
+      issueEnd?: number | null;
     },
   ): Promise<ProjectExport> {
     const data = await this.requireProjectData(projectId);
@@ -264,8 +270,8 @@ export class ProjectService {
       inverseDisplayLabel: input.inverseDisplayLabel ?? null,
       startOrder: null,
       endOrder: null,
-      issueStart: null,
-      issueEnd: null,
+      issueStart: input.issueStart ?? null,
+      issueEnd: input.issueEnd ?? null,
       confidence: input.confidence ?? 'EXPLICIT',
       canonStatus: input.canonStatus ?? 'CANON',
       sourceReference: null,
@@ -356,8 +362,7 @@ export class ProjectService {
   }
 
   private async persist(data: ProjectExport): Promise<void> {
-    await this.adapter.saveProject(data.project);
-    await this.adapter.saveProjectData(data);
+    await persistProjectExport(data);
   }
 }
 

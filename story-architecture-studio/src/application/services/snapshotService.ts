@@ -1,5 +1,7 @@
 import type { ProjectExport, Snapshot } from '@/domain/types';
-import { getPersistenceAdapter } from '@/infrastructure/persistence/indexedDbAdapter';
+import { getPersistenceAdapter } from '@/infrastructure/persistence';
+
+const RECOVERY_REASON = 'autosave-recovery';
 
 export async function listProjectSnapshots(projectId: string): Promise<Snapshot[]> {
   const snapshots = await getPersistenceAdapter().listSnapshots(projectId);
@@ -34,6 +36,31 @@ export async function restoreSnapshot(projectId: string, snapshotId: string): Pr
 
 export async function checkPendingRecovery(projectId: string): Promise<Snapshot | null> {
   const snapshots = await listProjectSnapshots(projectId);
-  const recovery = snapshots.find((s) => s.reason === 'autosave-recovery');
+  const recovery = snapshots.find((s) => s.reason === RECOVERY_REASON);
   return recovery ?? null;
+}
+
+export async function writeRecoverySnapshot(projectId: string, data: ProjectExport): Promise<void> {
+  const adapter = getPersistenceAdapter();
+  await adapter.deleteSnapshotsByReason(projectId, RECOVERY_REASON);
+  await adapter.createSnapshot(projectId, 'Recovery checkpoint', RECOVERY_REASON, data);
+}
+
+export async function clearRecoverySnapshot(projectId: string): Promise<void> {
+  await getPersistenceAdapter().deleteSnapshotsByReason(projectId, RECOVERY_REASON);
+}
+
+export async function restoreFromRecovery(projectId: string): Promise<ProjectExport> {
+  const recovery = await checkPendingRecovery(projectId);
+  if (!recovery) throw new Error('No recovery snapshot found');
+  const data = JSON.parse(recovery.dataJson) as ProjectExport;
+  const adapter = getPersistenceAdapter();
+  await adapter.saveProject(data.project);
+  await adapter.saveProjectData(data);
+  await clearRecoverySnapshot(projectId);
+  return data;
+}
+
+export async function discardRecovery(projectId: string): Promise<void> {
+  await clearRecoverySnapshot(projectId);
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useAppStore } from '@/app/providers/store';
 import { NavLinks } from './NavLinks';
+import { RecoveryModal } from '@/components/RecoveryModal';
 
 type Theme = 'light' | 'dark';
 
@@ -19,6 +20,9 @@ export function AppShell() {
   const redo = useAppStore((s) => s.redo);
   const canUndo = useAppStore((s) => s.canUndo);
   const canRedo = useAppStore((s) => s.canRedo);
+  const pendingRecovery = useAppStore((s) => s.pendingRecovery);
+  const acceptRecovery = useAppStore((s) => s.acceptRecovery);
+  const discardRecovery = useAppStore((s) => s.discardRecovery);
 
   const [navOpen, setNavOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
@@ -88,6 +92,14 @@ export function AppShell() {
             : 'No project open'}
         </span>
       </footer>
+
+      {pendingRecovery && (
+        <RecoveryModal
+          snapshot={pendingRecovery}
+          onRestore={() => void acceptRecovery()}
+          onDiscard={() => void discardRecovery()}
+        />
+      )}
     </div>
   );
 }
