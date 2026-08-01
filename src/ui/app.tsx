@@ -2127,6 +2127,112 @@ body{
   to   { opacity: 1; transform: scale(1.00); }
 }
 
+/* Risk Step B: pop like blue, flip to villain, controls below */
+.cardFlipOverlay.riskEncounter{
+  --flipDur: 1400ms;
+  background: rgba(0,0,0,.80);
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
+  animation: riskOverlayIn 320ms ease-out forwards;
+}
+
+@keyframes riskOverlayIn{
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.riskEncounterStack{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  width: min(420px, 92vw);
+}
+
+.cardFlipCard.riskReveal{
+  width: min(420px, 78vw);
+  aspect-ratio: 3 / 4;
+  border-radius: 28px;
+  position: relative;
+  transform-style: preserve-3d;
+  transform-origin: center;
+  animation: riskCardPopThenFlip var(--flipDur) ease-out forwards;
+  overflow: visible;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.cardFlipCard.riskReveal::before,
+.cardFlipCard.riskReveal::after{
+  display: none;
+}
+
+@keyframes riskCardPopThenFlip{
+  0%   { transform: translateY(18px) scale(.92) rotateY(0deg); opacity: 0; }
+  12%  { transform: translateY(0)    scale(1)  rotateY(0deg); opacity: 1; }
+  62%  { transform: translateY(0)    scale(1)  rotateY(0deg); opacity: 1; }
+  100% { transform: translateY(0)    scale(1)  rotateY(180deg); opacity: 1; }
+}
+
+.cardFlipFace{
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  backface-visibility: hidden;
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow:
+    0 28px 90px rgba(0,0,0,.65),
+    0 0 0 1px rgba(255,255,255,.06) inset;
+}
+
+.cardFlipFace.front{
+  background: linear-gradient(135deg,#12090A,#6E0F1B);
+  transform: rotateY(0deg);
+}
+
+.cardFlipFace.back{
+  transform: rotateY(180deg);
+  background: #000;
+}
+
+.cardFlipFace.back img{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.riskEncounterControls{
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  opacity: 0;
+  pointer-events: none;
+  animation: riskControlsIn 420ms ease-out 1.05s forwards;
+}
+
+@keyframes riskControlsIn{
+  to{
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.riskEncounterControls .encounterActionRow{
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+}
+
+.riskEncounterControls .encounterInfo{
+  text-align: center;
+}
+
 /* =========================================================
    FLY-OUT CARD (deck -> center -> flip)
 ========================================================= */
@@ -3594,24 +3700,33 @@ export default function App() {
 
   const [cardTriggers, setCardTriggers] = useState<CardTrigger[]>([]);
   const [cardFlip, setCardFlip] = useState<
-    null | { key: number; card: CardKey; durMs: number; villainKey?: VillainKey }
+    null | {
+      key: number;
+      card: CardKey;
+      durMs: number;
+      villainKey?: VillainKey;
+      mode?: "flash" | "riskEncounter";
+    }
   >(null);
 
   const cardFlipTimerRef = useRef<number | null>(null);
 
   const triggerCardFlip = useCallback(
-    (card: CardKey, opts?: { durMs?: number; villainKey?: VillainKey }) => {
+    (card: CardKey, opts?: { durMs?: number; villainKey?: VillainKey; mode?: "flash" | "riskEncounter" }) => {
       if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
 
       const key = Date.now();
       const durMs = opts?.durMs ?? 1400;
+      const mode = opts?.mode ?? "flash";
 
-      setCardFlip({ key, card, durMs, villainKey: opts?.villainKey });
+      setCardFlip({ key, card, durMs, villainKey: opts?.villainKey, mode });
 
-      cardFlipTimerRef.current = window.setTimeout(() => {
-        setCardFlip(null);
-        cardFlipTimerRef.current = null;
-      }, durMs);
+      if (mode !== "riskEncounter") {
+        cardFlipTimerRef.current = window.setTimeout(() => {
+          setCardFlip(null);
+          cardFlipTimerRef.current = null;
+        }, durMs);
+      }
     },
     []
   );
@@ -3621,6 +3736,12 @@ export default function App() {
       if (cardFlipTimerRef.current) window.clearTimeout(cardFlipTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!encounter) {
+      setCardFlip((cf) => (cf?.mode === "riskEncounter" ? null : cf));
+    }
+  }, [encounter]);
 
   const findCardTriggerAt = useCallback(
     (id: string): CardKey | null => {
@@ -3659,6 +3780,7 @@ export default function App() {
           pendingEncounterMoveIdRef.current = null;
           setEncounter({ villainKey: vkr, tries: 0 });
           setDiceRot(BASE_DICE_VIEW);
+          triggerCardFlip("risk", { villainKey: vkr, mode: "riskEncounter" });
           pushLog("Risk triggered — encounter: " + vkr + " (roll a 6)", "bad");
           return;
         }
@@ -3693,6 +3815,16 @@ export default function App() {
     },
     [triggerCardFlip, pushLog]
   );
+
+  const clearEncounter = useCallback(() => {
+    pendingEncounterMoveIdRef.current = null;
+    setEncounter(null);
+    setCardFlip(null);
+    if (cardFlipTimerRef.current) {
+      window.clearTimeout(cardFlipTimerRef.current);
+      cardFlipTimerRef.current = null;
+    }
+  }, []);
 
   /* =========================
      Start scenario
@@ -4429,7 +4561,89 @@ export default function App() {
       ) : null}
 
       {/* Card flip overlay */}
-      {cardFlip ? (
+      {cardFlip && cardFlip.mode === "riskEncounter" && encounter ? (
+        <div
+          key={cardFlip.key}
+          className="cardFlipOverlay riskEncounter"
+          role="dialog"
+          aria-modal="true"
+          style={
+            {
+              ["--flipDur" as any]: cardFlip.durMs + "ms",
+              ["--diceBorderUrl" as any]: DICE_BORDER_IMG ? "url(" + toPublicUrl(DICE_BORDER_IMG) + ")" : "none",
+            } as any
+          }
+        >
+          <div className="riskEncounterStack">
+            <div className="cardFlipCard risk riskReveal">
+              <div className="cardFlipFace front">
+                <div className="riskCardFx" />
+              </div>
+              <div className="cardFlipFace back">
+                <img src={villainImg(encounter.villainKey)} alt={encounter.villainKey} />
+              </div>
+            </div>
+
+            <div className="riskEncounterControls">
+              <div className="encounterActionRow">
+                <div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
+                  <div className="cube" style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}>
+                    <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}>
+                      <DiceCorners />
+                    </div>
+                    <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
+                      <DiceCorners />
+                    </div>
+                    <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }}>
+                      <DiceCorners />
+                    </div>
+                    <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }}>
+                      <DiceCorners />
+                    </div>
+                    <div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }}>
+                      <DiceCorners />
+                    </div>
+                    <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}>
+                      <DiceCorners />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="encounterInfo">
+                  <div className="encounterTitle">ENCOUNTER!</div>
+                  <div className="encounterSub">
+                    Roll a <b>6</b> to continue
+                    <span className="encounterTries">
+                      Tries: <b>{encounter.tries}</b>
+                    </span>
+                  </div>
+
+                  <div className="encounterButtons">
+                    <button className="btn primary" disabled={diceRolling} onClick={rollDice}>
+                      {diceRolling ? "Rolling…" : "Roll"}
+                    </button>
+
+                    <button
+                      className="btn"
+                      disabled={diceRolling}
+                      onClick={() => {
+                        clearEncounter();
+                        pushLog("Encounter dismissed (debug)", "info");
+                      }}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+
+                  <div className="encounterRollPill">
+                    Roll = <b>{diceValue}</b>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : cardFlip ? (
         <div
           key={cardFlip.key}
           className="cardFlipOverlay"
@@ -4441,17 +4655,13 @@ export default function App() {
           }
         >
           <div className={"cardFlipCard " + cardFlip.card}>
-            {cardFlip.card === "risk" && cardFlip.villainKey ? (
-              <img className="cardFlipVillain" src={villainImg(cardFlip.villainKey)} alt={cardFlip.villainKey} />
-            ) : null}
-
             <div className="cardFlipLabel">{cardFlip.card}</div>
           </div>
         </div>
       ) : null}
 
-      {/* Encounter overlay */}
-      {encounter ? (
+      {/* Encounter overlay (villain hex triggers — not risk card Step B) */}
+      {encounter && cardFlip?.mode !== "riskEncounter" ? (
         <div
           className="encounterScene"
           role="dialog"
@@ -4511,8 +4721,7 @@ export default function App() {
                       className="btn"
                       disabled={diceRolling}
                       onClick={() => {
-                        pendingEncounterMoveIdRef.current = null;
-                        setEncounter(null);
+                        clearEncounter();
                         pushLog("Encounter dismissed (debug)", "info");
                       }}
                     >
