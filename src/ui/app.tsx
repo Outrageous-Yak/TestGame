@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import type { GameState, Scenario, Hex } from "../engine/types";
 import { assertScenario } from "../engine/scenario";
-import { newGame, getReachability, tryMove, type ReachMap } from "../engine/api";
+import { newGame, getMinMovesToGoal, tryMove } from "../engine/api";
 
 import { ROW_LENS, enterLayer, revealHex } from "../engine/board";
 import { neighborIdsSameLayer } from "../engine/neighbors";
@@ -203,6 +203,17 @@ function ensureScenario(st: any): any {
     st.scenario = scenarioRef.current;
   }
   return st;
+}
+
+function projectLayerMovesAfterMove(
+  prev: Record<number, number>,
+  fromLayer: number | null | undefined,
+  finalLayer: number | null | undefined
+): Record<number, number> {
+  const lm = { ...prev };
+  if (fromLayer) lm[fromLayer] = (lm[fromLayer] ?? 0) + 1;
+  if (finalLayer && fromLayer && finalLayer !== fromLayer) lm[finalLayer] = 0;
+  return lm;
 }
 
 function idToCoord(id: string): Coord | null {
@@ -3281,17 +3292,13 @@ export default function App() {
   const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
   const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
 
-  const computeOptimalFromReachMap = useCallback((rm: any, gid: string | null) => {
-    if (!gid || !rm) return null;
-
-    if (typeof rm?.get === "function") {
-      const info = rm.get(gid);
-      return info?.reachable ? (info.distance as number) : null;
-    }
-
-    const info = rm[gid];
-    return info?.reachable ? (info.distance as number) : null;
-  }, []);
+  const computeOptimalMoves = useCallback(
+    (st: GameState | null, lm: Record<number, number>) => {
+      if (!st) return null;
+      return getMinMovesToGoal(st, lm);
+    },
+    []
+  );
 
   const [log, setLog] = useState<LogEntry[]>([]);
   const logNRef = useRef(0);
@@ -3672,23 +3679,32 @@ export default function App() {
 
       setMovesTaken((n) => n + 1);
 
+      const c2 = pidAfter ? idToCoord(pidAfter) : null;
+      const fromLayerEnc =
+        (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
+      const nextLayerEnc = c2?.layer ?? currentLayer;
+      const lmAfterEncounter = projectLayerMovesAfterMove(layerMoves, fromLayerEnc, nextLayerEnc);
+
+      if (fromLayerEnc) {
+        setLayerMoves((prev) => ({ ...prev, [fromLayerEnc]: (prev[fromLayerEnc] ?? 0) + 1 }));
+      }
+      if (nextLayerEnc && fromLayerEnc && nextLayerEnc !== fromLayerEnc) {
+        setLayerMoves((prev) => ({ ...prev, [nextLayerEnc]: 0 }));
+      }
+
       setState(nextState);
       forceRender((n) => n + 1);
 
-      const c2 = pidAfter ? idToCoord(pidAfter) : null;
-      const nextLayer = c2?.layer ?? currentLayer;
+      if (Number.isFinite(nextLayerEnc)) {
+        enterLayer(nextState, nextLayerEnc);
 
-      if (Number.isFinite(nextLayer)) {
-        enterLayer(nextState, nextLayer);
-
-        if (nextLayer !== currentLayer) {
-          setCurrentLayer(nextLayer);
-          revealWholeLayer(nextState, nextLayer);
+        if (nextLayerEnc !== currentLayer) {
+          setCurrentLayer(nextLayerEnc);
+          revealWholeLayer(nextState, nextLayerEnc);
         }
       }
 
-      const rm = getReachability(nextState) as any;
-      setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+      setOptimalFromNow(computeOptimalMoves(nextState, lmAfterEncounter));
 
       pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
       if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
@@ -3704,7 +3720,8 @@ export default function App() {
     currentLayer,
     goalId,
     revealWholeLayer,
-    computeOptimalFromReachMap,
+    layerMoves,
+    computeOptimalMoves,
     pushLog,
     getLayerMoves,
   ]);
@@ -3893,8 +3910,6 @@ export default function App() {
     enterLayer(st, layer);
     revealWholeLayer(st, layer);
 
-    const rm = getReachability(st) as any;
-
     setState(st);
     setSelectedId(pid);
     setStartHexId(pid);
@@ -3912,8 +3927,9 @@ export default function App() {
     setLayerMoves(initMoves);
     setLayerMoveArmed(initArmed);
 
-    setOptimalAtStart(computeOptimalFromReachMap(rm, gid));
-    setOptimalFromNow(computeOptimalFromReachMap(rm, gid));
+    const startOptimal = computeOptimalMoves(st, initMoves);
+    setOptimalAtStart(startOptimal);
+    setOptimalFromNow(startOptimal);
 
     logNRef.current = 0;
     setLog([]);
@@ -3932,7 +3948,7 @@ export default function App() {
     }, 0);
 
     setScreen("game");
-  }, [scenarioEntry, trackEntry, revealWholeLayer, computeOptimalFromReachMap, pushLog]);
+  }, [scenarioEntry, trackEntry, revealWholeLayer, computeOptimalMoves, pushLog]);
 
   useEffect(() => {
     if (pendingQuickStartRef.current && scenarioEntry) {
@@ -4058,8 +4074,8 @@ export default function App() {
         pushLog("Card triggered: " + landedCard, landedCard === "risk" ? "bad" : "info");
       }
 
-      const rm = getReachability(nextState) as any;
-      setOptimalFromNow(computeOptimalFromReachMap(rm, goalId));
+      const lmAfterMove = projectLayerMovesAfterMove(layerMoves, fromLayer, finalLayer);
+      setOptimalFromNow(computeOptimalMoves(nextState, lmAfterMove));
 
       pushLog("Moved to " + landedId, "ok");
       if (goalId && landedId === goalId) pushLog("Goal reached!", "ok");
@@ -4074,7 +4090,8 @@ export default function App() {
       goalId,
       pushLog,
       revealWholeLayer,
-      computeOptimalFromReachMap,
+      layerMoves,
+      computeOptimalMoves,
       findTriggerForHex,
       getLayerMoves,
       triggerLayerFx,
