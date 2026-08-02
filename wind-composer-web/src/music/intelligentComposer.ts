@@ -114,113 +114,117 @@ export class IntelligentComposer {
     const spb = (60 / Math.max(plan.tempo_bpm, 40)) * ctx.sampleRate;
     const beat = Math.floor(ctx.samplePosition / spb);
     const measure = Math.floor(beat / 4);
-    const beatChanged = beat !== this.lastBeat;
-    const measureChanged = measure !== this.lastMeasure;
-    this.lastBeat = beat;
-    this.lastMeasure = measure;
+    const prevBeat = this.lastBeat;
+    const prevMeasure = this.lastMeasure;
 
     plan.musical_style = this.styleName;
     plan.local_time_str = this.localTimeStr;
 
-    if (measureChanged) {
-      plan.song_section = this.arrangement.onBar(measure, plan.energy_curve, trend.storm_likelihood > 0.5);
-      if (measure > 0 && measure % 32 === 0) this.phraseNumber += 1;
+    if (measure > prevMeasure) {
+      for (let m = Math.max(1, prevMeasure + 1); m <= measure; m++) {
+        plan.song_section = this.arrangement.onBar(m, plan.energy_curve, trend.storm_likelihood > 0.5);
+        if (m > 0 && m % 32 === 0) this.phraseNumber += 1;
+      }
     } else {
       plan.song_section = this.arrangement.getState().section;
     }
     plan.phrase_number = this.phraseNumber;
 
     const extraRhythm: RhythmEventDto[] = [];
-    const extraMelody: MelodyNoteDto[] = [...plan.melody_notes];
+    const extraMelody: MelodyNoteDto[] = [];
     const arrState = this.arrangement.getState();
 
-    if (beatChanged && beat >= 0) {
-      const micro = beatMicroDecision(plan.energy_curve);
-      if (micro === "hat_ghost") {
-        extraRhythm.push({ layer: "hat_ghost", strength: 0.14, is_pulse: false });
-      }
-    }
-
-    if (measureChanged && measure > 0 && beat % 4 === 0) {
-      const tones = plan.chord?.tones ?? [];
-      const bassNotes = this.bass.onBar({
-        chordTones: tones,
-        energy: plan.energy_curve,
-        windDirection: w?.wind_direction_deg ?? 0,
-        pressureTrend: trend.pressure_delta,
-        barInPhrase: measure,
-        style,
-      });
-      extraMelody.push(...bassNotes);
-      if (bassNotes.length) {
-        this.lastBassPattern = bassNotes.map((n) => n.midi);
-      }
-
-      const fillProb = style.fillProbability + this.fillProbabilityBoost;
-      extraRhythm.push(
-        ...this.fills.maybeFill({
-          bar: measure,
-          phraseLength: plan.phrase_length_bars,
-          energy: plan.energy_curve,
-          stormLikelihood: trend.storm_likelihood,
-          fillProbability: fillProb,
-        }),
-      );
-      this.fillProbabilityBoost *= 0.92;
-    }
-
-    if (measureChanged && plan.chord?.tones?.length) {
-      extraMelody.push(
-        ...this.lead.maybeNotes({
-          chordTones: plan.chord.tones,
-          energy: plan.energy_curve,
-          hope: ctx.personalityHope,
-          bar: measure,
-          gust: ctx.gust,
-          style,
-        }),
-      );
-    }
-
-    if (ctx.gust && w && beatChanged) {
-      const gustDelta = w.wind_gust_kmh - w.wind_speed_kmh;
-      const weights = gustActionWeights(w.wind_speed_kmh, gustDelta, plan.energy_curve);
-      const action = pickGustAction(weights);
-      if (action === "fill") extraRhythm.push({ layer: "fill", strength: 0.72, is_pulse: true });
-      else if (action === "lead_flourish" && plan.chord) {
-        extraMelody.push({
-          midi: plan.chord.tones[plan.chord.tones.length - 1],
-          velocity: 0.82,
-          duration_sec: 0.4,
-        });
-      } else if (action === "crash") extraRhythm.push({ layer: "crash", strength: 0.88, is_pulse: true });
-      else if (action === "reverse_fx") plan.transition_fx = "reverse_crash";
-      else if (action === "riser") plan.transition_fx = "noise_riser";
-      else if (action === "bass_variation" && plan.chord) {
-        extraMelody.push({
-          midi: plan.chord.tones[0] - 7,
-          velocity: 0.55,
-          duration_sec: 0.25,
-        });
-      }
-      plan.weather_hints = [...(plan.weather_hints ?? []), `Gust: ${action}`];
-    }
-
-    if (measureChanged) {
-      const fx = this.transitions.maybeTransition({
-        energy: plan.energy_curve,
-        stormLikelihood: trend.storm_likelihood,
-        sectionChange: arrState.barsInSection === 0,
-        transitionProbability: style.transitionProbability,
-        gust: ctx.gust,
-      });
-      if (fx) {
-        plan.transition_fx = fx;
-        if (["crash", "impact", "reverse_crash"].includes(fx)) {
-          extraRhythm.push({ layer: "crash", strength: 0.78, is_pulse: true });
+    if (beat > prevBeat) {
+      for (let b = Math.max(0, prevBeat + 1); b <= beat; b++) {
+        const micro = beatMicroDecision(plan.energy_curve);
+        if (micro === "hat_ghost") {
+          extraRhythm.push({ layer: "hat_ghost", strength: 0.14, is_pulse: false });
+        }
+        if (ctx.gust && w && b === beat) {
+          const gustDelta = w.wind_gust_kmh - w.wind_speed_kmh;
+          const weights = gustActionWeights(w.wind_speed_kmh, gustDelta, plan.energy_curve);
+          const action = pickGustAction(weights);
+          if (action === "fill") extraRhythm.push({ layer: "fill", strength: 0.72, is_pulse: true });
+          else if (action === "lead_flourish" && plan.chord) {
+            extraMelody.push({
+              midi: plan.chord.tones[plan.chord.tones.length - 1],
+              velocity: 0.82,
+              duration_sec: 0.4,
+            });
+          } else if (action === "crash") extraRhythm.push({ layer: "crash", strength: 0.88, is_pulse: true });
+          else if (action === "reverse_fx") plan.transition_fx = "reverse_crash";
+          else if (action === "riser") plan.transition_fx = "noise_riser";
+          else if (action === "bass_variation" && plan.chord) {
+            extraMelody.push({
+              midi: plan.chord.tones[0] - 7,
+              velocity: 0.55,
+              duration_sec: 0.25,
+            });
+          }
+          plan.weather_hints = [...(plan.weather_hints ?? []), `Gust: ${action}`];
         }
       }
     }
+
+    if (measure > prevMeasure) {
+      for (let m = Math.max(1, prevMeasure + 1); m <= measure; m++) {
+        const tones = plan.chord?.tones ?? [];
+        const bassNotes = this.bass.onBar({
+          chordTones: tones,
+          energy: plan.energy_curve,
+          windDirection: w?.wind_direction_deg ?? 0,
+          pressureTrend: trend.pressure_delta,
+          barInPhrase: m,
+          style,
+        });
+        extraMelody.push(...bassNotes);
+        if (bassNotes.length) {
+          this.lastBassPattern = bassNotes.map((n) => n.midi);
+        }
+
+        const fillProb = style.fillProbability + this.fillProbabilityBoost;
+        extraRhythm.push(
+          ...this.fills.maybeFill({
+            bar: m,
+            phraseLength: plan.phrase_length_bars,
+            energy: plan.energy_curve,
+            stormLikelihood: trend.storm_likelihood,
+            fillProbability: fillProb,
+          }),
+        );
+        this.fillProbabilityBoost *= 0.92;
+
+        if (plan.chord?.tones?.length) {
+          extraMelody.push(
+            ...this.lead.maybeNotes({
+              chordTones: plan.chord.tones,
+              energy: plan.energy_curve,
+              hope: ctx.personalityHope,
+              bar: m,
+              gust: ctx.gust,
+              style,
+            }),
+          );
+        }
+
+        const fx = this.transitions.maybeTransition({
+          energy: plan.energy_curve,
+          stormLikelihood: trend.storm_likelihood,
+          sectionChange: arrState.barsInSection === 0,
+          transitionProbability: style.transitionProbability,
+          gust: ctx.gust,
+        });
+        if (fx) {
+          plan.transition_fx = fx;
+          if (["crash", "impact", "reverse_crash"].includes(fx)) {
+            extraRhythm.push({ layer: "crash", strength: 0.78, is_pulse: true });
+          }
+        }
+      }
+    }
+
+    this.lastBeat = beat;
+    this.lastMeasure = measure;
 
     if (w) {
       if (w.snowfall_mm > 0.1) plan.brightness = clamp(plan.brightness * 0.9);

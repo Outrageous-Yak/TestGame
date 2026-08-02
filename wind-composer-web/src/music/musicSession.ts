@@ -165,7 +165,7 @@ export class MusicSession {
     return dominant.weather!.wind_speed_kmh + trend.wind_delta * 0.15;
   }
 
-  tick(samplePosition: number, micEnergy: number, gust: boolean): TickResult {
+  tick(samplePosition: number, micEnergy: number, gust: boolean, sampleRate = 44100): TickResult {
     this.samplePosition = samplePosition;
     const mode = this.settings.mode as ModeName;
     const profile = MODE_PROFILES[mode];
@@ -201,6 +201,7 @@ export class MusicSession {
       tempo_min: styleProfile.bpmMin,
       tempo_max: styleProfile.bpmMax,
       sample_position: this.samplePosition,
+      sample_rate: sampleRate,
       weather: primary?.weather ?? null,
       drive,
       stereo_pan: drive?.stereo_pan ?? 0,
@@ -218,7 +219,7 @@ export class MusicSession {
     const enhanced = this.intelligent.enhance(plan, primary?.weather ?? null, {
       gust: g,
       samplePosition: this.samplePosition,
-      sampleRate: 44100,
+      sampleRate,
       windKmh,
       personalityHope: 0.65 + energy * 0.35,
     });

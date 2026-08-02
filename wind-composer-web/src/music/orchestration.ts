@@ -99,8 +99,13 @@ export class Orchestrator {
     const styleName = plan.musical_style ?? "Ambient";
     const style = getStyle(styleName);
     const danceBoost = style.drumDensity;
-    if (danceBoost > 0.35) {
-      layer_gains.main_pad = (layer_gains.main_pad ?? 0.4) * (1 - danceBoost * 0.18);
+    if (danceBoost > 0.2) {
+      layer_gains.main_pad = (layer_gains.main_pad ?? 0.4) * (1 - danceBoost * 0.22);
+      layer_gains.percussion = Math.max(
+        layer_gains.percussion ?? 0,
+        danceBoost * (0.55 + energy * 0.45),
+      );
+      active_layers.push("percussion");
       layer_gains.soft_bass = Math.max(layer_gains.soft_bass ?? 0, style.bassLayers * (0.35 + energy * 0.45));
       layer_gains.sub_bass = Math.max(layer_gains.sub_bass ?? 0, style.bassLayers * (0.3 + energy * 0.5));
       if (layer_gains.soft_bass > 0.08) active_layers.push("soft_bass");

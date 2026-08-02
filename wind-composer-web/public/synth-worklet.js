@@ -144,6 +144,7 @@ class DrumEngine {
     this.bassPhase = 0;
     this.bassFreq = 110;
     this.skipChordBass = false;
+    this.drumBusGain = 1.2;
   }
 
   setConfig(msg) {
@@ -163,6 +164,7 @@ class DrumEngine {
     if (msg.bassPattern) this.bassPattern = msg.bassPattern;
     if (msg.bassGain != null) this.bassGain = msg.bassGain;
     if (msg.skipChordBass != null) this.skipChordBass = Boolean(msg.skipChordBass);
+    if (msg.drumBusGain != null) this.drumBusGain = msg.drumBusGain;
     this._recalcStepLen();
   }
 
@@ -179,7 +181,7 @@ class DrumEngine {
 
   triggerKick() {
     this.kickEnv = 1;
-    this.kickFreq = 188;
+    this.kickFreq = 210;
     this.kickPhase = 0;
   }
 
@@ -289,9 +291,9 @@ class DrumEngine {
     if (this.kickEnv > 0) {
       this.kickPhase += TAU * this.kickFreq / sr;
       if (this.kickPhase > TAU) this.kickPhase -= TAU;
-      drum += Math.sin(this.kickPhase) * this.kickEnv * this.kickGain * 0.98;
-      this.kickFreq *= 0.9991;
-      this.kickEnv -= 1 / (0.1 * sr);
+      drum += Math.sin(this.kickPhase) * this.kickEnv * this.kickGain * 1.12;
+      this.kickFreq *= 0.9982;
+      this.kickEnv -= 1 / (0.085 * sr);
       if (this.kickEnv < 0) this.kickEnv = 0;
     }
     if (this.hatEnv > 0) {
@@ -358,7 +360,7 @@ class DrumEngine {
       this.bassEnv -= 1 / (0.22 * sr);
       if (this.bassEnv < 0) this.bassEnv = 0;
     }
-    drum = Math.tanh(drum * 1.15);
+    drum = Math.tanh(drum * 1.35) * this.drumBusGain;
     return { drum, bass };
   }
 }
@@ -600,8 +602,8 @@ class SynthProcessor extends AudioWorkletProcessor {
       }
 
       const lw = this.width * 0.35 + 0.15;
-      let l = padsL + bassMono + seqBass + drum * 0.96 + leadL * (1 + lw);
-      let r = padsR + bassMono + seqBass + drum * 0.96 + leadR * (1 + lw);
+      let l = padsL + bassMono + seqBass + drum + leadL * (1 + lw);
+      let r = padsR + bassMono + seqBass + drum + leadR * (1 + lw);
 
       peak = Math.max(peak, Math.abs(l), Math.abs(r));
       const ceiling = 0.92;

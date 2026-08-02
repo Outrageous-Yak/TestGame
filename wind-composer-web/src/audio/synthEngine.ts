@@ -36,6 +36,8 @@ export class WebSynthEngine {
   private bypassEffects = false;
   peak = 0;
   private lastPlanKey = "";
+  private lastOrchKey = "";
+  private lastDrumKey = "";
 
   setStateListener(fn: (state: string) => void): void {
     this.stateListener = fn;
@@ -134,6 +136,8 @@ export class WebSynthEngine {
     if (this.masterGain) this.masterGain.gain.value = 1;
     this.setBypassEffects(this.bypassEffects);
     this.lastPlanKey = "";
+    this.lastOrchKey = "";
+    this.lastDrumKey = "";
   }
 
   async playTestTone(): Promise<string> {
@@ -199,6 +203,8 @@ export class WebSynthEngine {
   releaseAll(): void {
     if (this.worklet) this.worklet.port.postMessage({ type: "release_all" });
     this.lastPlanKey = "";
+    this.lastOrchKey = "";
+    this.lastDrumKey = "";
   }
 
   private planKey(plan: CompositionPlan, orch: OrchestrationTargets): string {
@@ -212,6 +218,13 @@ export class WebSynthEngine {
     return `${chord}|${section}|${style}|${layers}`;
   }
 
+  private orchKey(
+    orch: OrchestrationTargets,
+    tweaks: { reverb: number; width: number; warmth: number; master: number },
+  ): string {
+    return `${tweaks.reverb.toFixed(2)}|${tweaks.width.toFixed(2)}|${tweaks.warmth.toFixed(2)}|${tweaks.master.toFixed(2)}|${orch.stereo_pan.toFixed(2)}|${orch.delay_wet.toFixed(2)}`;
+  }
+
   applyTick(tick: {
     plan: CompositionPlan;
     orchestration: OrchestrationTargets;
@@ -221,23 +234,28 @@ export class WebSynthEngine {
     if (!this.worklet) return;
     const orch = tick.orchestration;
     const plan = tick.plan;
+    const tweaks = tick.sound_tweaks;
 
-    this.worklet.port.postMessage({
-      type: "orchestration",
-      layerGains: orch.layer_gains,
-      reverbWet: tick.sound_tweaks.reverb,
-      delayWet: orch.delay_wet,
-      width: tick.sound_tweaks.width,
-      stereoPan: orch.stereo_pan,
-      warmth: tick.sound_tweaks.warmth,
-    });
-    this.worklet.port.postMessage({
-      type: "sound",
-      master: tick.sound_tweaks.master,
-      reverb: tick.sound_tweaks.reverb,
-      width: tick.sound_tweaks.width,
-      warmth: tick.sound_tweaks.warmth,
-    });
+    const orchKey = this.orchKey(orch, tweaks);
+    if (orchKey !== this.lastOrchKey) {
+      this.lastOrchKey = orchKey;
+      this.worklet.port.postMessage({
+        type: "orchestration",
+        layerGains: orch.layer_gains,
+        reverbWet: tweaks.reverb,
+        delayWet: orch.delay_wet,
+        width: tweaks.width,
+        stereoPan: orch.stereo_pan,
+        warmth: tweaks.warmth,
+      });
+      this.worklet.port.postMessage({
+        type: "sound",
+        master: tweaks.master,
+        reverb: tweaks.reverb,
+        width: tweaks.width,
+        warmth: tweaks.warmth,
+      });
+    }
 
     const planKey = this.planKey(plan, orch);
     if (planKey !== this.lastPlanKey) {
@@ -251,26 +269,33 @@ export class WebSynthEngine {
 
     const style = getStyle(plan.musical_style ?? "Ambient");
     const energy = plan.energy_curve;
-    const drumDensity = style.drumDensity * (0.65 + energy * 0.5) * (orch.layer_gains.percussion ?? 0.5 + 0.5);
+    const percGain = orch.layer_gains.percussion ?? style.drumDensity;
+    const drumDensity = style.drumDensity * (0.7 + energy * 0.45) * Math.max(0.35, percGain);
     const bassPattern = tick.bassPattern ?? [];
     const useBassSeq = bassPattern.length >= 2 && style.drumDensity > 0.2;
+    const drumEnabled = style.drumDensity > 0.06;
 
-    this.worklet.port.postMessage({
-      type: "drum_seq",
-      tempo_bpm: plan.tempo_bpm,
-      kickPattern: style.kickPattern,
-      hatPattern: style.hatPattern,
-      drumDensity,
-      kickGain: 0.82 + style.bassLayers * 0.18,
-      hatGain: 0.3 + drumDensity * 0.4,
-      snareGain: 0.45 + drumDensity * 0.32,
-      clapGain: 0.4 + drumDensity * 0.28,
-      swing: style.swing,
-      enabled: drumDensity > 0.06,
-      bassPattern: useBassSeq ? bassPattern : [],
-      bassGain: style.bassLayers * (0.4 + energy * 0.45),
-      skipChordBass: useBassSeq,
-    });
+    const drumKey = `${plan.tempo_bpm.toFixed(1)}|${style.name}|${drumDensity.toFixed(3)}|${useBassSeq}|${bassPattern.join(",")}|${drumEnabled}`;
+    if (drumKey !== this.lastDrumKey) {
+      this.lastDrumKey = drumKey;
+      this.worklet.port.postMessage({
+        type: "drum_seq",
+        tempo_bpm: plan.tempo_bpm,
+        kickPattern: style.kickPattern,
+        hatPattern: style.hatPattern,
+        drumDensity,
+        kickGain: 1.05 + style.bassLayers * 0.22,
+        hatGain: 0.42 + drumDensity * 0.48,
+        snareGain: 0.58 + drumDensity * 0.38,
+        clapGain: 0.48 + drumDensity * 0.32,
+        swing: style.swing,
+        enabled: drumEnabled,
+        bassPattern: useBassSeq ? bassPattern : [],
+        bassGain: style.bassLayers * (0.55 + energy * 0.5),
+        skipChordBass: useBassSeq,
+        drumBusGain: 1.35 + style.drumDensity * 0.45,
+      });
+    }
 
     if (plan.transition_fx) {
       this.worklet.port.postMessage({ type: "transition_fx", fx: plan.transition_fx });
@@ -285,19 +310,6 @@ export class WebSynthEngine {
         this.worklet.port.postMessage({ type: "perc", velocity: ev.strength, layer: "hat" });
       }
       this.scheduledEvents += 1;
-    }
-
-    for (const n of plan.melody_notes ?? []) {
-      if (n.midi >= 52) {
-        this.worklet.port.postMessage({
-          type: "note",
-          layer: "lead",
-          midi: n.midi,
-          velocity: n.velocity,
-          preset: "Soft Pulse",
-        });
-        this.scheduledEvents += 1;
-      }
     }
   }
 

@@ -20,6 +20,7 @@ export interface CompositionContext {
   tempo_min: number;
   tempo_max: number;
   sample_position: number;
+  sample_rate: number;
   weather: WeatherSnapshot | null;
   drive: MusicDriveParams | null;
   stereo_pan: number;
@@ -66,7 +67,8 @@ export class CompositionEngine {
     const personality = this.analyzePersonality(ctx);
 
     const tempoMid = (ctx.tempo_min + ctx.tempo_max) / 2;
-    this.samplesPerBeat = (60 / Math.max(tempoMid, 20)) * SAMPLE_RATE;
+    const sr = ctx.sample_rate > 0 ? ctx.sample_rate : SAMPLE_RATE;
+    this.samplesPerBeat = (60 / Math.max(tempoMid, 40)) * sr;
     const beat = this.samplesPerBeat > 0 ? Math.floor(ctx.sample_position / this.samplesPerBeat) : 0;
     const measure = Math.floor(beat / 4);
 
@@ -196,20 +198,9 @@ export class CompositionEngine {
     }
   }
 
-  private onBeat(ctx: CompositionContext, energy: number, beat: number): void {
-    const mode = STATE_PROFILE[this.state].rhythm;
-    const events: CompositionPlan["rhythm_events"] = [];
-    if (mode === "slow_pulse" && beat % 4 === 0) events.push({ layer: "bass", strength: energy * 0.4, is_pulse: true });
-    else if (mode === "heartbeat" && beat % 2 === 0) events.push({ layer: "bass", strength: energy * 0.5, is_pulse: true });
-    else if (mode === "arpeggio" && beat % 2 === 0) events.push({ layer: "pad", strength: energy * 0.25, is_pulse: false });
-    else if (mode === "electronic_pulse" && beat % 2 === 0) events.push({ layer: "bass", strength: energy * 0.55, is_pulse: true });
-    else if (mode === "storm_perc") {
-      if (Math.random() < energy * 0.45) events.push({ layer: "bass", strength: energy * 0.6, is_pulse: true });
-    }
-    if (ctx.percussion > 0.3 && beat % 4 === 1) {
-      events.push({ layer: "bass", strength: ctx.percussion * 0.4, is_pulse: true });
-    }
-    this.rhythmEvents = events;
+  private onBeat(_ctx: CompositionContext, _energy: number, _beat: number): void {
+    // Drums are sequenced in the audio worklet — avoid legacy pulse events here.
+    this.rhythmEvents = [];
   }
 
   private chooseChordStyle(personality: Personality): void {

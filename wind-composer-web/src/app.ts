@@ -309,7 +309,7 @@ export class WindComposerApp {
       this.el.silenceWarn.classList.add("hidden");
       this.el.status.textContent = "Playing";
       this.tickLoop();
-      this.tickTimer = window.setInterval(() => this.tickLoop(), 350);
+      this.tickTimer = window.setInterval(() => this.tickLoop(), 50);
       this.vizTimer = window.setInterval(() => this.drawViz(), 50);
       this.weatherTimer = window.setInterval(
         () => this.refreshWeather(),
@@ -356,7 +356,7 @@ export class WindComposerApp {
     const samplePosition = actx
       ? Math.max(0, Math.floor((actx.currentTime - this.audioClockStart) * sampleRate))
       : 0;
-    const tick = this.session.tick(samplePosition, micEnergy, gust);
+    const tick = this.session.tick(samplePosition, micEnergy, gust, sampleRate);
     this.synth.applyTick(tick);
     this.updateLivePanel(tick);
     this.el.peak.textContent = `Peak ${this.synth.peak.toFixed(2)} | RMS ${this.synth.getOutputRms().toFixed(4)}`;
