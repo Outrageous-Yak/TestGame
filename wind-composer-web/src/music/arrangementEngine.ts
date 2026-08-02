@@ -34,6 +34,13 @@ export class ArrangementEngine {
     return this.state;
   }
 
+  forceSection(section: SongSectionName): void {
+    this.state.section = section;
+    this.state.barsInSection = 0;
+    this.state.activeLayers = this.layersForSection(section);
+    this.state.sectionEnergy = this.sectionEnergy(0.55);
+  }
+
   /** Call once per bar (measure), not every composition tick. */
   onBar(measure: number, energy: number, storm: boolean): SongSectionName {
     if (measure <= 0) {

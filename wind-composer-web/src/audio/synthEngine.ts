@@ -230,6 +230,15 @@ export class WebSynthEngine {
     orchestration: OrchestrationTargets;
     sound_tweaks: { reverb: number; width: number; brightness: number; warmth: number; master: number };
     bassPattern?: number[];
+    drumPatterns?: { kick: number[]; hat: number[]; clap: number[] };
+    producerMix?: {
+      sidechainAmount: number;
+      padGainLimit: number;
+      atmosphereLimit: number;
+      allowPads: boolean;
+      allowLeads: boolean;
+      startupGroovePhase: number;
+    };
   }): void {
     if (!this.worklet) return;
     const orch = tick.orchestration;
@@ -270,33 +279,44 @@ export class WebSynthEngine {
     const style = getStyle(plan.musical_style ?? "Ambient");
     const energy = plan.energy_curve;
     const danceOn = plan.dance_effects_enabled ?? true;
+    const producerMix = tick.producerMix;
+    const groovePhase = producerMix?.startupGroovePhase ?? 4;
     const percGain = danceOn ? (orch.layer_gains.percussion ?? style.drumDensity) : 0;
+    const grooveRamp = Math.min(1, groovePhase / 3);
     const drumDensity = danceOn
-      ? style.drumDensity * (0.7 + energy * 0.45) * Math.max(0.35, percGain)
+      ? style.drumDensity * (0.55 + energy * 0.45) * Math.max(0.3, percGain) * grooveRamp
       : 0;
     const bassPattern = tick.bassPattern ?? [];
-    const useBassSeq = danceOn && bassPattern.length >= 2 && style.drumDensity > 0.2;
-    const drumEnabled = danceOn && style.drumDensity > 0.06;
+    const useBassSeq = danceOn && bassPattern.length >= 2 && style.drumDensity > 0.2 && groovePhase >= 2;
+    const drumEnabled = danceOn && style.drumDensity > 0.06 && groovePhase >= 1;
 
-    const drumKey = `${plan.tempo_bpm.toFixed(1)}|${style.name}|${drumDensity.toFixed(3)}|${useBassSeq}|${bassPattern.join(",")}|${drumEnabled}|${danceOn}`;
+    const kickPat = tick.drumPatterns?.kick ?? style.kickPattern;
+    const hatPat = tick.drumPatterns?.hat ?? style.hatPattern;
+    const clapPat = tick.drumPatterns?.clap;
+    const useClap = clapPat && clapPat.some((x) => x > 0);
+
+    const drumKey = `${plan.tempo_bpm.toFixed(1)}|${style.name}|${drumDensity.toFixed(3)}|${useBassSeq}|${bassPattern.join(",")}|${drumEnabled}|${danceOn}|${kickPat.join("")}|${hatPat.join("")}|${producerMix?.sidechainAmount ?? 0}`;
     if (drumKey !== this.lastDrumKey) {
       this.lastDrumKey = drumKey;
       this.worklet.port.postMessage({
         type: "drum_seq",
         tempo_bpm: plan.tempo_bpm,
-        kickPattern: style.kickPattern,
-        hatPattern: style.hatPattern,
+        kickPattern: kickPat,
+        hatPattern: hatPat,
+        clapPattern: clapPat ?? [],
+        useClap,
         drumDensity,
-        kickGain: 1.05 + style.bassLayers * 0.22,
+        kickGain: (1.08 + style.bassLayers * 0.22) * (producerMix ? 0.85 + producerMix.sidechainAmount * 0.2 : 1),
         hatGain: 0.42 + drumDensity * 0.48,
         snareGain: 0.58 + drumDensity * 0.38,
-        clapGain: 0.48 + drumDensity * 0.32,
+        clapGain: 0.52 + drumDensity * 0.35,
         swing: style.swing,
         enabled: drumEnabled,
         bassPattern: useBassSeq ? bassPattern : [],
-        bassGain: style.bassLayers * (0.55 + energy * 0.5),
+        bassGain: style.bassLayers * (0.6 + energy * 0.55) * grooveRamp,
         skipChordBass: useBassSeq,
-        drumBusGain: danceOn ? 1.35 + style.drumDensity * 0.45 : 0,
+        drumBusGain: danceOn ? 1.4 + style.drumDensity * 0.5 : 0,
+        sidechainAmount: producerMix?.sidechainAmount ?? 0.35,
       });
     }
 

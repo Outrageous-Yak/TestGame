@@ -104,6 +104,8 @@ class DrumEngine {
     this.targetBpm = 120;
     this.kickPattern = KICK_DEFAULT.slice();
     this.hatPattern = [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0];
+    this.clapPattern = [];
+    this.useClap = false;
     this.drumDensity = 0.5;
     this.kickGain = 0.9;
     this.hatGain = 0.42;
@@ -145,6 +147,9 @@ class DrumEngine {
     this.bassFreq = 110;
     this.skipChordBass = false;
     this.drumBusGain = 1.2;
+    this.sidechainAmount = 0.35;
+    this.kickClickEnv = 0;
+    this.bassDuck = 1;
   }
 
   setConfig(msg) {
@@ -154,6 +159,8 @@ class DrumEngine {
     }
     if (msg.kickPattern && msg.kickPattern.length) this.kickPattern = msg.kickPattern;
     if (msg.hatPattern && msg.hatPattern.length) this.hatPattern = msg.hatPattern;
+    if (msg.clapPattern) this.clapPattern = msg.clapPattern;
+    if (msg.useClap != null) this.useClap = Boolean(msg.useClap);
     if (msg.drumDensity != null) this.drumDensity = msg.drumDensity;
     if (msg.kickGain != null) this.kickGain = msg.kickGain;
     if (msg.hatGain != null) this.hatGain = msg.hatGain;
@@ -165,6 +172,7 @@ class DrumEngine {
     if (msg.bassGain != null) this.bassGain = msg.bassGain;
     if (msg.skipChordBass != null) this.skipChordBass = Boolean(msg.skipChordBass);
     if (msg.drumBusGain != null) this.drumBusGain = msg.drumBusGain;
+    if (msg.sidechainAmount != null) this.sidechainAmount = msg.sidechainAmount;
     this._recalcStepLen();
   }
 
@@ -181,8 +189,10 @@ class DrumEngine {
 
   triggerKick() {
     this.kickEnv = 1;
-    this.kickFreq = 210;
+    this.kickFreq = 185;
     this.kickPhase = 0;
+    this.kickClickEnv = 0.55;
+    this.bassDuck = 1 - this.sidechainAmount * 0.55;
   }
 
   triggerHat(vel) {
@@ -259,9 +269,17 @@ class DrumEngine {
     const idx = this.step % 16;
     if (pat[idx]) this.triggerKick();
     if (hatPat[idx] && this.drumDensity > 0.1) {
-      this.triggerHat(this.hatGain * (0.55 + this.drumDensity * 0.45));
+      const isOpen = hatPat[idx] && (idx % 4 === 3);
+      if (isOpen && this.drumDensity > 0.35) {
+        this.triggerOpenHat(this.hatGain * (0.5 + this.drumDensity * 0.4));
+      } else {
+        this.triggerHat(this.hatGain * (0.55 + this.drumDensity * 0.45));
+      }
     }
-    if (this.drumDensity > 0.28 && (idx === 4 || idx === 12)) {
+    const clapPat = this.clapPattern;
+    if (this.useClap && clapPat.length && clapPat[idx]) {
+      this.triggerClap(this.clapGain * (0.75 + this.drumDensity * 0.25));
+    } else if (this.drumDensity > 0.28 && (idx === 4 || idx === 12)) {
       this.triggerSnare(this.snareGain * (0.72 + this.drumDensity * 0.28));
     }
     if (this.pendingFill > 0) {
@@ -291,10 +309,14 @@ class DrumEngine {
     if (this.kickEnv > 0) {
       this.kickPhase += TAU * this.kickFreq / sr;
       if (this.kickPhase > TAU) this.kickPhase -= TAU;
-      drum += Math.sin(this.kickPhase) * this.kickEnv * this.kickGain * 1.12;
-      this.kickFreq *= 0.9982;
-      this.kickEnv -= 1 / (0.085 * sr);
+      const body = Math.sin(this.kickPhase) * this.kickEnv * this.kickGain * 1.05;
+      const click = this.kickClickEnv > 0 ? (Math.random() * 2 - 1) * this.kickClickEnv * 0.35 : 0;
+      drum += body + click;
+      this.kickFreq *= 0.9975;
+      this.kickEnv -= 1 / (0.11 * sr);
       if (this.kickEnv < 0) this.kickEnv = 0;
+      this.kickClickEnv -= 1 / (0.012 * sr);
+      if (this.kickClickEnv < 0) this.kickClickEnv = 0;
     }
     if (this.hatEnv > 0) {
       this.hatNoise = this.hatNoise * 0.55 + (Math.random() * 2 - 1) * 0.45;
@@ -356,8 +378,10 @@ class DrumEngine {
     if (this.bassEnv > 0) {
       this.bassPhase += TAU * this.bassFreq / sr;
       if (this.bassPhase > TAU) this.bassPhase -= TAU;
-      bass += Math.sin(this.bassPhase) * this.bassEnv * this.bassGain * 0.55;
-      this.bassEnv -= 1 / (0.22 * sr);
+      this.bassDuck += (1 - this.bassDuck) * 0.018;
+      const duck = this.bassDuck;
+      bass += Math.sin(this.bassPhase) * this.bassEnv * this.bassGain * 0.58 * duck;
+      this.bassEnv -= 1 / (0.2 * sr);
       if (this.bassEnv < 0) this.bassEnv = 0;
     }
     drum = Math.tanh(drum * 1.35) * this.drumBusGain;

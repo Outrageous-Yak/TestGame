@@ -1,6 +1,6 @@
 import type { CompositionPlan, MelodyNoteDto, RhythmEventDto, WeatherSnapshot } from "../types";
 import { clamp } from "../utils";
-import { ArrangementEngine } from "./arrangementEngine";
+import { ArrangementEngine, type SongSectionName } from "./arrangementEngine";
 import { BassEngine } from "./bassEngine";
 import { FillEngine } from "./fillEngine";
 import { LeadEngine } from "./leadEngine";
@@ -14,6 +14,7 @@ import type { ScaleEngine } from "./scaleEngine";
 import { getStyle } from "./styleEngine";
 import { TempoEngine, windToTargetBpm } from "./tempoEngine";
 import { TransitionEngine } from "./transitionEngine";
+import type { ProducerAction, ProducerIntent } from "./producerTypes";
 import type { WeatherChangeSummary, WeatherMemory } from "./weatherMemory";
 
 export interface EnhanceContext {
@@ -23,6 +24,10 @@ export interface EnhanceContext {
   windKmh: number;
   personalityHope: number;
   danceEffectsEnabled: boolean;
+  producerIntent?: ProducerIntent;
+  producerAction?: ProducerAction | null;
+  producerActionNotice?: string;
+  targetBpmOverride?: number;
 }
 
 export class IntelligentComposer {
@@ -106,7 +111,7 @@ export class IntelligentComposer {
     const w = weather;
 
     const windKmh = w ? trend.avg_wind_kmh + trend.wind_delta * 0.2 : ctx.windKmh;
-    const targetBpm = windToTargetBpm(
+    const targetBpm = ctx.targetBpmOverride ?? windToTargetBpm(
       windKmh,
       style.bpmMin,
       style.bpmMax,
@@ -128,6 +133,17 @@ export class IntelligentComposer {
     plan.musical_style = this.styleName;
     plan.local_time_str = this.localTimeStr;
     plan.dance_effects_enabled = ctx.danceEffectsEnabled;
+
+    if (ctx.producerAction) {
+      const actionSection: Partial<Record<ProducerAction, SongSectionName>> = {
+        BeginBuild: "Build",
+        TriggerDrop: "Drop",
+        BeginBreakdown: "Break",
+        RecoverGroove: "Flow",
+      };
+      const forced = actionSection[ctx.producerAction];
+      if (forced) this.arrangement.forceSection(forced);
+    }
 
     if (measure > prevMeasure) {
       const measureStart = Math.max(1, prevMeasure + 1);
@@ -252,8 +268,16 @@ export class IntelligentComposer {
       if (w.temperature_c > 25) plan.brightness = clamp(plan.brightness + 0.08);
     }
 
+    if (ctx.producerActionNotice) {
+      plan.weather_hints = [...(plan.weather_hints ?? []), ctx.producerActionNotice];
+    }
+    if (ctx.producerIntent) {
+      plan.reverb_amount = Math.min(plan.reverb_amount, 0.5 + ctx.producerIntent.spatialDepth * 0.15);
+      if (ctx.producerIntent.atmosphericDensity < 0.2) {
+        plan.percussion = Math.min(plan.percussion, 0.15);
+      }
+    }
     if (trend.storm_likelihood > 0.4) plan.weather_hints = [...(plan.weather_hints ?? []), "Storm tension"];
-    if (trend.calm_trend) plan.weather_hints = [...(plan.weather_hints ?? []), "Calming trend"];
     if (trend.accelerating_wind) plan.weather_hints = [...(plan.weather_hints ?? []), "Wind accelerating"];
 
     plan.rhythm_events = extraRhythm;

@@ -8,6 +8,8 @@ import { IntelligentComposer } from "./intelligentComposer";
 import { Orchestrator } from "./orchestration";
 import { getStyle } from "./styleEngine";
 import { ScaleEngine } from "./scaleEngine";
+import { ProducerBrain } from "./producerBrain";
+import type { ProducerTickContext } from "./producerTypes";
 import { WeatherMemory } from "./weatherMemory";
 
 export interface LiveStatus {
@@ -31,6 +33,14 @@ export interface LiveStatus {
   nextUpdateSec: number;
   weatherNotice: string;
   fillProbability: number;
+  targetBpm: number;
+  tension: number;
+  grooveIntensity: number;
+  bassPatternFamily: string;
+  lastProducerAction: string;
+  nextPlannedAction: string;
+  weatherBpmInfluence: number;
+  currentBar: number;
 }
 
 export class MusicSession {
@@ -40,6 +50,7 @@ export class MusicSession {
   private weatherMapper = new WeatherMapper();
   private weatherMemory = new WeatherMemory(20);
   private intelligent: IntelligentComposer;
+  private producer = new ProducerBrain();
   private samplePosition = 0;
   settings: AppSettings;
   stations: StationStore;
@@ -62,6 +73,7 @@ export class MusicSession {
 
   resetPlayback(): void {
     this.intelligent.resetForPlayback();
+    this.producer.reset();
   }
 
   markWeatherFetched(): void {
@@ -139,6 +151,14 @@ export class MusicSession {
       fillProbability:
         getStyle(this.settings.musical_style).fillProbability +
         this.intelligent.getFillProbabilityBoost(),
+      targetBpm: this.producer.getTargetBpm(),
+      tension: this.producer.getState().tension,
+      grooveIntensity: plan?.groove_intensity ?? 0,
+      bassPatternFamily: plan?.bass_pattern_family ?? this.producer.getState().bassPatternFamily,
+      lastProducerAction: plan?.producer_action ?? this.producer.getState().lastAction,
+      nextPlannedAction: this.producer.getNextPlannedAction(),
+      weatherBpmInfluence: this.producer.getWeatherBpmInfluence(),
+      currentBar: this.producer.getState().bar,
     };
   }
 
@@ -220,6 +240,35 @@ export class MusicSession {
         ? drive.energy * 55
         : micEnergy * 55;
 
+    const trend = this.weatherMemory.trend();
+    const estimateBpm = plan.tempo_bpm;
+    const spbEst = (60 / Math.max(estimateBpm, 40)) * sampleRate;
+    const measureEst = Math.floor(Math.floor(this.samplePosition / spbEst) / 4);
+
+    const producerCtx: ProducerTickContext = {
+      styleName: this.settings.musical_style,
+      bar: measureEst,
+      measure: measureEst,
+      beat: Math.floor(this.samplePosition / spbEst),
+      energy: plan.energy_curve,
+      section: plan.song_section ?? "Flow",
+      danceEffectsEnabled: this.settings.dance_effects_enabled,
+      weatherInfluence: this.settings.weather_influence ?? "balanced",
+      grooveStrength: this.settings.groove_strength ?? "strong",
+      variation: this.settings.variation ?? "evolving",
+      windKmh,
+      gust: g,
+      trendWindDelta: trend.wind_delta,
+      trendPressureDelta: trend.pressure_delta,
+      stormLikelihood: trend.storm_likelihood,
+      bpmMin: styleProfile.bpmMin,
+      bpmMax: styleProfile.bpmMax,
+      currentBpm: estimateBpm,
+    };
+
+    const producerResult = this.producer.tick(producerCtx);
+    const intent = producerResult.intent;
+
     const enhanced = this.intelligent.enhance(plan, primary?.weather ?? null, {
       gust: g,
       samplePosition: this.samplePosition,
@@ -227,11 +276,20 @@ export class MusicSession {
       windKmh,
       personalityHope: 0.65 + energy * 0.35,
       danceEffectsEnabled: this.settings.dance_effects_enabled,
+      producerIntent: intent,
+      producerAction: producerResult.action,
+      producerActionNotice: producerResult.actionNotice,
+      targetBpmOverride: intent.targetBpm,
     });
 
     enhanced.dance_effects_enabled = this.settings.dance_effects_enabled;
+    enhanced.producer_action = producerResult.action ?? enhanced.producer_action;
+    enhanced.target_bpm = intent.targetBpm;
+    enhanced.tension = intent.tensionTarget;
+    enhanced.groove_intensity = intent.grooveIntensity;
+    enhanced.bass_pattern_family = producerResult.bassPatternFamily;
 
-    const orchestration = this.orchestrator.mapPlan(enhanced);
+    const orchestration = this.orchestrator.mapPlan(enhanced, intent);
     const arrGains = this.intelligent.getArrangementLayerGains(enhanced.energy_curve);
     enhanced.arrangement_gains = arrGains;
     for (const [layer, gain] of Object.entries(arrGains)) {
@@ -253,6 +311,12 @@ export class MusicSession {
 
     let reverb = this.settings.reverb_amount * (0.6 + enhanced.reverb_amount * 0.5);
     if (this.settings.dance_effects_enabled && styleProfile.drumDensity > 0.35) reverb *= 0.68;
+    reverb = Math.min(reverb, 0.55 - intent.atmosphericDensity * 0.15);
+
+    const rootMidi = enhanced.chord?.root_midi ?? 48;
+    const bassPattern = this.settings.dance_effects_enabled
+      ? this.producer.getBassMidiPattern(rootMidi, producerResult.bassPatternFamily)
+      : [];
 
     return {
       plan: enhanced,
@@ -264,7 +328,20 @@ export class MusicSession {
         warmth: this.settings.warmth_amount,
         master: this.settings.master_volume,
       },
-      bassPattern: this.settings.dance_effects_enabled ? this.intelligent.getBassPattern() : [],
+      bassPattern,
+      drumPatterns: {
+        kick: this.producer.getKickPattern(this.settings.musical_style),
+        hat: producerResult.hatPattern,
+        clap: producerResult.clapPattern,
+      },
+      producerMix: {
+        sidechainAmount: intent.sidechainAmount,
+        padGainLimit: intent.padGainLimit,
+        atmosphereLimit: intent.atmosphereLimit,
+        allowPads: intent.allowPads,
+        allowLeads: intent.allowLeads,
+        startupGroovePhase: this.producer.getState().startupGroovePhase,
+      },
     };
   }
 }
