@@ -729,110 +729,16 @@ body{
 }
 
 /* =========================================================
-   REACHABLE HEX HIGHLIGHT
+   REACHABLE HEX HIGHLIGHT (sequential layer-color pulse)
 ========================================================= */
-.hex.reach .hexInner{
-  position: relative;
-  border-color: color-mix(in srgb, var(--hexGlow) 90%, white 10%);
-  box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,.4);
-}
-
-.hex.reach .hexInner::after{
+.hex.reachPulse .hexInner::after{
   content:"";
   position:absolute;
-  inset: 1px;
+  inset: 0;
   clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
-  padding: 6px;
+  background: color-mix(in srgb, var(--hexGlow) 20%, transparent);
   pointer-events:none;
-  background:
-    conic-gradient(
-      from var(--reachSpin),
-      color-mix(in srgb, var(--hexGlow) 0%, transparent) 0deg,
-      color-mix(in srgb, var(--hexGlow) 35%, transparent) 40deg,
-      color-mix(in srgb, var(--hexGlow) 100%, transparent) 90deg,
-      color-mix(in srgb, var(--hexGlow) 35%, transparent) 140deg,
-      color-mix(in srgb, var(--hexGlow) 0%, transparent) 210deg,
-      color-mix(in srgb, var(--hexGlow) 0%, transparent) 360deg
-    );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 1;
-  filter:
-    drop-shadow(0 0 10px color-mix(in srgb, var(--hexGlow) 95%, transparent))
-    drop-shadow(0 0 22px color-mix(in srgb, var(--hexGlow) 35%, transparent));
-  animation:
-    reachSpin 1.8s linear infinite,
-    reachPulse .9s ease-in-out infinite;
-  transform: translateZ(0);
-  will-change: transform;
-}
-
-@property --reachSpin {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
-
-@keyframes reachSpin {
-  to { --reachSpin: 360deg; }
-}
-
-@keyframes reachPulse {
-  0%,100% { opacity: .85; }
-  50%     { opacity: 1; }
-}
-
-.hex.reach{
-  filter:
-    drop-shadow(0 12px 18px rgba(0,0,0,.40))
-    drop-shadow(0 0 6px color-mix(in srgb, var(--hexGlow) 35%, transparent));
-}
-
-/* Outer spinning ring (sits outside .hex clip-path on the slot wrapper) */
-.hexSlot.reachSlot::before{
-  content:"";
-  position:absolute;
-  width: calc(var(--hexWMain) + 12px);
-  height: calc(var(--hexHMain) + 12px);
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%) translateZ(0);
-  pointer-events:none;
-  z-index: 0;
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
-  padding: 6px;
-  background:
-    conic-gradient(
-      from var(--reachSpin),
-      color-mix(in srgb, var(--hexGlow) 0%, transparent) 0deg,
-      color-mix(in srgb, var(--hexGlow) 35%, transparent) 40deg,
-      color-mix(in srgb, var(--hexGlow) 100%, transparent) 90deg,
-      color-mix(in srgb, var(--hexGlow) 35%, transparent) 140deg,
-      color-mix(in srgb, var(--hexGlow) 0%, transparent) 210deg,
-      color-mix(in srgb, var(--hexGlow) 0%, transparent) 360deg
-    );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 1;
-  filter:
-    drop-shadow(0 0 10px color-mix(in srgb, var(--hexGlow) 95%, transparent))
-    drop-shadow(0 0 22px color-mix(in srgb, var(--hexGlow) 35%, transparent));
-  animation:
-    reachSpin 1.8s linear infinite,
-    reachPulse .9s ease-in-out infinite;
-  will-change: transform;
-}
-
-.hexSlot.reachSlot .hex{
-  position: relative;
-  z-index: 1;
+  z-index: 13;
 }
 
 /* =========================================================

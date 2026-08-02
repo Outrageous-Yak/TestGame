@@ -65,6 +65,39 @@ export function neighborSlots(row: number, col: number): Array<{ r: number; c: n
   return out;
 }
 
+/** Grid-center coordinates for clockwise ordering (matches hexGridPlacement). */
+export function slotGridCenter(row: number, col: number): { x: number; y: number } {
+  const len = ROW_LENS[row] ?? 7;
+  const isOffset = len === 6;
+  const gridCol = isOffset ? col * 2 + 2 : col * 2 + 1;
+  return { x: gridCol, y: row + 1 };
+}
+
+/** Order hex ids clockwise around `fromId` on the board (screen coords, y-down). */
+export function clockwiseOrderFrom(
+  state: GameState,
+  layer: number,
+  fromId: string,
+  ids: Iterable<string>
+): string[] {
+  const from = findSlot(state, layer, fromId);
+  if (!from) return [...ids];
+
+  const center = slotGridCenter(from.row, from.col);
+
+  return [...ids].sort((a, b) => {
+    const sa = findSlot(state, layer, a);
+    const sb = findSlot(state, layer, b);
+    if (!sa || !sb) return 0;
+
+    const ca = slotGridCenter(sa.row, sa.col);
+    const cb = slotGridCenter(sb.row, sb.col);
+    const angleA = Math.atan2(ca.x - center.x, -(ca.y - center.y));
+    const angleB = Math.atan2(cb.x - center.x, -(cb.y - center.y));
+    return angleA - angleB;
+  });
+}
+
 /** Visual shift of a row relative to its initial layout (negative = left). */
 export function rowShiftVisual(state: GameState, layer: number, row: number): number {
   const len = ROW_LENS[row] ?? 7;
