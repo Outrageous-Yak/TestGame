@@ -24,6 +24,22 @@ import {
   buildThemeTileCssRule,
   preloadTileArt,
 } from "./tileArt";
+import { BOARD_PERSPECTIVE_CONFIG, rowPerspectiveVars } from "./boardDepth";
+
+/** Visual-only 2.5D board tilt; set false to restore flat rendering. */
+const ENABLE_BOARD_PERSPECTIVE = true;
+
+function hexSlotPerspectiveStyle(rowIndex: number): React.CSSProperties | undefined {
+  if (!ENABLE_BOARD_PERSPECTIVE) return undefined;
+  const v = rowPerspectiveVars(rowIndex, ROW_LENS.length);
+  return {
+    ["--rowScale" as any]: v.rowScale,
+    ["--rowArcPx" as any]: `${v.rowArcPx}px`,
+    ["--rowZ" as any]: v.rowZ,
+    ["--rowDarken" as any]: v.rowDarken,
+    ["--tileDepthPx" as any]: `${BOARD_PERSPECTIVE_CONFIG.tileDepthPx}px`,
+  } as React.CSSProperties;
+}
 
 /* =========================================================
    Types
@@ -1169,6 +1185,47 @@ body{
   row-gap: calc(var(--hexHMain) * -0.20);
   margin: 0 auto;
   position: relative;
+}
+
+/* 2.5D board perspective (visual only; gated by .boardPerspective on .hexGrid) */
+.hexGrid.boardPerspective{
+  transform-style: preserve-3d;
+  transform-origin: center center;
+}
+.hexGrid.boardPerspective .hexSlot.hexSlotDepth{
+  z-index: var(--rowZ, 10);
+  transform: translateY(var(--rowArcPx, 0px)) scale(var(--rowScale, 1));
+  transform-origin: center center;
+}
+.hexGrid.boardPerspective .hexAnchor{
+  position: relative;
+}
+.hexGrid.boardPerspective .hexAnchor::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+  transform: translateY(var(--tileDepthPx, 5px));
+  background: linear-gradient(180deg, rgba(48,54,66,.96) 0%, rgba(20,24,32,.98) 55%, rgba(12,14,20,1) 100%);
+  box-shadow: 0 3px 7px rgba(0,0,0,.38);
+  pointer-events: none;
+  z-index: 0;
+}
+.hexGrid.boardPerspective .hexInner{
+  position: relative;
+  z-index: 2;
+}
+.hexGrid.boardPerspective .hexInner::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+  background: rgba(0,0,0,var(--rowDarken, 0));
+  pointer-events: none;
+  z-index: 1;
+}
+.boardScroll.boardZooming .hexGrid.boardPerspective .hexAnchor::before{
+  box-shadow: none;
 }
 
 .hexRow{
@@ -4489,7 +4546,17 @@ export default function App() {
 
             <div className={"boardScroll" + (boardZooming ? " boardZooming" : "")} ref={scrollRef}>
             <div className="board" ref={boardRef}>
-              <div className="hexGrid">
+              <div
+                className={"hexGrid" + (ENABLE_BOARD_PERSPECTIVE ? " boardPerspective" : "")}
+                style={
+                  ENABLE_BOARD_PERSPECTIVE
+                    ? ({
+                        perspective: `${BOARD_PERSPECTIVE_CONFIG.perspectivePx}px`,
+                        transform: `rotateX(${BOARD_PERSPECTIVE_CONFIG.tiltDeg}deg)`,
+                      } as React.CSSProperties)
+                    : undefined
+                }
+              >
                 {showGhost ? <GhostGrid layer={currentLayer} /> : null}
 
                 {layerFx ? (
@@ -4534,7 +4601,14 @@ export default function App() {
                         const hex = getHexFromState(viewState as any, id) as any;
                         const bm = isBlockedOrMissing(hex);
 
-                        if (bm.missing) return <div key={id} className="hexSlot empty" style={cellStyle} />;
+                        if (bm.missing)
+                          return (
+                            <div
+                              key={id}
+                              className={"hexSlot empty" + (ENABLE_BOARD_PERSPECTIVE ? " hexSlotDepth" : "")}
+                              style={{ ...cellStyle, ...hexSlotPerspectiveStyle(r) }}
+                            />
+                          );
 
                         const isSel = selectedId === id;
                         const isPlayer = playerId === id;
@@ -4557,7 +4631,11 @@ export default function App() {
                         const tileClass = HEX_TILE ? "tile-theme" : tileArtClassName(tileVisual);
 
                         return (
-                          <div key={"v-" + r + "-" + c} className="hexSlot" style={cellStyle}>
+                          <div
+                            key={"v-" + r + "-" + c}
+                            className={"hexSlot" + (ENABLE_BOARD_PERSPECTIVE ? " hexSlotDepth" : "")}
+                            style={{ ...cellStyle, ...hexSlotPerspectiveStyle(r) }}
+                          >
                             <button
                               ref={isPlayer ? playerBtnRef : undefined}
                               className={[
