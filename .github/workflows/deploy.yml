@@ -58,6 +58,7 @@ jobs:
         run: |
           mkdir -p dist/preview/${{ steps.preview_config.outputs.slug }}
           cp -r preview-src/dist/* dist/preview/${{ steps.preview_config.outputs.slug }}/
+          cp preview-src/dist/index.html dist/preview/${{ steps.preview_config.outputs.slug }}/404.html
 
       - name: Install and build Story Architecture Studio
         if: hashFiles('story-architecture-studio/package.json') != ''
