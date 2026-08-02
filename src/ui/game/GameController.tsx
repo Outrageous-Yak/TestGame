@@ -409,6 +409,9 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
 
   const GAME__URL = activeTheme?.assets.backgroundGame ?? "";
 
+  const backgroundLayers: any = (activeTheme && activeTheme.assets && activeTheme.assets.backgroundLayers) || {};
+  const BOARD_LAYER_ = backgroundLayers["L" + currentLayer] || "";
+
   const DICE_FACES_BASE = activeTheme?.assets.diceFacesBase ?? "images/dice";
   const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
   const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "images/villains";
@@ -1183,7 +1186,13 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
             <SideBar side="top" currentLayer={currentLayer} />
             <SideBar side="left" currentLayer={currentLayer} />
 
-            <div key={currentLayer} className="boardLayerBg" />
+            <div
+              key={currentLayer}
+              className="boardLayerBg"
+              style={{
+                backgroundImage: BOARD_LAYER_ ? "url(" + toPublicUrl(BOARD_LAYER_) + ")" : undefined,
+              }}
+            />
 
             {isMobile ? null : <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />}
 
