@@ -16,12 +16,8 @@ export function getReachability(state: GameState): ReachMap {
   return computeReachability(state);
 }
 
-export function getMinMovesToGoal(
-  state: GameState,
-  layerMoves: Record<number, number>,
-  maxTurns?: number
-): number | null {
-  return computeMinMovesToGoal(state, layerMoves, maxTurns);
+export function getMinMovesToGoal(state: GameState, maxTurns?: number): number | null {
+  return computeMinMovesToGoal(state, maxTurns);
 }
 
 export function getReachable(state: GameState): Set<string> {

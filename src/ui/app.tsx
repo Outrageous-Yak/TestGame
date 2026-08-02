@@ -7,6 +7,7 @@ import { newGame, getMinMovesToGoal, tryMove } from "../engine/api";
 
 import { ROW_LENS, enterLayer, revealHex } from "../engine/board";
 import { neighborIdsSameLayer } from "../engine/neighbors";
+import { facingFromMove, hexIdAtSlot, rowShiftLabel } from "../engine/layout";
 
 /**
  * ✅ Worlds registry import (GitHub/Linux safe)
@@ -206,17 +207,6 @@ function ensureScenario(st: any): any {
   return st;
 }
 
-function projectLayerMovesAfterMove(
-  prev: Record<number, number>,
-  fromLayer: number | null | undefined,
-  finalLayer: number | null | undefined
-): Record<number, number> {
-  const lm = { ...prev };
-  if (fromLayer) lm[fromLayer] = (lm[fromLayer] ?? 0) + 1;
-  if (finalLayer && fromLayer && finalLayer !== fromLayer) lm[finalLayer] = 0;
-  return lm;
-}
-
 function idToCoord(id: string): Coord | null {
   const m = /^L(\d+)-R(\d+)-C(\d+)$/.exec(id);
   if (!m) return null;
@@ -306,48 +296,6 @@ function findFirstPlayableHexId(st: GameState | null, layer: number): string | n
   return null;
 }
 
-function facingFromMoveVisual(
-  st: any,
-  fromId: string | null,
-  toId: string | null,
-  _layer: number,
-  movesTakenForLayer: number
-): "down" | "up" | "left" | "right" {
-  const a = fromId ? idToCoord(fromId) : null;
-  const b = toId ? idToCoord(toId) : null;
-  if (!a || !b) return "down";
-
-  if (a.layer !== b.layer) return "down";
-
-  const lenA = ROW_LENS[a.row] ?? 7;
-  const lenB = ROW_LENS[b.row] ?? 7;
-
-  const sAeng = getRowShiftUnits(st, a.layer, a.row);
-  const sAraw = sAeng !== 0 ? sAeng : derivedRowShiftUnits(st, a.layer, a.row, movesTakenForLayer);
-  const sA = normalizeRowShift(sAraw, lenA).visual;
-
-  const sBeng = getRowShiftUnits(st, b.layer, b.row);
-  const sBraw = sBeng !== 0 ? sBeng : derivedRowShiftUnits(st, b.layer, b.row, movesTakenForLayer);
-  const sB = normalizeRowShift(sBraw, lenB).visual;
-
-  const slotA = slotOfId(a.row, a.col, sA);
-  const slotB = slotOfId(b.row, b.col, sB);
-
-  let dxSlots = slotB - slotA;
-  if (a.row === b.row) {
-    const len = lenA;
-    dxSlots = ((dxSlots + len / 2) % len) - len / 2;
-  }
-
-  const dRow = b.row - a.row;
-
-  if (Math.abs(dxSlots) >= Math.abs(dRow) * 0.5) {
-    return dxSlots > 0 ? "right" : dxSlots < 0 ? "left" : "down";
-  }
-
-  return dRow > 0 ? "down" : "up";
-}
-
 function unwrapNextState(res: any): GameState | null {
   if (!res) return null;
 
@@ -371,84 +319,6 @@ function unwrapNextState(res: any): GameState | null {
   return null;
 }
 
-function getRowShiftUnits(st: any, layer: number, row: number): number {
-  const a =
-    st?.rowShifts?.[layer]?.[row] ??
-    st?.rowShifts?.["L" + layer]?.[row] ??
-    st?.shiftByLayer?.[layer]?.[row] ??
-    st?.layerRowShift?.[layer]?.[row] ??
-    0;
-  const n = Number(a);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function getMovementPattern(st: any, layer: number): string {
-  const sc = st?.scenario ?? st;
-  if (!sc) return "NONE";
-
-  const m = sc.movement ?? sc.movementByLayer ?? null;
-  if (!m) return "NONE";
-
-  const v = m[layer] ?? m[String(layer)] ?? m["L" + layer];
-  return typeof v === "string" ? v : "NONE";
-}
-
-function derivedRowShiftUnits(st: any, layer: number, row: number, movesTaken: number): number {
-  if (!st) return 0;
-
-  const pat = getMovementPattern(st, layer);
-  const cols = ROW_LENS[row] ?? 7;
-
-  if (pat === "SEVEN_LEFT_SIX_RIGHT") {
-    if (cols === 7) return -movesTaken;
-    if (cols === 6) return movesTaken;
-  }
-
-  return 0;
-}
-
-function getShiftedNeighborsSameLayer(st: any, pid: string, movesTaken: number): string[] {
-  const c = idToCoord(pid);
-  if (!c) return [];
-
-  const engineShiftCur = getRowShiftUnits(st, c.layer, c.row);
-  const shiftCur =
-    engineShiftCur !== 0 ? engineShiftCur : derivedRowShiftUnits(st, c.layer, c.row, movesTaken);
-
-  const slotC = slotOfId(c.row, c.col, shiftCur);
-
-  const slots = neighborSlots(c.row, slotC);
-
-  const out: string[] = [];
-  for (const s of slots) {
-    const cols = ROW_LENS[s.r] ?? 7;
-
-    const engineShift = getRowShiftUnits(st, c.layer, s.r);
-    const shift = engineShift !== 0 ? engineShift : derivedRowShiftUnits(st, c.layer, s.r, movesTaken);
-
-    if (s.c < 0 || s.c >= cols) continue;
-
-    const id = idAtSlot(c.layer, s.r, s.c, shift);
-
-    const hex = getHexFromState(st, id) as any;
-    if (!hex || hex.missing) continue;
-
-    out.push(id);
-  }
-
-  return out;
-}
-
-function mod(n: number, m: number) {
-  return ((n % m) + m) % m;
-}
-
-function idAtSlot(layer: number, row: number, slotCol: number, shift: number) {
-  const len = ROW_LENS[row] ?? 7;
-  const origCol = mod(slotCol - shift, len);
-  return "L" + layer + "-R" + row + "-C" + origCol;
-}
-
 /** Place a hex on the shared 14-column honeycomb grid (odd rows offset by half a step). */
 function hexGridPlacement(row: number, col: number): { gridColumn: string; gridRow: number } {
   const len = ROW_LENS[row] ?? 7;
@@ -457,60 +327,11 @@ function hexGridPlacement(row: number, col: number): { gridColumn: string; gridR
   return { gridColumn: gridCol + " / span 2", gridRow: row + 1 };
 }
 
-function slotOfId(row: number, origCol: number, shift: number) {
-  const len = ROW_LENS[row] ?? 7;
-  return mod(origCol + shift, len);
-}
-
-function neighborSlots(row: number, col: number) {
-  const out: Array<{ r: number; c: number }> = [];
-
-  const len = ROW_LENS[row] ?? 7;
-
-  if (col - 1 >= 0) out.push({ r: row, c: col - 1 });
-  if (col + 1 < len) out.push({ r: row, c: col + 1 });
-
-  const up = row - 1;
-  const dn = row + 1;
-
-  const lenUp = up >= 0 ? (ROW_LENS[up] ?? 7) : 0;
-  const lenDn = dn < ROW_LENS.length ? (ROW_LENS[dn] ?? 7) : 0;
-
-  const curIs6 = (ROW_LENS[row] ?? 7) === 6;
-
-  const upA = curIs6 ? col : col - 1;
-  const upB = curIs6 ? col + 1 : col;
-
-  const dnA = curIs6 ? col : col - 1;
-  const dnB = curIs6 ? col + 1 : col;
-
-  if (up >= 0) {
-    if (upA >= 0 && upA < lenUp) out.push({ r: up, c: upA });
-    if (upB >= 0 && upB < lenUp) out.push({ r: up, c: upB });
-  }
-
-  if (dn < ROW_LENS.length) {
-    if (dnA >= 0 && dnA < lenDn) out.push({ r: dn, c: dnA });
-    if (dnB >= 0 && dnB < lenDn) out.push({ r: dn, c: dnB });
-  }
-
-  return out;
-}
-
 function readPxVar(el: HTMLElement | null, name: string, fallback: number) {
   if (!el) return fallback;
   const v = getComputedStyle(el).getPropertyValue(name).trim();
   const n = Number(v.replace("px", ""));
   return Number.isFinite(n) ? n : fallback;
-}
-
-function normalizeRowShift(rawShift: number, rowLen: number) {
-  let wrapped = ((rawShift % rowLen) + rowLen) % rowLen;
-
-  let visual = wrapped;
-  if (visual > rowLen / 2) visual = visual - rowLen;
-
-  return { wrapped, visual };
 }
 
 function parseCardTriggersFromScenario(s: any): CardTrigger[] {
@@ -2948,20 +2769,6 @@ export default function App() {
   const pendingQuickStartRef = useRef(false);
 
   /* =========================
-     Per-layer move counters (for shifting)
-  ========================= */
-  const [layerMoves, setLayerMoves] = useState<Record<number, number>>({});
-  const [layerMoveArmed, setLayerMoveArmed] = useState<Record<number, boolean>>({});
-
-  const getLayerMoves = useCallback(
-    (layer: number) => {
-      const n = layerMoves[layer];
-      return Number.isFinite(n) ? (n as number) : 0;
-    },
-    [layerMoves]
-  );
-
-  /* =========================
      Layer flash overlay
   ========================= */
   const [layerFx, setLayerFx] = useState<null | { key: number; layer: number }>(null);
@@ -3029,8 +2836,6 @@ export default function App() {
     setStartHexId(null);
 
     setMovesTaken(0);
-    setLayerMoves({});
-    setLayerMoveArmed({});
 
     setGoalId(null);
     setOptimalAtStart(null);
@@ -3077,48 +2882,6 @@ export default function App() {
   ========================= */
 
   const rows = useMemo(() => Array.from({ length: ROW_LENS.length }, (_, i) => i), []);
-
-  const viewState = useMemo(() => {
-    if (!state) return null;
-
-    const rs = (state as any).rowShifts;
-    let hasEngineShift = false;
-
-    if (rs && typeof rs === "object") {
-      for (const k of Object.keys(rs)) {
-        const rowsObj = rs[k];
-        if (!rowsObj || typeof rowsObj !== "object") continue;
-        for (const rKey of Object.keys(rowsObj)) {
-          const n = Number(rowsObj[rKey]);
-          if (Number.isFinite(n) && n !== 0) {
-            hasEngineShift = true;
-            break;
-          }
-        }
-        if (hasEngineShift) break;
-      }
-    }
-
-    if (hasEngineShift) return state;
-
-    const injected: any = { ...(state as any) };
-    const rowShifts: any = {};
-
-    for (let layer = 1; layer <= scenarioLayerCount; layer++) {
-      const perRow: any = {};
-      const mL = getLayerMoves(layer);
-
-      for (let r = 0; r < ROW_LENS.length; r++) {
-        perRow[r] = derivedRowShiftUnits(state as any, layer, r, mL);
-      }
-
-      rowShifts[layer] = perRow;
-      rowShifts["L" + layer] = perRow;
-    }
-
-    injected.rowShifts = rowShifts;
-    return injected as any;
-  }, [state, scenarioLayerCount, getLayerMoves]);
 
   function GhostGrid(props: { layer: number }) {
     const layer = props.layer;
@@ -3205,23 +2968,7 @@ export default function App() {
       <div className="barWrap barLeft">
         <div className="layerBar rowShiftBar">
           {rows.map((r) => {
-            const cols = ROW_LENS[r] ?? 7;
-
-            const engineShiftRaw =
-              (viewState as any)?.rowShifts?.[currentLayerLocal]?.[r] ??
-              (viewState as any)?.rowShifts?.["L" + currentLayerLocal]?.[r];
-
-            const engineShift = Number(engineShiftRaw ?? 0);
-
-            const rawShift =
-              Number.isFinite(engineShift) && engineShift !== 0
-                ? engineShift
-                : derivedRowShiftUnits(viewState as any, currentLayerLocal, r, getLayerMoves(currentLayerLocal));
-
-            const ns = normalizeRowShift(rawShift, cols);
-            const shift = ns.visual;
-
-            const label = shift === 0 ? "" : shift < 0 ? "L" + Math.abs(shift) : "R" + shift;
+            const label = state ? rowShiftLabel(state, currentLayerLocal, r) : "";
 
             return (
               <div key={"rowSeg-" + r} className="barSeg rowSeg">
@@ -3296,13 +3043,10 @@ export default function App() {
   const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
   const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
 
-  const computeOptimalMoves = useCallback(
-    (st: GameState | null, lm: Record<number, number>) => {
-      if (!st) return null;
-      return getMinMovesToGoal(st, lm);
-    },
-    []
-  );
+  const computeOptimalMoves = useCallback((st: GameState | null) => {
+    if (!st) return null;
+    return getMinMovesToGoal(st);
+  }, []);
 
   const [log, setLog] = useState<LogEntry[]>([]);
   const logNRef = useRef(0);
@@ -3319,25 +3063,19 @@ export default function App() {
 
   const reachable = useMemo(() => {
     const set = new Set<string>();
-    if (!viewState) return set;
+    if (!state) return set;
     if (!playerId) return set;
 
     if (playerLayer !== currentLayer) return set;
 
-    const nbs = getShiftedNeighborsSameLayer(
-      viewState as any,
-      playerId,
-      getLayerMoves(playerLayer ?? currentLayer)
-    );
-
-    for (const nbId of nbs) {
-      const hex = getHexFromState(viewState as any, nbId) as any;
+    for (const nbId of neighborIdsSameLayer(state, playerId)) {
+      const hex = getHexFromState(state, nbId) as any;
       const bm = isBlockedOrMissing(hex);
       if (!bm.missing && !bm.blocked) set.add(nbId);
     }
 
     return set;
-  }, [viewState, playerId, playerLayer, currentLayer, getLayerMoves]);
+  }, [state, playerId, playerLayer, currentLayer]);
 
   /* =========================
      Theme / assets
@@ -3628,21 +3366,21 @@ export default function App() {
         return;
       }
 
-      if (!viewState) {
-        pushLog("Encounter error: viewState missing.", "bad");
+      if (!state) {
+        pushLog("Encounter error: game state missing.", "bad");
         return;
       }
 
-      const pendingHex = getHexFromState(viewState as any, targetId) as any;
+      const pendingHex = getHexFromState(state, targetId) as any;
       if (!pendingHex || pendingHex.missing || pendingHex.blocked) {
         pushLog("Encounter target is invalid now — click another tile.", "bad");
         pendingEncounterMoveIdRef.current = null;
         return;
       }
 
-      const pidBefore = (viewState as any)?.playerHexId as string | null;
+      const pidBefore = state.playerHexId;
 
-      const res: any = tryMove(viewState as any, targetId);
+      const res: any = tryMove(state, targetId);
       let nextState = unwrapNextState(res);
       if (nextState) ensureScenario(nextState);
 
@@ -3674,27 +3412,13 @@ export default function App() {
         if (walkTimer.current) window.clearTimeout(walkTimer.current);
         walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
 
-        const fromLayer = (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
-
-        setPlayerFacing(
-          facingFromMoveVisual(viewState as any, pidBefore, pidAfter, fromLayer, getLayerMoves(fromLayer))
-        );
+        setPlayerFacing(facingFromMove(state, pidBefore, pidAfter));
       }
 
       setMovesTaken((n) => n + 1);
 
       const c2 = pidAfter ? idToCoord(pidAfter) : null;
-      const fromLayerEnc =
-        (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
       const nextLayerEnc = c2?.layer ?? currentLayer;
-      const lmAfterEncounter = projectLayerMovesAfterMove(layerMoves, fromLayerEnc, nextLayerEnc);
-
-      if (fromLayerEnc) {
-        setLayerMoves((prev) => ({ ...prev, [fromLayerEnc]: (prev[fromLayerEnc] ?? 0) + 1 }));
-      }
-      if (nextLayerEnc && fromLayerEnc && nextLayerEnc !== fromLayerEnc) {
-        setLayerMoves((prev) => ({ ...prev, [nextLayerEnc]: 0 }));
-      }
 
       setState(nextState);
       forceRender((n) => n + 1);
@@ -3708,7 +3432,7 @@ export default function App() {
         }
       }
 
-      setOptimalFromNow(computeOptimalMoves(nextState, lmAfterEncounter));
+      setOptimalFromNow(computeOptimalMoves(nextState));
 
       pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
       if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
@@ -3719,15 +3443,13 @@ export default function App() {
   }, [
     encounter,
     diceRolling,
-    viewState,
+    state,
     diceValue,
     currentLayer,
     goalId,
     revealWholeLayer,
-    layerMoves,
     computeOptimalMoves,
     pushLog,
-    getLayerMoves,
   ]);
 
   /* =========================
@@ -3922,16 +3644,7 @@ export default function App() {
 
     setMovesTaken(0);
 
-    const initMoves: Record<number, number> = {};
-    const initArmed: Record<number, boolean> = {};
-    for (let L = 1; L <= layerCount; L++) {
-      initMoves[L] = 0;
-      initArmed[L] = L === layer;
-    }
-    setLayerMoves(initMoves);
-    setLayerMoveArmed(initArmed);
-
-    const startOptimal = computeOptimalMoves(st, initMoves);
+    const startOptimal = computeOptimalMoves(st);
     setOptimalAtStart(startOptimal);
     setOptimalFromNow(startOptimal);
 
@@ -3982,7 +3695,7 @@ export default function App() {
         return;
       }
 
-      const hex = getHexFromState(viewState as any, id) as any;
+      const hex = getHexFromState(state, id) as any;
       const bm = isBlockedOrMissing(hex);
       if (bm.missing) {
         pushLog("Missing tile.", "bad");
@@ -3993,7 +3706,7 @@ export default function App() {
         return;
       }
 
-      const pidBefore = (viewState as any)?.playerHexId as string | null;
+      const pidBefore = state.playerHexId;
 
       const vk = findTriggerForHex(id);
       if (vk) {
@@ -4003,13 +3716,13 @@ export default function App() {
         return;
       }
 
-      const res: any = tryMove(viewState as any, id);
+      const res: any = tryMove(state, id);
       let nextState = unwrapNextState(res);
       if (nextState) ensureScenario(nextState);
 
       if (!nextState) {
-        if (reachable.has(id) && viewState) {
-          const forced: any = { ...(viewState as any) };
+        if (reachable.has(id) && state) {
+          const forced: any = { ...(state as any) };
           forced.playerHexId = id;
           if (!forced.scenario && scenarioRef.current) forced.scenario = scenarioRef.current;
           nextState = forced as any;
@@ -4039,17 +3752,10 @@ export default function App() {
 
       setMovesTaken((n) => n + 1);
 
-      if (fromLayer) {
-        setLayerMoves((prev) => ({ ...prev, [fromLayer]: (prev[fromLayer] ?? 0) + 1 }));
-        setLayerMoveArmed((prev) => ({ ...prev, [fromLayer]: true }));
-      }
-
       const landedCoord = idToCoord(landedId);
       const finalLayer = landedCoord?.layer ?? (toLayer ?? currentLayer);
 
       if (finalLayer && fromLayer && finalLayer !== fromLayer) {
-        setLayerMoves((prev) => ({ ...prev, [finalLayer]: 0 }));
-        setLayerMoveArmed((prev) => ({ ...prev, [finalLayer]: true }));
         triggerLayerFx(finalLayer);
       }
 
@@ -4058,7 +3764,7 @@ export default function App() {
         if (walkTimer.current) window.clearTimeout(walkTimer.current);
         walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
 
-        setPlayerFacing(facingFromMoveVisual(viewState as any, pidBefore, pidAfter, fromLayer, getLayerMoves(fromLayer)));
+        setPlayerFacing(facingFromMove(state, pidBefore, pidAfter));
       }
 
       setState(nextState);
@@ -4078,15 +3784,13 @@ export default function App() {
         pushLog("Card triggered: " + landedCard, landedCard === "risk" ? "bad" : "info");
       }
 
-      const lmAfterMove = projectLayerMovesAfterMove(layerMoves, fromLayer, finalLayer);
-      setOptimalFromNow(computeOptimalMoves(nextState, lmAfterMove));
+      setOptimalFromNow(computeOptimalMoves(nextState));
 
       pushLog("Moved to " + landedId, "ok");
       if (goalId && landedId === goalId) pushLog("Goal reached!", "ok");
     },
     [
       state,
-      viewState,
       encounterActive,
       reachable,
       currentLayer,
@@ -4094,10 +3798,8 @@ export default function App() {
       goalId,
       pushLog,
       revealWholeLayer,
-      layerMoves,
       computeOptimalMoves,
       findTriggerForHex,
-      getLayerMoves,
       triggerLayerFx,
       findCardTriggerAt,
       triggerCardFlyout,
@@ -4384,26 +4086,17 @@ export default function App() {
                 {rows.map((r) => {
                   const cols = ROW_LENS[r] ?? 0;
 
-                  const engineShiftRaw =
-                    (viewState as any)?.rowShifts?.[currentLayer]?.[r] ?? (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
-
-                  const engineShift = Number(engineShiftRaw ?? 0);
-
-                  const rawShift =
-                    Number.isFinite(engineShift) && engineShift !== 0
-                      ? engineShift
-                      : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
-
-                  const ns = normalizeRowShift(rawShift, cols);
-                  const shiftWrapped = ns.wrapped;
-
                   return (
                     <div key={"row-" + r} className="hexRow">
                       {Array.from({ length: cols }, (_, c) => {
-                        const id = idAtSlot(currentLayer, r, c, shiftWrapped);
+                        const id = state ? hexIdAtSlot(state, currentLayer, r, c) : null;
                         const cellStyle = hexGridPlacement(r, c);
 
-                        const tr = portalTransitionAt(viewState as any, id);
+                        if (!id) {
+                          return <div key={"empty-" + r + "-" + c} className="hexSlot empty" style={cellStyle} />;
+                        }
+
+                        const tr = portalTransitionAt(state as any, id);
 
                         const isPortalUp = tr?.type === "UP";
                         const isPortalDown = tr?.type === "DOWN";
@@ -4411,7 +4104,7 @@ export default function App() {
                         const portalTargetLayer = tr?.to?.layer ?? null;
                         const portalColor = portalTargetLayer ? layerCssVar(portalTargetLayer) : null;
 
-                        const hex = getHexFromState(viewState as any, id) as any;
+                        const hex = getHexFromState(state, id) as any;
                         const bm = isBlockedOrMissing(hex);
 
                         if (bm.missing) return <div key={id} className="hexSlot empty" style={cellStyle} />;
