@@ -8,8 +8,11 @@ import {
   renderedBoardBoundsFromLayout,
   rowDepthT,
   rowUniformScale,
+  rowVerticalSteps,
   tileSlotAt,
+  verticalStepBetweenRows,
 } from "./boardProjection";
+import { BOARD_TABLETOP_CONFIG } from "./boardTabletop";
 
 const ROW_LENS = [7, 6, 7, 6, 7, 6, 7] as const;
 
@@ -107,7 +110,7 @@ describe("boardProjection (row-first)", () => {
   });
 
   it("row uniform scale endpoints", () => {
-    expect(rowUniformScale(0, 7, BOARD_PROJECT_CONFIG)).toBeCloseTo(0.78, 5);
+    expect(rowUniformScale(0, 7, BOARD_PROJECT_CONFIG)).toBeCloseTo(0.82, 5);
     expect(rowUniformScale(6, 7, BOARD_PROJECT_CONFIG)).toBeCloseTo(1.0, 5);
     expect(rowDepthT(0, 7)).toBe(0);
     expect(rowDepthT(6, 7)).toBe(1);
@@ -196,5 +199,146 @@ describe("boardProjection (row-first)", () => {
     const bounds = renderedBoardBoundsFromLayout(layout);
     expect(Math.abs(bounds.width - layout.bodyWidth)).toBeLessThanOrEqual(2);
     expect(Math.abs(bounds.height - layout.bodyHeight)).toBeLessThanOrEqual(2);
+  });
+});
+
+describe("boardProjection (Phase 4A depth)", () => {
+  it("row scale is monotonic from far to near", () => {
+    const layout = projectBoardLayout(ROW_LENS, 390, 700);
+    for (let i = 1; i < layout.rows.length; i++) {
+      expect(layout.rows[i].uniformScale).toBeGreaterThanOrEqual(layout.rows[i - 1].uniformScale);
+    }
+  });
+
+  it("row 0 scale equals farScale and row 6 equals nearScale", () => {
+    const layout = projectBoardLayout(ROW_LENS, 390, 700);
+    expect(layout.rows[0].uniformScale).toBeCloseTo(BOARD_TABLETOP_CONFIG.farScale, 5);
+    expect(layout.rows[6].uniformScale).toBeCloseTo(BOARD_TABLETOP_CONFIG.nearScale, 5);
+  });
+
+  it("tile width and row-local pitch use the same row scale", () => {
+    const layout = projectBoardLayout(ROW_LENS, 390, 700);
+    for (const row of layout.rows) {
+      const ratio = row.localTileW / row.localPitchX;
+      expect(ratio).toBeCloseTo(layout.lattice.tileW / layout.lattice.pitchX, 5);
+      expect(row.localTileW).toBeCloseTo(layout.lattice.tileW * row.uniformScale, 3);
+      expect(row.localPitchX).toBeCloseTo(layout.lattice.pitchX * row.uniformScale, 3);
+    }
+  });
+
+  it("six-tile rows retain half-step stagger", () => {
+    const layout = projectBoardLayout(ROW_LENS, 390, 700);
+    const row0 = layout.rows[0];
+    const row1 = layout.rows[1];
+    const sevenX = row0.left + row0.tiles[0].centerX;
+    const sixX = row1.left + row1.tiles[0].centerX;
+    const expected = Math.abs(-3 * row0.localPitchX + 2.5 * row1.localPitchX);
+    expect(Math.abs(sevenX - sixX)).toBeCloseTo(expected, 1);
+  });
+
+  it("far-row vertical step is smaller than near-row vertical step", () => {
+    const layout = projectBoardLayout(ROW_LENS, 390, 700);
+    const steps = rowVerticalSteps(layout);
+    expect(steps[0]).toBeLessThan(steps[steps.length - 1]);
+  });
+
+  it("adjacent row spacing stays within safe honeycomb overlap limits", () => {
+    const layout = projectBoardLayout(ROW_LENS, 390, 700);
+    const steps = rowVerticalSteps(layout);
+    for (let i = 0; i < layout.rows.length - 1; i++) {
+      const prev = layout.rows[i];
+      const next = layout.rows[i + 1];
+      const avgH = (prev.localTileH + next.localTileH) / 2;
+      const maxStep = avgH * 0.95;
+      const minStep = avgH * 0.55;
+      expect(steps[i]).toBeLessThanOrEqual(maxStep);
+      expect(steps[i]).toBeGreaterThanOrEqual(minStep);
+    }
+  });
+
+  it("near tile depth is greater than far tile depth", () => {
+    const layout = projectBoardLayout(ROW_LENS, 390, 700);
+    expect(layout.rows[6].tileDepthPx).toBeGreaterThan(layout.rows[0].tileDepthPx);
+    expect(layout.rows[0].tileDepthPx).toBeCloseTo(BOARD_TABLETOP_CONFIG.farTileDepthPx, 1);
+    expect(layout.rows[6].tileDepthPx).toBeCloseTo(BOARD_TABLETOP_CONFIG.nearTileDepthPx, 1);
+  });
+
+  it("board union fits inside the available viewport", () => {
+    const vw = 390;
+    const vh = 700;
+    const layout = projectBoardLayout(ROW_LENS, vw, vh);
+    expect(layout.stageWidth).toBeLessThanOrEqual(vw + 1);
+    expect(layout.stageHeight).toBeLessThanOrEqual(vh + 1);
+  });
+
+  it("whole-board fit uses one scalar", () => {
+    const layout = projectBoardLayout(ROW_LENS, 200, 200);
+    expect(layout.fitScale).toBeGreaterThan(0);
+    expect(layout.fitScale).toBeLessThanOrEqual(1);
+    const unscaled = projectBoardLayout(ROW_LENS, 2000, 2000);
+    expect(unscaled.fitScale).toBe(1);
+  });
+
+  it("no tile extends outside calculated board bounds", () => {
+    const layout = projectBoardLayout(ROW_LENS, 390, 700);
+    const bounds = renderedBoardBoundsFromLayout(layout);
+    const bodyLeft = layout.paddingX;
+    const bodyTop = layout.paddingTop;
+
+    for (const row of layout.rows) {
+      const rowLeft = row.left - bodyLeft;
+      const rowTop = row.top - bodyTop;
+      for (const tile of row.tiles) {
+        const left = rowLeft + tile.left;
+        const top = rowTop + tile.top;
+        expect(left).toBeGreaterThanOrEqual(bounds.minX - 0.5);
+        expect(top).toBeGreaterThanOrEqual(bounds.minY - 0.5);
+        expect(left + tile.width).toBeLessThanOrEqual(bounds.maxX + 0.5);
+        expect(top + tile.height).toBeLessThanOrEqual(bounds.maxY + 0.5);
+      }
+    }
+  });
+
+  it("vertical compression increases toward the near row", () => {
+    const layout = projectBoardLayout(ROW_LENS, 390, 700);
+    const { step: farStep } = verticalStepBetweenRows(
+      0,
+      1,
+      layout.rows[0].localTileH,
+      layout.rows[1].localTileH,
+      7
+    );
+    const { step: nearStep } = verticalStepBetweenRows(
+      5,
+      6,
+      layout.rows[5].localTileH,
+      layout.rows[6].localTileH,
+      7
+    );
+    expect(farStep).toBeLessThan(nearStep);
+  });
+
+  it("row z-index increases toward the near row", () => {
+    const layout = projectBoardLayout(ROW_LENS, 390, 700);
+    for (let i = 1; i < layout.rows.length; i++) {
+      expect(layout.rows[i].zIndex).toBeGreaterThan(layout.rows[i - 1].zIndex);
+    }
+  });
+
+  it("near row uses most of panel width", () => {
+    const vw = 390;
+    const layout = projectBoardLayout(ROW_LENS, vw, 700);
+    const nearRow = layout.rows[6];
+    const usableW = vw - BOARD_TABLETOP_CONFIG.horizontalPaddingPx * 2;
+    const widthFraction = nearRow.width / usableW;
+    expect(widthFraction).toBeGreaterThanOrEqual(0.9);
+    expect(widthFraction).toBeLessThanOrEqual(0.98);
+  });
+
+  it("depth output remains deterministic", () => {
+    const a = projectBoardLayout(ROW_LENS, 390, 700);
+    const b = projectBoardLayout(ROW_LENS, 390, 700);
+    expect(a.rows.map((r) => r.tileDepthPx)).toEqual(b.rows.map((r) => r.tileDepthPx));
+    expect(a.rows.map((r) => r.uniformScale)).toEqual(b.rows.map((r) => r.uniformScale));
   });
 });

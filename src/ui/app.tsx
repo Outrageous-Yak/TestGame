@@ -30,7 +30,10 @@ import {
   isProjectedMode,
 } from "./boardRenderMode";
 import {
+  BOARD_DEBUG_DEPTH,
   BOARD_DEBUG_GEOMETRY,
+} from "./boardTabletop";
+import {
   projectBoardLayout,
   type BoardScreenLayout,
 } from "./boardProjection";
@@ -1321,6 +1324,13 @@ body{
   width: 100%;
   height: 100%;
   margin: 0;
+  filter: drop-shadow(
+    var(--tileShadowX, 2px) var(--tileShadowY, 3px) 0
+    rgba(0, 0, 0, var(--tileShadowOpacity, 0.2))
+  );
+}
+.boardScroll.boardZooming .boardRowSlot > .hex{
+  filter: none;
 }
 .boardRowSlot .hexAnchor,
 .boardRowSlot .hexInner{
@@ -1365,7 +1375,6 @@ body{
   clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
   transform: translateY(var(--tileDepthPx, 3px));
   background: linear-gradient(180deg, rgba(48,54,66,.96) 0%, rgba(20,24,32,.98) 55%, rgba(12,14,20,1) 100%);
-  box-shadow: 0 3px 7px rgba(0,0,0,.38);
   pointer-events: none;
   z-index: 0;
 }
@@ -1450,6 +1459,23 @@ body{
   margin: -2px 0 0 -2px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.95);
+}
+.boardDepthDebug{
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  overflow: visible;
+}
+.boardDepthDebugLabel{
+  position: absolute;
+  font: 9px/1.2 monospace;
+  color: rgba(180, 220, 255, 0.95);
+  text-shadow: 0 1px 2px rgba(0,0,0,.85);
+  white-space: pre;
+  background: rgba(0,0,0,.45);
+  padding: 2px 4px;
+  border-radius: 3px;
 }
 
 .hexRow{
@@ -3667,7 +3693,7 @@ export default function App() {
     if (!BOARD_DEBUG_GEOMETRY) return null;
 
     const bodyLeft = layout.paddingX;
-    const bodyTop = layout.paddingY;
+    const bodyTop = layout.paddingTop;
 
     return (
       <div className="boardGeomDebug" aria-hidden="true">
@@ -3744,8 +3770,26 @@ export default function App() {
     );
   }
 
-  function projectedTileDepthPx(rawDepthPx: number): number {
-    return Math.min(4, Math.max(2, rawDepthPx));
+  function renderBoardDepthDebug(layout: BoardScreenLayout) {
+    if (!BOARD_DEBUG_DEPTH) return null;
+
+    return (
+      <div className="boardDepthDebug" aria-hidden="true">
+        {layout.rows.map((row) => (
+          <div
+            key={"depth-" + row.rowIndex}
+            className="boardDepthDebugLabel"
+            style={{ left: row.left + 2, top: row.top + row.height + 2 }}
+          >
+            {`R${row.rowIndex} p=${row.rowProgress.toFixed(2)} s=${row.uniformScale.toFixed(2)}`}
+            <br />
+            {`cmp=${row.verticalCompression.toFixed(2)} cy=${(row.top + row.rowCenterY).toFixed(1)}`}
+            <br />
+            {`tw=${row.localTileW.toFixed(1)} th=${row.localTileH.toFixed(1)} d=${row.tileDepthPx.toFixed(1)} z=${row.zIndex}`}
+          </div>
+        ))}
+      </div>
+    );
   }
 
   function renderProjectedBoard() {
@@ -3762,7 +3806,7 @@ export default function App() {
           className="boardBody"
           style={{
             left: layout.paddingX,
-            top: layout.paddingY,
+            top: layout.paddingTop,
             width: layout.bodyWidth,
             height: layout.bodyHeight,
           }}
@@ -3775,7 +3819,7 @@ export default function App() {
                   className="boardRow"
                   style={{
                     left: row.left - layout.paddingX,
-                    top: row.top - layout.paddingY,
+                    top: row.top - layout.paddingTop,
                     width: row.width,
                     height: row.height,
                   }}
@@ -3818,7 +3862,7 @@ export default function App() {
                 className="boardRow"
                 style={{
                   left: row.left - layout.paddingX,
-                  top: row.top - layout.paddingY,
+                  top: row.top - layout.paddingTop,
                   width: row.width,
                   height: row.height,
                   zIndex: row.zIndex,
@@ -3843,8 +3887,11 @@ export default function App() {
                     width: tile.width,
                     height: tile.height,
                     ["--slotW" as any]: `${tile.width}px`,
-                    ["--tileDepthPx" as any]: `${projectedTileDepthPx(row.tileDepthPx)}px`,
+                    ["--tileDepthPx" as any]: `${row.tileDepthPx}px`,
                     ["--rowDarken" as any]: row.rowDarken,
+                    ["--tileShadowOpacity" as any]: row.shadowOpacity,
+                    ["--tileShadowX" as any]: `${row.shadowOffsetX}px`,
+                    ["--tileShadowY" as any]: `${row.shadowOffsetY}px`,
                   };
 
                   if (bm.missing) {
@@ -3902,6 +3949,7 @@ export default function App() {
           })}
         </div>
 
+        {renderBoardDepthDebug(layout)}
         {renderBoardGeometryDebug(layout)}
       </div>
     );

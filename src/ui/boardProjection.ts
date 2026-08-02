@@ -1,25 +1,27 @@
 /**
  * Row-first board projection — establishes row geometry, then row-local tile placement.
- * No CSS 3D, no camera simulation, no per-tile global layout.
+ * Depth presentation values come from boardTabletop.ts.
  */
 
+import { ROW_OVERLAP } from "./boardLattice";
 import { buildBoardGeometry, type BoardGeometry } from "./boardGeometry";
 import { buildBoardLattice, type BoardLattice } from "./boardLattice";
+import {
+  BOARD_DEBUG_GEOMETRY,
+  BOARD_TABLETOP_CONFIG,
+  depthCompressionAt,
+  faceAtmosphereAt,
+  rowProgress,
+  rowScaleAt,
+  rowZIndexAt,
+  shadowAt,
+  tileDepthPxAt,
+  type BoardTabletopConfig,
+} from "./boardTabletop";
 
-/** Development-only geometry overlay (pointer-events: none). */
-export const BOARD_DEBUG_GEOMETRY = true;
-
-export const BOARD_PROJECT_CONFIG = {
-  farScale: 0.78,
-  nearScale: 1.0,
-  horizontalPaddingPx: 10,
-  verticalPaddingPx: 10,
-  baseTileDepthPx: 6,
-  nearRowWidthFraction: 0.94,
-  minFarTileWidthPx: 46,
-} as const;
-
-export type BoardProjectConfig = typeof BOARD_PROJECT_CONFIG;
+export { BOARD_DEBUG_GEOMETRY } from "./boardTabletop";
+export { BOARD_TABLETOP_CONFIG as BOARD_PROJECT_CONFIG } from "./boardTabletop";
+export type { BoardTabletopConfig as BoardProjectConfig } from "./boardTabletop";
 
 export type TileSlotGeometry = {
   slotCol: number;
@@ -42,12 +44,17 @@ export type RowScreenGeometry = {
   localTileW: number;
   localTileH: number;
   zIndex: number;
+  rowProgress: number;
+  verticalCompression: number;
   depthT: number;
   rowDarken: number;
+  faceBrightness: number;
+  faceContrast: number;
   tileDepthPx: number;
-  /** Horizontal centre of the row container (row-local coords). */
+  shadowOpacity: number;
+  shadowOffsetX: number;
+  shadowOffsetY: number;
   rowCenterX: number;
-  /** Vertical centre of the row container (row-local coords). */
   rowCenterY: number;
   tiles: TileSlotGeometry[];
 };
@@ -58,7 +65,8 @@ export type BoardScreenLayout = {
   stageWidth: number;
   stageHeight: number;
   paddingX: number;
-  paddingY: number;
+  paddingTop: number;
+  paddingBottom: number;
   fitScale: number;
   boardCenterX: number;
   boardCenterY: number;
@@ -68,35 +76,38 @@ export type BoardScreenLayout = {
 };
 
 export function rowDepthT(rowIndex: number, rowCount: number): number {
-  if (rowCount <= 1) return 0;
-  return rowIndex / (rowCount - 1);
+  return rowProgress(rowIndex, rowCount);
 }
 
 export function rowUniformScale(
   rowIndex: number,
   rowCount: number,
-  config: BoardProjectConfig = BOARD_PROJECT_CONFIG
+  config: BoardTabletopConfig = BOARD_TABLETOP_CONFIG
 ): number {
-  const t = rowDepthT(rowIndex, rowCount);
-  return config.farScale + (config.nearScale - config.farScale) * t;
-}
-
-export function rowDarkenForDepth(depthT: number): number {
-  const farBrightness = 0.92;
-  const farContrast = 0.95;
-  const farOpacity = 0.97;
-  const brightness = farBrightness + (1 - farBrightness) * depthT;
-  const contrast = farContrast + (1 - farContrast) * depthT;
-  const opacity = farOpacity + (1 - farOpacity) * depthT;
-  return (1 - brightness) * 0.38 + (1 - contrast) * 0.12 + (1 - opacity) * 0.22;
+  return rowScaleAt(rowIndex, rowCount, config);
 }
 
 export function computeNominalTileWidth(
   viewportWidth: number,
-  config: BoardProjectConfig = BOARD_PROJECT_CONFIG
+  config: BoardTabletopConfig = BOARD_TABLETOP_CONFIG
 ): number {
   const usableW = Math.max(1, viewportWidth - config.horizontalPaddingPx * 2);
   return (usableW * config.nearRowWidthFraction) / (7 * config.nearScale);
+}
+
+export function verticalStepBetweenRows(
+  prevRowIndex: number,
+  nextRowIndex: number,
+  prevTileH: number,
+  nextTileH: number,
+  rowCount: number,
+  config: BoardTabletopConfig = BOARD_TABLETOP_CONFIG
+): { step: number; compression: number } {
+  const averageTileHeight = (prevTileH + nextTileH) / 2;
+  const baseVerticalStep = averageTileHeight * ROW_OVERLAP;
+  const midProgress = (rowProgress(prevRowIndex, rowCount) + rowProgress(nextRowIndex, rowCount)) / 2;
+  const compression = depthCompressionAt(midProgress, config);
+  return { step: baseVerticalStep * compression, compression };
 }
 
 function buildRowTileSlots(
@@ -136,6 +147,8 @@ function scaleRowGeometry(row: RowScreenGeometry, fitScale: number): RowScreenGe
     localTileW: row.localTileW * fitScale,
     localTileH: row.localTileH * fitScale,
     tileDepthPx: row.tileDepthPx * fitScale,
+    shadowOffsetX: row.shadowOffsetX * fitScale,
+    shadowOffsetY: row.shadowOffsetY * fitScale,
     rowCenterX: row.rowCenterX * fitScale,
     rowCenterY: row.rowCenterY * fitScale,
     tiles: row.tiles.map((t) => ({
@@ -150,38 +163,44 @@ function scaleRowGeometry(row: RowScreenGeometry, fitScale: number): RowScreenGe
   };
 }
 
-/**
- * Project the board into row screen geometry, then fit the completed board to the viewport.
- */
 export function projectBoardLayout(
   rowLens: readonly number[],
   viewportWidth: number,
   viewportHeight: number,
-  config: BoardProjectConfig = BOARD_PROJECT_CONFIG
+  config: BoardTabletopConfig = BOARD_TABLETOP_CONFIG
 ): BoardScreenLayout {
   const tileW = computeNominalTileWidth(viewportWidth, config);
   const lattice = buildBoardLattice(rowLens, tileW);
   const geometry = buildBoardGeometry(lattice);
   const rowCount = rowLens.length;
 
-  const scales = rowLens.map((_, r) => rowUniformScale(r, rowCount, config));
+  const scales = rowLens.map((_, r) => rowScaleAt(r, rowCount, config));
+  const tileHeights = scales.map((scale) => lattice.tileH * scale);
 
   const maxRowWidth = Math.max(
     ...rowLens.map((len, r) => {
-      const scale = scales[r];
-      const localPitchX = lattice.pitchX * scale;
-      const localTileW = lattice.tileW * scale;
+      const localPitchX = lattice.pitchX * scales[r];
+      const localTileW = lattice.tileW * scales[r];
       return (len - 1) * localPitchX + localTileW;
     })
   );
   const boardCenterX = maxRowWidth / 2;
 
   const rowCenterYs: number[] = [];
-  rowCenterYs[0] = (lattice.tileH * scales[0]) / 2;
+  const rowCompressions: number[] = [1];
+  rowCenterYs[0] = tileHeights[0] / 2;
 
   for (let r = 1; r < rowCount; r++) {
-    const midScale = (scales[r - 1] + scales[r]) / 2;
-    rowCenterYs[r] = rowCenterYs[r - 1] + lattice.pitchY * midScale;
+    const { step, compression } = verticalStepBetweenRows(
+      r - 1,
+      r,
+      tileHeights[r - 1],
+      tileHeights[r],
+      rowCount,
+      config
+    );
+    rowCompressions[r] = compression;
+    rowCenterYs[r] = rowCenterYs[r - 1] + step;
   }
 
   const bodyRows: RowScreenGeometry[] = [];
@@ -193,7 +212,7 @@ export function projectBoardLayout(
   for (let r = 0; r < rowCount; r++) {
     const len = rowLens[r] ?? 7;
     const scale = scales[r];
-    const depthT = rowDepthT(r, rowCount);
+    const progress = rowProgress(r, rowCount);
     const localPitchX = lattice.pitchX * scale;
     const localTileW = lattice.tileW * scale;
     const localTileH = lattice.tileH * scale;
@@ -201,7 +220,9 @@ export function projectBoardLayout(
     const rowHeight = localTileH;
     const rowLeft = boardCenterX - rowWidth / 2;
     const rowTop = rowCenterYs[r] - localTileH / 2;
-    const tileDepthPx = config.baseTileDepthPx * scale;
+    const tileDepthPx = tileDepthPxAt(r, rowCount, config);
+    const atmosphere = faceAtmosphereAt(r, rowCount, config);
+    const shadow = shadowAt(r, rowCount, config);
     const rowSlots = geometry.rows[r]?.slots ?? [];
 
     const tiles = buildRowTileSlots(
@@ -213,10 +234,11 @@ export function projectBoardLayout(
       localTileH
     );
 
+    const rowExtentBottom = rowTop + rowHeight + tileDepthPx + shadow.offsetY;
     bodyMinX = Math.min(bodyMinX, rowLeft);
     bodyMinY = Math.min(bodyMinY, rowTop);
     bodyMaxX = Math.max(bodyMaxX, rowLeft + rowWidth);
-    bodyMaxY = Math.max(bodyMaxY, rowTop + rowHeight + tileDepthPx);
+    bodyMaxY = Math.max(bodyMaxY, rowExtentBottom);
 
     bodyRows.push({
       rowIndex: r,
@@ -228,10 +250,17 @@ export function projectBoardLayout(
       localPitchX,
       localTileW,
       localTileH,
-      zIndex: 10 + r,
-      depthT,
-      rowDarken: rowDarkenForDepth(depthT),
+      zIndex: rowZIndexAt(r, config),
+      rowProgress: progress,
+      verticalCompression: rowCompressions[r],
+      depthT: progress,
+      rowDarken: atmosphere.rowDarken,
+      faceBrightness: atmosphere.brightness,
+      faceContrast: atmosphere.contrast,
       tileDepthPx,
+      shadowOpacity: shadow.opacity,
+      shadowOffsetX: shadow.offsetX,
+      shadowOffsetY: shadow.offsetY,
       rowCenterX: rowWidth / 2,
       rowCenterY: rowHeight / 2,
       tiles,
@@ -256,8 +285,12 @@ export function projectBoardLayout(
   const boardCenterXBody = boardCenterX - bodyMinX;
   const boardCenterYBody = (bodyMinY + bodyMaxY) / 2 - bodyMinY;
 
-  const usableW = Math.max(1, viewportWidth - config.horizontalPaddingPx * 2);
-  const usableH = Math.max(1, viewportHeight - config.verticalPaddingPx * 2);
+  const paddingX = config.horizontalPaddingPx;
+  const paddingTop = config.boardTopPaddingPx;
+  const paddingBottom = config.boardBottomPaddingPx;
+
+  const usableW = Math.max(1, viewportWidth - paddingX * 2);
+  const usableH = Math.max(1, viewportHeight - paddingTop - paddingBottom);
 
   let fitScale = 1;
   if (bodyWidth > usableW) {
@@ -279,25 +312,23 @@ export function projectBoardLayout(
   const scaledBodyW = bodyWidth * fitScale;
   const scaledBodyH = bodyHeight * fitScale;
 
-  const paddingX = config.horizontalPaddingPx;
-  const paddingY = config.verticalPaddingPx;
-
   const finalRows = scaledRows.map((row) => ({
     ...row,
     left: row.left + paddingX,
-    top: row.top + paddingY,
+    top: row.top + paddingTop,
   }));
 
   const result: BoardScreenLayout = {
     bodyWidth: scaledBodyW,
     bodyHeight: scaledBodyH,
     stageWidth: scaledBodyW + paddingX * 2,
-    stageHeight: scaledBodyH + paddingY * 2,
+    stageHeight: scaledBodyH + paddingTop + paddingBottom,
     paddingX,
-    paddingY,
+    paddingTop,
+    paddingBottom,
     fitScale,
     boardCenterX: boardCenterXBody * fitScale + paddingX,
-    boardCenterY: boardCenterYBody * fitScale + paddingY,
+    boardCenterY: boardCenterYBody * fitScale + paddingTop,
     rows: finalRows,
     lattice,
     geometry,
@@ -317,7 +348,6 @@ export function tileSlotAt(
   return rowGeom?.tiles.find((t) => t.slotCol === slotCol);
 }
 
-/** Development invariant checks for row-first layout geometry. */
 export function assertRowLayoutInvariants(layout: BoardScreenLayout): void {
   let prevRowCenterY = -Infinity;
 
@@ -378,11 +408,11 @@ export function renderedBoardBoundsFromLayout(layout: BoardScreenLayout): {
 
   for (const row of layout.rows) {
     const rowLeft = row.left - layout.paddingX;
-    const rowTop = row.top - layout.paddingY;
+    const rowTop = row.top - layout.paddingTop;
     minX = Math.min(minX, rowLeft);
     minY = Math.min(minY, rowTop);
     maxX = Math.max(maxX, rowLeft + row.width);
-    maxY = Math.max(maxY, rowTop + row.height + row.tileDepthPx);
+    maxY = Math.max(maxY, rowTop + row.height + row.tileDepthPx + row.shadowOffsetY);
 
     for (const tile of row.tiles) {
       const left = rowLeft + tile.left;
@@ -402,4 +432,14 @@ export function renderedBoardBoundsFromLayout(layout: BoardScreenLayout): {
     width: maxX - minX,
     height: maxY - minY,
   };
+}
+
+export function rowVerticalSteps(layout: BoardScreenLayout): number[] {
+  const steps: number[] = [];
+  for (let i = 1; i < layout.rows.length; i++) {
+    const prev = layout.rows[i - 1];
+    const cur = layout.rows[i];
+    steps.push(cur.top + cur.rowCenterY - (prev.top + prev.rowCenterY));
+  }
+  return steps;
 }
