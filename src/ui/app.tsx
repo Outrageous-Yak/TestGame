@@ -29,15 +29,21 @@ import { BOARD_PERSPECTIVE_CONFIG, rowPerspectiveVars } from "./boardDepth";
 /** Visual-only 2.5D board tilt; set false to restore flat rendering. */
 const ENABLE_BOARD_PERSPECTIVE = true;
 
-function hexSlotPerspectiveStyle(rowIndex: number): React.CSSProperties | undefined {
+function hexRowPerspectiveStyle(rowIndex: number): React.CSSProperties | undefined {
   if (!ENABLE_BOARD_PERSPECTIVE) return undefined;
   const v = rowPerspectiveVars(rowIndex, ROW_LENS.length);
+  const scale = v.rowScale;
   return {
-    ["--rowScale" as any]: v.rowScale,
+    ["--rowScale" as any]: scale,
     ["--rowArcPx" as any]: `${v.rowArcPx}px`,
     ["--rowZ" as any]: v.rowZ,
     ["--rowDarken" as any]: v.rowDarken,
-    ["--tileDepthPx" as any]: `${BOARD_PERSPECTIVE_CONFIG.tileDepthPx}px`,
+    ["--tileDepthPx" as any]: `${v.tileDepthPx}px`,
+    ["--hexWRow" as any]: `calc(var(--hexWMain) * ${scale})`,
+    ["--hexHRow" as any]: `calc(var(--hexHMain) * ${scale})`,
+    ["--hexStepXRow" as any]: `calc(var(--hexStepX) * ${scale})`,
+    ["--rowMarginBottom" as any]:
+      `calc(var(--hexHMain) * ${scale} * -0.20 + ${v.rowSpacingAdjPx}px)`,
   } as React.CSSProperties;
 }
 
@@ -477,6 +483,14 @@ function hexGridPlacement(row: number, col: number): { gridColumn: string; gridR
   const isOffset = len === 6;
   const gridCol = isOffset ? col * 2 + 2 : col * 2 + 1;
   return { gridColumn: gridCol + " / span 2", gridRow: row + 1 };
+}
+
+/** Column placement within a per-row 14-column sub-grid (perspective mode). */
+function hexSlotPlacement(row: number, col: number): { gridColumn: string } {
+  const len = ROW_LENS[row] ?? 7;
+  const isOffset = len === 6;
+  const gridCol = isOffset ? col * 2 + 2 : col * 2 + 1;
+  return { gridColumn: gridCol + " / span 2" };
 }
 
 function slotOfId(row: number, origCol: number, shift: number) {
@@ -1175,7 +1189,7 @@ body{
 }
 
 /* =========================================================
-   HEX GRID (7676767) — shared 14-col honeycomb grid
+   HEX GRID (7676767) — shared 14-col honeycomb grid (flat mode)
 ========================================================= */
 .hexGrid{
   display: grid;
@@ -1187,20 +1201,56 @@ body{
   position: relative;
 }
 
-/* 2.5D board perspective (visual only; gated by .boardPerspective on .hexGrid) */
-.hexGrid.boardPerspective{
+/* 2.5D perspective: separate viewport (perspective) and tilted stage (rotateX) */
+.boardPerspectiveViewport{
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  perspective-origin: center 55%;
+}
+.hexGrid.boardTilted{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: calc(var(--hexStepX) * var(--maxCols));
+  margin: 0 auto;
+  position: relative;
   transform-style: preserve-3d;
   transform-origin: center center;
 }
-.hexGrid.boardPerspective .hexSlot.hexSlotDepth{
+.hexRow.hexRowDepth{
+  display: grid;
+  grid-template-columns: repeat(14, calc(var(--hexStepXRow, var(--hexStepX)) / 2));
+  width: calc(var(--hexStepXRow, var(--hexStepX)) * var(--maxCols));
+  height: var(--hexHRow, var(--hexHMain));
+  margin: 0 auto var(--rowMarginBottom, calc(var(--hexHMain) * -0.20));
+  position: relative;
   z-index: var(--rowZ, 10);
-  transform: translateY(var(--rowArcPx, 0px)) scale(var(--rowScale, 1));
+  transform: translateY(var(--rowArcPx, 0px));
   transform-origin: center center;
 }
-.hexGrid.boardPerspective .hexAnchor{
+.hexRow.hexRowDepth:last-child{
+  margin-bottom: 0;
+}
+.hexGrid.boardTilted .hexRow.hexRowDepth .hexSlot{
+  height: var(--hexHRow, var(--hexHMain));
+}
+.hexGrid.boardTilted .hexRow.hexRowDepth .hex{
+  width: var(--hexWRow, var(--hexWMain));
+  height: var(--hexHRow, var(--hexHMain));
+}
+.hexGrid.boardTilted .hexRow.hexRowDepth .hexId{
+  font-size: calc(var(--hexWRow, var(--hexWMain)) * 0.26);
+}
+.hexGrid.boardTilted .hexRow.hexRowDepth .hexSlot > .cardBadge.hexDeckCard{
+  width: calc(var(--hexWRow, var(--hexWMain)) * 0.55 * 3 / 4);
+  height: calc(var(--hexWRow, var(--hexWMain)) * 0.55);
+  border-radius: calc(var(--hexWRow, var(--hexWMain)) * 0.55 * 10 / 56);
+}
+.hexGrid.boardTilted .hexAnchor{
   position: relative;
 }
-.hexGrid.boardPerspective .hexAnchor::before{
+.hexGrid.boardTilted .hexAnchor::before{
   content: "";
   position: absolute;
   inset: 0;
@@ -1211,11 +1261,11 @@ body{
   pointer-events: none;
   z-index: 0;
 }
-.hexGrid.boardPerspective .hexInner{
+.hexGrid.boardTilted .hexInner{
   position: relative;
   z-index: 2;
 }
-.hexGrid.boardPerspective .hexInner::before{
+.hexGrid.boardTilted .hexInner::before{
   content: "";
   position: absolute;
   inset: 0;
@@ -1224,7 +1274,7 @@ body{
   pointer-events: none;
   z-index: 1;
 }
-.boardScroll.boardZooming .hexGrid.boardPerspective .hexAnchor::before{
+.boardScroll.boardZooming .hexGrid.boardTilted .hexAnchor::before{
   box-shadow: none;
 }
 
@@ -1709,6 +1759,36 @@ body{
   grid-template-columns: repeat(14, calc(var(--hexStepX) / 2));
   grid-auto-rows: var(--hexHMain);
   row-gap: calc(var(--hexHMain) * -0.20);
+}
+.ghostGrid.boardTiltedGhost{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: calc(var(--hexStepX) * var(--maxCols));
+  margin: 0 auto;
+  inset: unset;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  height: auto;
+}
+.ghostRow.ghostRowDepth{
+  display: grid;
+  grid-template-columns: repeat(14, calc(var(--hexStepXRow, var(--hexStepX)) / 2));
+  width: calc(var(--hexStepXRow, var(--hexStepX)) * var(--maxCols));
+  height: var(--hexHRow, var(--hexHMain));
+  margin: 0 auto var(--rowMarginBottom, calc(var(--hexHMain) * -0.20));
+  transform: translateY(var(--rowArcPx, 0px));
+}
+.ghostRow.ghostRowDepth:last-child{
+  margin-bottom: 0;
+}
+.ghostRow.ghostRowDepth .ghostSlot{
+  height: var(--hexHRow, var(--hexHMain));
+}
+.ghostRow.ghostRowDepth .ghostHex{
+  width: var(--hexWRow, var(--hexWMain));
+  height: var(--hexHRow, var(--hexHMain));
 }
 
 .ghostRow{
@@ -3212,17 +3292,26 @@ export default function App() {
     const layer = props.layer;
 
     return (
-      <div className="ghostGrid" aria-hidden="true">
+      <div
+        className={"ghostGrid" + (ENABLE_BOARD_PERSPECTIVE ? " boardTiltedGhost" : "")}
+        aria-hidden="true"
+      >
         {rows.map((r) => {
           const cols = ROW_LENS[r] ?? 0;
 
           return (
-            <div key={"ghost-row-" + layer + "-" + r} className="ghostRow">
+            <div
+              key={"ghost-row-" + layer + "-" + r}
+              className={"ghostRow" + (ENABLE_BOARD_PERSPECTIVE ? " ghostRowDepth" : "")}
+              style={hexRowPerspectiveStyle(r)}
+            >
               {Array.from({ length: cols }, (_, c) => (
                 <div
                   key={"g-" + layer + "-" + r + "-" + c}
                   className="ghostSlot"
-                  style={hexGridPlacement(r, c)}
+                  style={
+                    ENABLE_BOARD_PERSPECTIVE ? hexSlotPlacement(r, c) : hexGridPlacement(r, c)
+                  }
                 >
                   <div className="ghostHex" />
                 </div>
@@ -4546,17 +4635,196 @@ export default function App() {
 
             <div className={"boardScroll" + (boardZooming ? " boardZooming" : "")} ref={scrollRef}>
             <div className="board" ref={boardRef}>
-              <div
-                className={"hexGrid" + (ENABLE_BOARD_PERSPECTIVE ? " boardPerspective" : "")}
-                style={
-                  ENABLE_BOARD_PERSPECTIVE
-                    ? ({
-                        perspective: `${BOARD_PERSPECTIVE_CONFIG.perspectivePx}px`,
+              {ENABLE_BOARD_PERSPECTIVE ? (
+                <div
+                  className="boardPerspectiveViewport"
+                  style={
+                    {
+                      perspective: `${BOARD_PERSPECTIVE_CONFIG.perspectivePx}px`,
+                      perspectiveOrigin: "center 55%",
+                    } as React.CSSProperties
+                  }
+                >
+                  <div
+                    className="hexGrid boardTilted"
+                    style={
+                      {
                         transform: `rotateX(${BOARD_PERSPECTIVE_CONFIG.tiltDeg}deg)`,
-                      } as React.CSSProperties)
-                    : undefined
-                }
-              >
+                      } as React.CSSProperties
+                    }
+                  >
+                    {showGhost ? <GhostGrid layer={currentLayer} /> : null}
+
+                    {layerFx ? (
+                      <div key={layerFx.key} className="layerFxOverlay" style={layerFxStyle} aria-live="polite">
+                        <div className="layerFxCard">
+                          <div className="layerFxTitle">Layer {layerFx.layer}</div>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {/* REAL HEX BOARD */}
+                    {rows.map((r) => {
+                      const cols = ROW_LENS[r] ?? 0;
+
+                      const engineShiftRaw =
+                        (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
+                        (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
+
+                      const engineShift = Number(engineShiftRaw ?? 0);
+
+                      const rawShift =
+                        Number.isFinite(engineShift) && engineShift !== 0
+                          ? engineShift
+                          : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
+
+                      const ns = normalizeRowShift(rawShift, cols);
+                      const shiftWrapped = ns.wrapped;
+
+                      return (
+                        <div
+                          key={"row-" + r}
+                          className="hexRow hexRowDepth"
+                          style={hexRowPerspectiveStyle(r)}
+                        >
+                          {Array.from({ length: cols }, (_, c) => {
+                            const id = idAtSlot(currentLayer, r, c, shiftWrapped);
+                            const cellStyle = hexSlotPlacement(r, c);
+
+                            const tr = portalTransitionAt(viewState as any, id);
+
+                            const isPortalUp = tr?.type === "UP";
+                            const isPortalDown = tr?.type === "DOWN";
+
+                            const portalTargetLayer = tr?.to?.layer ?? null;
+                            const portalColor = portalTargetLayer ? layerCssVar(portalTargetLayer) : null;
+
+                            const hex = getHexFromState(viewState as any, id) as any;
+                            const bm = isBlockedOrMissing(hex);
+
+                            if (bm.missing)
+                              return (
+                                <div key={id} className="hexSlot empty" style={cellStyle} />
+                              );
+
+                            const isSel = selectedId === id;
+                            const isPlayer = playerId === id;
+                            const isStart = startHexId === id;
+
+                            const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
+
+                            const cardHere = findCardTriggerAt(id);
+                            const isGoal = goalId === id;
+                            const isTrigger = !!findTriggerForHex(id);
+
+                            const tileVisual = resolveTileVisualType({
+                              revealed: !!hex?.revealed,
+                              blocked: bm.blocked,
+                              isGoal,
+                              isStart,
+                              isPortalUp,
+                              isPortalDown,
+                            });
+                            const tileClass = HEX_TILE ? "tile-theme" : tileArtClassName(tileVisual);
+
+                            return (
+                              <div key={"v-" + r + "-" + c} className="hexSlot" style={cellStyle}>
+                                <button
+                                  ref={isPlayer ? playerBtnRef : undefined}
+                                  className={[
+                                    "hex",
+                                    isSel ? "sel" : "",
+                                    isReach ? "reach" : "",
+                                    bm.blocked ? "blocked" : "",
+                                    isPlayer ? "player" : "",
+                                    isGoal ? "goal" : "",
+                                    isTrigger ? "trigger" : "",
+                                    isStart ? "portalStart" : "",
+                                    isPortalUp ? "portalUp" : "",
+                                    isPortalDown ? "portalDown" : "",
+                                  ].join(" ")}
+                                  onClick={() => {
+                                    if (layerFx !== null) return;
+                                    if (playerLayer && currentLayer !== playerLayer) {
+                                      tryMoveToId(id);
+                                      return;
+                                    }
+                                    setSelectedId(id);
+                                    tryMoveToId(id);
+                                  }}
+                                  disabled={!state || bm.blocked || bm.missing || encounterActive || layerFx !== null}
+                                  style={
+                                    {
+                                      ["--hexGlow" as any]: layerCssVar(currentLayer),
+                                      ...(portalColor ? { ["--portalC" as any]: portalColor } : {}),
+                                    } as any
+                                  }
+                                  title={id}
+                                >
+                                  <div className="hexAnchor">
+                                    <div className={"hexInner " + tileClass}>
+                                      <div className="hexCoords">
+                                        <div className="hexId">{r + "," + c}</div>
+                                      </div>
+                                      {isPortalUp || isPortalDown ? (
+                                        <div className="portalFx">
+                                          <div className="pAura" />
+                                          <div className="pOrbs" />
+                                          <div className="pRim" />
+                                          <div className="pOval" />
+                                        </div>
+                                      ) : null}
+                                      {isStart ? (
+                                        <div className="portalFx">
+                                          <div className="pAura" />
+                                          <div className="pRunes" />
+                                          <div className="pVortex" />
+                                          <div className="pWell" />
+                                          <div className="pShine" />
+                                        </div>
+                                      ) : null}
+                                      <div className="hexMarks">
+                                        {isPortalUp ? <span className="mark">↑</span> : null}
+                                        {isPortalDown ? <span className="mark">↓</span> : null}
+                                        {isGoal ? <span className="mark g">G</span> : null}
+                                        {isTrigger ? <span className="mark t">!</span> : null}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </button>
+
+                                {cardHere ? (
+                                  <div className={"cardBadge hexDeckCard " + cardHere} title={cardHere}>
+                                    <div className="deckFx" />
+                                  </div>
+                                ) : null}
+
+                                {isPlayer ? (
+                                  <span
+                                    className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
+                                    style={
+                                      {
+                                        ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
+                                        ["--frameW" as any]: FRAME_W,
+                                        ["--frameH" as any]: FRAME_H,
+                                        ["--cols" as any]: SPRITE_COLS,
+                                        ["--rows" as any]: SPRITE_ROWS,
+                                        ["--frameX" as any]: walkFrame,
+                                        ["--frameY" as any]: facingRow(playerFacing),
+                                      } as any
+                                    }
+                                  />
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+              <div className="hexGrid">
                 {showGhost ? <GhostGrid layer={currentLayer} /> : null}
 
                 {layerFx ? (
@@ -4605,8 +4873,8 @@ export default function App() {
                           return (
                             <div
                               key={id}
-                              className={"hexSlot empty" + (ENABLE_BOARD_PERSPECTIVE ? " hexSlotDepth" : "")}
-                              style={{ ...cellStyle, ...hexSlotPerspectiveStyle(r) }}
+                              className="hexSlot empty"
+                              style={cellStyle}
                             />
                           );
 
@@ -4633,8 +4901,8 @@ export default function App() {
                         return (
                           <div
                             key={"v-" + r + "-" + c}
-                            className={"hexSlot" + (ENABLE_BOARD_PERSPECTIVE ? " hexSlotDepth" : "")}
-                            style={{ ...cellStyle, ...hexSlotPerspectiveStyle(r) }}
+                            className="hexSlot"
+                            style={cellStyle}
                           >
                             <button
                               ref={isPlayer ? playerBtnRef : undefined}
@@ -4729,6 +4997,7 @@ export default function App() {
                   );
                 })}
               </div>
+              )}
             </div>
           </div>
           </div>

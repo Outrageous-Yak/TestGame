@@ -3,15 +3,19 @@
  */
 
 export const BOARD_PERSPECTIVE_CONFIG = {
-  perspectivePx: 1200,
-  tiltDeg: 9,
-  farScale: 0.92,
+  /** Tunable: 700–1100px */
+  perspectivePx: 850,
+  /** Tunable: 14–20deg */
+  tiltDeg: 16,
+  farScale: 0.84,
   nearScale: 1.0,
-  maxArcPx: 8,
+  maxArcPx: 10,
   tileDepthPx: 5,
   farBrightness: 0.92,
   farContrast: 0.95,
   farOpacity: 0.97,
+  /** Pull far rows slightly closer so tilt does not separate them. */
+  farRowSpacingPullPx: 3,
 } as const;
 
 /** depth 0 = top/furthest row, 1 = bottom/nearest row */
@@ -29,6 +33,17 @@ export function rowScale(depth: number): number {
 /** Symmetrical vertical bow: 0 at top/bottom, peak at middle rows. */
 export function rowArcOffsetPx(depth: number): number {
   return Math.sin(depth * Math.PI) * BOARD_PERSPECTIVE_CONFIG.maxArcPx;
+}
+
+/** Slight negative margin pull on far rows to keep honeycomb connected under tilt. */
+export function rowSpacingAdjustPx(depth: number): number {
+  return (1 - depth) * BOARD_PERSPECTIVE_CONFIG.farRowSpacingPullPx;
+}
+
+/** Nearer rows show a touch more pseudo thickness; far rows less. */
+export function rowTileDepthPx(depth: number): number {
+  const base = BOARD_PERSPECTIVE_CONFIG.tileDepthPx;
+  return base * (0.72 + 0.28 * depth);
 }
 
 export function rowAtmosphere(depth: number): {
@@ -64,6 +79,8 @@ export type RowPerspectiveVars = {
   rowArcPx: number;
   rowZ: number;
   rowDarken: number;
+  rowSpacingAdjPx: number;
+  tileDepthPx: number;
 };
 
 export function rowPerspectiveVars(rowIndex: number, rowCount: number): RowPerspectiveVars {
@@ -74,5 +91,7 @@ export function rowPerspectiveVars(rowIndex: number, rowCount: number): RowPersp
     rowArcPx: rowArcOffsetPx(depth),
     rowZ: rowZIndex(rowIndex),
     rowDarken: overlay.darken,
+    rowSpacingAdjPx: rowSpacingAdjustPx(depth),
+    tileDepthPx: rowTileDepthPx(depth),
   };
 }
