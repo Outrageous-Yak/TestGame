@@ -1,5 +1,5 @@
 # Deploy a feature branch to a subpath on GitHub Pages (no merge to main).
-# Run manually from main: Actions → Deploy Preview → Run workflow → preview_branch.
+# Trigger: push `.github/preview-deploy.json` on main, or Actions → Run workflow.
 name: Deploy Preview (branch subpath)
 
 on:
@@ -15,6 +15,11 @@ on:
         required: true
         default: '2_5d'
         type: string
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/preview-deploy.json'
 
 permissions:
   contents: read
@@ -37,6 +42,19 @@ jobs:
         with:
           ref: main
 
+      - name: Resolve preview target
+        id: target
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "branch=${{ inputs.preview_branch }}" >> "$GITHUB_OUTPUT"
+            echo "slug=${{ inputs.preview_slug }}" >> "$GITHUB_OUTPUT"
+          else
+            BRANCH=$(jq -r '.preview_branch' .github/preview-deploy.json)
+            SLUG=$(jq -r '.preview_slug' .github/preview-deploy.json)
+            echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+            echo "slug=${SLUG}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -51,19 +69,19 @@ jobs:
       - name: Checkout preview branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.preview_branch }}
+          ref: ${{ steps.target.outputs.branch }}
           path: preview-src
 
       - name: Build preview at subpath
         working-directory: preview-src
         run: |
           npm ci
-          npm run build -- --base /TestGame/preview/${{ inputs.preview_slug }}/
+          npm run build -- --base /TestGame/preview/${{ steps.target.outputs.slug }}/
 
       - name: Merge site bundles
         run: |
-          mkdir -p dist/preview/${{ inputs.preview_slug }}
-          cp -r preview-src/dist/* dist/preview/${{ inputs.preview_slug }}/
+          mkdir -p dist/preview/${{ steps.target.outputs.slug }}
+          cp -r preview-src/dist/* dist/preview/${{ steps.target.outputs.slug }}/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
