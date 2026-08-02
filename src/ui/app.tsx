@@ -17,7 +17,29 @@ import { neighborIdsSameLayer } from "../engine/neighbors";
  * - export const registry = [...]
  */
 import * as WorldsMod from "../worlds";
-import { resolveTileVisualType, tileArtRelPath } from "./tileArt";
+import {
+  resolveTileVisualType,
+  tileArtClassName,
+  buildTileArtCssRules,
+  buildThemeTileCssRule,
+  preloadTileArt,
+} from "./tileArt";
+import { BOARD_PERSPECTIVE_CONFIG, rowPerspectiveVars } from "./boardDepth";
+
+/** Visual-only 2.5D board tilt; set false to restore flat rendering. */
+const ENABLE_BOARD_PERSPECTIVE = true;
+
+function hexSlotPerspectiveStyle(rowIndex: number): React.CSSProperties | undefined {
+  if (!ENABLE_BOARD_PERSPECTIVE) return undefined;
+  const v = rowPerspectiveVars(rowIndex, ROW_LENS.length);
+  return {
+    ["--rowScale" as any]: v.rowScale,
+    ["--rowArcPx" as any]: `${v.rowArcPx}px`,
+    ["--rowZ" as any]: v.rowZ,
+    ["--rowDarken" as any]: v.rowDarken,
+    ["--tileDepthPx" as any]: `${BOARD_PERSPECTIVE_CONFIG.tileDepthPx}px`,
+  } as React.CSSProperties;
+}
 
 /* =========================================================
    Types
@@ -1118,6 +1140,22 @@ body{
   display: flex;
   align-items: center;
   justify-content: center;
+  touch-action: none;
+}
+.boardScroll.boardZooming .hex{
+  filter: none !important;
+  transition: none;
+}
+.boardScroll.boardZooming .hex:hover{
+  transform: none;
+}
+.boardScroll.boardZooming .hex.reach .hexInner::after{
+  animation: none !important;
+  opacity: 0.45;
+}
+.boardScroll.boardZooming .portalFx,
+.boardScroll.boardZooming .portalFx *{
+  animation: none !important;
 }
 
 .barWrap.barLeft{ grid-column: 1; grid-row: 2; }
@@ -1129,6 +1167,11 @@ body{
   position: relative;
   height: var(--hexFieldH);
   overflow: visible;
+  transform: scale(var(--boardZoom, 1));
+  transform-origin: center center;
+}
+.boardScroll.boardZooming .board{
+  will-change: transform;
 }
 
 /* =========================================================
@@ -1142,6 +1185,47 @@ body{
   row-gap: calc(var(--hexHMain) * -0.20);
   margin: 0 auto;
   position: relative;
+}
+
+/* 2.5D board perspective (visual only; gated by .boardPerspective on .hexGrid) */
+.hexGrid.boardPerspective{
+  transform-style: preserve-3d;
+  transform-origin: center center;
+}
+.hexGrid.boardPerspective .hexSlot.hexSlotDepth{
+  z-index: var(--rowZ, 10);
+  transform: translateY(var(--rowArcPx, 0px)) scale(var(--rowScale, 1));
+  transform-origin: center center;
+}
+.hexGrid.boardPerspective .hexAnchor{
+  position: relative;
+}
+.hexGrid.boardPerspective .hexAnchor::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+  transform: translateY(var(--tileDepthPx, 5px));
+  background: linear-gradient(180deg, rgba(48,54,66,.96) 0%, rgba(20,24,32,.98) 55%, rgba(12,14,20,1) 100%);
+  box-shadow: 0 3px 7px rgba(0,0,0,.38);
+  pointer-events: none;
+  z-index: 0;
+}
+.hexGrid.boardPerspective .hexInner{
+  position: relative;
+  z-index: 2;
+}
+.hexGrid.boardPerspective .hexInner::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+  background: rgba(0,0,0,var(--rowDarken, 0));
+  pointer-events: none;
+  z-index: 1;
+}
+.boardScroll.boardZooming .hexGrid.boardPerspective .hexAnchor::before{
+  box-shadow: none;
 }
 
 .hexRow{
@@ -2937,6 +3021,10 @@ export default function App() {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const playerBtnRef = useRef<HTMLButtonElement | null>(null);
+  const boardZoomRef = useRef(1);
+  const boardZoomingRef = useRef(false);
+  const boardZoomIdleTimerRef = useRef<number | null>(null);
+  const [boardZooming, setBoardZooming] = useState(false);
 
   const deckRefs = useRef<Record<CardKey, HTMLDivElement | null>>({
     cosmic: null,
@@ -3355,6 +3443,95 @@ export default function App() {
   const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
   const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "images/villains";
   const HEX_TILE = activeTheme?.assets.hexTile ?? "";
+
+  const tileArtCss = useMemo(() => {
+    let css = buildTileArtCssRules(toPublicUrl);
+    if (HEX_TILE) css += "\n" + buildThemeTileCssRule(HEX_TILE, toPublicUrl);
+    return css;
+  }, [HEX_TILE]);
+
+  const applyBoardZoom = useCallback((next: number) => {
+    const clamped = Math.min(2.5, Math.max(0.65, next));
+    boardZoomRef.current = clamped;
+    const board = boardRef.current;
+    if (board) board.style.setProperty("--boardZoom", String(clamped));
+  }, []);
+
+  const markBoardZooming = useCallback(() => {
+    if (!boardZoomingRef.current) {
+      boardZoomingRef.current = true;
+      setBoardZooming(true);
+    }
+    if (boardZoomIdleTimerRef.current) window.clearTimeout(boardZoomIdleTimerRef.current);
+    boardZoomIdleTimerRef.current = window.setTimeout(() => {
+      boardZoomingRef.current = false;
+      setBoardZooming(false);
+      boardZoomIdleTimerRef.current = null;
+    }, 180);
+  }, []);
+
+  useEffect(() => {
+    if (screen !== "game") return;
+    preloadTileArt(toPublicUrl);
+  }, [screen]);
+
+  useEffect(() => {
+    if (screen !== "game") return;
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+
+    let pinchStartDist = 0;
+    let pinchStartZoom = 1;
+
+    const touchDist = (touches: TouchList) => {
+      if (touches.length < 2) return 0;
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.hypot(dx, dy);
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      markBoardZooming();
+      applyBoardZoom(boardZoomRef.current * (1 - e.deltaY * 0.002));
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        pinchStartDist = touchDist(e.touches);
+        pinchStartZoom = boardZoomRef.current;
+        markBoardZooming();
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 2 || pinchStartDist <= 0) return;
+      e.preventDefault();
+      markBoardZooming();
+      const d = touchDist(e.touches);
+      applyBoardZoom(pinchStartZoom * (d / pinchStartDist));
+    };
+
+    const onTouchEnd = () => {
+      pinchStartDist = 0;
+    };
+
+    scroller.addEventListener("wheel", onWheel, { passive: false });
+    scroller.addEventListener("touchstart", onTouchStart, { passive: true });
+    scroller.addEventListener("touchmove", onTouchMove, { passive: false });
+    scroller.addEventListener("touchend", onTouchEnd);
+    scroller.addEventListener("touchcancel", onTouchEnd);
+
+    return () => {
+      scroller.removeEventListener("wheel", onWheel);
+      scroller.removeEventListener("touchstart", onTouchStart);
+      scroller.removeEventListener("touchmove", onTouchMove);
+      scroller.removeEventListener("touchend", onTouchEnd);
+      scroller.removeEventListener("touchcancel", onTouchEnd);
+      if (boardZoomIdleTimerRef.current) window.clearTimeout(boardZoomIdleTimerRef.current);
+    };
+  }, [screen, applyBoardZoom, markBoardZooming]);
 
   const themeVars = useMemo(() => {
     const p = palette;
@@ -4367,9 +4544,19 @@ export default function App() {
 
             {isMobile ? null : <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />}
 
-            <div className="boardScroll" ref={scrollRef}>
+            <div className={"boardScroll" + (boardZooming ? " boardZooming" : "")} ref={scrollRef}>
             <div className="board" ref={boardRef}>
-              <div className="hexGrid">
+              <div
+                className={"hexGrid" + (ENABLE_BOARD_PERSPECTIVE ? " boardPerspective" : "")}
+                style={
+                  ENABLE_BOARD_PERSPECTIVE
+                    ? ({
+                        perspective: `${BOARD_PERSPECTIVE_CONFIG.perspectivePx}px`,
+                        transform: `rotateX(${BOARD_PERSPECTIVE_CONFIG.tiltDeg}deg)`,
+                      } as React.CSSProperties)
+                    : undefined
+                }
+              >
                 {showGhost ? <GhostGrid layer={currentLayer} /> : null}
 
                 {layerFx ? (
@@ -4414,7 +4601,14 @@ export default function App() {
                         const hex = getHexFromState(viewState as any, id) as any;
                         const bm = isBlockedOrMissing(hex);
 
-                        if (bm.missing) return <div key={id} className="hexSlot empty" style={cellStyle} />;
+                        if (bm.missing)
+                          return (
+                            <div
+                              key={id}
+                              className={"hexSlot empty" + (ENABLE_BOARD_PERSPECTIVE ? " hexSlotDepth" : "")}
+                              style={{ ...cellStyle, ...hexSlotPerspectiveStyle(r) }}
+                            />
+                          );
 
                         const isSel = selectedId === id;
                         const isPlayer = playerId === id;
@@ -4434,16 +4628,14 @@ export default function App() {
                           isPortalUp,
                           isPortalDown,
                         });
-                        // Theme hexTile (if set) overrides per-type art for backward compatibility.
-                        const tileArtUrl = HEX_TILE
-                          ? toPublicUrl(HEX_TILE)
-                          : toPublicUrl(tileArtRelPath(tileVisual));
-                        const hexInnerStyle = {
-                          ["--tileArt" as any]: `url(${tileArtUrl})`,
-                        } as React.CSSProperties;
+                        const tileClass = HEX_TILE ? "tile-theme" : tileArtClassName(tileVisual);
 
                         return (
-                          <div key={"v-" + r + "-" + c} className="hexSlot" style={cellStyle}>
+                          <div
+                            key={"v-" + r + "-" + c}
+                            className={"hexSlot" + (ENABLE_BOARD_PERSPECTIVE ? " hexSlotDepth" : "")}
+                            style={{ ...cellStyle, ...hexSlotPerspectiveStyle(r) }}
+                          >
                             <button
                               ref={isPlayer ? playerBtnRef : undefined}
                               className={[
@@ -4477,7 +4669,7 @@ export default function App() {
                               title={id}
                             >
                               <div className="hexAnchor">
-                                <div className="hexInner" style={hexInnerStyle}>
+                                <div className={"hexInner " + tileClass}>
                                   <div className="hexCoords">
                                     <div className="hexId">{r + "," + c}</div>
                                   </div>
@@ -4790,6 +4982,7 @@ export default function App() {
       ) : null}
 
       <style>{baseCss}</style>
+      <style>{tileArtCss}</style>
     </div>
   );
 }
