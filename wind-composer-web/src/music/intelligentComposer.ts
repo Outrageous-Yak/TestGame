@@ -52,21 +52,28 @@ export class IntelligentComposer {
     gust: boolean,
     samplePosition: number,
     sampleRate: number,
+    windProxyKmh?: number,
   ): CompositionPlan {
     const style = getStyle(this.styleName);
     const energy = plan.energy_curve;
+
+    const windKmh = weather
+      ? weather.wind_speed_kmh
+      : windProxyKmh != null
+        ? windProxyKmh
+        : energy * 55;
+    const windFactor = clamp(windKmh / 55);
+    plan.tempo_bpm = clamp(
+      style.bpmMin + windFactor * (style.bpmMax - style.bpmMin),
+      style.bpmMin,
+      style.bpmMax,
+    );
+
     const tempo = plan.tempo_bpm;
     const spb = (60 / Math.max(tempo, 20)) * sampleRate;
     const beat = Math.floor(samplePosition / spb);
-    const measure = Math.floor(beat / 4);
 
     if (weather) {
-      const windFactor = clamp(weather.wind_speed_kmh / 55);
-      plan.tempo_bpm = clamp(
-        style.bpmMin + windFactor * (style.bpmMax - style.bpmMin),
-        style.bpmMin,
-        style.bpmMax,
-      );
       if (weather.humidity_pct > 70) plan.reverb_amount = clamp(plan.reverb_amount + 0.1);
       if (weather.precipitation_mm > 0.5) plan.percussion = Math.max(plan.percussion, weather.precipitation_mm / 8);
       if (weather.snowfall_mm > 0.1) plan.brightness *= 0.9;
@@ -76,23 +83,13 @@ export class IntelligentComposer {
     plan.song_section = this.section;
     plan.local_time_str = this.localTimeStr;
 
-    const extra: RhythmEventDto[] = [...plan.rhythm_events];
-    const step = beat % 16;
-    if (style.kickPattern[step]) {
-      extra.push({ layer: "kick", strength: 0.5 + energy * 0.3, is_pulse: true });
-    }
-    if (style.drumDensity > 0.25 && step % 2 === 1) {
-      extra.push({ layer: "hat", strength: style.drumDensity * 0.35, is_pulse: false });
-    }
-    if (measure > 0 && beat % 16 === 0 && Math.random() < style.fillProbability) {
-      extra.push({ layer: "snare", strength: 0.55 + energy * 0.3, is_pulse: true });
-      extra.push({ layer: "percussion", strength: 0.5, is_pulse: false });
-    }
-    if (gust && Math.random() < 0.35) {
+    const extra: RhythmEventDto[] = [];
+    if (gust && Math.random() < 0.4) {
       extra.push({ layer: "percussion", strength: 0.75, is_pulse: true });
       plan.weather_hints = [...(plan.weather_hints ?? []), "Gust fill"];
     }
 
+    const measure = Math.floor(beat / 4);
     if (measure > 0 && measure % 32 === 0) {
       this.barsInSection += 32;
       const sections = ["Intro", "Build", "Drop", "Breakdown", "Recovery", "Flow"];

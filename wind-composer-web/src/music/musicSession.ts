@@ -5,6 +5,7 @@ import { WeatherMapper } from "../weather/weatherMapper";
 import { CompositionEngine, type CompositionContext } from "./compositionEngine";
 import { IntelligentComposer } from "./intelligentComposer";
 import { Orchestrator } from "./orchestration";
+import { getStyle } from "./styleEngine";
 import { ScaleEngine } from "./scaleEngine";
 
 export class MusicSession {
@@ -90,11 +91,14 @@ export class MusicSession {
     };
 
     const plan = this.composition.tick(ctx);
-    if (drive?.tempo_bpm) plan.tempo_bpm = drive.tempo_bpm;
 
     const w = primary?.weather ?? null;
     if (w && this.lastWeather) this.intelligent.onWeather(this.lastWeather, w);
     if (w) this.lastWeather = w;
+
+    const windProxyKmh = drive
+      ? drive.energy * 55
+      : micEnergy * 55;
 
     const enhanced = this.intelligent.enhance(
       plan,
@@ -102,10 +106,13 @@ export class MusicSession {
       g,
       this.samplePosition,
       44100,
+      windProxyKmh,
     );
 
     const orchestration = this.orchestrator.mapPlan(enhanced);
-    const reverb = this.settings.reverb_amount * (0.6 + enhanced.reverb_amount * 0.5);
+    const styleProfile = getStyle(enhanced.musical_style ?? this.settings.musical_style);
+    let reverb = this.settings.reverb_amount * (0.6 + enhanced.reverb_amount * 0.5);
+    if (styleProfile.drumDensity > 0.35) reverb *= 0.72;
 
     return {
       plan: enhanced,

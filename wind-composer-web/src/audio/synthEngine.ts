@@ -1,5 +1,6 @@
 import type { CompositionPlan } from "../types";
 import type { OrchestrationTargets } from "../music/orchestration";
+import { getStyle } from "../music/styleEngine";
 
 export interface AudioDiagnostics {
   contextState: string;
@@ -226,8 +227,28 @@ export class WebSynthEngine {
       plan: tick.plan,
       orchestration: orch,
     });
+
+    const style = getStyle(tick.plan.musical_style ?? "Ambient");
+    const energy = tick.plan.energy_curve;
+    const drumDensity = style.drumDensity * (0.65 + energy * 0.5);
+    this.worklet.port.postMessage({
+      type: "drum_seq",
+      tempo_bpm: tick.plan.tempo_bpm,
+      kickPattern: style.kickPattern,
+      drumDensity: drumDensity,
+      kickGain: 0.75 + style.bassLayers * 0.25,
+      hatGain: 0.25 + drumDensity * 0.45,
+      snareGain: 0.4 + drumDensity * 0.35,
+      enabled: drumDensity > 0.08,
+    });
+
     for (const ev of tick.plan.rhythm_events ?? []) {
-      this.worklet.port.postMessage({ type: "perc", velocity: ev.strength });
+      if (ev.layer === "kick" || ev.layer === "snare" || ev.layer === "hat") continue;
+      if (ev.is_pulse && ev.strength > 0.65) {
+        this.worklet.port.postMessage({ type: "drum_fill" });
+      } else {
+        this.worklet.port.postMessage({ type: "perc", velocity: ev.strength, layer: ev.layer });
+      }
       this.scheduledEvents += 1;
     }
   }

@@ -96,6 +96,117 @@ class Voice {
   }
 }
 
+const KICK_DEFAULT = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0];
+
+class DrumEngine {
+  constructor() {
+    this.bpm = 120;
+    this.kickPattern = KICK_DEFAULT.slice();
+    this.drumDensity = 0.5;
+    this.kickGain = 0.9;
+    this.hatGain = 0.42;
+    this.snareGain = 0.55;
+    this.enabled = true;
+    this.sampleAcc = 0;
+    this.step = 0;
+    this.samplesPerStep = 0;
+    this.kickEnv = 0;
+    this.kickFreq = 160;
+    this.kickPhase = 0;
+    this.hatEnv = 0;
+    this.hatNoise = 0;
+    this.snareEnv = 0;
+    this.snareNoise = 0;
+    this.snareTonePhase = 0;
+    this.pendingFill = 0;
+  }
+
+  setConfig(msg) {
+    if (msg.tempo_bpm > 0) this.bpm = msg.tempo_bpm;
+    if (msg.kickPattern && msg.kickPattern.length) this.kickPattern = msg.kickPattern;
+    if (msg.drumDensity != null) this.drumDensity = msg.drumDensity;
+    if (msg.kickGain != null) this.kickGain = msg.kickGain;
+    if (msg.hatGain != null) this.hatGain = msg.hatGain;
+    if (msg.snareGain != null) this.snareGain = msg.snareGain;
+    if (msg.enabled != null) this.enabled = Boolean(msg.enabled);
+    this.samplesPerStep = (60 / Math.max(this.bpm, 40)) * sampleRate / 4;
+    if (this.samplesPerStep < 1) this.samplesPerStep = 1;
+  }
+
+  triggerKick() {
+    this.kickEnv = 1;
+    this.kickFreq = 185;
+    this.kickPhase = 0;
+  }
+
+  triggerHat(vel) {
+    this.hatEnv = vel;
+    this.hatNoise = Math.random() * 2 - 1;
+  }
+
+  triggerSnare(vel) {
+    this.snareEnv = vel;
+    this.snareNoise = Math.random() * 2 - 1;
+    this.snareTonePhase = 0;
+  }
+
+  triggerFill() {
+    this.pendingFill = 4;
+  }
+
+  onStep() {
+    const pat = this.kickPattern;
+    const idx = this.step % 16;
+    if (pat[idx]) this.triggerKick();
+    if (this.drumDensity > 0.12 && idx % 2 === 1) {
+      this.triggerHat(this.hatGain * (0.55 + this.drumDensity * 0.45));
+    }
+    if (this.drumDensity > 0.28 && (idx === 4 || idx === 12)) {
+      this.triggerSnare(this.snareGain * (0.7 + this.drumDensity * 0.3));
+    }
+    if (this.pendingFill > 0) {
+      this.triggerSnare(this.snareGain * 0.85);
+      this.triggerHat(this.hatGain * 0.7);
+      this.pendingFill -= 1;
+    }
+    this.step = (this.step + 1) % 16;
+  }
+
+  processSample(sr) {
+    if (!this.enabled) return 0;
+    this.sampleAcc += 1;
+    while (this.sampleAcc >= this.samplesPerStep) {
+      this.sampleAcc -= this.samplesPerStep;
+      this.onStep();
+    }
+    let out = 0;
+    if (this.kickEnv > 0) {
+      this.kickPhase += TAU * this.kickFreq / sr;
+      if (this.kickPhase > TAU) this.kickPhase -= TAU;
+      out += Math.sin(this.kickPhase) * this.kickEnv * this.kickGain * 0.95;
+      this.kickFreq *= 0.9992;
+      this.kickEnv -= 1 / (0.11 * sr);
+      if (this.kickEnv < 0) this.kickEnv = 0;
+    }
+    if (this.hatEnv > 0) {
+      this.hatNoise = (this.hatNoise * 0.6 + (Math.random() * 2 - 1) * 0.4);
+      out += this.hatNoise * this.hatEnv * 0.35;
+      this.hatEnv -= 1 / (0.035 * sr);
+      if (this.hatEnv < 0) this.hatEnv = 0;
+    }
+    if (this.snareEnv > 0) {
+      this.snareTonePhase += TAU * 210 / sr;
+      if (this.snareTonePhase > TAU) this.snareTonePhase -= TAU;
+      this.snareNoise = (this.snareNoise * 0.55 + (Math.random() * 2 - 1) * 0.45);
+      const tone = Math.sin(this.snareTonePhase) * 0.35;
+      out += (this.snareNoise * 0.65 + tone) * this.snareEnv * 0.55;
+      this.snareEnv -= 1 / (0.14 * sr);
+      if (this.snareEnv < 0) this.snareEnv = 0;
+    }
+    return out;
+  }
+}
+
 class SynthProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
@@ -120,6 +231,8 @@ class SynthProcessor extends AudioWorkletProcessor {
     this.bypassEffects = false;
     this.scheduledEvents = 0;
     this.firstOutputLogged = false;
+    this.drums = new DrumEngine();
+    this.drums.setConfig({ tempo_bpm: 120, kickPattern: KICK_DEFAULT, drumDensity: 0.5 });
     this.port.onmessage = (e) => this.onMsg(e.data);
     this.port.postMessage({ type: "worklet_ready" });
   }
@@ -148,7 +261,14 @@ class SynthProcessor extends AudioWorkletProcessor {
         this.port.postMessage({ type: "first_note", midi: msg.midi, layer: msg.layer });
       }
     } else if (msg.type === "perc") {
-      this.triggerPerc(msg.velocity);
+      if (msg.layer === "kick") this.drums.triggerKick();
+      else if (msg.layer === "snare") this.drums.triggerSnare(msg.velocity ?? 0.6);
+      else if (msg.layer === "hat") this.drums.triggerHat(msg.velocity ?? 0.4);
+      else this.triggerPerc(msg.velocity);
+    } else if (msg.type === "drum_seq") {
+      this.drums.setConfig(msg);
+    } else if (msg.type === "drum_fill") {
+      this.drums.triggerFill();
     } else if (msg.type === "release_layer") {
       this.releaseLayer(msg.layer);
     } else if (msg.type === "release_all") {
@@ -282,33 +402,37 @@ class SynthProcessor extends AudioWorkletProcessor {
       const comp = 1 / Math.sqrt(layerCount * 0.7);
       mono *= comp * this.master;
 
-      let l;
-      let r;
+      const drum = this.drums.processSample(sr);
+      let padsL;
+      let padsR;
       if (this.bypassEffects) {
-        l = mono;
-        r = mono;
+        padsL = mono;
+        padsR = mono;
       } else {
         mono = this.softSat(mono, 0.15 + this.warmth * 0.25);
         const pan = this.stereoPan;
         const w = this.width;
-        l = mono * (0.5 - pan * 0.35) * (1 + w * 0.15);
-        r = mono * (0.5 + pan * 0.35) * (1 + w * 0.15);
+        padsL = mono * (0.5 - pan * 0.35) * (1 + w * 0.15);
+        padsR = mono * (0.5 + pan * 0.35) * (1 + w * 0.15);
         const rvIdx = wrapIndex(this.revPos - 4000, this.revL.length);
         const rv = (this.revL[rvIdx] + this.revR[rvIdx]) * 0.5 * this.reverbWet;
-        this.revL[this.revPos] = l + rv * 0.4;
-        this.revR[this.revPos] = r + rv * 0.38;
+        this.revL[this.revPos] = padsL + rv * 0.4;
+        this.revR[this.revPos] = padsR + rv * 0.38;
         this.revPos = (this.revPos + 1) % this.revL.length;
-        l += rv;
-        r += rv;
+        padsL += rv;
+        padsR += rv;
         const dIdx = wrapIndex(this.dlyPos - this.dlyLen, this.dlyL.length);
         const dl = this.dlyL[dIdx];
         const dr = this.dlyR[dIdx];
-        this.dlyL[this.dlyPos] = l + dl * this.dlyFb;
-        this.dlyR[this.dlyPos] = r + dr * this.dlyFb * 0.92;
+        this.dlyL[this.dlyPos] = padsL + dl * this.dlyFb;
+        this.dlyR[this.dlyPos] = padsR + dr * this.dlyFb * 0.92;
         this.dlyPos = (this.dlyPos + 1) % this.dlyL.length;
-        l = l * 0.88 + dl * this.dlyWet;
-        r = r * 0.88 + dr * this.dlyWet;
+        padsL = padsL * 0.88 + dl * this.dlyWet;
+        padsR = padsR * 0.88 + dr * this.dlyWet;
       }
+
+      let l = padsL + drum * 0.92;
+      let r = padsR + drum * 0.92;
 
       peak = Math.max(peak, Math.abs(l), Math.abs(r));
       const ceiling = 0.92;

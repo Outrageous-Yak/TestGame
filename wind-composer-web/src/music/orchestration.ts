@@ -1,5 +1,6 @@
 import type { MusicalState } from "./constants";
 import type { CompositionPlan } from "../types";
+import { getStyle } from "./styleEngine";
 
 export interface OrchestrationTargets {
   layer_gains: Record<string, number>;
@@ -94,6 +95,30 @@ export class Orchestrator {
     }
 
     const sc = SOUNDSCAPE_MAP[this.soundscape] ?? SOUNDSCAPE_MAP["Natural Ambient"];
+
+    const styleName = plan.musical_style ?? "Ambient";
+    const style = getStyle(styleName);
+    const danceBoost = style.drumDensity;
+    if (danceBoost > 0.35) {
+      layer_gains.main_pad = (layer_gains.main_pad ?? 0.4) * (1 - danceBoost * 0.18);
+      layer_gains.soft_bass = Math.max(layer_gains.soft_bass ?? 0, style.bassLayers * (0.35 + energy * 0.45));
+      layer_gains.sub_bass = Math.max(layer_gains.sub_bass ?? 0, style.bassLayers * (0.3 + energy * 0.5));
+      if (layer_gains.soft_bass > 0.08) active_layers.push("soft_bass");
+      if (layer_gains.sub_bass > 0.08) active_layers.push("sub_bass");
+      layer_gains.lead = Math.max(layer_gains.lead ?? 0, style.leadActivity * (0.2 + energy * 0.45));
+      if (layer_gains.lead > 0.08) active_layers.push("lead");
+      plan.reverb_amount = Math.min(plan.reverb_amount, 0.55 - danceBoost * 0.15);
+    }
+    if (styleName === "Synthwave") {
+      layer_presets.lead = "Glass Bell";
+      layer_presets.soft_bass = "Soft Analog Bass";
+    } else if (styleName.includes("Techno") || styleName === "Trance") {
+      layer_presets.lead = "Muted Pluck";
+      layer_presets.sub_bass = "Sub Foundation";
+    } else if (styleName.includes("House")) {
+      layer_presets.soft_bass = "Soft Analog Bass";
+      layer_presets.main_pad = "Warm Horizon";
+    }
 
     return {
       layer_gains,
