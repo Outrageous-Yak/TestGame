@@ -79,6 +79,9 @@ export class WindComposerApp {
     brightness: this.range(50),
     warmth: this.range(50),
     danceEffects: document.createElement("input"),
+    weatherInfluence: this.select(["subtle", "balanced", "strong"]),
+    grooveStrength: this.select(["low", "medium", "strong"]),
+    variation: this.select(["stable", "evolving", "adventurous"]),
     search: document.createElement("input"),
   };
 
@@ -150,6 +153,11 @@ export class WindComposerApp {
     this.controls.danceEffects.checked = true;
     danceLabel.append(this.controls.danceEffects, document.createTextNode(" Dance & drums (kick, snare, hats, fills)"));
     styleWrap.append(danceLabel);
+    styleWrap.append(
+      this.labelWrap("Weather influence", this.controls.weatherInfluence),
+      this.labelWrap("Groove strength", this.controls.grooveStrength),
+      this.labelWrap("Variation", this.controls.variation),
+    );
     styleRow.append(styleWrap);
     root.append(styleRow);
 
@@ -435,6 +443,13 @@ export class WindComposerApp {
       ["Last Update", "lastUpdate"],
       ["Next Update", "nextUpdate"],
       ["Fill Prob", "fillProb"],
+      ["Target BPM", "targetBpm"],
+      ["Tension", "tension"],
+      ["Groove", "grooveIntensity"],
+      ["Bass Pattern", "bassPattern"],
+      ["Producer", "producerAction"],
+      ["Next Action", "nextAction"],
+      ["Bar", "currentBar"],
     ];
     for (const [label, key] of fields) {
       const cell = this.h("div", "live-cell");
@@ -475,6 +490,13 @@ export class WindComposerApp {
     this.liveCells.lastUpdate.textContent = live.lastWeatherUpdate;
     this.liveCells.nextUpdate.textContent = `${mm}:${ss}`;
     this.liveCells.fillProb.textContent = `${(live.fillProbability * 100).toFixed(0)}%`;
+    this.liveCells.targetBpm.textContent = live.targetBpm.toFixed(0);
+    this.liveCells.tension.textContent = `${(live.tension * 100).toFixed(0)}%`;
+    this.liveCells.grooveIntensity.textContent = `${(live.grooveIntensity * 100).toFixed(0)}%`;
+    this.liveCells.bassPattern.textContent = live.bassPatternFamily;
+    this.liveCells.producerAction.textContent = live.lastProducerAction;
+    this.liveCells.nextAction.textContent = live.nextPlannedAction;
+    this.liveCells.currentBar.textContent = String(live.currentBar);
 
     const notice = live.weatherNotice?.trim() ?? "";
     if (notice !== this.lastWeatherNoticeShown) {
@@ -535,6 +557,9 @@ export class WindComposerApp {
       brightness_amount: this.controls.brightness.valueAsNumber / 100,
       warmth_amount: this.controls.warmth.valueAsNumber / 100,
       dance_effects_enabled: this.controls.danceEffects.checked,
+      weather_influence: this.controls.weatherInfluence.value,
+      groove_strength: this.controls.grooveStrength.value,
+      variation: this.controls.variation.value,
     };
     saveSettings(s);
     this.session.updateSettings(s);
@@ -559,6 +584,9 @@ export class WindComposerApp {
     this.controls.brightness.value = String(s.brightness_amount * 100);
     this.controls.warmth.value = String(s.warmth_amount * 100);
     this.controls.danceEffects.checked = s.dance_effects_enabled ?? true;
+    this.controls.weatherInfluence.value = s.weather_influence ?? "balanced";
+    this.controls.grooveStrength.value = s.groove_strength ?? "strong";
+    this.controls.variation.value = s.variation ?? "evolving";
   }
 
   private async onSearch() {

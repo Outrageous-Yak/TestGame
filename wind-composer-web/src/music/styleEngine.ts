@@ -85,7 +85,7 @@ export const STYLE_PROFILES: Record<MusicalStyleName, StyleProfile> = {
     padLayers: 0.55,
     useClap: true,
   }),
-  "Deep House": profile("Deep House", 112, 124, KICK_HOUSE, HAT_OFFBEAT, "house", 0.58, 0.42, 0.52, 0.24, 0.14, 0.06, {
+  "Deep House": profile("Deep House", 110, 126, KICK_FOUR, HAT_OFFBEAT, "house", 0.58, 0.42, 0.52, 0.24, 0.14, 0.06, {
     padLayers: 0.42,
     offbeatOpenHat: true,
     useClap: true,

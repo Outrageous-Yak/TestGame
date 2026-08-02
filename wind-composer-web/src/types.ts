@@ -43,6 +43,11 @@ export interface CompositionPlan {
   drum_events?: RhythmEventDto[];
   arrangement_gains?: Record<string, number>;
   dance_effects_enabled?: boolean;
+  producer_action?: string;
+  target_bpm?: number;
+  tension?: number;
+  groove_intensity?: number;
+  bass_pattern_family?: string;
 }
 
 export interface WeatherSnapshot {
@@ -108,6 +113,12 @@ export interface AppSettings {
   refresh_interval_sec: number;
   /** When false, disables kick/snare/hats, sequenced bass, fills, and dance percussion. */
   dance_effects_enabled: boolean;
+  /** Subtle / Balanced / Strong — how strongly weather shapes producer decisions. */
+  weather_influence: string;
+  /** Low / Medium / Strong — kick/bass/drum prominence for dance styles. */
+  groove_strength: string;
+  /** Stable / Evolving / Adventurous — repetition vs variation balance. */
+  variation: string;
 }
 
 export interface Favourite {
@@ -137,4 +148,17 @@ export interface TickResult {
     master: number;
   };
   bassPattern?: number[];
+  drumPatterns?: {
+    kick: number[];
+    hat: number[];
+    clap: number[];
+  };
+  producerMix?: {
+    sidechainAmount: number;
+    padGainLimit: number;
+    atmosphereLimit: number;
+    allowPads: boolean;
+    allowLeads: boolean;
+    startupGroovePhase: number;
+  };
 }

@@ -1,5 +1,6 @@
 import type { MusicalState } from "./constants";
 import type { CompositionPlan } from "../types";
+import type { ProducerIntent } from "./producerTypes";
 import { getStyle } from "./styleEngine";
 
 export interface OrchestrationTargets {
@@ -51,7 +52,7 @@ export class Orchestrator {
   soundscape = "Natural Ambient";
   private prevGains: Record<string, number> = {};
 
-  mapPlan(plan: CompositionPlan): OrchestrationTargets {
+  mapPlan(plan: CompositionPlan, producerIntent?: ProducerIntent): OrchestrationTargets {
     const state = plan.musical_state as MusicalState;
     const stateMap = STATE_LAYERS[state] ?? STATE_LAYERS["Gentle Motion"];
     const energy = plan.energy_curve;
@@ -100,7 +101,14 @@ export class Orchestrator {
     const style = getStyle(styleName);
     const danceBoost = style.drumDensity;
     if (plan.dance_effects_enabled && danceBoost > 0.2) {
-      layer_gains.main_pad = (layer_gains.main_pad ?? 0.4) * (1 - danceBoost * 0.22);
+      const padCap = producerIntent?.padGainLimit ?? 0.42;
+      layer_gains.main_pad = Math.min((layer_gains.main_pad ?? 0.4) * (1 - danceBoost * 0.22), padCap);
+      layer_gains.secondary_pad = Math.min((layer_gains.secondary_pad ?? 0) * 0.85, padCap * 0.75);
+      layer_gains.atmosphere = Math.min(
+        (layer_gains.atmosphere ?? 0) * 0.75,
+        producerIntent?.atmosphereLimit ?? 0.28,
+      );
+      layer_gains.noise_atmo = Math.min(layer_gains.noise_atmo ?? 0, 0.12);
       layer_gains.percussion = Math.max(
         layer_gains.percussion ?? 0,
         danceBoost * (0.55 + energy * 0.45),
@@ -111,8 +119,16 @@ export class Orchestrator {
       if (layer_gains.soft_bass > 0.08) active_layers.push("soft_bass");
       if (layer_gains.sub_bass > 0.08) active_layers.push("sub_bass");
       layer_gains.lead = Math.max(layer_gains.lead ?? 0, style.leadActivity * (0.2 + energy * 0.45));
+      if (producerIntent && !producerIntent.allowLeads) {
+        layer_gains.lead = Math.min(layer_gains.lead ?? 0, 0.08);
+      }
       if (layer_gains.lead > 0.08) active_layers.push("lead");
       plan.reverb_amount = Math.min(plan.reverb_amount, 0.55 - danceBoost * 0.15);
+    }
+    if (producerIntent && !producerIntent.allowPads) {
+      layer_gains.main_pad = Math.min(layer_gains.main_pad ?? 0, 0.12);
+      layer_gains.secondary_pad = Math.min(layer_gains.secondary_pad ?? 0, 0.08);
+      layer_gains.atmosphere = Math.min(layer_gains.atmosphere ?? 0, 0.06);
     }
     if (styleName === "Synthwave") {
       layer_presets.lead = "Glass Bell";

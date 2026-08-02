@@ -20,6 +20,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   musical_style: "Ambient",
   refresh_interval_sec: 30,
   dance_effects_enabled: true,
+  weather_influence: "balanced",
+  groove_strength: "strong",
+  variation: "evolving",
 };
 
 export function loadSettings(): AppSettings {
