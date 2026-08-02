@@ -7,7 +7,7 @@ import type { MoveResult } from "../../engine/api";
 
 import { ROW_LENS, enterLayer, revealHex } from "../../engine/board";
 import { neighborIdsSameLayer } from "../../engine/neighbors";
-import { facingFromMove, hexIdAtSlot, rowShiftLabel, clockwiseOrderFrom } from "../../engine/layout";
+import { facingFromMove, hexIdAtSlot, rowShiftLabel } from "../../engine/layout";
 
 import { resolveTileVisualType, tileArtRelPath } from "../tileArt";
 import { getBestScore, saveBestScore } from "../bestScore";
@@ -372,32 +372,6 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
 
     return set;
   }, [state, playerId, playerLayer, currentLayer]);
-
-  const reachableOrdered = useMemo(() => {
-    if (!state || !playerId || playerLayer !== currentLayer || reachable.size === 0) return [];
-    return clockwiseOrderFrom(state, currentLayer, playerId, reachable);
-  }, [state, playerId, playerLayer, currentLayer, reachable]);
-
-  const reachableKey = reachableOrdered.join("|");
-
-  const [reachPulseIdx, setReachPulseIdx] = useState(0);
-
-  useEffect(() => {
-    setReachPulseIdx(0);
-  }, [reachableKey]);
-
-  useEffect(() => {
-    const count = reachableOrdered.length;
-    if (count === 0) return;
-
-    const timer = window.setInterval(() => {
-      setReachPulseIdx((i) => (i + 1) % count);
-    }, 850);
-
-    return () => window.clearInterval(timer);
-  }, [reachableKey, reachableOrdered.length]);
-
-  const reachPulseId = reachableOrdered[reachPulseIdx] ?? null;
 
   /* =========================
      Theme / assets
@@ -1240,7 +1214,6 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
                         const isStart = startHexId === id;
 
                         const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
-                        const isReachPulse = isReach && reachPulseId === id;
 
                         const cardHere = findCardTriggerAt(id);
                         const isGoal = goalId === id;
@@ -1269,7 +1242,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
                               className={[
                                 "hex",
                                 isSel ? "sel" : "",
-                                isReachPulse ? "reachPulse" : "",
+                                isReach ? "reach" : "",
                                 bm.blocked ? "blocked" : "",
                                 isPlayer ? "player" : "",
                                 isGoal ? "goal" : "",

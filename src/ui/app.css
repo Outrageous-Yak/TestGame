@@ -729,9 +729,9 @@ body{
 }
 
 /* =========================================================
-   REACHABLE HEX HIGHLIGHT (sequential layer-color pulse)
+   REACHABLE HEX HIGHLIGHT (layer-color tint on all movable hexes)
 ========================================================= */
-.hex.reachPulse .hexInner::after{
+.hex.reach .hexInner::after{
   content:"";
   position:absolute;
   inset: 0;
