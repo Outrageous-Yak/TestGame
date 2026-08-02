@@ -42,6 +42,7 @@ export interface CompositionPlan {
   bass_notes?: MelodyNoteDto[];
   drum_events?: RhythmEventDto[];
   arrangement_gains?: Record<string, number>;
+  dance_effects_enabled?: boolean;
 }
 
 export interface WeatherSnapshot {
@@ -105,6 +106,8 @@ export interface AppSettings {
   warmth_amount: number;
   musical_style: string;
   refresh_interval_sec: number;
+  /** When false, disables kick/snare/hats, sequenced bass, fills, and dance percussion. */
+  dance_effects_enabled: boolean;
 }
 
 export interface Favourite {

@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   warmth_amount: 0.5,
   musical_style: "Ambient",
   refresh_interval_sec: 30,
+  dance_effects_enabled: true,
 };
 
 export function loadSettings(): AppSettings {
