@@ -26,7 +26,6 @@ import {
 } from "./tileArt";
 import { BOARD_PERSPECTIVE_CONFIG, rowPerspectiveVars } from "./boardDepth";
 import {
-  isFlatMode,
   isOld25DMode,
   isProjectedMode,
 } from "./boardRenderMode";
