@@ -22,6 +22,7 @@ export interface EnhanceContext {
   sampleRate: number;
   windKmh: number;
   personalityHope: number;
+  danceEffectsEnabled: boolean;
 }
 
 export class IntelligentComposer {
@@ -126,6 +127,7 @@ export class IntelligentComposer {
 
     plan.musical_style = this.styleName;
     plan.local_time_str = this.localTimeStr;
+    plan.dance_effects_enabled = ctx.danceEffectsEnabled;
 
     if (measure > prevMeasure) {
       const measureStart = Math.max(1, prevMeasure + 1);
@@ -143,7 +145,7 @@ export class IntelligentComposer {
     const extraMelody: MelodyNoteDto[] = [];
     const arrState = this.arrangement.getState();
 
-    if (beat > prevBeat) {
+    if (ctx.danceEffectsEnabled && beat > prevBeat) {
       const beatStart = Math.max(0, prevBeat + 1);
       const beatEnd = Math.min(beat, beatStart + 31);
       for (let b = beatStart; b <= beatEnd; b++) {
@@ -177,7 +179,7 @@ export class IntelligentComposer {
       }
     }
 
-    if (measure > prevMeasure) {
+    if (ctx.danceEffectsEnabled && measure > prevMeasure) {
       const measureStart = Math.max(1, prevMeasure + 1);
       const measureEnd = Math.min(measure, measureStart + 7);
       for (let m = measureStart; m <= measureEnd; m++) {
@@ -241,7 +243,9 @@ export class IntelligentComposer {
 
     if (w) {
       if (w.snowfall_mm > 0.1) plan.brightness = clamp(plan.brightness * 0.9);
-      if (w.precipitation_mm > 0.5) plan.percussion = Math.max(plan.percussion, w.precipitation_mm / 8);
+      if (w.precipitation_mm > 0.5 && ctx.danceEffectsEnabled) {
+        plan.percussion = Math.max(plan.percussion, w.precipitation_mm / 8);
+      }
       if (w.humidity_pct > 70) plan.reverb_amount = clamp(plan.reverb_amount + 0.1);
       if (w.cloud_cover_pct > 80) plan.reverb_amount = clamp(plan.reverb_amount + 0.06);
       if (w.temperature_c < 5) plan.brightness = clamp(plan.brightness * 0.88);
@@ -256,6 +260,10 @@ export class IntelligentComposer {
     plan.melody_notes = extraMelody.slice(0, 8);
     plan.bass_notes = extraMelody.filter((n) => n.midi < 52);
     plan.drum_events = extraRhythm;
+
+    if (!ctx.danceEffectsEnabled) {
+      this.lastBassPattern = [];
+    }
 
     return plan;
   }

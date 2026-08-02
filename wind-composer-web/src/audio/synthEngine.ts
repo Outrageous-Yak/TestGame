@@ -269,13 +269,16 @@ export class WebSynthEngine {
 
     const style = getStyle(plan.musical_style ?? "Ambient");
     const energy = plan.energy_curve;
-    const percGain = orch.layer_gains.percussion ?? style.drumDensity;
-    const drumDensity = style.drumDensity * (0.7 + energy * 0.45) * Math.max(0.35, percGain);
+    const danceOn = plan.dance_effects_enabled ?? true;
+    const percGain = danceOn ? (orch.layer_gains.percussion ?? style.drumDensity) : 0;
+    const drumDensity = danceOn
+      ? style.drumDensity * (0.7 + energy * 0.45) * Math.max(0.35, percGain)
+      : 0;
     const bassPattern = tick.bassPattern ?? [];
-    const useBassSeq = bassPattern.length >= 2 && style.drumDensity > 0.2;
-    const drumEnabled = style.drumDensity > 0.06;
+    const useBassSeq = danceOn && bassPattern.length >= 2 && style.drumDensity > 0.2;
+    const drumEnabled = danceOn && style.drumDensity > 0.06;
 
-    const drumKey = `${plan.tempo_bpm.toFixed(1)}|${style.name}|${drumDensity.toFixed(3)}|${useBassSeq}|${bassPattern.join(",")}|${drumEnabled}`;
+    const drumKey = `${plan.tempo_bpm.toFixed(1)}|${style.name}|${drumDensity.toFixed(3)}|${useBassSeq}|${bassPattern.join(",")}|${drumEnabled}|${danceOn}`;
     if (drumKey !== this.lastDrumKey) {
       this.lastDrumKey = drumKey;
       this.worklet.port.postMessage({
@@ -293,15 +296,16 @@ export class WebSynthEngine {
         bassPattern: useBassSeq ? bassPattern : [],
         bassGain: style.bassLayers * (0.55 + energy * 0.5),
         skipChordBass: useBassSeq,
-        drumBusGain: 1.35 + style.drumDensity * 0.45,
+        drumBusGain: danceOn ? 1.35 + style.drumDensity * 0.45 : 0,
       });
     }
 
-    if (plan.transition_fx) {
+    if (plan.transition_fx && danceOn) {
       this.worklet.port.postMessage({ type: "transition_fx", fx: plan.transition_fx });
     }
 
     for (const ev of plan.rhythm_events ?? []) {
+      if (!danceOn) continue;
       if (ev.layer === "fill") {
         this.worklet.port.postMessage({ type: "drum_fill" });
       } else if (ev.layer === "crash") {

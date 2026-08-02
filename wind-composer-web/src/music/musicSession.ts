@@ -226,12 +226,18 @@ export class MusicSession {
       sampleRate,
       windKmh,
       personalityHope: 0.65 + energy * 0.35,
+      danceEffectsEnabled: this.settings.dance_effects_enabled,
     });
+
+    enhanced.dance_effects_enabled = this.settings.dance_effects_enabled;
 
     const orchestration = this.orchestrator.mapPlan(enhanced);
     const arrGains = this.intelligent.getArrangementLayerGains(enhanced.energy_curve);
     enhanced.arrangement_gains = arrGains;
     for (const [layer, gain] of Object.entries(arrGains)) {
+      if (!this.settings.dance_effects_enabled && (layer === "percussion" || layer === "sub_bass")) {
+        continue;
+      }
       if (gain > (orchestration.layer_gains[layer] ?? 0)) {
         orchestration.layer_gains[layer] = gain;
         if (gain > 0.08 && !orchestration.active_layers.includes(layer)) {
@@ -240,8 +246,13 @@ export class MusicSession {
       }
     }
 
+    if (!this.settings.dance_effects_enabled) {
+      orchestration.layer_gains.percussion = 0;
+      orchestration.active_layers = orchestration.active_layers.filter((l) => l !== "percussion");
+    }
+
     let reverb = this.settings.reverb_amount * (0.6 + enhanced.reverb_amount * 0.5);
-    if (styleProfile.drumDensity > 0.35) reverb *= 0.68;
+    if (this.settings.dance_effects_enabled && styleProfile.drumDensity > 0.35) reverb *= 0.68;
 
     return {
       plan: enhanced,
@@ -253,7 +264,7 @@ export class MusicSession {
         warmth: this.settings.warmth_amount,
         master: this.settings.master_volume,
       },
-      bassPattern: this.intelligent.getBassPattern(),
+      bassPattern: this.settings.dance_effects_enabled ? this.intelligent.getBassPattern() : [],
     };
   }
 }

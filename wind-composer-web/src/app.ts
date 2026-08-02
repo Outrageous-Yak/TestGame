@@ -70,6 +70,7 @@ export class WindComposerApp {
     width: this.range(35),
     brightness: this.range(50),
     warmth: this.range(50),
+    danceEffects: document.createElement("input"),
     search: document.createElement("input"),
   };
 
@@ -135,6 +136,12 @@ export class WindComposerApp {
     const styleLabel = this.labelWrap("Style", this.controls.style);
     styleLabel.classList.add("style-select-wrap");
     styleWrap.append(styleLabel);
+    const danceLabel = this.h("label", "control-label dance-toggle");
+    this.controls.danceEffects.type = "checkbox";
+    this.controls.danceEffects.id = "dance-effects";
+    this.controls.danceEffects.checked = true;
+    danceLabel.append(this.controls.danceEffects, document.createTextNode(" Dance & drums (kick, snare, hats, fills)"));
+    styleWrap.append(danceLabel);
     styleRow.append(styleWrap);
     root.append(styleRow);
 
@@ -217,6 +224,7 @@ export class WindComposerApp {
         c.addEventListener("input", () => this.syncSettings());
       }
     }
+    this.controls.danceEffects.addEventListener("change", () => this.syncSettings());
   }
 
   private async onEnableAudio() {
@@ -461,6 +469,7 @@ export class WindComposerApp {
       width_amount: this.controls.width.valueAsNumber / 100,
       brightness_amount: this.controls.brightness.valueAsNumber / 100,
       warmth_amount: this.controls.warmth.valueAsNumber / 100,
+      dance_effects_enabled: this.controls.danceEffects.checked,
     };
     saveSettings(s);
     this.session.updateSettings(s);
@@ -484,6 +493,7 @@ export class WindComposerApp {
     this.controls.width.value = String(s.width_amount * 100);
     this.controls.brightness.value = String(s.brightness_amount * 100);
     this.controls.warmth.value = String(s.warmth_amount * 100);
+    this.controls.danceEffects.checked = s.dance_effects_enabled ?? true;
   }
 
   private async onSearch() {
