@@ -1307,11 +1307,30 @@ body{
 }
 .boardRowSlot{
   position: absolute;
+  display: block;
+  box-sizing: border-box;
   overflow: visible;
+  margin: 0;
+  padding: 0;
 }
 .boardRowSlot.empty{
   opacity: 0;
   pointer-events: none;
+}
+.boardRowSlot > .hex{
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+.boardRowSlot .hexAnchor,
+.boardRowSlot .hexInner{
+  width: 100%;
+  height: 100%;
+}
+.boardRowSlot .hexInner{
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 .boardGhostLayer{
   position: absolute;
@@ -1333,7 +1352,18 @@ body{
   position: absolute;
   inset: 0;
   clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
-  transform: translateY(var(--tileDepthPx, 5px));
+  transform: translateY(var(--tileDepthPx, 3px));
+  background: linear-gradient(180deg, rgba(48,54,66,.96) 0%, rgba(20,24,32,.98) 55%, rgba(12,14,20,1) 100%);
+  box-shadow: 0 3px 7px rgba(0,0,0,.38);
+  pointer-events: none;
+  z-index: 0;
+}
+.boardRowSlot .hexAnchor::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+  transform: translateY(var(--tileDepthPx, 3px));
   background: linear-gradient(180deg, rgba(48,54,66,.96) 0%, rgba(20,24,32,.98) 55%, rgba(12,14,20,1) 100%);
   box-shadow: 0 3px 7px rgba(0,0,0,.38);
   pointer-events: none;
@@ -1352,13 +1382,21 @@ body{
   pointer-events: none;
   z-index: 1;
 }
-.boardStage .hexSlot > .cardBadge.hexDeckCard,
+.boardRowSlot .hexInner::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+  background: rgba(0,0,0,var(--rowDarken, 0));
+  pointer-events: none;
+  z-index: 1;
+}
 .boardRowSlot > .cardBadge.hexDeckCard{
   width: calc(var(--slotW, 48px) * 0.55 * 3 / 4);
   height: calc(var(--slotW, 48px) * 0.55);
   border-radius: calc(var(--slotW, 48px) * 0.55 * 10 / 56);
 }
-.boardStage .hexId{
+.boardRowSlot .hexId{
   font-size: calc(var(--slotW, 48px) * 0.26);
 }
 .boardScroll.boardZooming .boardStage .hexAnchor::before{
@@ -3706,6 +3744,10 @@ export default function App() {
     );
   }
 
+  function projectedTileDepthPx(rawDepthPx: number): number {
+    return Math.min(4, Math.max(2, rawDepthPx));
+  }
+
   function renderProjectedBoard() {
     if (!projectedLayout) return null;
 
@@ -3795,12 +3837,13 @@ export default function App() {
                   const bm = isBlockedOrMissing(hex);
 
                   const slotStyle: React.CSSProperties = {
+                    position: "absolute",
                     left: tile.left,
                     top: tile.top,
                     width: tile.width,
                     height: tile.height,
                     ["--slotW" as any]: `${tile.width}px`,
-                    ["--tileDepthPx" as any]: `${row.tileDepthPx}px`,
+                    ["--tileDepthPx" as any]: `${projectedTileDepthPx(row.tileDepthPx)}px`,
                     ["--rowDarken" as any]: row.rowDarken,
                   };
 
@@ -3808,7 +3851,7 @@ export default function App() {
                     return (
                       <div
                         key={id}
-                        className="boardRowSlot hexSlot empty"
+                        className="boardRowSlot empty"
                         style={slotStyle}
                         aria-hidden="true"
                       />
@@ -3833,7 +3876,7 @@ export default function App() {
                   const tileClass = HEX_TILE ? "tile-theme" : tileArtClassName(tileVisual);
 
                   return (
-                    <div key={"pv-" + r + "-" + c} className="boardRowSlot hexSlot" style={slotStyle}>
+                    <div key={"pv-" + r + "-" + c} className="boardRowSlot" style={slotStyle}>
                       {renderHexSlotContent({
                         r,
                         c,

@@ -3,7 +3,9 @@ import { buildBoardGeometry } from "./boardGeometry";
 import { buildBoardLattice, colOffsetForSlot } from "./boardLattice";
 import {
   BOARD_PROJECT_CONFIG,
+  assertRowLayoutInvariants,
   projectBoardLayout,
+  renderedBoardBoundsFromLayout,
   rowDepthT,
   rowUniformScale,
   tileSlotAt,
@@ -167,5 +169,32 @@ describe("boardProjection (row-first)", () => {
     expect(colOffsetForSlot(0, 7)).toBe(-3);
     expect(colOffsetForSlot(0, 6)).toBe(-2.5);
     expect(colOffsetForSlot(3, 7)).toBe(0);
+  });
+
+  it("every row has exactly one unique tile center Y", () => {
+    const layout = projectBoardLayout(ROW_LENS, 390, 700);
+    for (const row of layout.rows) {
+      const centerYs = row.tiles.map((t) => t.centerY);
+      const unique = new Set(centerYs.map((y) => Math.round(y * 1000)));
+      expect(unique.size).toBe(1);
+    }
+    expect(() => assertRowLayoutInvariants(layout)).not.toThrow();
+  });
+
+  it("row center Y increases monotonically from row 0 to row 6", () => {
+    const layout = projectBoardLayout(ROW_LENS, 390, 700);
+    let prev = -Infinity;
+    for (const row of layout.rows) {
+      const rowCenterY = row.top + row.rowCenterY;
+      expect(rowCenterY).toBeGreaterThan(prev);
+      prev = rowCenterY;
+    }
+  });
+
+  it("rendered slot union matches calculated body bounds within 2px", () => {
+    const layout = projectBoardLayout(ROW_LENS, 390, 700);
+    const bounds = renderedBoardBoundsFromLayout(layout);
+    expect(Math.abs(bounds.width - layout.bodyWidth)).toBeLessThanOrEqual(2);
+    expect(Math.abs(bounds.height - layout.bodyHeight)).toBeLessThanOrEqual(2);
   });
 });

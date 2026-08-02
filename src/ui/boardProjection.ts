@@ -7,7 +7,7 @@ import { buildBoardGeometry, type BoardGeometry } from "./boardGeometry";
 import { buildBoardLattice, type BoardLattice } from "./boardLattice";
 
 /** Development-only geometry overlay (pointer-events: none). */
-export const BOARD_DEBUG_GEOMETRY = false;
+export const BOARD_DEBUG_GEOMETRY = true;
 
 export const BOARD_PROJECT_CONFIG = {
   farScale: 0.78,
@@ -288,7 +288,7 @@ export function projectBoardLayout(
     top: row.top + paddingY,
   }));
 
-  return {
+  const result: BoardScreenLayout = {
     bodyWidth: scaledBodyW,
     bodyHeight: scaledBodyH,
     stageWidth: scaledBodyW + paddingX * 2,
@@ -302,6 +302,10 @@ export function projectBoardLayout(
     lattice,
     geometry,
   };
+
+  assertRowLayoutInvariants(result);
+
+  return result;
 }
 
 export function tileSlotAt(
@@ -311,4 +315,91 @@ export function tileSlotAt(
 ): TileSlotGeometry | undefined {
   const rowGeom = layout.rows.find((r) => r.rowIndex === row);
   return rowGeom?.tiles.find((t) => t.slotCol === slotCol);
+}
+
+/** Development invariant checks for row-first layout geometry. */
+export function assertRowLayoutInvariants(layout: BoardScreenLayout): void {
+  let prevRowCenterY = -Infinity;
+
+  for (const row of layout.rows) {
+    const rowScreenCenterX = row.left + row.width / 2;
+    if (Math.abs(rowScreenCenterX - layout.boardCenterX) > 0.5) {
+      throw new Error(`Row ${row.rowIndex} center X drifted off board axis`);
+    }
+
+    const centerYs = row.tiles.map((t) => t.centerY);
+    const roundedYs = new Set(centerYs.map((y) => Math.round(y * 1000) / 1000));
+    if (roundedYs.size !== 1) {
+      throw new Error(
+        `Row ${row.rowIndex} has ${roundedYs.size} tile center Y values: ${[...roundedYs].join(", ")}`
+      );
+    }
+
+    for (const tile of row.tiles) {
+      const expectedTop = row.tiles[0].centerY - tile.height / 2;
+      if (Math.abs(tile.top - expectedTop) > 0.01) {
+        throw new Error(
+          `Row ${row.rowIndex} slot ${tile.slotCol} top ${tile.top} != expected row-local ${expectedTop}`
+        );
+      }
+    }
+
+    const rowCenterY = row.top + row.rowCenterY;
+    if (rowCenterY <= prevRowCenterY) {
+      throw new Error(`Row ${row.rowIndex} center Y is not below previous row`);
+    }
+    prevRowCenterY = rowCenterY;
+  }
+
+  const row0 = layout.rows[0];
+  const row1 = layout.rows[1];
+  if (row0 && row1) {
+    const sevenX = row0.left + row0.tiles[0].centerX;
+    const sixX = row1.left + row1.tiles[0].centerX;
+    const expected = Math.abs(-3 * row0.localPitchX + 2.5 * row1.localPitchX);
+    if (Math.abs(Math.abs(sevenX - sixX) - expected) > 0.5) {
+      throw new Error("7/6 half-step stagger invariant failed");
+    }
+  }
+}
+
+export function renderedBoardBoundsFromLayout(layout: BoardScreenLayout): {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  width: number;
+  height: number;
+} {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const row of layout.rows) {
+    const rowLeft = row.left - layout.paddingX;
+    const rowTop = row.top - layout.paddingY;
+    minX = Math.min(minX, rowLeft);
+    minY = Math.min(minY, rowTop);
+    maxX = Math.max(maxX, rowLeft + row.width);
+    maxY = Math.max(maxY, rowTop + row.height + row.tileDepthPx);
+
+    for (const tile of row.tiles) {
+      const left = rowLeft + tile.left;
+      const top = rowTop + tile.top;
+      minX = Math.min(minX, left);
+      minY = Math.min(minY, top);
+      maxX = Math.max(maxX, left + tile.width);
+      maxY = Math.max(maxY, top + tile.height);
+    }
+  }
+
+  return {
+    minX,
+    minY,
+    maxX,
+    maxY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
 }
