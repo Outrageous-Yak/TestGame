@@ -7,8 +7,10 @@ import {
   AUDIO_QUALITY_LEVELS, KEYS, MODE_PROFILES, SOUNDSCAPE_PRESETS,
 } from "./config";
 import { MusicSession } from "./music/musicSession";
-import { loadSettings, saveSettings, StationStore } from "./storage";
-import type { AppSettings } from "./types";
+import {
+  loadFavourites, loadSettings, saveFavourites, saveSettings, StationStore,
+} from "./storage";
+import type { AppSettings, GeoLocation } from "./types";
 import { searchLocations } from "./weather/openMeteo";
 
 const INPUTS = ["Microphone", "Live Weather", "Both"];
@@ -38,6 +40,7 @@ export class WindComposerApp {
     canvas: document.createElement("canvas"),
     stationList: document.createElement("div"),
     searchResults: document.createElement("div"),
+    favouritesList: document.createElement("div"),
     livePanel: document.createElement("div"),
     mapContainer: document.createElement("div"),
     micDenied: document.createElement("div"),
@@ -70,6 +73,7 @@ export class WindComposerApp {
     this.buildLayout(root);
     this.applySettingsToControls(loadSettings());
     this.registerServiceWorker();
+    this.refreshFavouritesUI();
     this.showTab("Compose");
   }
 
@@ -149,10 +153,12 @@ export class WindComposerApp {
     weather.dataset.tab = "Weather";
     this.controls.search.placeholder = "Search location…";
     this.controls.search.className = "search-input";
+    this.el.favouritesList.className = "favourites-panel";
     weather.append(
       this.controls.search,
       this.btn("Search", () => this.onSearch()),
       this.el.searchResults,
+      this.el.favouritesList,
       this.el.livePanel,
       this.el.stationList,
     );
@@ -324,19 +330,59 @@ export class WindComposerApp {
       const results = await searchLocations(q);
       this.el.searchResults.innerHTML = "";
       for (const loc of results) {
+        const row = this.h("div", "result-row");
         const b = this.btn(`${loc.name}, ${loc.country}`, () => {
           this.stations.add(loc);
           this.stations.refreshAll().then(() => this.refreshStationUI());
         });
         b.className = "result-btn";
-        this.el.searchResults.append(b);
+        const fav = this.btn("♥", () => this.addFavourite(loc));
+        fav.className = "fav-btn";
+        fav.title = "Save favourite";
+        row.append(b, fav);
+        this.el.searchResults.append(row);
       }
     } catch (e) {
       alert(String(e));
     }
   }
 
+  private refreshFavouritesUI() {
+    this.el.favouritesList.innerHTML = "<h3>Favourites</h3>";
+    for (const fav of loadFavourites()) {
+      const row = this.h("div", "station-row");
+      row.append(
+        document.createTextNode(fav.label),
+        this.btn("Load", () => {
+          this.stations.add(fav.location);
+          this.stations.refreshAll().then(() => this.refreshStationUI());
+        }),
+        this.btn("✕", () => {
+          const next = loadFavourites().filter((f) => f.id !== fav.id);
+          saveFavourites(next);
+          this.refreshFavouritesUI();
+        }),
+      );
+      this.el.favouritesList.append(row);
+    }
+  }
+
+  private addFavourite(location: GeoLocation) {
+    const defaultLabel = location.name + (location.country ? `, ${location.country}` : "");
+    const label = window.prompt("Favourite name", defaultLabel);
+    if (!label?.trim()) return;
+    const favs = loadFavourites();
+    favs.push({
+      id: `fav-${Date.now()}`,
+      label: label.trim(),
+      location,
+    });
+    saveFavourites(favs);
+    this.refreshFavouritesUI();
+  }
+
   private refreshStationUI() {
+    this.el.stationList.className = "station-list";
     this.el.stationList.innerHTML = "<h3>Stations</h3>";
     const markers: { lat: number; lon: number; label: string }[] = [];
     for (const s of this.stations.list()) {
@@ -352,6 +398,7 @@ export class WindComposerApp {
       row.append(
         document.createTextNode(s.display_name),
         mix,
+        this.btn("♥", () => this.addFavourite(s.location)),
         this.btn("✕", () => {
           this.stations.remove(s.id);
           this.refreshStationUI();

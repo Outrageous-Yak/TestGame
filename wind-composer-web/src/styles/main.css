@@ -170,9 +170,33 @@ input[type="range"] {
   color: var(--text);
 }
 
+.result-row {
+  display: flex;
+  gap: 4px;
+  align-items: stretch;
+}
+
 .result-btn {
-  width: 100%;
+  flex: 1;
   text-align: left;
+}
+
+.fav-btn {
+  min-width: var(--touch);
+  padding: 8px 12px;
+}
+
+.favourites-panel {
+  margin: 12px 0;
+  padding-top: 8px;
+  border-top: 1px solid #2a3545;
+}
+
+.favourites-panel h3,
+.station-list h3 {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0 0 8px;
 }
 
 .mic-denied {
