@@ -44,12 +44,14 @@ export function rowAtmosphere(depth: number): {
   };
 }
 
-/** Overlay strength for far rows (applied to tile face pseudo, not overlays). */
-export function rowFaceOverlay(depth: number): { darken: number; faceOpacity: number } {
+/** Overlay strength for far rows (tile-face pseudo only; overlays stay unaffected). */
+export function rowFaceOverlay(depth: number): { darken: number } {
   const atm = rowAtmosphere(depth);
   return {
-    darken: (1 - atm.brightness) * 0.4,
-    faceOpacity: atm.opacity,
+    darken:
+      (1 - atm.brightness) * 0.38 +
+      (1 - atm.contrast) * 0.12 +
+      (1 - atm.opacity) * 0.22,
   };
 }
 
@@ -62,7 +64,6 @@ export type RowPerspectiveVars = {
   rowArcPx: number;
   rowZ: number;
   rowDarken: number;
-  rowFaceOpacity: number;
 };
 
 export function rowPerspectiveVars(rowIndex: number, rowCount: number): RowPerspectiveVars {
@@ -73,6 +74,5 @@ export function rowPerspectiveVars(rowIndex: number, rowCount: number): RowPersp
     rowArcPx: rowArcOffsetPx(depth),
     rowZ: rowZIndex(rowIndex),
     rowDarken: overlay.darken,
-    rowFaceOpacity: overlay.faceOpacity,
   };
 }
