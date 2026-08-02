@@ -543,8 +543,7 @@ body{
 
 .boardLayerBg{
   position:absolute; inset:0;
-  background-size: cover;
-  background-position: center;
+  background: #000;
   opacity: 1;
   transform: scale(1.02);
   animation: bgFadeIn 220ms ease;
@@ -552,7 +551,7 @@ body{
 }
 @keyframes bgFadeIn{
   from{ opacity: 0; }
-  to{ opacity: .45; }
+  to{ opacity: 1; }
 }
 
 .boardScroll{
@@ -731,6 +730,16 @@ body{
 /* =========================================================
    REACHABLE HEX HIGHLIGHT (sequential layer-color pulse)
 ========================================================= */
+.hex.reachPulse.reachPulseCard .hexInner::before{
+  content:"";
+  position:absolute;
+  inset: 0;
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+  background: rgba(255,255,255,.22);
+  pointer-events:none;
+  z-index: 12;
+}
+
 .hex.reachPulse .hexInner::after{
   content:"";
   position:absolute;

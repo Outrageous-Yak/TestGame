@@ -1186,13 +1186,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
             <SideBar side="top" currentLayer={currentLayer} />
             <SideBar side="left" currentLayer={currentLayer} />
 
-            <div
-              key={currentLayer}
-              className="boardLayerBg"
-              style={{
-                backgroundImage: BOARD_LAYER_ ? "url(" + toPublicUrl(BOARD_LAYER_) + ")" : undefined,
-              }}
-            />
+            <div key={currentLayer} className="boardLayerBg" />
 
             {isMobile ? null : <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />}
 
@@ -1239,11 +1233,12 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
                         const isSel = selectedId === id;
                         const isPlayer = playerId === id;
                         const isStart = startHexId === id;
-
-                        const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
-                        const isReachPulse = isReach && reachPulseId === id;
+                        const showStartPortal = isStart && movesTaken === 0;
 
                         const cardHere = findCardTriggerAt(id);
+                        const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
+                        const isReachPulse = isReach && reachPulseId === id;
+                        const isReachPulseCard = isReachPulse && !!cardHere;
                         const isGoal = goalId === id;
                         const isTrigger = !!findTriggerForHex(id);
 
@@ -1251,7 +1246,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
                           revealed: !!hex?.revealed,
                           blocked: bm.blocked,
                           isGoal,
-                          isStart,
+                          isStart: showStartPortal,
                           isPortalUp,
                           isPortalDown,
                         });
@@ -1271,11 +1266,12 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
                                 "hex",
                                 isSel ? "sel" : "",
                                 isReachPulse ? "reachPulse" : "",
+                                isReachPulseCard ? "reachPulseCard" : "",
                                 bm.blocked ? "blocked" : "",
                                 isPlayer ? "player" : "",
                                 isGoal ? "goal" : "",
                                 isTrigger ? "trigger" : "",
-                                isStart ? "portalStart" : "",
+                                showStartPortal ? "portalStart" : "",
                                 isPortalUp ? "portalUp" : "",
                                 isPortalDown ? "portalDown" : "",
                               ].join(" ")}
@@ -1312,7 +1308,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
                                       <div className="pOval" />
                                     </div>
                                   ) : null}
-                                  {isStart ? (
+                                  {showStartPortal ? (
                                     <div className="portalFx">
                                       <div className="pAura" />
                                       <div className="pRunes" />
