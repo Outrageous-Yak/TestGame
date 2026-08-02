@@ -29,7 +29,11 @@ import {
   isOld25DMode,
   isProjectedMode,
 } from "./boardRenderMode";
-import { layoutTileAt, projectBoardLayout, type ProjectedBoardLayout } from "./boardProjection";
+import {
+  BOARD_DEBUG_GEOMETRY,
+  projectBoardLayout,
+  type BoardScreenLayout,
+} from "./boardProjection";
 
 function hexRowPerspectiveStyle(rowIndex: number): React.CSSProperties | undefined {
   if (!isOld25DMode()) return undefined;
@@ -1281,41 +1285,50 @@ body{
 }
 
 /* =========================================================
-   PROJECTED BOARD (coordinate projection; no CSS grid)
+   PROJECTED BOARD (row-first; no CSS 3D / no tile-by-tile layout)
 ========================================================= */
 .board.projectedBoard{
   width: auto;
   height: auto;
   padding: 0;
 }
-.projectedBoardStage{
+.boardStage{
   position: relative;
   margin: 0 auto;
 }
-.projectedGhostLayer{
+.boardBody{
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.boardRow{
+  position: absolute;
+  overflow: visible;
+}
+.boardRowSlot{
+  position: absolute;
+  overflow: visible;
+}
+.boardRowSlot.empty{
+  opacity: 0;
+  pointer-events: none;
+}
+.boardGhostLayer{
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 1;
   opacity: 0.35;
 }
-.projectedHexSlot{
-  position: absolute;
-  overflow: visible;
-}
-.projectedHexSlot.empty{
-  opacity: 0;
-  pointer-events: none;
-}
-.projectedBoardStage .hex{
+.boardStage .hex{
   width: 100%;
   height: 100%;
   margin: 0;
 }
-.projectedBoardStage .hexAnchor{
+.boardStage .hexAnchor{
   position: relative;
 }
-.projectedBoardStage .hexAnchor::before{
+.boardStage .hexAnchor::before{
   content: "";
   position: absolute;
   inset: 0;
@@ -1326,11 +1339,11 @@ body{
   pointer-events: none;
   z-index: 0;
 }
-.projectedBoardStage .hexInner{
+.boardStage .hexInner{
   position: relative;
   z-index: 2;
 }
-.projectedBoardStage .hexInner::before{
+.boardStage .hexInner::before{
   content: "";
   position: absolute;
   inset: 0;
@@ -1339,17 +1352,66 @@ body{
   pointer-events: none;
   z-index: 1;
 }
-.projectedBoardStage .hexSlot > .cardBadge.hexDeckCard,
-.projectedHexSlot > .cardBadge.hexDeckCard{
+.boardStage .hexSlot > .cardBadge.hexDeckCard,
+.boardRowSlot > .cardBadge.hexDeckCard{
   width: calc(var(--slotW, 48px) * 0.55 * 3 / 4);
   height: calc(var(--slotW, 48px) * 0.55);
   border-radius: calc(var(--slotW, 48px) * 0.55 * 10 / 56);
 }
-.projectedBoardStage .hexId{
+.boardStage .hexId{
   font-size: calc(var(--slotW, 48px) * 0.26);
 }
-.boardScroll.boardZooming .projectedBoardStage .hexAnchor::before{
+.boardScroll.boardZooming .boardStage .hexAnchor::before{
   box-shadow: none;
+}
+.boardGeomDebug{
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: visible;
+}
+.boardGeomDebugBounds{
+  position: absolute;
+  border: 2px solid rgba(0, 220, 255, 0.85);
+  box-sizing: border-box;
+}
+.boardGeomDebugAxis{
+  position: absolute;
+  width: 1px;
+  background: rgba(255, 80, 120, 0.9);
+}
+.boardGeomDebugRowBounds{
+  position: absolute;
+  border: 1px dashed rgba(120, 255, 120, 0.85);
+  box-sizing: border-box;
+}
+.boardGeomDebugRowCenter{
+  position: absolute;
+  height: 1px;
+  background: rgba(255, 200, 60, 0.9);
+}
+.boardGeomDebugRowLabel{
+  position: absolute;
+  font: 10px/1 monospace;
+  color: rgba(255, 220, 80, 0.95);
+  text-shadow: 0 1px 2px rgba(0,0,0,.8);
+}
+.boardGeomDebugLattice{
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: rgba(180, 120, 255, 0.95);
+}
+.boardGeomDebugTileCenter{
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .hexRow{
@@ -3363,7 +3425,7 @@ export default function App() {
     return injected as any;
   }, [state, scenarioLayerCount, getLayerMoves]);
 
-  const projectedLayout = useMemo((): ProjectedBoardLayout | null => {
+  const projectedLayout = useMemo((): BoardScreenLayout | null => {
     if (!isProjectedMode()) return null;
     const { w, h } = boardViewportSize;
     if (w < 1 || h < 1) return null;
@@ -3563,119 +3625,241 @@ export default function App() {
     );
   }
 
+  function renderBoardGeometryDebug(layout: BoardScreenLayout) {
+    if (!BOARD_DEBUG_GEOMETRY) return null;
+
+    const bodyLeft = layout.paddingX;
+    const bodyTop = layout.paddingY;
+
+    return (
+      <div className="boardGeomDebug" aria-hidden="true">
+        <div
+          className="boardGeomDebugBounds"
+          style={{
+            left: bodyLeft,
+            top: bodyTop,
+            width: layout.bodyWidth,
+            height: layout.bodyHeight,
+          }}
+        />
+        <div
+          className="boardGeomDebugAxis"
+          style={{
+            left: layout.boardCenterX,
+            top: bodyTop,
+            height: layout.bodyHeight,
+          }}
+        />
+        {layout.lattice.slots.map((slot) => {
+          const rowGeom = layout.rows[slot.row];
+          const tile = rowGeom?.tiles.find((t) => t.slotCol === slot.slotCol);
+          if (!rowGeom || !tile) return null;
+          return (
+            <div
+              key={"lat-" + slot.row + "-" + slot.slotCol}
+              className="boardGeomDebugLattice"
+              style={{
+                left: rowGeom.left + tile.centerX,
+                top: rowGeom.top + tile.centerY,
+              }}
+            />
+          );
+        })}
+        {layout.rows.map((row) => (
+          <React.Fragment key={"dbg-row-" + row.rowIndex}>
+            <div
+              className="boardGeomDebugRowBounds"
+              style={{
+                left: row.left,
+                top: row.top,
+                width: row.width,
+                height: row.height,
+              }}
+            />
+            <div
+              className="boardGeomDebugRowCenter"
+              style={{
+                left: row.left,
+                top: row.top + row.rowCenterY,
+                width: row.width,
+              }}
+            />
+            <div
+              className="boardGeomDebugRowLabel"
+              style={{ left: row.left + 2, top: row.top + 2 }}
+            >
+              R{row.rowIndex}
+            </div>
+            {row.tiles.map((tile) => (
+              <div
+                key={"tc-" + row.rowIndex + "-" + tile.slotCol}
+                className="boardGeomDebugTileCenter"
+                style={{
+                  left: row.left + tile.centerX,
+                  top: row.top + tile.centerY,
+                }}
+              />
+            ))}
+          </React.Fragment>
+        ))}
+      </div>
+    );
+  }
+
   function renderProjectedBoard() {
     if (!projectedLayout) return null;
 
+    const layout = projectedLayout;
+
     return (
       <div
-        className="projectedBoardStage"
-        style={{ width: projectedLayout.stageWidth, height: projectedLayout.stageHeight }}
+        className="boardStage"
+        style={{ width: layout.stageWidth, height: layout.stageHeight }}
       >
-        {showGhost ? (
-          <div className="projectedGhostLayer" aria-hidden="true">
-            {projectedLayout.tiles.map((rect) => (
-              <div
-                key={"pg-" + rect.row + "-" + rect.slotCol}
-                className="ghostSlot"
-                style={{
-                  position: "absolute",
-                  left: rect.left,
-                  top: rect.top,
-                  width: rect.width,
-                  height: rect.height,
-                }}
-              >
-                <div className="ghostHex" style={{ width: "100%", height: "100%" }} />
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        {layerFx ? (
-          <div key={layerFx.key} className="layerFxOverlay" style={layerFxStyle} aria-live="polite">
-            <div className="layerFxCard">
-              <div className="layerFxTitle">Layer {layerFx.layer}</div>
-            </div>
-          </div>
-        ) : null}
-
-        {rows.map((r) => {
-          const cols = ROW_LENS[r] ?? 0;
-          const shiftWrapped = resolveShiftWrapped(r, cols);
-          return Array.from({ length: cols }, (_, c) => {
-            const rect = layoutTileAt(projectedLayout, r, c);
-            if (!rect) return null;
-            const id = idAtSlot(currentLayer, r, c, shiftWrapped);
-            const tr = portalTransitionAt(viewState as any, id);
-            const isPortalUp = tr?.type === "UP";
-            const isPortalDown = tr?.type === "DOWN";
-            const portalTargetLayer = tr?.to?.layer ?? null;
-            const portalColor = portalTargetLayer ? layerCssVar(portalTargetLayer) : null;
-            const hex = getHexFromState(viewState as any, id) as any;
-            const bm = isBlockedOrMissing(hex);
-
-            const slotStyle: React.CSSProperties = {
-              left: rect.left,
-              top: rect.top,
-              width: rect.width,
-              height: rect.height,
-              zIndex: rect.zIndex,
-              ["--slotW" as any]: `${rect.width}px`,
-              ["--tileDepthPx" as any]: `${rect.tileDepth}px`,
-              ["--rowDarken" as any]: rect.rowDarken,
-            };
-
-            if (bm.missing) {
-              return (
+        <div
+          className="boardBody"
+          style={{
+            left: layout.paddingX,
+            top: layout.paddingY,
+            width: layout.bodyWidth,
+            height: layout.bodyHeight,
+          }}
+        >
+          {showGhost ? (
+            <div className="boardGhostLayer" aria-hidden="true">
+              {layout.rows.map((row) => (
                 <div
-                  key={id}
-                  className="projectedHexSlot empty"
-                  style={slotStyle}
-                  aria-hidden="true"
-                />
-              );
-            }
+                  key={"pg-row-" + row.rowIndex}
+                  className="boardRow"
+                  style={{
+                    left: row.left - layout.paddingX,
+                    top: row.top - layout.paddingY,
+                    width: row.width,
+                    height: row.height,
+                  }}
+                >
+                  {row.tiles.map((tile) => (
+                    <div
+                      key={"pg-" + row.rowIndex + "-" + tile.slotCol}
+                      className="ghostSlot"
+                      style={{
+                        position: "absolute",
+                        left: tile.left,
+                        top: tile.top,
+                        width: tile.width,
+                        height: tile.height,
+                      }}
+                    >
+                      <div className="ghostHex" style={{ width: "100%", height: "100%" }} />
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ) : null}
 
-            const isSel = selectedId === id;
-            const isPlayer = playerId === id;
-            const isStart = startHexId === id;
-            const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
-            const cardHere = findCardTriggerAt(id);
-            const isGoal = goalId === id;
-            const isTrigger = !!findTriggerForHex(id);
-            const tileVisual = resolveTileVisualType({
-              revealed: !!hex?.revealed,
-              blocked: bm.blocked,
-              isGoal,
-              isStart,
-              isPortalUp,
-              isPortalDown,
-            });
-            const tileClass = HEX_TILE ? "tile-theme" : tileArtClassName(tileVisual);
+          {layerFx ? (
+            <div key={layerFx.key} className="layerFxOverlay" style={layerFxStyle} aria-live="polite">
+              <div className="layerFxCard">
+                <div className="layerFxTitle">Layer {layerFx.layer}</div>
+              </div>
+            </div>
+          ) : null}
+
+          {layout.rows.map((row) => {
+            const cols = ROW_LENS[row.rowIndex] ?? 0;
+            const shiftWrapped = resolveShiftWrapped(row.rowIndex, cols);
 
             return (
-              <div key={"pv-" + r + "-" + c} className="projectedHexSlot hexSlot" style={slotStyle}>
-                {renderHexSlotContent({
-                  r,
-                  c,
-                  id,
-                  bm,
-                  isSel,
-                  isPlayer,
-                  isStart,
-                  isReach,
-                  cardHere,
-                  isGoal,
-                  isTrigger,
-                  isPortalUp,
-                  isPortalDown,
-                  tileClass,
-                  portalColor,
+              <div
+                key={"board-row-" + row.rowIndex}
+                className="boardRow"
+                style={{
+                  left: row.left - layout.paddingX,
+                  top: row.top - layout.paddingY,
+                  width: row.width,
+                  height: row.height,
+                  zIndex: row.zIndex,
+                }}
+              >
+                {row.tiles.map((tile) => {
+                  const c = tile.slotCol;
+                  const r = row.rowIndex;
+                  const id = idAtSlot(currentLayer, r, c, shiftWrapped);
+                  const tr = portalTransitionAt(viewState as any, id);
+                  const isPortalUp = tr?.type === "UP";
+                  const isPortalDown = tr?.type === "DOWN";
+                  const portalTargetLayer = tr?.to?.layer ?? null;
+                  const portalColor = portalTargetLayer ? layerCssVar(portalTargetLayer) : null;
+                  const hex = getHexFromState(viewState as any, id) as any;
+                  const bm = isBlockedOrMissing(hex);
+
+                  const slotStyle: React.CSSProperties = {
+                    left: tile.left,
+                    top: tile.top,
+                    width: tile.width,
+                    height: tile.height,
+                    ["--slotW" as any]: `${tile.width}px`,
+                    ["--tileDepthPx" as any]: `${row.tileDepthPx}px`,
+                    ["--rowDarken" as any]: row.rowDarken,
+                  };
+
+                  if (bm.missing) {
+                    return (
+                      <div
+                        key={id}
+                        className="boardRowSlot hexSlot empty"
+                        style={slotStyle}
+                        aria-hidden="true"
+                      />
+                    );
+                  }
+
+                  const isSel = selectedId === id;
+                  const isPlayer = playerId === id;
+                  const isStart = startHexId === id;
+                  const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
+                  const cardHere = findCardTriggerAt(id);
+                  const isGoal = goalId === id;
+                  const isTrigger = !!findTriggerForHex(id);
+                  const tileVisual = resolveTileVisualType({
+                    revealed: !!hex?.revealed,
+                    blocked: bm.blocked,
+                    isGoal,
+                    isStart,
+                    isPortalUp,
+                    isPortalDown,
+                  });
+                  const tileClass = HEX_TILE ? "tile-theme" : tileArtClassName(tileVisual);
+
+                  return (
+                    <div key={"pv-" + r + "-" + c} className="boardRowSlot hexSlot" style={slotStyle}>
+                      {renderHexSlotContent({
+                        r,
+                        c,
+                        id,
+                        bm,
+                        isSel,
+                        isPlayer,
+                        isStart,
+                        isReach,
+                        cardHere,
+                        isGoal,
+                        isTrigger,
+                        isPortalUp,
+                        isPortalDown,
+                        tileClass,
+                        portalColor,
+                      })}
+                    </div>
+                  );
                 })}
               </div>
             );
-          });
-        })}
+          })}
+        </div>
+
+        {renderBoardGeometryDebug(layout)}
       </div>
     );
   }
