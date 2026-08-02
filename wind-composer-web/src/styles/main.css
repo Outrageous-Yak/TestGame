@@ -48,6 +48,11 @@ body {
   flex: 1;
 }
 
+.app-header span:last-child {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .peak-warn {
   color: var(--warn);
 }

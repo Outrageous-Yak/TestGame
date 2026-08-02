@@ -708,14 +708,6 @@ export class WindComposerApp {
     }
   }
 
-  private escapeHtml(text: string): string {
-    return text
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  }
-
   private registerServiceWorker() {
     if ("serviceWorker" in navigator) {
       const base = import.meta.env.BASE_URL;
