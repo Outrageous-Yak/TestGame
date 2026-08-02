@@ -30,6 +30,7 @@ import {
   getHexFromState,
   isBlockedOrMissing,
   layerCssVar,
+  reachPulseGlow,
   nowHHMM,
   findGoalId,
   findFirstPlayableHexId,
@@ -1290,7 +1291,9 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
                               disabled={!state || bm.blocked || bm.missing || encounterActive || layerFx !== null}
                               style={
                                 {
-                                  ["--hexGlow" as any]: layerCssVar(currentLayer),
+                                  ["--hexGlow" as any]: isReachPulse
+                                    ? reachPulseGlow(currentLayer, cardHere)
+                                    : layerCssVar(currentLayer),
                                   ...(portalColor ? { ["--portalC" as any]: portalColor } : {}),
                                 } as any
                               }
