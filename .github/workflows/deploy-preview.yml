@@ -1,0 +1,78 @@
+# Deploy a feature branch to a subpath on GitHub Pages (no merge to main).
+# Run manually from main: Actions → Deploy Preview → Run workflow → preview_branch.
+name: Deploy Preview (branch subpath)
+
+on:
+  workflow_dispatch:
+    inputs:
+      preview_branch:
+        description: 'Branch to build and deploy under /preview/<slug>/'
+        required: true
+        default: 'cursor/board-perspective-2_5d-a5c5'
+        type: string
+      preview_slug:
+        description: 'URL slug (https://…/TestGame/preview/<slug>/)'
+        required: true
+        default: '2_5d'
+        type: string
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-preview
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout main (production bundle)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install and build production
+        run: |
+          npm ci
+          npm run build
+
+      - name: Checkout preview branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.preview_branch }}
+          path: preview-src
+
+      - name: Build preview at subpath
+        working-directory: preview-src
+        run: |
+          npm ci
+          npm run build -- --base /TestGame/preview/${{ inputs.preview_slug }}/
+
+      - name: Merge site bundles
+        run: |
+          mkdir -p dist/preview/${{ inputs.preview_slug }}
+          cp -r preview-src/dist/* dist/preview/${{ inputs.preview_slug }}/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
