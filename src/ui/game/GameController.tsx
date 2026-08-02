@@ -94,37 +94,6 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
 
 
   /* =========================
-     Layer flash overlay
-  ========================= */
-  const [layerFx, setLayerFx] = useState<null | { key: number; layer: number }>(null);
-  const layerFxTimerRef = useRef<number | null>(null);
-
-  const triggerLayerFx = useCallback((layer: number) => {
-    if (layerFxTimerRef.current) window.clearTimeout(layerFxTimerRef.current);
-
-    const key = Date.now();
-    setLayerFx({ key, layer });
-
-    layerFxTimerRef.current = window.setTimeout(() => {
-      setLayerFx(null);
-      layerFxTimerRef.current = null;
-    }, 3000);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (layerFxTimerRef.current) window.clearTimeout(layerFxTimerRef.current);
-    };
-  }, []);
-
-  const layerFxStyle = useMemo(() => {
-    if (!layerFx) return {} as React.CSSProperties;
-    return {
-      ["--layerFxColor" as any]: layerCssVar(layerFx.layer),
-    } as React.CSSProperties;
-  }, [layerFx]);
-
-  /* =========================
      Player id / coord
   ========================= */
   const playerId = useMemo(() => {
@@ -1053,10 +1022,6 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
       const landedCoord = idToCoord(landedId);
       const finalLayer = landedCoord?.layer ?? fromLayer;
 
-      if (finalLayer && fromLayer && finalLayer !== fromLayer) {
-        triggerLayerFx(finalLayer);
-      }
-
       if (moved) {
         setIsWalking(true);
         if (walkTimer.current) window.clearTimeout(walkTimer.current);
@@ -1098,7 +1063,6 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
       computeOptimalMoves,
       recordWin,
       findTriggerForHex,
-      triggerLayerFx,
       findCardTriggerAt,
       triggerCardFlyout,
     ]
@@ -1118,7 +1082,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
             <button
               key={it.id}
               className={"itemBtn " + (it.charges <= 0 ? "off" : "")}
-              disabled={it.charges <= 0 || !state || (encounterActive && it.id !== "reroll") || layerFx !== null}
+              disabled={it.charges <= 0 || !state || (encounterActive && it.id !== "reroll")}
               onClick={() => useItem(it.id)}
               title={it.name + " (" + it.charges + ")"}
             >
@@ -1129,13 +1093,13 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
           ))}
         </div>
 
-        <button className="btn" disabled={!state || layerFx !== null} onClick={() => setShowGhost((v) => !v)}>
+        <button className="btn" disabled={!state} onClick={() => setShowGhost((v) => !v)}>
           {showGhost ? "Hide Ghost" : "Show Ghost"}
         </button>
 
         <button
           className="btn"
-          disabled={!state || !canGoDown || encounterActive || layerFx !== null}
+          disabled={!state || !canGoDown || encounterActive}
           onClick={() => {
             if (!state) return;
             const next = Math.max(1, currentLayer - 1);
@@ -1147,7 +1111,6 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
 
             forceRender((n) => n + 1);
             pushLog("Layer " + next, "info");
-            triggerLayerFx(next);
           }}
         >
           − Layer
@@ -1155,7 +1118,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
 
         <button
           className="btn"
-          disabled={!state || !canGoUp || encounterActive || layerFx !== null}
+          disabled={!state || !canGoUp || encounterActive}
           onClick={() => {
             if (!state) return;
             const next = Math.min(scenarioLayerCount, currentLayer + 1);
@@ -1167,7 +1130,6 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
 
             forceRender((n) => n + 1);
             pushLog("Layer " + next, "info");
-            triggerLayerFx(next);
           }}
         >
           + Layer
@@ -1200,14 +1162,6 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
             <div className="board" ref={boardRef}>
               <div className="hexGrid">
                 {showGhost ? <GhostGrid layer={currentLayer} /> : null}
-
-                {layerFx ? (
-                  <div key={layerFx.key} className="layerFxOverlay" style={layerFxStyle} aria-live="polite">
-                    <div className="layerFxCard">
-                      <div className="layerFxTitle">Layer {layerFx.layer}</div>
-                    </div>
-                  </div>
-                ) : null}
 
                 {/* REAL HEX BOARD */}
                 {rows.map((r) => {
@@ -1282,7 +1236,6 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
                                 isPortalDown ? "portalDown" : "",
                               ].join(" ")}
                               onClick={() => {
-                                if (layerFx !== null) return;
                                 if (playerLayer && currentLayer !== playerLayer) {
                                   tryMoveToId(id);
                                   return;
@@ -1290,7 +1243,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
                                 setSelectedId(id);
                                 tryMoveToId(id);
                               }}
-                              disabled={!state || bm.blocked || bm.missing || encounterActive || layerFx !== null}
+                              disabled={!state || bm.blocked || bm.missing || encounterActive}
                               style={
                                 {
                                   ["--hexGlow" as any]: isReachPulse
