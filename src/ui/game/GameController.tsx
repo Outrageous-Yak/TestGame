@@ -1236,7 +1236,16 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
                         } as React.CSSProperties;
 
                         return (
-                          <div key={"v-" + r + "-" + c} className="hexSlot" style={cellStyle}>
+                          <div
+                            key={"v-" + r + "-" + c}
+                            className={["hexSlot", isReach ? "reachSlot" : ""].filter(Boolean).join(" ")}
+                            style={{
+                              ...cellStyle,
+                              ...(isReach
+                                ? ({ ["--hexGlow" as any]: layerCssVar(currentLayer) } as React.CSSProperties)
+                                : {}),
+                            }}
+                          >
                             <button
                               ref={isPlayer ? playerBtnRef : undefined}
                               className={[
