@@ -1,0 +1,864 @@
+{
+  "id": "prism_path_bm15",
+  "name": "Brain Melter III — Crux",
+  "layers": 7,
+  "objective": "Reach the goal hex.",
+  "description": "Same rim maze, goal on layer 4 southeast. Three villains.",
+  "notes": [
+    "Longer than Melter I–II.",
+    "Layers 2 & 4 shift."
+  ],
+  "villains": {
+    "requiredRoll": 6,
+    "triggers": [
+      {
+        "id": "bm15a",
+        "layer": 1,
+        "row": 0,
+        "col": 4
+      },
+      {
+        "id": "bm15b",
+        "layer": 2,
+        "row": 6,
+        "col": 3
+      },
+      {
+        "id": "bm15c",
+        "layer": 3,
+        "row": 1,
+        "col": 5
+      }
+    ]
+  },
+  "cardTriggers": [],
+  "start": {
+    "layer": 1,
+    "row": 6,
+    "col": 6
+  },
+  "goal": {
+    "layer": 4,
+    "row": 6,
+    "col": 6
+  },
+  "missing": [
+    {
+      "layer": 1,
+      "row": 1,
+      "col": 1
+    },
+    {
+      "layer": 1,
+      "row": 1,
+      "col": 2
+    },
+    {
+      "layer": 1,
+      "row": 1,
+      "col": 3
+    },
+    {
+      "layer": 1,
+      "row": 1,
+      "col": 4
+    },
+    {
+      "layer": 1,
+      "row": 1,
+      "col": 5
+    },
+    {
+      "layer": 1,
+      "row": 3,
+      "col": 0
+    },
+    {
+      "layer": 1,
+      "row": 3,
+      "col": 1
+    },
+    {
+      "layer": 1,
+      "row": 3,
+      "col": 2
+    },
+    {
+      "layer": 1,
+      "row": 3,
+      "col": 3
+    },
+    {
+      "layer": 1,
+      "row": 3,
+      "col": 4
+    },
+    {
+      "layer": 1,
+      "row": 5,
+      "col": 1
+    },
+    {
+      "layer": 1,
+      "row": 5,
+      "col": 2
+    },
+    {
+      "layer": 1,
+      "row": 5,
+      "col": 3
+    },
+    {
+      "layer": 1,
+      "row": 5,
+      "col": 4
+    },
+    {
+      "layer": 1,
+      "row": 5,
+      "col": 5
+    },
+    {
+      "layer": 5,
+      "row": 0,
+      "col": 0
+    },
+    {
+      "layer": 5,
+      "row": 0,
+      "col": 1
+    },
+    {
+      "layer": 5,
+      "row": 0,
+      "col": 2
+    },
+    {
+      "layer": 5,
+      "row": 0,
+      "col": 3
+    },
+    {
+      "layer": 5,
+      "row": 0,
+      "col": 4
+    },
+    {
+      "layer": 5,
+      "row": 0,
+      "col": 5
+    },
+    {
+      "layer": 5,
+      "row": 0,
+      "col": 6
+    },
+    {
+      "layer": 5,
+      "row": 1,
+      "col": 0
+    },
+    {
+      "layer": 5,
+      "row": 1,
+      "col": 1
+    },
+    {
+      "layer": 5,
+      "row": 1,
+      "col": 2
+    },
+    {
+      "layer": 5,
+      "row": 1,
+      "col": 3
+    },
+    {
+      "layer": 5,
+      "row": 1,
+      "col": 4
+    },
+    {
+      "layer": 5,
+      "row": 1,
+      "col": 5
+    },
+    {
+      "layer": 5,
+      "row": 2,
+      "col": 0
+    },
+    {
+      "layer": 5,
+      "row": 2,
+      "col": 1
+    },
+    {
+      "layer": 5,
+      "row": 2,
+      "col": 2
+    },
+    {
+      "layer": 5,
+      "row": 2,
+      "col": 3
+    },
+    {
+      "layer": 5,
+      "row": 2,
+      "col": 4
+    },
+    {
+      "layer": 5,
+      "row": 2,
+      "col": 5
+    },
+    {
+      "layer": 5,
+      "row": 2,
+      "col": 6
+    },
+    {
+      "layer": 5,
+      "row": 3,
+      "col": 0
+    },
+    {
+      "layer": 5,
+      "row": 3,
+      "col": 1
+    },
+    {
+      "layer": 5,
+      "row": 3,
+      "col": 2
+    },
+    {
+      "layer": 5,
+      "row": 3,
+      "col": 3
+    },
+    {
+      "layer": 5,
+      "row": 3,
+      "col": 4
+    },
+    {
+      "layer": 5,
+      "row": 3,
+      "col": 5
+    },
+    {
+      "layer": 5,
+      "row": 4,
+      "col": 0
+    },
+    {
+      "layer": 5,
+      "row": 4,
+      "col": 1
+    },
+    {
+      "layer": 5,
+      "row": 4,
+      "col": 2
+    },
+    {
+      "layer": 5,
+      "row": 4,
+      "col": 3
+    },
+    {
+      "layer": 5,
+      "row": 4,
+      "col": 4
+    },
+    {
+      "layer": 5,
+      "row": 4,
+      "col": 5
+    },
+    {
+      "layer": 5,
+      "row": 4,
+      "col": 6
+    },
+    {
+      "layer": 5,
+      "row": 5,
+      "col": 0
+    },
+    {
+      "layer": 5,
+      "row": 5,
+      "col": 1
+    },
+    {
+      "layer": 5,
+      "row": 5,
+      "col": 2
+    },
+    {
+      "layer": 5,
+      "row": 5,
+      "col": 3
+    },
+    {
+      "layer": 5,
+      "row": 5,
+      "col": 4
+    },
+    {
+      "layer": 5,
+      "row": 5,
+      "col": 5
+    },
+    {
+      "layer": 5,
+      "row": 6,
+      "col": 0
+    },
+    {
+      "layer": 5,
+      "row": 6,
+      "col": 1
+    },
+    {
+      "layer": 5,
+      "row": 6,
+      "col": 2
+    },
+    {
+      "layer": 5,
+      "row": 6,
+      "col": 3
+    },
+    {
+      "layer": 5,
+      "row": 6,
+      "col": 4
+    },
+    {
+      "layer": 5,
+      "row": 6,
+      "col": 5
+    },
+    {
+      "layer": 5,
+      "row": 6,
+      "col": 6
+    },
+    {
+      "layer": 6,
+      "row": 0,
+      "col": 0
+    },
+    {
+      "layer": 6,
+      "row": 0,
+      "col": 1
+    },
+    {
+      "layer": 6,
+      "row": 0,
+      "col": 2
+    },
+    {
+      "layer": 6,
+      "row": 0,
+      "col": 3
+    },
+    {
+      "layer": 6,
+      "row": 0,
+      "col": 4
+    },
+    {
+      "layer": 6,
+      "row": 0,
+      "col": 5
+    },
+    {
+      "layer": 6,
+      "row": 0,
+      "col": 6
+    },
+    {
+      "layer": 6,
+      "row": 1,
+      "col": 0
+    },
+    {
+      "layer": 6,
+      "row": 1,
+      "col": 1
+    },
+    {
+      "layer": 6,
+      "row": 1,
+      "col": 2
+    },
+    {
+      "layer": 6,
+      "row": 1,
+      "col": 3
+    },
+    {
+      "layer": 6,
+      "row": 1,
+      "col": 4
+    },
+    {
+      "layer": 6,
+      "row": 1,
+      "col": 5
+    },
+    {
+      "layer": 6,
+      "row": 2,
+      "col": 0
+    },
+    {
+      "layer": 6,
+      "row": 2,
+      "col": 1
+    },
+    {
+      "layer": 6,
+      "row": 2,
+      "col": 2
+    },
+    {
+      "layer": 6,
+      "row": 2,
+      "col": 3
+    },
+    {
+      "layer": 6,
+      "row": 2,
+      "col": 4
+    },
+    {
+      "layer": 6,
+      "row": 2,
+      "col": 5
+    },
+    {
+      "layer": 6,
+      "row": 2,
+      "col": 6
+    },
+    {
+      "layer": 6,
+      "row": 3,
+      "col": 0
+    },
+    {
+      "layer": 6,
+      "row": 3,
+      "col": 1
+    },
+    {
+      "layer": 6,
+      "row": 3,
+      "col": 2
+    },
+    {
+      "layer": 6,
+      "row": 3,
+      "col": 3
+    },
+    {
+      "layer": 6,
+      "row": 3,
+      "col": 4
+    },
+    {
+      "layer": 6,
+      "row": 3,
+      "col": 5
+    },
+    {
+      "layer": 6,
+      "row": 4,
+      "col": 0
+    },
+    {
+      "layer": 6,
+      "row": 4,
+      "col": 1
+    },
+    {
+      "layer": 6,
+      "row": 4,
+      "col": 2
+    },
+    {
+      "layer": 6,
+      "row": 4,
+      "col": 3
+    },
+    {
+      "layer": 6,
+      "row": 4,
+      "col": 4
+    },
+    {
+      "layer": 6,
+      "row": 4,
+      "col": 5
+    },
+    {
+      "layer": 6,
+      "row": 4,
+      "col": 6
+    },
+    {
+      "layer": 6,
+      "row": 5,
+      "col": 0
+    },
+    {
+      "layer": 6,
+      "row": 5,
+      "col": 1
+    },
+    {
+      "layer": 6,
+      "row": 5,
+      "col": 2
+    },
+    {
+      "layer": 6,
+      "row": 5,
+      "col": 3
+    },
+    {
+      "layer": 6,
+      "row": 5,
+      "col": 4
+    },
+    {
+      "layer": 6,
+      "row": 5,
+      "col": 5
+    },
+    {
+      "layer": 6,
+      "row": 6,
+      "col": 0
+    },
+    {
+      "layer": 6,
+      "row": 6,
+      "col": 1
+    },
+    {
+      "layer": 6,
+      "row": 6,
+      "col": 2
+    },
+    {
+      "layer": 6,
+      "row": 6,
+      "col": 3
+    },
+    {
+      "layer": 6,
+      "row": 6,
+      "col": 4
+    },
+    {
+      "layer": 6,
+      "row": 6,
+      "col": 5
+    },
+    {
+      "layer": 6,
+      "row": 6,
+      "col": 6
+    },
+    {
+      "layer": 7,
+      "row": 0,
+      "col": 0
+    },
+    {
+      "layer": 7,
+      "row": 0,
+      "col": 1
+    },
+    {
+      "layer": 7,
+      "row": 0,
+      "col": 2
+    },
+    {
+      "layer": 7,
+      "row": 0,
+      "col": 3
+    },
+    {
+      "layer": 7,
+      "row": 0,
+      "col": 4
+    },
+    {
+      "layer": 7,
+      "row": 0,
+      "col": 5
+    },
+    {
+      "layer": 7,
+      "row": 0,
+      "col": 6
+    },
+    {
+      "layer": 7,
+      "row": 1,
+      "col": 0
+    },
+    {
+      "layer": 7,
+      "row": 1,
+      "col": 1
+    },
+    {
+      "layer": 7,
+      "row": 1,
+      "col": 2
+    },
+    {
+      "layer": 7,
+      "row": 1,
+      "col": 3
+    },
+    {
+      "layer": 7,
+      "row": 1,
+      "col": 4
+    },
+    {
+      "layer": 7,
+      "row": 1,
+      "col": 5
+    },
+    {
+      "layer": 7,
+      "row": 2,
+      "col": 0
+    },
+    {
+      "layer": 7,
+      "row": 2,
+      "col": 1
+    },
+    {
+      "layer": 7,
+      "row": 2,
+      "col": 2
+    },
+    {
+      "layer": 7,
+      "row": 2,
+      "col": 3
+    },
+    {
+      "layer": 7,
+      "row": 2,
+      "col": 4
+    },
+    {
+      "layer": 7,
+      "row": 2,
+      "col": 5
+    },
+    {
+      "layer": 7,
+      "row": 2,
+      "col": 6
+    },
+    {
+      "layer": 7,
+      "row": 3,
+      "col": 0
+    },
+    {
+      "layer": 7,
+      "row": 3,
+      "col": 1
+    },
+    {
+      "layer": 7,
+      "row": 3,
+      "col": 2
+    },
+    {
+      "layer": 7,
+      "row": 3,
+      "col": 3
+    },
+    {
+      "layer": 7,
+      "row": 3,
+      "col": 4
+    },
+    {
+      "layer": 7,
+      "row": 3,
+      "col": 5
+    },
+    {
+      "layer": 7,
+      "row": 4,
+      "col": 0
+    },
+    {
+      "layer": 7,
+      "row": 4,
+      "col": 1
+    },
+    {
+      "layer": 7,
+      "row": 4,
+      "col": 2
+    },
+    {
+      "layer": 7,
+      "row": 4,
+      "col": 3
+    },
+    {
+      "layer": 7,
+      "row": 4,
+      "col": 4
+    },
+    {
+      "layer": 7,
+      "row": 4,
+      "col": 5
+    },
+    {
+      "layer": 7,
+      "row": 4,
+      "col": 6
+    },
+    {
+      "layer": 7,
+      "row": 5,
+      "col": 0
+    },
+    {
+      "layer": 7,
+      "row": 5,
+      "col": 1
+    },
+    {
+      "layer": 7,
+      "row": 5,
+      "col": 2
+    },
+    {
+      "layer": 7,
+      "row": 5,
+      "col": 3
+    },
+    {
+      "layer": 7,
+      "row": 5,
+      "col": 4
+    },
+    {
+      "layer": 7,
+      "row": 5,
+      "col": 5
+    },
+    {
+      "layer": 7,
+      "row": 6,
+      "col": 0
+    },
+    {
+      "layer": 7,
+      "row": 6,
+      "col": 1
+    },
+    {
+      "layer": 7,
+      "row": 6,
+      "col": 2
+    },
+    {
+      "layer": 7,
+      "row": 6,
+      "col": 3
+    },
+    {
+      "layer": 7,
+      "row": 6,
+      "col": 4
+    },
+    {
+      "layer": 7,
+      "row": 6,
+      "col": 5
+    },
+    {
+      "layer": 7,
+      "row": 6,
+      "col": 6
+    }
+  ],
+  "blocked": [],
+  "movement": {
+    "1": "NONE",
+    "2": "SEVEN_LEFT_SIX_RIGHT",
+    "3": "NONE",
+    "4": "SEVEN_LEFT_SIX_RIGHT",
+    "5": "NONE",
+    "6": "NONE",
+    "7": "NONE"
+  },
+  "transitions": [
+    {
+      "type": "UP",
+      "from": {
+        "layer": 1,
+        "row": 0,
+        "col": 6
+      },
+      "to": {
+        "layer": 2,
+        "row": 6,
+        "col": 6
+      }
+    },
+    {
+      "type": "UP",
+      "from": {
+        "layer": 2,
+        "row": 0,
+        "col": 6
+      },
+      "to": {
+        "layer": 3,
+        "row": 6,
+        "col": 6
+      }
+    },
+    {
+      "type": "UP",
+      "from": {
+        "layer": 3,
+        "row": 0,
+        "col": 6
+      },
+      "to": {
+        "layer": 4,
+        "row": 6,
+        "col": 6
+      }
+    }
+  ],
+  "revealOnEnterGuaranteedUp": false
+}
