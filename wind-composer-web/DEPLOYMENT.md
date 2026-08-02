@@ -61,11 +61,13 @@ HTTPS is provided by GitHub Pages, so microphone access works.
 
 ## Verification checklist
 
-- [ ] `npm run build` succeeds in `wind-composer-web/`
-- [ ] No requests to `localhost` in production bundle
-- [ ] Open-Meteo geocoding and forecast work from Safari
-- [ ] Settings persist after reload (`localStorage`)
-- [ ] Hex Game still loads at `/TestGame/`
+- [x] `npm run build` succeeds in `wind-composer-web/`
+- [x] No requests to `localhost` or `/api/` in production bundle
+- [x] Open-Meteo returns `access-control-allow-origin: *` (browser CORS OK)
+- [x] Settings and favourites persist via `localStorage` after reload
+- [x] Desktop Python app (`wind-composer/`) unchanged; composition and weather tests pass
+- [x] Hex Game deploy steps in `deploy.yml` unchanged (Wind Composer added as `dist/wind-composer/`)
+- [ ] Manual Safari check after merge: Enable Audio → Start → mic → weather → Home Screen install
 
 ## Directory layout
 
