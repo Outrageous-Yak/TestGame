@@ -28,12 +28,20 @@ export class WindComposerApp {
   private tickTimer: number | null = null;
   private vizTimer: number | null = null;
   private weatherTimer: number | null = null;
-  private countdownTimer: number | null = null;
-  private running = false;
   private audioEnabled = false;
   private audioClockStart = 0;
   private playStartMs = 0;
   private diagTimer: number | null = null;
+  private uiTimer: number | null = null;
+  private lastTickPlan: import("./types").CompositionPlan | undefined;
+  private lastPeakText = "";
+  private lastWeatherNoticeShown = "";
+
+  private liveCells: Record<string, HTMLSpanElement> = {};
+  private liveWeatherNotice = document.createElement("p");
+  private liveStationTitle = document.createElement("p");
+  private liveStationStats = document.createElement("p");
+  private running = false;
 
   private el = {
     status: document.createElement("span"),
@@ -194,7 +202,8 @@ export class WindComposerApp {
     this.el.canvas.width = 600;
     this.el.canvas.height = 120;
     this.el.canvas.className = "viz-canvas";
-    compose.append(this.el.canvas, this.el.info, this.el.liveStatus);
+    this.buildLiveStatusPanel();
+    compose.append(this.el.canvas, this.el.info, this.el.layers, this.el.liveStatus);
     root.append(compose);
 
     const weather = this.h("section", "tab-panel hidden");
@@ -202,6 +211,8 @@ export class WindComposerApp {
     this.controls.search.placeholder = "Search location…";
     this.controls.search.className = "search-input";
     this.el.favouritesList.className = "favourites-panel";
+    this.el.livePanel.className = "live-weather-summary";
+    this.el.livePanel.append(this.liveStationTitle, this.liveStationStats);
     weather.append(
       this.controls.search,
       this.btn("Search", () => this.onSearch()),
@@ -320,11 +331,11 @@ export class WindComposerApp {
       this.tickLoop();
       this.tickTimer = window.setInterval(() => this.tickLoop(), 50);
       this.vizTimer = window.setInterval(() => this.drawViz(), 50);
+      this.uiTimer = window.setInterval(() => this.updatePlaybackUI(), 500);
       this.weatherTimer = window.setInterval(
         () => this.refreshWeather(),
         this.session.settings.refresh_interval_sec * 1000,
       );
-      this.countdownTimer = window.setInterval(() => this.updateLivePanel(), 1000);
       this.refreshStationUI();
       this.startDiagTimer();
     } catch (e) {
@@ -338,7 +349,8 @@ export class WindComposerApp {
     if (this.tickTimer) clearInterval(this.tickTimer);
     if (this.vizTimer) clearInterval(this.vizTimer);
     if (this.weatherTimer) clearInterval(this.weatherTimer);
-    if (this.countdownTimer) clearInterval(this.countdownTimer);
+    if (this.uiTimer) clearInterval(this.uiTimer);
+    this.lastTickPlan = undefined;
     this.synth.releaseAll();
     if (this.micStream) {
       this.micStream.getTracks().forEach((t) => t.stop());
@@ -376,18 +388,24 @@ export class WindComposerApp {
       : 0;
     const tick = this.session.tick(samplePosition, micEnergy, gust, sampleRate);
     this.synth.applyTick(tick);
-    this.updateLivePanel(tick);
-    this.el.peak.textContent = `Peak ${this.synth.peak.toFixed(2)} | RMS ${this.synth.getOutputRms().toFixed(4)}`;
-    this.el.peak.classList.toggle("peak-warn", this.synth.peak > 0.88);
-    if (this.running) {
-      const rms = this.synth.getOutputRms();
-      const elapsed = performance.now() - this.playStartMs;
-      if (elapsed > 2000 && rms < 0.0005 && this.synth.peak < 0.01) {
-        this.el.silenceWarn.textContent = "Audio engine is running but producing silence";
-        this.el.silenceWarn.classList.remove("hidden");
-      }
+    this.lastTickPlan = tick.plan;
+  }
+
+  private updatePlaybackUI() {
+    if (!this.running) return;
+    this.updateLivePanel(this.lastTickPlan ? { plan: this.lastTickPlan } : undefined);
+    const peakText = `Peak ${this.synth.peak.toFixed(2)} | RMS ${this.synth.getOutputRms().toFixed(4)}`;
+    if (peakText !== this.lastPeakText) {
+      this.lastPeakText = peakText;
+      this.el.peak.textContent = peakText;
     }
-    this.updateDiagnostics();
+    this.el.peak.classList.toggle("peak-warn", this.synth.peak > 0.88);
+    const rms = this.synth.getOutputRms();
+    const elapsed = performance.now() - this.playStartMs;
+    if (elapsed > 2000 && rms < 0.0005 && this.synth.peak < 0.01) {
+      this.el.silenceWarn.textContent = "Audio engine is running but producing silence";
+      this.el.silenceWarn.classList.remove("hidden");
+    }
   }
 
   private async refreshWeather() {
@@ -399,42 +417,89 @@ export class WindComposerApp {
     this.refreshStationUI();
   }
 
+  private buildLiveStatusPanel() {
+    this.el.liveStatus.className = "live-status-panel";
+    const grid = this.h("div", "live-grid");
+    const fields: [string, string][] = [
+      ["Style", "style"],
+      ["Section", "section"],
+      ["BPM", "bpm"],
+      ["Energy", "energy"],
+      ["Wind", "wind"],
+      ["Humidity", "humidity"],
+      ["Pressure", "pressure"],
+      ["Temp", "temp"],
+      ["Trend", "trend"],
+      ["Storm", "storm"],
+      ["Local Time", "localTime"],
+      ["Last Update", "lastUpdate"],
+      ["Next Update", "nextUpdate"],
+      ["Fill Prob", "fillProb"],
+    ];
+    for (const [label, key] of fields) {
+      const cell = this.h("div", "live-cell");
+      const val = document.createElement("span");
+      val.className = "live-value";
+      val.textContent = "—";
+      this.liveCells[key] = val;
+      const lbl = this.h("span", "live-label", label);
+      cell.append(lbl, " ", val);
+      grid.append(cell);
+    }
+    this.liveWeatherNotice.className = "weather-notice hidden";
+    this.el.liveStatus.append(grid, this.liveWeatherNotice);
+  }
+
   private updateLivePanel(tick?: { plan: import("./types").CompositionPlan }) {
     const live = this.session.getLiveStatus(tick?.plan);
     const sec = live.nextUpdateSec;
     const mm = String(Math.floor(sec / 60)).padStart(2, "0");
     const ss = String(sec % 60).padStart(2, "0");
+
     this.el.info.textContent =
       `${live.chord} · ${live.section} · ${live.style} · ${live.bpm.toFixed(0)} BPM · ${live.key}`;
-    this.el.layers.textContent = `Layers: energy ${(live.energy * 100).toFixed(0)}% · phrase ${live.phrase}`;
-    this.el.liveStatus.className = "live-status-panel";
-    this.el.liveStatus.innerHTML = `
-      <div class="live-grid">
-        <div><span class="live-label">Style</span> ${live.style}</div>
-        <div><span class="live-label">Section</span> ${live.section}</div>
-        <div><span class="live-label">BPM</span> ${live.bpm.toFixed(0)}</div>
-        <div><span class="live-label">Energy</span> ${(live.energy * 100).toFixed(0)}%</div>
-        <div><span class="live-label">Wind</span> ${live.windKmh.toFixed(0)} km/h</div>
-        <div><span class="live-label">Humidity</span> ${live.humidity.toFixed(0)}%</div>
-        <div><span class="live-label">Pressure</span> ${live.pressure.toFixed(0)} hPa</div>
-        <div><span class="live-label">Temp</span> ${live.temperature.toFixed(0)}°C</div>
-        <div><span class="live-label">Trend</span> ${live.trend}</div>
-        <div><span class="live-label">Storm</span> ${(live.stormChance * 100).toFixed(0)}%</div>
-        <div><span class="live-label">Local Time</span> ${live.localTime}</div>
-        <div><span class="live-label">Last Update</span> ${live.lastWeatherUpdate}</div>
-        <div><span class="live-label">Next Update</span> ${mm}:${ss}</div>
-        <div><span class="live-label">Fill Prob</span> ${(live.fillProbability * 100).toFixed(0)}%</div>
-      </div>
-      ${live.weatherNotice ? `<p class="weather-notice">${this.escapeHtml(live.weatherNotice).replace(/\n/g, "<br>")}</p>` : ""}
-    `;
-    const primary = this.stations.list().find((s) => s.enabled && s.weather);
-    if (primary?.weather) {
-      const w = primary.weather;
-      this.el.livePanel.innerHTML = `
-        <p><strong>${primary.display_name}</strong> — ${w.condition}</p>
-        <p>Wind ${w.wind_speed_kmh.toFixed(0)} km/h · Cloud ${w.cloud_cover_pct.toFixed(0)}% · Rain ${w.precipitation_mm.toFixed(1)} mm</p>
-      `;
+    this.el.layers.textContent =
+      `Layers: energy ${(live.energy * 100).toFixed(0)}% · phrase ${live.phrase}`;
+
+    this.liveCells.style.textContent = live.style;
+    this.liveCells.section.textContent = live.section;
+    this.liveCells.bpm.textContent = live.bpm.toFixed(0);
+    this.liveCells.energy.textContent = `${(live.energy * 100).toFixed(0)}%`;
+    this.liveCells.wind.textContent = `${live.windKmh.toFixed(0)} km/h`;
+    this.liveCells.humidity.textContent = `${live.humidity.toFixed(0)}%`;
+    this.liveCells.pressure.textContent = `${live.pressure.toFixed(0)} hPa`;
+    this.liveCells.temp.textContent = `${live.temperature.toFixed(0)}°C`;
+    this.liveCells.trend.textContent = live.trend;
+    this.liveCells.storm.textContent = `${(live.stormChance * 100).toFixed(0)}%`;
+    this.liveCells.localTime.textContent = live.localTime;
+    this.liveCells.lastUpdate.textContent = live.lastWeatherUpdate;
+    this.liveCells.nextUpdate.textContent = `${mm}:${ss}`;
+    this.liveCells.fillProb.textContent = `${(live.fillProbability * 100).toFixed(0)}%`;
+
+    const notice = live.weatherNotice?.trim() ?? "";
+    if (notice !== this.lastWeatherNoticeShown) {
+      this.lastWeatherNoticeShown = notice;
+      if (notice) {
+        this.liveWeatherNotice.textContent = notice;
+        this.liveWeatherNotice.classList.remove("hidden");
+      } else {
+        this.liveWeatherNotice.textContent = "";
+        this.liveWeatherNotice.classList.add("hidden");
+      }
     }
+  }
+
+  private updateWeatherSummary() {
+    const primary = this.stations.list().find((s) => s.enabled && s.weather);
+    if (!primary?.weather) {
+      this.liveStationTitle.textContent = "";
+      this.liveStationStats.textContent = "";
+      return;
+    }
+    const w = primary.weather;
+    this.liveStationTitle.textContent = `${primary.display_name} — ${w.condition}`;
+    this.liveStationStats.textContent =
+      `Wind ${w.wind_speed_kmh.toFixed(0)} km/h · Cloud ${w.cloud_cover_pct.toFixed(0)}% · Rain ${w.precipitation_mm.toFixed(1)} mm`;
   }
 
   private drawViz() {
@@ -581,6 +646,7 @@ export class WindComposerApp {
       markers.push({ lat: s.location.latitude, lon: s.location.longitude, label: s.display_name });
     }
     this.map?.setStations(markers);
+    this.updateWeatherSummary();
   }
 
   private onMapClick(lat: number, lon: number) {
@@ -622,13 +688,13 @@ export class WindComposerApp {
 
   private startDiagTimer() {
     if (this.diagTimer) clearInterval(this.diagTimer);
-    this.diagTimer = window.setInterval(() => this.updateDiagnostics(), 500);
+    this.diagTimer = window.setInterval(() => this.updateDiagnostics(), 2000);
     this.updateDiagnostics();
   }
 
   private updateDiagnostics() {
     const d = this.synth.getDiagnostics();
-    this.el.diagPanel.textContent = [
+    const lines = [
       `AudioContext: ${d.contextState} @ ${d.sampleRate} Hz`,
       `Worklet: ${d.workletStatus}`,
       `Synth: ${d.synthStatus}`,
@@ -637,14 +703,9 @@ export class WindComposerApp {
       `Output level: ${d.outputRms.toFixed(4)}`,
       d.lastError ? `Last error: ${d.lastError}` : "",
     ].filter(Boolean).join("\n");
-  }
-
-  private escapeHtml(text: string): string {
-    return text
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+    if (this.el.diagPanel.textContent !== lines) {
+      this.el.diagPanel.textContent = lines;
+    }
   }
 
   private registerServiceWorker() {
