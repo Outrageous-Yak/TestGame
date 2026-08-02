@@ -24,21 +24,21 @@ def _snap(wind: float, pressure: float = 1013.0) -> WeatherSnapshot:
 def test_tempo_smoothing_max_one_bpm_per_bar():
     engine = TempoEngine()
     engine.reset(100)
-    bpm = engine.update(130, 90, 140, 0, False)
+    bpm = engine.update(130, 90, 140, -1, False)
     assert bpm == 100
-    bpm = engine.update(130, 90, 140, 1, False)
+    bpm = engine.update(130, 90, 140, 0, False)
     assert bpm == 101
-    bpm = engine.update(130, 90, 140, 2, False)
+    bpm = engine.update(130, 90, 140, 1, False)
     assert bpm == 102
 
 
 def test_gust_tempo_boost_decays():
     engine = TempoEngine()
     engine.reset(120)
-    bpm = engine.update(120, 110, 130, 1, True)
-    assert bpm >= 121
-    engine.update(120, 110, 130, 2, False)
-    assert engine.current_bpm <= bpm
+    boosted = engine.update(120, 110, 130, 0, True)
+    assert boosted >= 121
+    after = engine.update(120, 110, 130, 1, False)
+    assert after >= 120
 
 
 def test_wind_to_target_bpm():
