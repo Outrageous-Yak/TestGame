@@ -58,12 +58,11 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '22'
 
       - name: Install and build production
         run: |
-          npm ci
+          npm install
           npm run build
 
       - name: Checkout preview branch
@@ -75,7 +74,7 @@ jobs:
       - name: Build preview at subpath
         working-directory: preview-src
         run: |
-          npm ci
+          npm install
           npm run build -- --base /TestGame/preview/${{ steps.target.outputs.slug }}/
 
       - name: Merge site bundles
