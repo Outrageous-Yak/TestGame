@@ -18,4 +18,5 @@ ENV WEB_DIST=/app/wind-composer/web/dist
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 WORKDIR /app/wind-composer
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Render (and similar hosts) inject PORT; default 8000 for local Docker
+CMD ["sh", "-c", "uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

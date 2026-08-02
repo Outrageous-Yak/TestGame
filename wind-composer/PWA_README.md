@@ -19,6 +19,10 @@ docker compose up --build
 
 Open **http://localhost:8000** (use your machine's LAN IP on iPhone, e.g. `http://192.168.1.x:8000`).
 
+## Deploy free on Render (iPhone without a computer)
+
+See **[RENDER_DEPLOY.md](RENDER_DEPLOY.md)** — uses root `render.yaml` Blueprint, free HTTPS URL.
+
 ## Install on iPhone
 
 1. Open the URL in **Safari** (not Chrome).

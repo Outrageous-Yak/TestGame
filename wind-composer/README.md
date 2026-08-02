@@ -136,6 +136,14 @@ Installable PWA with FastAPI backend and Web Audio frontend. See **[PWA_README.m
 
 Open on iPhone Safari → Share → Add to Home Screen.
 
+### Free hosting on Render (no computer)
+
+Deploy to Render’s free tier for a permanent HTTPS URL on your iPhone:
+
+1. See **[RENDER_DEPLOY.md](RENDER_DEPLOY.md)** for step-by-step instructions
+2. Repo includes `render.yaml` at the root for Blueprint deploy
+3. URL will look like `https://wind-composer-xxxx.onrender.com`
+
 ### Sound Engine UI
 
 The Compose tab includes quality, soundscape preset, reverb/width/brightness/warmth sliders, active layer display, peak meter, and collapsible diagnostics.
