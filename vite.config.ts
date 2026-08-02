@@ -1,5 +1,11 @@
 import { defineConfig } from "vite";
-export default defineConfig({
-  base: "/TestGame/"
-});
+import react from "@vitejs/plugin-react";
 
+export default defineConfig({
+  base: "/TestGame/",
+  plugins: [react()],
+  test: {
+    environment: "node",
+    include: ["src/engine/**/*.test.ts"],
+  },
+});
