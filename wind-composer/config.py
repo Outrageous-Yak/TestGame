@@ -22,8 +22,20 @@ MAX_MELODY_NOTES_PER_SEC = 4.0
 CHORD_MIN_SEC = 8.0
 CHORD_MAX_SEC = 16.0
 
-REFRESH_INTERVALS_SEC = [10, 30, 60, 300]
-REFRESH_LABELS = ["10 seconds", "30 seconds", "60 seconds", "5 minutes"]
+REFRESH_INTERVALS_SEC = [10, 20, 30, 60, 120, 300]
+REFRESH_LABELS = [
+    "10 seconds",
+    "20 seconds",
+    "30 seconds",
+    "60 seconds",
+    "2 minutes",
+    "5 minutes",
+    "Adaptive",
+]
+
+from style_engine import all_style_names
+
+MUSICAL_STYLES = all_style_names()
 
 AUDIO_QUALITY_LEVELS = ["Low", "Standard", "High"]
 
@@ -186,6 +198,8 @@ class AppSettings:
     width_amount: float = 0.35
     brightness_amount: float = 0.5
     warmth_amount: float = 0.5
+    musical_style: str = "Ambient"
+    refresh_adaptive: bool = False
 
     def save(self) -> None:
         data = asdict(self)
@@ -222,6 +236,8 @@ class AppSettings:
                 width_amount=float(raw.get("width_amount", 0.35)),
                 brightness_amount=float(raw.get("brightness_amount", 0.5)),
                 warmth_amount=float(raw.get("warmth_amount", 0.5)),
+                musical_style=raw.get("musical_style", "Ambient"),
+                refresh_adaptive=bool(raw.get("refresh_adaptive", False)),
             )
         except (json.JSONDecodeError, ValueError, KeyError):
             return cls()

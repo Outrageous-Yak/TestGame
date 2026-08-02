@@ -3,6 +3,7 @@ import type { AppSettings, TickResult } from "../types";
 import { StationStore } from "../storage";
 import { WeatherMapper } from "../weather/weatherMapper";
 import { CompositionEngine, type CompositionContext } from "./compositionEngine";
+import { IntelligentComposer } from "./intelligentComposer";
 import { Orchestrator } from "./orchestration";
 import { ScaleEngine } from "./scaleEngine";
 
@@ -11,6 +12,8 @@ export class MusicSession {
   private composition = new CompositionEngine(this.scaleEngine);
   private orchestrator = new Orchestrator();
   private weatherMapper = new WeatherMapper();
+  private intelligent = new IntelligentComposer();
+  private lastWeather: import("../types").WeatherSnapshot | null = null;
   private samplePosition = 0;
   settings: AppSettings;
   stations: StationStore;
@@ -20,6 +23,18 @@ export class MusicSession {
     this.stations = stations;
     this.applyScaleSettings();
     this.orchestrator.soundscape = settings.soundscape_preset;
+    this.intelligent.setStyle(settings.musical_style);
+  }
+
+  setMusicalStyle(name: string): void {
+    this.intelligent.setStyle(name);
+  }
+
+  getLiveStatus() {
+    return {
+      localTime: this.intelligent.getLocalTime(),
+      weatherNotice: this.intelligent.getLastNotice(),
+    };
   }
 
   applyScaleSettings(): void {
@@ -31,6 +46,7 @@ export class MusicSession {
     this.settings = s;
     this.applyScaleSettings();
     this.orchestrator.soundscape = s.soundscape_preset;
+    this.intelligent.setStyle(s.musical_style);
   }
 
   tick(micEnergy: number, gust: boolean, sampleDelta: number): TickResult {
@@ -76,16 +92,28 @@ export class MusicSession {
     const plan = this.composition.tick(ctx);
     if (drive?.tempo_bpm) plan.tempo_bpm = drive.tempo_bpm;
 
-    const orchestration = this.orchestrator.mapPlan(plan);
-    const reverb = this.settings.reverb_amount * (0.6 + plan.reverb_amount * 0.5);
+    const w = primary?.weather ?? null;
+    if (w && this.lastWeather) this.intelligent.onWeather(this.lastWeather, w);
+    if (w) this.lastWeather = w;
+
+    const enhanced = this.intelligent.enhance(
+      plan,
+      w,
+      g,
+      this.samplePosition,
+      44100,
+    );
+
+    const orchestration = this.orchestrator.mapPlan(enhanced);
+    const reverb = this.settings.reverb_amount * (0.6 + enhanced.reverb_amount * 0.5);
 
     return {
-      plan,
+      plan: enhanced,
       orchestration,
       sound_tweaks: {
         reverb,
         width: this.settings.width_amount,
-        brightness: this.settings.brightness_amount * plan.brightness,
+        brightness: this.settings.brightness_amount * enhanced.brightness,
         warmth: this.settings.warmth_amount,
         master: this.settings.master_volume,
       },

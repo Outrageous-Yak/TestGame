@@ -10,7 +10,7 @@ from tkinter import filedialog, messagebox, ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
-from config import KEYS, InputSource, Mode, REFRESH_INTERVALS_SEC, ScaleName, VIS_INTERVAL_MS, AppSettings
+from config import KEYS, InputSource, Mode, MUSICAL_STYLES, REFRESH_INTERVALS_SEC, ScaleName, VIS_INTERVAL_MS, AppSettings
 from music_controller import MusicController
 from ui_weather_panel import WeatherPanel
 from ui_sound_panel import SoundPanel
@@ -40,6 +40,7 @@ class WindComposerUI:
         self.controller.set_sensitivity(settings.sensitivity)
         self.controller.set_input_source(settings.input_source)
         self.controller.set_refresh_interval(settings.refresh_interval_sec)
+        self.controller.set_musical_style(settings.musical_style)
 
         self.root = tk.Tk()
         self.root.title("Wind Composer")
@@ -115,6 +116,11 @@ class WindComposerUI:
         ttk.Label(row2, text="Key:").pack(side=tk.LEFT, padx=(12, 4))
         self.key_combo = ttk.Combobox(row2, values=KEYS, width=5, state="readonly")
         self.key_combo.pack(side=tk.LEFT, padx=4)
+
+        ttk.Label(row2, text="Style:").pack(side=tk.LEFT, padx=(12, 4))
+        self.style_combo = ttk.Combobox(row2, values=MUSICAL_STYLES, width=16, state="readonly")
+        self.style_combo.pack(side=tk.LEFT, padx=4)
+        self.style_combo.bind("<<ComboboxSelected>>", self._on_style_change)
 
         row3 = ttk.Frame(self.root)
         row3.pack(fill=tk.X, padx=10, pady=4)
@@ -220,6 +226,7 @@ class WindComposerUI:
         self.mode_combo.set(self.settings.mode.value)
         self.scale_combo.set(self.settings.scale.value)
         self.key_combo.set(self.settings.key)
+        self.style_combo.set(self.settings.musical_style)
         self.input_combo.set(self.settings.input_source.value)
         self.vol_slider.set(int(self.settings.master_volume * 100))
         self.sens_slider.set(int(self.settings.sensitivity * 100))
@@ -229,6 +236,11 @@ class WindComposerUI:
             if sec == self.settings.refresh_interval_sec:
                 self.weather_panel.refresh_combo.current(i)
                 break
+
+    def _on_style_change(self, _event=None) -> None:
+        name = self.style_combo.get()
+        self.settings.musical_style = name
+        self.controller.set_musical_style(name)
 
     def _on_input_source_change(self, _event=None) -> None:
         src = InputSource(self.input_combo.get())
@@ -317,6 +329,9 @@ class WindComposerUI:
         self.controller.set_mode(mode)
         self.controller.set_scale(scale)
         self.controller.set_key(key)
+        style = self.style_combo.get()
+        self.settings.musical_style = style
+        self.controller.set_musical_style(style)
 
     def _schedule_visual_update(self) -> None:
         state = self.controller.get_visual_state()
@@ -334,8 +349,8 @@ class WindComposerUI:
         self.info_label.configure(
             text=(
                 f"Chord: {state.current_chord}  |  "
-                f"State: {state.composition_state}  |  "
-                f"Mood: {state.mood}  |  "
+                f"Style: {state.musical_style}  |  "
+                f"Section: {state.song_section}  |  "
                 f"Tempo: {state.tempo_bpm:.0f} BPM  |  "
                 f"CPU: {state.cpu_percent:.0f}%"
             ),

@@ -4,7 +4,7 @@ import { WindAnalyzer } from "./audio/windAnalyzer";
 import { AudioRecorder } from "./audio/recorder";
 import { WorldMapView } from "./map/worldMap";
 import {
-  AUDIO_QUALITY_LEVELS, KEYS, MODE_PROFILES, SOUNDSCAPE_PRESETS,
+  AUDIO_QUALITY_LEVELS, KEYS, MODE_PROFILES, MUSICAL_STYLES, SOUNDSCAPE_PRESETS,
 } from "./config";
 import { MusicSession } from "./music/musicSession";
 import {
@@ -61,6 +61,7 @@ export class WindComposerApp {
     input: this.select(INPUTS),
     quality: this.select([...AUDIO_QUALITY_LEVELS]),
     soundscape: this.select([...SOUNDSCAPE_PRESETS]),
+    style: this.select([...MUSICAL_STYLES]),
     volume: this.range(75),
     sensitivity: this.range(60),
     reverb: this.range(45),
@@ -147,6 +148,7 @@ export class WindComposerApp {
     sound.append(
       this.labelWrap("Quality", this.controls.quality),
       this.labelWrap("Soundscape", this.controls.soundscape),
+      this.labelWrap("Style", this.controls.style),
       this.labelWrap("Reverb", this.controls.reverb),
       this.labelWrap("Width", this.controls.width),
       this.labelWrap("Bright", this.controls.brightness),
@@ -328,7 +330,7 @@ export class WindComposerApp {
     const tick = this.session.tick(micEnergy, gust, this.sampleDelta);
     this.synth.applyTick(tick);
     const plan = tick.plan;
-    this.el.info.textContent = `Chord: ${plan.chord?.name ?? "—"} | State: ${plan.musical_state} | ${plan.tempo_bpm.toFixed(0)} BPM`;
+    this.el.info.textContent = `Chord: ${plan.chord?.name ?? "—"} | ${plan.song_section ?? "Flow"} | ${plan.musical_style ?? "Ambient"} | ${plan.tempo_bpm.toFixed(0)} BPM`;
     this.el.layers.textContent = `Layers: ${tick.orchestration.active_layers.join(", ") || "—"}`;
     this.el.peak.textContent = `Peak ${this.synth.peak.toFixed(2)} | RMS ${this.synth.getOutputRms().toFixed(4)}`;
     this.el.peak.classList.toggle("peak-warn", this.synth.peak > 0.88);
@@ -375,6 +377,8 @@ export class WindComposerApp {
       input_source: this.controls.input.value,
       audio_quality: this.controls.quality.value,
       soundscape_preset: this.controls.soundscape.value,
+      musical_style: this.controls.style.value,
+      refresh_interval_sec: loadSettings().refresh_interval_sec,
       reverb_amount: this.controls.reverb.valueAsNumber / 100,
       width_amount: this.controls.width.valueAsNumber / 100,
       brightness_amount: this.controls.brightness.valueAsNumber / 100,
@@ -382,6 +386,7 @@ export class WindComposerApp {
     };
     saveSettings(s);
     this.session.updateSettings(s);
+    this.session.setMusicalStyle(s.musical_style);
     this.analyzer.setSensitivity(s.sensitivity);
     this.synth.applySoundTweaks(s.master_volume, s.reverb_amount, s.width_amount, s.warmth_amount);
   }
@@ -396,6 +401,7 @@ export class WindComposerApp {
     this.analyzer.setSensitivity(s.sensitivity);
     this.controls.quality.value = s.audio_quality;
     this.controls.soundscape.value = s.soundscape_preset;
+    this.controls.style.value = s.musical_style;
     this.controls.reverb.value = String(s.reverb_amount * 100);
     this.controls.width.value = String(s.width_amount * 100);
     this.controls.brightness.value = String(s.brightness_amount * 100);

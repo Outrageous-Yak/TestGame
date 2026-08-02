@@ -34,6 +34,10 @@ export interface CompositionPlan {
   phrase_number: number;
   phrase_length_bars: number;
   percussion: number;
+  musical_style?: string;
+  song_section?: string;
+  local_time_str?: string;
+  weather_hints?: string[];
 }
 
 export interface WeatherSnapshot {
@@ -95,6 +99,8 @@ export interface AppSettings {
   width_amount: number;
   brightness_amount: number;
   warmth_amount: number;
+  musical_style: string;
+  refresh_interval_sec: number;
 }
 
 export interface Favourite {

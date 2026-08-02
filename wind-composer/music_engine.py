@@ -57,6 +57,10 @@ class VisualState:
     voice_count: int = 0
     audio_load_pct: float = 0.0
     limiter_active: bool = False
+    musical_style: str = "Ambient"
+    song_section: str = "Flow"
+    local_time_str: str = ""
+    next_update_sec: float = 0.0
 
 
 class MusicEngine:
@@ -157,6 +161,9 @@ class MusicEngine:
     def set_soundscape(self, name: str) -> None:
         self._soundscape = name
         self.synth.cinematic.set_soundscape(name)
+
+    def set_musical_style(self, name: str) -> None:
+        self.composition_engine.set_musical_style(name)
 
     def set_sound_tweaks(
         self,
@@ -333,6 +340,9 @@ class MusicEngine:
             self.visual.composition_state = plan.musical_state.value
             self.visual.mood = plan.mood
             self.visual.phrase_number = plan.phrase_number
+            self.visual.musical_style = getattr(plan, "musical_style", "Ambient")
+            self.visual.song_section = getattr(plan, "song_section", "Flow")
+            self.visual.local_time_str = getattr(plan, "local_time_str", "")
             self.visual.active_layers = active_layers
             self.visual.peak_level = self.synth.cinematic.peak_level
             self.visual.voice_count = self.synth.cinematic.voice_count
@@ -341,6 +351,13 @@ class MusicEngine:
 
         # Rhythm events from composition land in output callback via plan storage
         self._pending_rhythm_events = plan.rhythm_events
+
+        for note in getattr(plan, "bass_notes", []):
+            if self.synth.use_cinematic:
+                self.synth.cinematic.note_on("soft_bass", note.midi, note.velocity, "Soft Analog Bass")
+            else:
+                self.synth.set_layer_frequency("bass", note.midi)
+                self.synth.trigger_layer("bass", note.velocity)
 
         if plan.percussion > 0.25 and gust and not self.synth.use_cinematic:
             self.synth.trigger_layer("bass", plan.percussion * 0.45)

@@ -31,6 +31,14 @@ export const SOUNDSCAPE_PRESETS = [
 
 export const AUDIO_QUALITY_LEVELS = ["Low", "Standard", "High"] as const;
 
+export const MUSICAL_STYLES = [
+  "Ambient", "Chillout", "Deep House", "Melodic House", "Progressive House",
+  "Melodic Techno", "Trance", "Synthwave", "Downtempo", "Electronic Orchestra",
+] as const;
+
+export const REFRESH_INTERVALS_SEC = [10, 20, 30, 60, 120, 300];
+export const REFRESH_LABELS = ["10s", "20s", "30s", "60s", "2m", "5m", "Adaptive"];
+
 export const SETTINGS_KEY = "wind_composer_web_settings";
 export const FAVOURITES_KEY = "wind_composer_web_favourites";
 export const STATIONS_KEY = "wind_composer_web_stations";

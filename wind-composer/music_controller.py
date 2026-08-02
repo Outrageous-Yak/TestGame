@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
@@ -32,13 +33,19 @@ class LiveInfoPanel:
     wind_direction_deg: float = 0.0
     temperature_c: float = 0.0
     station_update: str = "—"
+    local_time: str = "—"
+    next_update: str = "—"
     mode: str = "—"
     key: str = "—"
     chord: str = "—"
     tempo_bpm: float = 0.0
     input_source: str = "—"
     station_count: int = 0
+    musical_style: str = "Ambient"
+    song_section: str = "Flow"
+    energy: float = 0.0
     fetch_error: Optional[str] = None
+    weather_notice: str = ""
 
 
 class MusicController:
@@ -66,6 +73,9 @@ class MusicController:
         self._lock = threading.Lock()
         self._live_info = LiveInfoPanel()
         self._last_weather_drive: Optional[MusicDriveParams] = None
+        self._refresh_adaptive = False
+        self._next_fetch_deadline = 0.0
+        self._last_fetch_time = time.time()
         self._weather_tick_thread: Optional[threading.Thread] = None
         self._weather_tick_running = False
 
@@ -78,8 +88,27 @@ class MusicController:
     def set_input_source(self, source: InputSource) -> None:
         self._input_source = source
 
-    def set_refresh_interval(self, seconds: float) -> None:
-        self.fetcher.set_interval(seconds)
+    def set_refresh_interval(self, seconds: float, adaptive: bool = False) -> None:
+        self._refresh_adaptive = adaptive
+        if adaptive:
+            self.fetcher.set_interval(self._adaptive_interval())
+        else:
+            self.fetcher.set_interval(seconds)
+
+    def set_musical_style(self, name: str) -> None:
+        self.engine.set_musical_style(name)
+
+    def _adaptive_interval(self) -> float:
+        drive = self._last_weather_drive
+        if not drive:
+            return 60.0
+        if drive.energy > 0.7:
+            return 10.0
+        if drive.energy > 0.45:
+            return 20.0
+        if drive.energy < 0.15:
+            return 300.0
+        return 60.0
 
     def search_locations(self, query: str) -> List[GeoLocation]:
         return self.location_manager.search(query)
@@ -106,13 +135,19 @@ class MusicController:
                 wind_direction_deg=self._live_info.wind_direction_deg,
                 temperature_c=self._live_info.temperature_c,
                 station_update=self._live_info.station_update,
+                local_time=self._live_info.local_time,
+                next_update=self._live_info.next_update,
                 mode=self._live_info.mode,
                 key=self._live_info.key,
                 chord=vis.current_chord,
                 tempo_bpm=vis.tempo_bpm,
                 input_source=self._input_source.value,
                 station_count=self.station_manager.count(),
+                musical_style=vis.musical_style,
+                song_section=vis.song_section,
+                energy=vis.wind_strength,
                 fetch_error=self.fetcher.last_error,
+                weather_notice=self._live_info.weather_notice,
             )
             return info
 
@@ -157,8 +192,25 @@ class MusicController:
         self.fetcher.fetch_now()
 
     def _on_weather_updated(self) -> None:
+        self._last_fetch_time = time.time()
         self._apply_weather_drive()
+        self._notify_weather_snapshots()
         self._update_live_info_panel()
+        if self._refresh_adaptive:
+            self.fetcher.set_interval(self._adaptive_interval())
+
+    def _notify_weather_snapshots(self) -> None:
+        for active in self.station_manager.list_active():
+            if active.enabled and active.weather:
+                w = active.weather
+                local = w.timestamp.strftime("%H:%M:%S") if w.timestamp else "—"
+                self.engine.composition_engine.on_weather_snapshot(w, local)
+                notice = self.engine.composition_engine.get_weather_notice()
+                if notice:
+                    with self._lock:
+                        lines = ["Weather Updated", *notice.lines, *notice.musical_hints]
+                        self._live_info.weather_notice = "\n".join(lines)
+                break
 
     def _apply_weather_drive(self) -> None:
         profile = MODE_PROFILES[self.engine.mode]
@@ -215,8 +267,16 @@ class MusicController:
                 self._live_info.wind_direction_deg = w.wind_direction_deg
                 self._live_info.temperature_c = w.temperature_c
                 self._live_info.station_update = (
-                    w.timestamp.isoformat() if w.timestamp else "—"
+                    w.timestamp.strftime("%H:%M:%S") if w.timestamp else "—"
                 )
+                self._live_info.local_time = self._live_info.station_update
+                remaining = max(0, self.fetcher.interval_sec - (
+                    time.time() - getattr(self, "_last_fetch_time", time.time())
+                ))
+                self._live_info.next_update = f"{int(remaining // 60):02d}:{int(remaining % 60):02d}"
+                with self.engine.lock:
+                    self.engine.visual.next_update_sec = remaining
+                    self.engine.visual.local_time_str = self._live_info.local_time
 
     # Delegate common engine methods
     def set_mode(self, mode: Mode) -> None:

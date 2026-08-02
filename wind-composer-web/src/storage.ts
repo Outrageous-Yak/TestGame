@@ -17,6 +17,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   width_amount: 0.35,
   brightness_amount: 0.5,
   warmth_amount: 0.5,
+  musical_style: "Ambient",
+  refresh_interval_sec: 30,
 };
 
 export function loadSettings(): AppSettings {

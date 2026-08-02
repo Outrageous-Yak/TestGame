@@ -111,8 +111,10 @@ class WeatherPanel(ttk.Frame):
 
     def _on_refresh_change(self, _event=None) -> None:
         idx = self.refresh_combo.current()
-        if 0 <= idx < len(REFRESH_INTERVALS_SEC):
-            self.controller.set_refresh_interval(REFRESH_INTERVALS_SEC[idx])
+        if idx == len(REFRESH_LABELS) - 1:
+            self.controller.set_refresh_interval(60.0, adaptive=True)
+        elif 0 <= idx < len(REFRESH_INTERVALS_SEC):
+            self.controller.set_refresh_interval(REFRESH_INTERVALS_SEC[idx], adaptive=False)
 
     def _fetch_now(self) -> None:
         self.controller.fetch_now()
@@ -194,12 +196,18 @@ class WeatherPanel(ttk.Frame):
             f"Condition:    {info.condition}\n"
             f"Wind:         {info.wind_speed_kmh:.1f} km/h @ {info.wind_direction_deg:.0f}°\n"
             f"Temperature:  {info.temperature_c:.1f} °C\n"
-            f"Station time: {info.station_update}\n"
+            f"Local Time:   {info.local_time}\n"
+            f"Last Update:  {info.station_update}\n"
+            f"Next Update:  {info.next_update}\n"
             f"Input:        {info.input_source}\n"
             f"Stations:     {info.station_count}\n"
+            f"Style:        {info.musical_style}  |  Section: {info.song_section}\n"
             f"Mode:         {info.mode}  |  Key: {info.key}\n"
             f"Chord:        {info.chord}  |  BPM: {info.tempo_bpm:.0f}\n"
+            f"Energy:       {info.energy:.2f}\n"
         )
+        if info.weather_notice:
+            text += f"\n---\n{info.weather_notice}\n"
         vis = self.controller.get_visual_state()
         text += (
             f"Composition:  {vis.composition_state}\n"

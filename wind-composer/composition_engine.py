@@ -175,6 +175,14 @@ class CompositionPlan:
     phrase_length_bars: int = 8
     active_instruments: Set[str] = field(default_factory=set)
     pedal_midi: Optional[int] = None
+    # Phase 5
+    musical_style: str = "Ambient"
+    song_section: str = "Flow"
+    drum_events: List[RhythmEvent] = field(default_factory=list)
+    bass_notes: List[MelodyNote] = field(default_factory=list)
+    transition_fx: Optional[str] = None
+    weather_hints: List[str] = field(default_factory=list)
+    local_time_str: str = ""
 
 
 @dataclass
@@ -267,6 +275,9 @@ class CompositionEngine:
         self._weather_history: Deque[float] = deque(maxlen=8)
         self._location_label = ""
 
+        from intelligent_composer import IntelligentComposer
+        self._intelligent = IntelligentComposer(scale_engine)
+
     def reset(self) -> None:
         self.memory.reset()
         self._energy.reset(0.0)
@@ -278,6 +289,7 @@ class CompositionEngine:
         self._last_measure = -1
         self._last_beat = -1
         self._melody_midi = None
+        self._intelligent.reset()
 
     def set_location_label(self, label: str) -> None:
         self._location_label = label
@@ -398,8 +410,19 @@ class CompositionEngine:
             active_instruments={"pad", "atmosphere", "bass", "lead"},
             pedal_midi=self._pedal_midi,
         )
-        self._plan.rhythm_events.clear()  # consumed on beat
+        self._plan = self._intelligent.enhance(
+            ctx, self._plan, beat, measure, personality.hope,
+        )
         return self._plan
+
+    def set_musical_style(self, name: str) -> None:
+        self._intelligent.set_style(name)
+
+    def on_weather_snapshot(self, snap: WeatherSnapshot, local_time_str: str) -> None:
+        self._intelligent.on_weather_updated(snap, local_time_str)
+
+    def get_weather_notice(self):
+        return self._intelligent.get_last_weather_notice()
 
     def _compute_target_energy(self, ctx: CompositionContext) -> float:
         e = ctx.raw_energy
