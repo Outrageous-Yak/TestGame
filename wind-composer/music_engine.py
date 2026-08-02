@@ -13,6 +13,7 @@ import sounddevice as sd
 
 from audio_input import AudioInput
 from chord_engine import ChordEngine, ChordState
+from composition_engine import CompositionContext, CompositionEngine
 from config import BLOCK_SIZE, MODE_PROFILES, Mode, SAMPLE_RATE, ScaleName
 from effects import EffectsChain
 from melody_engine import MelodyEngine, MelodyNote
@@ -25,9 +26,10 @@ from utils import GustDetector, clamp
 from wind_detector import WindDetector, WindState
 
 try:
-    from weather.models import MusicDriveParams
+    from weather.models import MusicDriveParams, WeatherSnapshot
 except ImportError:
     MusicDriveParams = None  # type: ignore
+    WeatherSnapshot = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +49,9 @@ class VisualState:
     is_running: bool = False
     is_recording: bool = False
     mic_active: bool = False
+    composition_state: str = "—"
+    mood: str = "—"
+    phrase_number: int = 0
 
 
 class MusicEngine:
@@ -66,6 +71,7 @@ class MusicEngine:
         self.synth = SynthEngine()
         self.effects = EffectsChain()
         self.recorder = AudioRecorder()
+        self.composition_engine = CompositionEngine(self._scale_engine)
 
         self._mode = Mode.AMBIENT
         self._sample_position = 0
@@ -78,6 +84,14 @@ class MusicEngine:
         self._use_mic = False
         self._last_mic_gust = False
         self._weather_only_energy = 0.0
+        self._weather_snapshot: Optional[WeatherSnapshot] = None
+        self._pending_rhythm_events: List = []
+        self._last_drive: Optional[MusicDriveParams] = None
+        self._location_label = ""
+        self._percussion = 0.0
+        self._stereo_pan = 0.0
+        self._brightness_mult = 0.5
+        self._bass_mult = 1.0
 
     @property
     def mode(self) -> Mode:
@@ -114,11 +128,13 @@ class MusicEngine:
         self._scale_engine.set_scale(scale)
         self.chord_engine.reset()
         self.melody_engine.reset()
+        self.composition_engine.reset()
 
     def set_key(self, key: str) -> None:
         self._scale_engine.set_key(key)
         self.chord_engine.reset()
         self.melody_engine.reset()
+        self.composition_engine.reset()
 
     def set_master_volume(self, volume: float) -> None:
         self.synth.set_master_gain(volume)
@@ -126,20 +142,40 @@ class MusicEngine:
     def set_sensitivity(self, sensitivity: float) -> None:
         self.wind_detector.set_sensitivity(sensitivity)
 
-    def apply_drive(self, drive: MusicDriveParams) -> None:
-        """Apply weather-mapped or blended drive parameters."""
-        self._weather_only_energy = drive.energy
-        self.effects.set_stereo_pan(drive.stereo_pan)
-        self.effects.reverb.set_mix(drive.reverb_amount)
-        self.effects.stereo_width = 0.25 + drive.atmosphere_layers * 0.35
-        self._update_music_from_energy(
-            energy=drive.energy,
-            gust=drive.gust,
-            tempo_override=drive.tempo_bpm,
-            bass_mult=drive.bass_intensity,
-            percussion=drive.percussion,
-            brightness_mult=drive.brightness,
+    def set_location_label(self, label: str) -> None:
+        self._location_label = label
+        self.composition_engine.set_location_label(label)
+
+    def set_weather_snapshot(self, weather: Optional[WeatherSnapshot]) -> None:
+        self._weather_snapshot = weather
+
+    def get_composition_metadata(self) -> "RecordingMetadata":
+        from recording import RecordingMetadata
+        meta = self.composition_engine.get_metadata(self._mode.value)
+        return RecordingMetadata(
+            location=meta.location,
+            weather=meta.weather_condition,
+            date=meta.weather_date,
+            tempo_bpm=meta.tempo_bpm,
+            key=meta.key,
+            scale=meta.scale,
+            mode=meta.mode,
+            composition_state=meta.composition_state,
+            mood=meta.mood,
+            phrase_number=meta.phrase_number,
+            phrase_length_bars=meta.phrase_length_bars,
+            chord=meta.chord,
         )
+
+    def apply_drive(self, drive: MusicDriveParams) -> None:
+        """Apply weather-mapped drive; composition engine interprets atmosphere."""
+        self._last_drive = drive
+        self._weather_only_energy = drive.energy
+        self._percussion = drive.percussion
+        self._stereo_pan = drive.stereo_pan
+        self._brightness_mult = drive.brightness
+        self._bass_mult = drive.bass_intensity
+        self._update_from_composition(drive.energy, drive.gust, tempo_override=drive.tempo_bpm)
 
     def _on_input_block(self, block: np.ndarray) -> None:
         feats = self.signal_processor.process(block)
@@ -147,13 +183,122 @@ class MusicEngine:
         self._last_mic_gust = gust
         wind = self.wind_detector.analyse(feats, gust)
         self._wind_state = wind
-        self._update_music_from_energy(wind.energy, gust)
+        self._update_from_composition(wind.energy, gust)
 
         with self.lock:
             self.visual.waveform = self.signal_processor.waveform.copy()
             self.visual.fft = feats.fft_magnitudes.copy()
             self.visual.wind_strength = wind.energy
             self.visual.wind_probability = wind.probability
+
+    def _update_from_composition(
+        self,
+        energy: float,
+        gust: bool,
+        tempo_override: Optional[float] = None,
+    ) -> None:
+        """Generative composition path — weather inspires structure, not just parameters."""
+        profile = MODE_PROFILES[self._mode]
+
+        ctx = CompositionContext(
+            raw_energy=energy,
+            gust=gust,
+            tempo_min=profile.tempo_min,
+            tempo_max=profile.tempo_max,
+            sample_position=self._sample_position,
+            weather=self._weather_snapshot,
+            drive=self._last_drive,
+            stereo_pan=self._stereo_pan,
+            percussion=self._percussion,
+        )
+        plan = self.composition_engine.tick(ctx)
+
+        if tempo_override is not None:
+            plan.tempo_bpm = tempo_override
+
+        self.rhythm_engine.set_tempo(plan.tempo_bpm, SAMPLE_RATE)
+
+        chord = plan.chord
+        if chord is None:
+            chord = self.chord_engine.update(plan.energy_curve)
+        self._chord_state = chord
+
+        self.effects.set_stereo_pan(plan.stereo_pan)
+        self.effects.reverb.set_mix(plan.reverb_amount)
+        self.effects.stereo_width = 0.2 + plan.atmosphere_gain * 0.4
+        self.effects.set_wind_modulation(plan.energy_curve, plan.gust_accent)
+
+        # Pads and atmosphere
+        tones = chord.tones if chord else []
+        self.synth.sustain_pad(tones, plan.pad_gain)
+        self.synth.sustain_atmosphere(plan.atmosphere_gain)
+
+        # Bass
+        bass_gain = plan.bass_gain * plan.bass_mult
+        if bass_gain > 0.04 and tones:
+            from composition_engine import ChordStyle
+            bass_midi = tones[0] - 12
+            if plan.pedal_midi and plan.chord_style == ChordStyle.PEDAL:
+                bass_midi = plan.pedal_midi - 12
+            self.synth.set_layer_frequency("bass", bass_midi)
+            self.synth.set_layer_gain("bass", bass_gain)
+            if self.synth.layers["bass"].adsr.stage == "idle":
+                self.synth.trigger_layer("bass", 0.35 + plan.energy_curve * 0.35)
+
+        # Melody from composition
+        for note in plan.melody_notes:
+            self.synth.set_layer_frequency("lead", note.midi)
+            self.synth.set_layer_gain("lead", note.velocity * plan.lead_gain)
+            self.synth.trigger_layer("lead", note.velocity)
+
+        if plan.gust_accent and tones:
+            accent = tones[-1]
+            self.synth.set_layer_frequency("lead", accent)
+            self.synth.trigger_layer("lead", 0.8)
+
+        # Rare events
+        if plan.rare_event:
+            self._apply_rare_event(plan)
+
+        cutoff = profile.lp_cutoff_base + plan.energy_curve * 4000.0 * profile.brightness * plan.brightness
+        for layer in self.synth.layers:
+            self.synth.set_filter_cutoff(layer, cutoff)
+
+        note_names = [self._scale_engine.note_name(n.midi) for n in plan.melody_notes]
+        for t in tones[:3]:
+            note_names.append(self._scale_engine.note_name(t))
+
+        with self.lock:
+            self.visual.current_chord = chord.name if chord else "—"
+            self.visual.current_notes = note_names[:6]
+            self.visual.tempo_bpm = plan.tempo_bpm
+            self.visual.wind_strength = plan.energy_curve
+            self.visual.composition_state = plan.musical_state.value
+            self.visual.mood = plan.mood
+            self.visual.phrase_number = plan.phrase_number
+
+        # Rhythm events from composition land in output callback via plan storage
+        self._pending_rhythm_events = plan.rhythm_events
+
+        if plan.percussion > 0.25 and gust:
+            self.synth.trigger_layer("bass", plan.percussion * 0.45)
+
+    def _apply_rare_event(self, plan) -> None:
+        from composition_engine import RareEvent
+        if plan.rare_event == RareEvent.GUST_SWELL:
+            self.effects.reverb.set_mix(min(0.85, plan.reverb_amount + 0.2))
+            if plan.chord and plan.chord.tones:
+                self.synth.trigger_layer("lead", 0.9)
+        elif plan.rare_event == RareEvent.LIGHTNING:
+            self.synth.trigger_layer("atmosphere", 0.95)
+            self.synth.trigger_layer("bass", 0.7)
+        elif plan.rare_event == RareEvent.ATMOSPHERIC_HIT:
+            self.synth.trigger_layer("atmosphere", 0.85)
+        elif plan.rare_event == RareEvent.SUSPENDED_CHORD:
+            if plan.chord and plan.chord.tones:
+                self.synth.sustain_pad(plan.chord.tones, 0.6)
+        elif plan.rare_event == RareEvent.CALM_AFTER_STORM:
+            self.effects.reverb.set_mix(0.75)
 
     def _update_music_from_energy(
         self,
@@ -164,65 +309,11 @@ class MusicEngine:
         percussion: float = 0.0,
         brightness_mult: float = 0.5,
     ) -> None:
-        profile = MODE_PROFILES[self._mode]
-        energy = clamp(energy)
-
-        chord = self.chord_engine.update(energy)
-        self._chord_state = chord
-
-        tempo = tempo_override if tempo_override is not None else (
-            profile.tempo_min + energy * (profile.tempo_max - profile.tempo_min)
-        )
-        self.rhythm_engine.set_tempo(tempo, SAMPLE_RATE)
-
-        melody_notes = self.melody_engine.update(
-            energy,
-            profile.melody_activity,
-            gust,
-            chord.tones,
-        )
-
-        self.effects.set_wind_modulation(energy, gust)
-
-        # Layer control
-        self.synth.sustain_pad(chord.tones, energy)
-        self.synth.sustain_atmosphere(energy + percussion * 0.3)
-
-        bass_gain = clamp(energy - 0.15) * 0.5 * bass_mult
-        if bass_gain > 0.05:
-            bass_midi = chord.tones[0] - 12 if chord.tones else self.scale_engine.degree_root(0) - 12
-            self.synth.set_layer_frequency("bass", bass_midi)
-            self.synth.set_layer_gain("bass", bass_gain)
-            if self.synth.layers["bass"].adsr.stage == "idle":
-                self.synth.trigger_layer("bass", 0.4 + energy * 0.3)
-
-        for note in melody_notes:
-            self.synth.set_layer_frequency("lead", note.midi)
-            self.synth.set_layer_gain("lead", note.velocity)
-            self.synth.trigger_layer("lead", note.velocity)
-
-        if gust:
-            accent_midi = chord.tones[-1] if chord.tones else self.scale_engine.degree_root(0)
-            self.synth.set_layer_frequency("lead", accent_midi)
-            self.synth.trigger_layer("lead", 0.85)
-
-        cutoff = profile.lp_cutoff_base + energy * 4000.0 * profile.brightness * brightness_mult
-        for layer in self.synth.layers:
-            self.synth.set_filter_cutoff(layer, cutoff)
-
-        note_names = [self.scale_engine.note_name(n.midi) for n in melody_notes]
-        for t in chord.tones[:3]:
-            note_names.append(self.scale_engine.note_name(t))
-
-        with self.lock:
-            self.visual.current_chord = chord.name
-            self.visual.current_notes = note_names[:6]
-            self.visual.tempo_bpm = tempo
-            self.visual.wind_strength = energy
-
-        # Percussion from rain — trigger bass layer lightly
-        if percussion > 0.25 and gust:
-            self.synth.trigger_layer("bass", percussion * 0.5)
+        """Legacy path — delegates to composition engine."""
+        self._percussion = percussion
+        self._bass_mult = bass_mult
+        self._brightness_mult = brightness_mult
+        self._update_from_composition(energy, gust, tempo_override)
 
     def _output_callback(self, outdata: np.ndarray, frames: int, time_info, status) -> None:
         if status:
@@ -238,6 +329,12 @@ class MusicEngine:
         outdata[:] = stereo
         self._sample_position += frames
 
+        # Composition-scheduled rhythm events
+        for ev in self._pending_rhythm_events:
+            self.synth.trigger_layer(ev.layer, ev.strength)
+        self._pending_rhythm_events = []
+
+        # Legacy rhythm engine fallback for extra texture
         events = self.rhythm_engine.update(
             self._wind_state.energy if self._use_mic else self._weather_only_energy,
             MODE_PROFILES[self._mode].rhythm_density,
@@ -289,6 +386,7 @@ class MusicEngine:
         self.gust_detector.reset()
         self.chord_engine.reset()
         self.melody_engine.reset()
+        self.composition_engine.reset()
         self.rhythm_engine.reset()
 
     def _start_output_stream(self) -> None:
@@ -327,8 +425,8 @@ class MusicEngine:
             self.visual.is_running = False
             self.visual.mic_active = False
 
-    def start_recording(self) -> None:
-        self.recorder.start()
+    def start_recording(self, metadata=None) -> None:
+        self.recorder.start(metadata)
         with self.lock:
             self.visual.is_recording = True
 
@@ -351,4 +449,7 @@ class MusicEngine:
                 is_running=self.visual.is_running,
                 is_recording=self.visual.is_recording,
                 mic_active=self.visual.mic_active,
+                composition_state=self.visual.composition_state,
+                mood=self.visual.mood,
+                phrase_number=self.visual.phrase_number,
             )

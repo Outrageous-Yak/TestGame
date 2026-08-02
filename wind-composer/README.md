@@ -87,7 +87,18 @@ Wind Composer can drive music from **live global weather** via a modular provide
 - Refresh intervals: 10s, 30s, 60s, 5 minutes
 - **Input modes:** Microphone, Live Weather, or Both (blended)
 
-### Weather → music mapping
+### Phase 3 — Generative composition engine
+
+Weather inspires **compositions**, not just parameters:
+
+- **Weather personality** — storm, rain, snow, sunny calm, peaceful breeze
+- **Musical states** — Stillness, Flow, Storm, Recovery, Sunrise, Night, etc.
+- **Phrase generator** — 4/8/16/32 bar phrases with evolution
+- **Expanded harmony** — modal, suspended, drone, quartal, pedal bass
+- **Long-term memory** — avoids repeating chords and melodies
+- **Rare events** — gust swells, lightning hits, calm-after-storm
+- **Recording metadata** — JSON sidecar with location, weather, state, phrase
+
 
 | Weather | Music |
 |---------|-------|

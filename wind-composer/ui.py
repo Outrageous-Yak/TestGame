@@ -272,8 +272,8 @@ class WindComposerUI:
         if not path:
             return
         try:
-            saved = self.controller.recorder.save(Path(path))
-            messagebox.showinfo("Saved", f"Recording saved to:\n{saved}")
+            saved = self.controller.save_recording(path)
+            messagebox.showinfo("Saved", f"Recording saved to:\n{saved}\nMetadata: {saved.with_suffix('.json')}")
         except Exception as exc:
             messagebox.showerror("Save failed", str(exc))
 
@@ -312,7 +312,13 @@ class WindComposerUI:
             state.is_recording,
         )
         self.info_label.configure(
-            text=f"Chord: {state.current_chord}  |  Tempo: {state.tempo_bpm:.0f} BPM  |  CPU: {state.cpu_percent:.0f}%",
+            text=(
+                f"Chord: {state.current_chord}  |  "
+                f"State: {state.composition_state}  |  "
+                f"Mood: {state.mood}  |  "
+                f"Tempo: {state.tempo_bpm:.0f} BPM  |  "
+                f"CPU: {state.cpu_percent:.0f}%"
+            ),
         )
         self.weather_panel.update_live_info()
         self.root.after(VIS_INTERVAL_MS, self._schedule_visual_update)

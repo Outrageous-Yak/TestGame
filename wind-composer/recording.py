@@ -1,12 +1,13 @@
-"""WAV recording with timestamps."""
+"""WAV recording with timestamps and JSON metadata."""
 
 from __future__ import annotations
 
+import json
 import time
 import wave
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -19,24 +20,49 @@ class RecordingMarker:
     label: str
 
 
+@dataclass
+class RecordingMetadata:
+    """Metadata saved alongside WAV recordings."""
+
+    location: str = ""
+    weather: str = ""
+    date: str = ""
+    tempo_bpm: float = 0.0
+    key: str = ""
+    scale: str = ""
+    mode: str = ""
+    composition_state: str = ""
+    mood: str = ""
+    phrase_number: int = 0
+    phrase_length_bars: int = 0
+    chord: str = ""
+    extra: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        return d
+
+
 class AudioRecorder:
-    """Accumulate stereo output and save as WAV."""
+    """Accumulate stereo output and save as WAV + JSON metadata."""
 
     def __init__(self) -> None:
         self._chunks: List[np.ndarray] = []
         self._markers: List[RecordingMarker] = []
         self._start_time: Optional[float] = None
         self._active = False
+        self._metadata: Optional[RecordingMetadata] = None
 
     @property
     def is_recording(self) -> bool:
         return self._active
 
-    def start(self) -> None:
+    def start(self, metadata: Optional[RecordingMetadata] = None) -> None:
         self._chunks.clear()
         self._markers.clear()
         self._start_time = time.monotonic()
         self._active = True
+        self._metadata = metadata
         self.mark("recording_start")
 
     def stop(self) -> None:
@@ -52,7 +78,7 @@ class AudioRecorder:
         if self._active:
             self._chunks.append(stereo.copy())
 
-    def save(self, path: Path) -> Path:
+    def save(self, path: Path, metadata: Optional[RecordingMetadata] = None) -> Path:
         if not self._chunks:
             raise ValueError("No audio recorded")
 
@@ -76,6 +102,14 @@ class AudioRecorder:
         log_path = path.with_suffix(".log.txt")
         lines = [f"{m.timestamp_sec:.3f}s  {m.label}" for m in self._markers]
         log_path.write_text("\n".join(lines) + "\n")
+
+        meta = metadata or self._metadata
+        if meta:
+            json_path = path.with_suffix(".json")
+            meta_dict = meta.to_dict()
+            meta_dict["duration_sec"] = self.duration_sec()
+            meta_dict["markers"] = lines
+            json_path.write_text(json.dumps(meta_dict, indent=2))
 
         return path
 

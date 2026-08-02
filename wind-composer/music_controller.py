@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import List, Optional
 
 from config import InputSource, MODE_PROFILES, Mode
@@ -190,22 +191,25 @@ class MusicController:
 
     def _update_live_info_panel(self) -> None:
         stations = self.station_manager.list_active()
-        if not stations:
-            return
+        primary_weather = None
+        primary_label = ""
 
-        # Primary display from first enabled station with data
-        primary: Optional[ActiveStation] = None
         for s in stations:
             if s.enabled and s.weather:
-                primary = s
+                primary_weather = s.weather
+                primary_label = s.station.display_name
                 break
+
+        self.engine.set_weather_snapshot(primary_weather)
+        if primary_label:
+            self.engine.set_location_label(primary_label)
 
         with self._lock:
             self._live_info.mode = self.engine.mode.value
             self._live_info.key = self.engine.scale_engine.key
-            if primary and primary.weather:
-                w = primary.weather
-                self._live_info.location_label = primary.station.display_name
+            if primary_weather:
+                w = primary_weather
+                self._live_info.location_label = primary_label
                 self._live_info.condition = w.condition
                 self._live_info.wind_speed_kmh = w.wind_speed_kmh
                 self._live_info.wind_direction_deg = w.wind_direction_deg
@@ -234,10 +238,20 @@ class MusicController:
         return self.engine.get_visual_state()
 
     def start_recording(self) -> None:
-        self.engine.start_recording()
+        meta = self.engine.get_composition_metadata()
+        if self._live_info.location_label:
+            meta.location = self._live_info.location_label
+        if self._live_info.condition:
+            meta.weather = self._live_info.condition
+        self.engine.start_recording(meta)
 
     def stop_recording(self) -> None:
         self.engine.stop_recording()
+
+    def save_recording(self, path) -> Path:
+        from pathlib import Path
+        meta = self.engine.get_composition_metadata()
+        return self.engine.recorder.save(Path(path), metadata=meta)
 
     @property
     def recorder(self):

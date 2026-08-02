@@ -200,6 +200,12 @@ class WeatherPanel(ttk.Frame):
             f"Mode:         {info.mode}  |  Key: {info.key}\n"
             f"Chord:        {info.chord}  |  BPM: {info.tempo_bpm:.0f}\n"
         )
+        vis = self.controller.get_visual_state()
+        text += (
+            f"Composition:  {vis.composition_state}\n"
+            f"Mood:         {vis.mood}\n"
+            f"Phrase:       {vis.phrase_number}\n"
+        )
         if info.fetch_error:
             text += f"API error:    {info.fetch_error}\n"
         self.info_text.insert("1.0", text)
