@@ -60,6 +60,10 @@ export class MusicSession {
     this.intelligent.setStyle(name);
   }
 
+  resetPlayback(): void {
+    this.intelligent.resetForPlayback();
+  }
+
   markWeatherFetched(): void {
     this.lastWeatherFetchMs = Date.now();
     this.scheduleNextRefresh();

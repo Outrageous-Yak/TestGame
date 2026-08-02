@@ -302,6 +302,7 @@ export class WindComposerApp {
         }
         this.refreshStationUI();
       });
+      this.session.resetPlayback();
       this.running = true;
       this.playStartMs = performance.now();
       const actx = this.synth.getContext();
@@ -343,6 +344,15 @@ export class WindComposerApp {
 
   private tickLoop() {
     if (!this.running) return;
+    try {
+      this.tickLoopBody();
+    } catch (err) {
+      console.error("tickLoop failed", err);
+      this.el.status.textContent = `Error: ${err}`;
+    }
+  }
+
+  private tickLoopBody() {
     const input = this.controls.input.value;
     let micEnergy = 0;
     let gust = false;
@@ -407,7 +417,7 @@ export class WindComposerApp {
         <div><span class="live-label">Next Update</span> ${mm}:${ss}</div>
         <div><span class="live-label">Fill Prob</span> ${(live.fillProbability * 100).toFixed(0)}%</div>
       </div>
-      ${live.weatherNotice ? `<p class="weather-notice">${live.weatherNotice.replace(/\n/g, "<br>")}</p>` : ""}
+      ${live.weatherNotice ? `<p class="weather-notice">${this.escapeHtml(live.weatherNotice).replace(/\n/g, "<br>")}</p>` : ""}
     `;
     const primary = this.stations.list().find((s) => s.enabled && s.weather);
     if (primary?.weather) {
@@ -617,6 +627,14 @@ export class WindComposerApp {
       `Output level: ${d.outputRms.toFixed(4)}`,
       d.lastError ? `Last error: ${d.lastError}` : "",
     ].filter(Boolean).join("\n");
+  }
+
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
 
   private registerServiceWorker() {

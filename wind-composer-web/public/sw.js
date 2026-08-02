@@ -1,15 +1,10 @@
-const CACHE = "wind-composer-static-v8";
+const CACHE = "wind-composer-static-v9";
+
+const PRECACHE = ["./index.html", "./manifest.json", "./synth-worklet.js"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) =>
-      cache.addAll([
-        "./",
-        "./index.html",
-        "./manifest.json",
-        "./synth-worklet.js",
-      ]),
-    ).then(() => self.skipWaiting()),
+    caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()),
   );
 });
 
@@ -21,6 +16,10 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+function isAppRequest(url) {
+  return url.pathname.includes("/wind-composer/") || url.pathname.endsWith("/wind-composer");
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
@@ -28,22 +27,46 @@ self.addEventListener("fetch", (event) => {
   if (url.hostname.includes("open-meteo.com") || url.hostname.includes("tile.openstreetmap")) {
     return;
   }
+  if (url.origin !== self.location.origin) return;
+
+  const networkFirst =
+    request.mode === "navigate" ||
+    url.pathname.includes("/assets/") ||
+    url.pathname.endsWith(".js") ||
+    url.pathname.endsWith(".css");
+
+  if (networkFirst && isAppRequest(url)) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cache = await caches.open(CACHE);
+          const cached = await cache.match(request);
+          if (cached) return cached;
+          if (request.mode === "navigate") {
+            return cache.match("./index.html");
+          }
+          throw new Error("offline");
+        }),
+    );
+    return;
+  }
+
   event.respondWith(
     caches.open(CACHE).then(async (cache) => {
       const cached = await cache.match(request);
       if (cached) return cached;
-      try {
-        const response = await fetch(request);
-        if (response.ok && url.origin === self.location.origin) {
-          cache.put(request, response.clone());
-        }
-        return response;
-      } catch {
-        if (request.mode === "navigate") {
-          return cache.match("./index.html");
-        }
-        throw new Error("offline");
+      const response = await fetch(request);
+      if (response.ok) {
+        cache.put(request, response.clone());
       }
+      return response;
     }),
   );
 });

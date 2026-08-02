@@ -81,6 +81,13 @@ export class IntelligentComposer {
     return this.lastBassPattern;
   }
 
+  resetForPlayback(): void {
+    this.lastBeat = -1;
+    this.lastMeasure = -1;
+    this.lastBassPattern = [];
+    this.fillProbabilityBoost = 0;
+  }
+
   onWeatherUpdated(snap: WeatherSnapshot, localTimeStr: string): void {
     this.localTimeStr = localTimeStr;
     const prev = this.weatherMemory.push(snap);
@@ -121,7 +128,9 @@ export class IntelligentComposer {
     plan.local_time_str = this.localTimeStr;
 
     if (measure > prevMeasure) {
-      for (let m = Math.max(1, prevMeasure + 1); m <= measure; m++) {
+      const measureStart = Math.max(1, prevMeasure + 1);
+      const measureEnd = Math.min(measure, measureStart + 7);
+      for (let m = measureStart; m <= measureEnd; m++) {
         plan.song_section = this.arrangement.onBar(m, plan.energy_curve, trend.storm_likelihood > 0.5);
         if (m > 0 && m % 32 === 0) this.phraseNumber += 1;
       }
@@ -135,7 +144,9 @@ export class IntelligentComposer {
     const arrState = this.arrangement.getState();
 
     if (beat > prevBeat) {
-      for (let b = Math.max(0, prevBeat + 1); b <= beat; b++) {
+      const beatStart = Math.max(0, prevBeat + 1);
+      const beatEnd = Math.min(beat, beatStart + 31);
+      for (let b = beatStart; b <= beatEnd; b++) {
         const micro = beatMicroDecision(plan.energy_curve);
         if (micro === "hat_ghost") {
           extraRhythm.push({ layer: "hat_ghost", strength: 0.14, is_pulse: false });
@@ -167,7 +178,9 @@ export class IntelligentComposer {
     }
 
     if (measure > prevMeasure) {
-      for (let m = Math.max(1, prevMeasure + 1); m <= measure; m++) {
+      const measureStart = Math.max(1, prevMeasure + 1);
+      const measureEnd = Math.min(measure, measureStart + 7);
+      for (let m = measureStart; m <= measureEnd; m++) {
         const tones = plan.chord?.tones ?? [];
         const bassNotes = this.bass.onBar({
           chordTones: tones,
