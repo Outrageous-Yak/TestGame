@@ -92,6 +92,22 @@ jobs:
           mkdir -p dist/sound
           cp -r sound-studio/dist/* dist/sound/
 
+      - name: Install and build Wind Composer Web (static PWA)
+        if: hashFiles('wind-composer-web/package.json') != ''
+        working-directory: wind-composer-web
+        run: |
+          npm ci
+          npm run build
+          cp dist/index.html dist/404.html
+        env:
+          BASE_PATH: /TestGame/wind-composer/
+
+      - name: Combine Wind Composer Web artifacts
+        if: hashFiles('wind-composer-web/package.json') != ''
+        run: |
+          mkdir -p dist/wind-composer
+          cp -r wind-composer-web/dist/* dist/wind-composer/
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
