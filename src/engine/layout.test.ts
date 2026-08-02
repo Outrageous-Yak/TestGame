@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Scenario } from "./types";
 import { buildInitialState } from "./board";
-import { findSlot, hexIdAtSlot, rowShiftVisual } from "./layout";
+import { findSlot, hexIdAtSlot, rowShiftVisual, clockwiseOrderFrom } from "./layout";
 import { neighborIdsSameLayer } from "./neighbors";
 import { applyShift } from "./rules";
 
@@ -51,5 +51,18 @@ describe("layout", () => {
     expect(rowShiftVisual(state, 1, 3)).not.toBe(0);
     const after = neighborIdsSameLayer(state, playerId);
     expect(after).not.toEqual(before);
+  });
+
+  it("clockwiseOrderFrom sorts neighbors around the player", () => {
+    const state = buildInitialState(testScenario());
+    const playerId = state.playerHexId;
+    const neighbors = neighborIdsSameLayer(state, playerId).filter((id) => {
+      const hex = state.hexesById.get(id);
+      return hex && !hex.blocked;
+    });
+
+    const ordered = clockwiseOrderFrom(state, 1, playerId, neighbors);
+    expect(ordered).toHaveLength(neighbors.length);
+    expect(new Set(ordered)).toEqual(new Set(neighbors));
   });
 });
