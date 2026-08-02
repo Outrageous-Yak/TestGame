@@ -71,12 +71,30 @@ body {
   background: var(--surface);
   border-radius: 8px;
   font-size: 0.9rem;
+  min-height: 220px;
+  contain: layout style;
+}
+
+.live-cell {
+  min-height: 1.35em;
+}
+
+.live-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.live-weather-summary {
+  min-height: 3em;
 }
 
 .live-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 8px 12px;
+}
+
+.peak-warn {
+  color: var(--warn);
 }
 
 .live-label {
@@ -89,9 +107,11 @@ body {
 .weather-notice {
   margin-top: 10px;
   padding: 8px;
+  min-height: 2.5em;
   background: rgba(107, 159, 212, 0.12);
   border-radius: 6px;
   font-size: 0.85rem;
+  color: var(--accent);
 }
 
 .style-panel {

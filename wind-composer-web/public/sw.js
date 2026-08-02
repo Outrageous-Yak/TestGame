@@ -1,4 +1,4 @@
-const CACHE = "wind-composer-static-v10";
+const CACHE = "wind-composer-static-v11";
 
 const PRECACHE = ["./index.html", "./manifest.json", "./synth-worklet.js"];
 
