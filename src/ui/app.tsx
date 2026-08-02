@@ -17,6 +17,7 @@ import { neighborIdsSameLayer } from "../engine/neighbors";
  * - export const registry = [...]
  */
 import * as WorldsMod from "../worlds";
+import { resolveTileVisualType, tileArtRelPath } from "./tileArt";
 
 /* =========================================================
    Types
@@ -1203,12 +1204,15 @@ body{
   border-radius: 10px;
   clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
   border: 1px solid rgba(255,255,255,.12);
-  background:
+  /* PNG art via --tileArt; gradients below remain as fallback if image is absent or fails */
+  background-image:
+    var(--tileArt, none),
     radial-gradient(circle at 30% 25%, rgba(120,255,210,.12), transparent 55%),
-    radial-gradient(circle at 70% 70%, rgba(120,150,255,.12), transparent 55%),
-    rgba(0,0,0,.34);
-  background-size: cover;
-  background-position: center;
+    radial-gradient(circle at 70% 70%, rgba(120,150,255,.12), transparent 55%);
+  background-color: rgba(0,0,0,.34);
+  background-size: cover, auto, auto;
+  background-position: center, center, center;
+  background-repeat: no-repeat, no-repeat, no-repeat;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
   overflow:visible;
 }
@@ -4422,7 +4426,21 @@ export default function App() {
                         const isGoal = goalId === id;
                         const isTrigger = !!findTriggerForHex(id);
 
-                        const tile = HEX_TILE ? "url(" + toPublicUrl(HEX_TILE) + ")" : "";
+                        const tileVisual = resolveTileVisualType({
+                          revealed: !!hex?.revealed,
+                          blocked: bm.blocked,
+                          isGoal,
+                          isStart,
+                          isPortalUp,
+                          isPortalDown,
+                        });
+                        // Theme hexTile (if set) overrides per-type art for backward compatibility.
+                        const tileArtUrl = HEX_TILE
+                          ? toPublicUrl(HEX_TILE)
+                          : toPublicUrl(tileArtRelPath(tileVisual));
+                        const hexInnerStyle = {
+                          ["--tileArt" as any]: `url(${tileArtUrl})`,
+                        } as React.CSSProperties;
 
                         return (
                           <div key={"v-" + r + "-" + c} className="hexSlot" style={cellStyle}>
@@ -4459,7 +4477,7 @@ export default function App() {
                               title={id}
                             >
                               <div className="hexAnchor">
-                                <div className="hexInner" style={tile ? ({ backgroundImage: tile } as any) : undefined}>
+                                <div className="hexInner" style={hexInnerStyle}>
                                   <div className="hexCoords">
                                     <div className="hexId">{r + "," + c}</div>
                                   </div>
