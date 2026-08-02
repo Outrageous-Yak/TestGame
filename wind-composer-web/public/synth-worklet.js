@@ -3,6 +3,10 @@
 const MAX_VOICES = 24;
 const TAU = Math.PI * 2;
 
+function wrapIndex(i, len) {
+  return ((i % len) + len) % len;
+}
+
 class Voice {
   constructor() {
     this.active = false;
@@ -39,6 +43,8 @@ class Voice {
     this.r = rel;
     this.stage = "attack";
     this.age = 0;
+    this.env = 0;
+    this.filter = 0;
   }
 
   release() {
@@ -94,7 +100,7 @@ class SynthProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     this.voices = Array.from({ length: MAX_VOICES }, () => new Voice());
-    this.layerGains = {};
+    this.layerGains = { main_pad: 0.4 };
     this.master = 0.75;
     this.reverbWet = 0.45;
     this.width = 0.35;
@@ -111,13 +117,16 @@ class SynthProcessor extends AudioWorkletProcessor {
     this.dlyWet = 0.12;
     this.peak = 0;
     this.sustainLayer = {};
-
+    this.bypassEffects = false;
+    this.scheduledEvents = 0;
+    this.firstOutputLogged = false;
     this.port.onmessage = (e) => this.onMsg(e.data);
+    this.port.postMessage({ type: "worklet_ready" });
   }
 
   onMsg(msg) {
     if (msg.type === "orchestration") {
-      this.layerGains = msg.layerGains || {};
+      this.layerGains = msg.layerGains || this.layerGains;
       this.reverbWet = msg.reverbWet ?? 0.45;
       this.dlyWet = msg.delayWet ?? 0.12;
       this.width = msg.width ?? 0.35;
@@ -125,17 +134,25 @@ class SynthProcessor extends AudioWorkletProcessor {
       this.warmth = msg.warmth ?? 0.5;
     } else if (msg.type === "sound") {
       this.master = msg.master ?? 0.75;
-      this.reverbWet = msg.reverb ?? 0.45;
-      this.width = msg.width ?? 0.35;
-      this.warmth = msg.warmth ?? 0.5;
+      if (msg.reverb != null) this.reverbWet = msg.reverb;
+      if (msg.width != null) this.width = msg.width;
+      if (msg.warmth != null) this.warmth = msg.warmth;
+    } else if (msg.type === "bypass") {
+      this.bypassEffects = Boolean(msg.enabled);
     } else if (msg.type === "sustain") {
       this.sustainChord(msg.layer, msg.midis, msg.gain, msg.preset);
     } else if (msg.type === "note") {
       this.noteOn(msg.layer, msg.midi, msg.velocity, msg.preset);
+      this.scheduledEvents += 1;
+      if (this.scheduledEvents === 1) {
+        this.port.postMessage({ type: "first_note", midi: msg.midi, layer: msg.layer });
+      }
     } else if (msg.type === "perc") {
       this.triggerPerc(msg.velocity);
     } else if (msg.type === "release_layer") {
       this.releaseLayer(msg.layer);
+    } else if (msg.type === "release_all") {
+      for (const v of this.voices) v.release();
     } else if (msg.type === "apply_plan") {
       this.applyPlan(msg.plan, msg.orchestration);
     }
@@ -153,13 +170,13 @@ class SynthProcessor extends AudioWorkletProcessor {
   }
 
   presetParams(name) {
-    const pads = {
-      attack: 1.5, decay: 0.8, sustain: 0.7, release: 2.5, cutoff: 1200,
-    };
+    const startup = { attack: 0.05, decay: 0.3, sustain: 0.75, release: 4, cutoff: 1400 };
+    const pads = { attack: 1.5, decay: 0.8, sustain: 0.7, release: 2.5, cutoff: 1200 };
     const bass = { attack: 0.1, decay: 0.2, sustain: 0.75, release: 0.5, cutoff: 500 };
     const lead = { attack: 0.05, decay: 0.2, sustain: 0.5, release: 0.6, cutoff: 2500 };
     const atmo = { attack: 2.5, decay: 1.5, sustain: 0.75, release: 4, cutoff: 800 };
-  if (name && name.toLowerCase().includes("bass")) return bass;
+    if (name === "startup") return startup;
+    if (name && name.toLowerCase().includes("bass")) return bass;
     if (name && (name.includes("Bell") || name.includes("Pluck"))) return lead;
     if (name && (name.includes("Haze") || name.includes("Mist") || name.includes("Storm"))) return atmo;
     return pads;
@@ -168,9 +185,9 @@ class SynthProcessor extends AudioWorkletProcessor {
   noteOn(layer, midi, vel, preset) {
     const p = this.presetParams(preset);
     const v = this.allocVoice();
-    v.layer = layer;
+    v.layer = layer || "main_pad";
     v.cutoff = p.cutoff;
-    v.start(midi, vel * 0.45, p.attack, p.decay, p.sustain, p.release);
+    v.start(midi, vel * 0.55, p.attack, p.decay, p.sustain, p.release);
   }
 
   sustainChord(layer, midis, gain, preset) {
@@ -180,13 +197,16 @@ class SynthProcessor extends AudioWorkletProcessor {
       this.releaseLayer(layer);
       this.sustainLayer[layer] = root;
     }
-    this.noteOn(layer, root, gain, preset);
+    for (const midi of midis) {
+      this.noteOn(layer, midi, gain, preset);
+    }
   }
 
   releaseLayer(layer) {
     for (const v of this.voices) {
       if (v.layer === layer) v.release();
     }
+    delete this.sustainLayer[layer];
   }
 
   triggerPerc(vel) {
@@ -255,34 +275,43 @@ class SynthProcessor extends AudioWorkletProcessor {
       let mono = 0;
       for (const v of this.voices) {
         if (!v.active) continue;
-        const lg = this.layerGains[v.layer] ?? 0.3;
+        const lg = this.layerGains[v.layer] ?? 0.35;
         mono += v.process(sr) * lg;
       }
-      const comp = 1 / Math.sqrt(Math.max(1, Object.keys(this.layerGains).length) * 0.7);
+      const layerCount = Math.max(1, Object.keys(this.layerGains).length);
+      const comp = 1 / Math.sqrt(layerCount * 0.7);
       mono *= comp * this.master;
-      const drive = 0.15 + this.warmth * 0.25;
-      mono = this.softSat(mono, drive);
-      const pan = this.stereoPan;
-      const w = this.width;
-      let l = mono * (0.5 - pan * 0.35) * (1 + w * 0.15);
-      let r = mono * (0.5 + pan * 0.35) * (1 + w * 0.15);
-      const rvIdx = (this.revPos - 4000) % this.revL.length;
-      const rv = (this.revL[rvIdx] + this.revR[rvIdx]) * 0.5 * this.reverbWet;
-      this.revL[this.revPos] = l + rv * 0.4;
-      this.revR[this.revPos] = r + rv * 0.38;
-      this.revPos = (this.revPos + 1) % this.revL.length;
-      l += rv;
-      r += rv;
-      const dIdx = (this.dlyPos - this.dlyLen) % this.dlyL.length;
-      const dl = this.dlyL[dIdx];
-      const dr = this.dlyR[dIdx];
-      this.dlyL[this.dlyPos] = l + dl * this.dlyFb;
-      this.dlyR[this.dlyPos] = r + dr * this.dlyFb * 0.92;
-      this.dlyPos = (this.dlyPos + 1) % this.dlyL.length;
-      l = l * 0.88 + dl * this.dlyWet;
-      r = r * 0.88 + dr * this.dlyWet;
-      const ceiling = 0.92;
+
+      let l;
+      let r;
+      if (this.bypassEffects) {
+        l = mono;
+        r = mono;
+      } else {
+        mono = this.softSat(mono, 0.15 + this.warmth * 0.25);
+        const pan = this.stereoPan;
+        const w = this.width;
+        l = mono * (0.5 - pan * 0.35) * (1 + w * 0.15);
+        r = mono * (0.5 + pan * 0.35) * (1 + w * 0.15);
+        const rvIdx = wrapIndex(this.revPos - 4000, this.revL.length);
+        const rv = (this.revL[rvIdx] + this.revR[rvIdx]) * 0.5 * this.reverbWet;
+        this.revL[this.revPos] = l + rv * 0.4;
+        this.revR[this.revPos] = r + rv * 0.38;
+        this.revPos = (this.revPos + 1) % this.revL.length;
+        l += rv;
+        r += rv;
+        const dIdx = wrapIndex(this.dlyPos - this.dlyLen, this.dlyL.length);
+        const dl = this.dlyL[dIdx];
+        const dr = this.dlyR[dIdx];
+        this.dlyL[this.dlyPos] = l + dl * this.dlyFb;
+        this.dlyR[this.dlyPos] = r + dr * this.dlyFb * 0.92;
+        this.dlyPos = (this.dlyPos + 1) % this.dlyL.length;
+        l = l * 0.88 + dl * this.dlyWet;
+        r = r * 0.88 + dr * this.dlyWet;
+      }
+
       peak = Math.max(peak, Math.abs(l), Math.abs(r));
+      const ceiling = 0.92;
       if (peak > ceiling) {
         const g = ceiling / peak;
         l *= g;
@@ -292,8 +321,12 @@ class SynthProcessor extends AudioWorkletProcessor {
       if (!Number.isFinite(r)) r = 0;
       L[i] = l;
       R[i] = r;
+      if (!this.firstOutputLogged && (Math.abs(l) > 0.001 || Math.abs(r) > 0.001)) {
+        this.firstOutputLogged = true;
+        this.port.postMessage({ type: "first_output", level: peak });
+      }
     }
-  this.peak = peak;
+    this.peak = peak;
     if (L.length > 0) {
       this.port.postMessage({ type: "peak", peak: this.peak });
     }

@@ -212,6 +212,46 @@ input[type="range"] {
   margin-top: 6px;
 }
 
+.test-sound-btn {
+  margin-top: 8px;
+  background: #2a4055;
+  border-color: var(--accent);
+}
+
+.audio-state,
+.test-sound-result {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+.volume-help {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+
+.diag-panel {
+  font-size: 0.7rem;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid #2a3545;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+
+.silence-warn {
+  background: #3a2020;
+  color: var(--warn);
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+}
+
 @media (orientation: landscape) and (max-height: 500px) {
   .map-container {
     height: 40vh;

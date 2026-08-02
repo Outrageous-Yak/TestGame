@@ -31,6 +31,8 @@ export class WindComposerApp {
   private running = false;
   private audioEnabled = false;
   private sampleDelta = 4096;
+  private playStartMs = 0;
+  private diagTimer: number | null = null;
 
   private el = {
     status: document.createElement("span"),
@@ -45,6 +47,11 @@ export class WindComposerApp {
     mapContainer: document.createElement("div"),
     micDenied: document.createElement("div"),
     enableAudioPanel: document.createElement("div"),
+    audioState: document.createElement("div"),
+    testSoundResult: document.createElement("div"),
+    diagPanel: document.createElement("div"),
+    silenceWarn: document.createElement("div"),
+    volumeHelp: document.createElement("p"),
   };
 
   private controls = {
@@ -86,8 +93,20 @@ export class WindComposerApp {
     this.el.enableAudioPanel.innerHTML = "<p>Tap to enable audio and load the sound engine on your device.</p>";
     const enableBtn = this.btn("Enable Audio", () => this.onEnableAudio());
     enableBtn.className = "enable-audio-btn";
-    this.el.enableAudioPanel.append(enableBtn);
+    const testBtn = this.btn("Test Sound", () => this.onTestSound());
+    testBtn.className = "test-sound-btn";
+    this.el.audioState.className = "audio-state";
+    this.el.audioState.textContent = "Audio state: —";
+    this.el.testSoundResult.className = "test-sound-result";
+    this.el.volumeHelp.className = "volume-help";
+    this.el.volumeHelp.textContent =
+      "Turn up media volume and disconnect Bluetooth devices if sound is routed elsewhere.";
+    this.el.enableAudioPanel.append(enableBtn, testBtn, this.el.audioState, this.el.testSoundResult, this.el.volumeHelp);
     root.append(this.el.enableAudioPanel);
+
+    this.el.diagPanel.className = "diag-panel";
+    this.el.silenceWarn.className = "silence-warn hidden";
+    root.append(this.el.diagPanel, this.el.silenceWarn);
 
     const toolbar = this.h("div", "toolbar");
     toolbar.append(
@@ -116,6 +135,15 @@ export class WindComposerApp {
 
     const sound = this.h("section", "sound-panel");
     sound.append(this.h("h2", "", "Sound Engine"));
+    const bypass = document.createElement("input");
+    bypass.type = "checkbox";
+    bypass.id = "bypass-effects";
+    const bypassLabel = this.h("label", "control-label");
+    bypassLabel.append(document.createTextNode("Bypass Effects (diag)"), bypass);
+    bypass.addEventListener("change", () => {
+      this.synth.setBypassEffects(bypass.checked);
+      this.updateDiagnostics();
+    });
     sound.append(
       this.labelWrap("Quality", this.controls.quality),
       this.labelWrap("Soundscape", this.controls.soundscape),
@@ -123,6 +151,7 @@ export class WindComposerApp {
       this.labelWrap("Width", this.controls.width),
       this.labelWrap("Bright", this.controls.brightness),
       this.labelWrap("Warmth", this.controls.warmth),
+      bypassLabel,
     );
     this.el.layers.className = "layers";
     sound.append(this.el.layers);
@@ -179,10 +208,35 @@ export class WindComposerApp {
   }
 
   private async onEnableAudio() {
-    await this.synth.start();
-    this.audioEnabled = true;
-    this.el.enableAudioPanel.classList.add("hidden");
-    this.el.status.textContent = "Audio ready — press Start";
+    try {
+      this.synth.ensureContextSync();
+      this.synth.setStateListener((s) => {
+        this.el.audioState.textContent = `Audio state: ${s}`;
+      });
+      const state = await this.synth.resumeContext();
+      this.el.audioState.textContent = `Audio state: ${state}`;
+      if (state !== "running") {
+        this.el.status.textContent = "Audio not running — tap Enable Audio again";
+        return;
+      }
+      await this.synth.loadWorklet();
+      this.audioEnabled = true;
+      this.el.enableAudioPanel.classList.remove("hidden");
+      this.el.status.textContent = "Audio ready — tap Test Sound or Start";
+      this.startDiagTimer();
+      this.updateDiagnostics();
+    } catch (e) {
+      this.el.status.textContent = `Audio init failed: ${e}`;
+      this.el.testSoundResult.textContent = `Worklet failed: ${e}`;
+    }
+  }
+
+  private async onTestSound() {
+    this.synth.ensureContextSync();
+    const result = await this.synth.playTestTone();
+    this.el.testSoundResult.textContent = result;
+    this.el.audioState.textContent = `Audio state: ${this.synth.getContext()?.state ?? "none"}`;
+    this.updateDiagnostics();
   }
 
   private showTab(name: string) {
@@ -204,12 +258,18 @@ export class WindComposerApp {
       return;
     }
     const input = this.controls.input.value;
-    if ((input === "Live Weather" || input === "Both") && this.stations.list().length === 0) {
-      alert("Add at least one weather station in the Weather tab.");
-      return;
-    }
     try {
+      this.synth.ensureContextSync();
+      const state = await this.synth.resumeContext();
+      if (state !== "running") {
+        alert(`AudioContext is ${state}. Tap Enable Audio again.`);
+        return;
+      }
       await this.synth.start();
+      if (this.synth.getDiagnostics().workletStatus.startsWith("failed")) {
+        alert(`Worklet failed: ${this.synth.getDiagnostics().lastError}`);
+        return;
+      }
       if (input === "Microphone" || input === "Both") {
         try {
           this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -220,14 +280,21 @@ export class WindComposerApp {
           this.el.micDenied.classList.remove("hidden");
         }
       }
-      await this.stations.refreshAll();
+      this.syncSettings();
+      this.synth.scheduleStartupChord();
+      this.stations.refreshAll();
       this.running = true;
+      this.playStartMs = performance.now();
+      this.el.silenceWarn.classList.add("hidden");
       this.el.status.textContent = "Playing";
+      this.tickLoop();
       this.tickTimer = window.setInterval(() => this.tickLoop(), 350);
       this.vizTimer = window.setInterval(() => this.drawViz(), 50);
       this.weatherTimer = window.setInterval(() => this.stations.refreshAll(), 30000);
       this.refreshStationUI();
+      this.startDiagTimer();
     } catch (e) {
+      this.el.status.textContent = `Start failed: ${e}`;
       alert(String(e));
     }
   }
@@ -237,12 +304,15 @@ export class WindComposerApp {
     if (this.tickTimer) clearInterval(this.tickTimer);
     if (this.vizTimer) clearInterval(this.vizTimer);
     if (this.weatherTimer) clearInterval(this.weatherTimer);
+    this.synth.releaseAll();
     if (this.micStream) {
       this.micStream.getTracks().forEach((t) => t.stop());
       this.micStream = null;
     }
     if (this.recorder.isRecording()) this.recorder.stop();
+    this.el.silenceWarn.classList.add("hidden");
     this.el.status.textContent = "Stopped";
+    this.updateDiagnostics();
   }
 
   private tickLoop() {
@@ -260,8 +330,17 @@ export class WindComposerApp {
     const plan = tick.plan;
     this.el.info.textContent = `Chord: ${plan.chord?.name ?? "—"} | State: ${plan.musical_state} | ${plan.tempo_bpm.toFixed(0)} BPM`;
     this.el.layers.textContent = `Layers: ${tick.orchestration.active_layers.join(", ") || "—"}`;
-    this.el.peak.textContent = `Peak ${this.synth.peak.toFixed(2)}`;
+    this.el.peak.textContent = `Peak ${this.synth.peak.toFixed(2)} | RMS ${this.synth.getOutputRms().toFixed(4)}`;
     this.el.peak.classList.toggle("peak-warn", this.synth.peak > 0.88);
+    if (this.running) {
+      const rms = this.synth.getOutputRms();
+      const elapsed = performance.now() - this.playStartMs;
+      if (elapsed > 2000 && rms < 0.0005 && this.synth.peak < 0.01) {
+        this.el.silenceWarn.textContent = "Audio engine is running but producing silence";
+        this.el.silenceWarn.classList.remove("hidden");
+      }
+    }
+    this.updateDiagnostics();
     const primary = this.stations.list().find((s) => s.enabled && s.weather);
     if (primary?.weather) {
       const w = primary.weather;
@@ -447,10 +526,31 @@ export class WindComposerApp {
     a.click();
   }
 
+  private startDiagTimer() {
+    if (this.diagTimer) clearInterval(this.diagTimer);
+    this.diagTimer = window.setInterval(() => this.updateDiagnostics(), 500);
+    this.updateDiagnostics();
+  }
+
+  private updateDiagnostics() {
+    const d = this.synth.getDiagnostics();
+    this.el.diagPanel.textContent = [
+      `AudioContext: ${d.contextState} @ ${d.sampleRate} Hz`,
+      `Worklet: ${d.workletStatus}`,
+      `Synth: ${d.synthStatus}`,
+      `Master gain: ${d.masterGain.toFixed(2)}`,
+      `Scheduled events: ${d.scheduledEvents}`,
+      `Output level: ${d.outputRms.toFixed(4)}`,
+      d.lastError ? `Last error: ${d.lastError}` : "",
+    ].filter(Boolean).join("\n");
+  }
+
   private registerServiceWorker() {
     if ("serviceWorker" in navigator) {
       const base = import.meta.env.BASE_URL;
-      navigator.serviceWorker.register(`${base}sw.js`).catch(() => {});
+      navigator.serviceWorker.register(`${base}sw.js`).catch((e) => {
+        console.warn("SW register failed", e);
+      });
     }
   }
 

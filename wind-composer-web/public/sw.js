@@ -1,9 +1,14 @@
-const CACHE = "wind-composer-static-v2";
+const CACHE = "wind-composer-static-v3";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE).then((cache) =>
-      cache.addAll(["./", "./index.html", "./manifest.json"]),
+      cache.addAll([
+        "./",
+        "./index.html",
+        "./manifest.json",
+        "./synth-worklet.js",
+      ]),
     ).then(() => self.skipWaiting()),
   );
 });
