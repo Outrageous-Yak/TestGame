@@ -52,6 +52,11 @@ class VisualState:
     composition_state: str = "—"
     mood: str = "—"
     phrase_number: int = 0
+    active_layers: List[str] = field(default_factory=list)
+    peak_level: float = 0.0
+    voice_count: int = 0
+    audio_load_pct: float = 0.0
+    limiter_active: bool = False
 
 
 class MusicEngine:
@@ -92,6 +97,12 @@ class MusicEngine:
         self._stereo_pan = 0.0
         self._brightness_mult = 0.5
         self._bass_mult = 1.0
+        self._sound_reverb = 0.45
+        self._sound_width = 0.35
+        self._sound_brightness = 0.5
+        self._sound_warmth = 0.5
+        self._soundscape = "Natural Ambient"
+        self._audio_quality = "Standard"
 
     @property
     def mode(self) -> Mode:
@@ -139,6 +150,32 @@ class MusicEngine:
     def set_master_volume(self, volume: float) -> None:
         self.synth.set_master_gain(volume)
 
+    def set_audio_quality(self, level: str) -> None:
+        self._audio_quality = level
+        self.synth.cinematic.set_quality(level)
+
+    def set_soundscape(self, name: str) -> None:
+        self._soundscape = name
+        self.synth.cinematic.set_soundscape(name)
+
+    def set_sound_tweaks(
+        self,
+        reverb: float,
+        width: float,
+        brightness: float,
+        warmth: float,
+    ) -> None:
+        self._sound_reverb = reverb
+        self._sound_width = width
+        self._sound_brightness = brightness
+        self._sound_warmth = warmth
+        self.synth.cinematic.set_user_tweaks(reverb, width, brightness, warmth)
+
+    def get_audio_diagnostics(self) -> dict:
+        diag = self.synth.cinematic.get_diagnostics()
+        diag["soundscape"] = self._soundscape
+        return diag
+
     def set_sensitivity(self, sensitivity: float) -> None:
         self.wind_detector.set_sensitivity(sensitivity)
 
@@ -150,8 +187,11 @@ class MusicEngine:
         self._weather_snapshot = weather
 
     def get_composition_metadata(self) -> "RecordingMetadata":
+        from audio.cinematic_engine import ENGINE_VERSION
         from recording import RecordingMetadata
+
         meta = self.composition_engine.get_metadata(self._mode.value)
+        diag = self.get_audio_diagnostics()
         return RecordingMetadata(
             location=meta.location,
             weather=meta.weather_condition,
@@ -165,6 +205,12 @@ class MusicEngine:
             phrase_number=meta.phrase_number,
             phrase_length_bars=meta.phrase_length_bars,
             chord=meta.chord,
+            soundscape_preset=self._soundscape,
+            active_instrument_presets=diag.get("presets", []),
+            reverb_profile=diag.get("reverb_profile", ""),
+            quality_level=self._audio_quality,
+            peak_level=diag.get("peak", 0.0),
+            engine_version=ENGINE_VERSION,
         )
 
     def apply_drive(self, drive: MusicDriveParams) -> None:
@@ -228,45 +274,56 @@ class MusicEngine:
         self.effects.stereo_width = 0.2 + plan.atmosphere_gain * 0.4
         self.effects.set_wind_modulation(plan.energy_curve, plan.gust_accent)
 
-        # Pads and atmosphere
         tones = chord.tones if chord else []
-        self.synth.sustain_pad(tones, plan.pad_gain)
-        self.synth.sustain_atmosphere(plan.atmosphere_gain)
 
-        # Bass
-        bass_gain = plan.bass_gain * plan.bass_mult
-        if bass_gain > 0.04 and tones:
-            from composition_engine import ChordStyle
-            bass_midi = tones[0] - 12
-            if plan.pedal_midi and plan.chord_style == ChordStyle.PEDAL:
-                bass_midi = plan.pedal_midi - 12
-            self.synth.set_layer_frequency("bass", bass_midi)
-            self.synth.set_layer_gain("bass", bass_gain)
-            if self.synth.layers["bass"].adsr.stage == "idle":
-                self.synth.trigger_layer("bass", 0.35 + plan.energy_curve * 0.35)
+        if self.synth.use_cinematic:
+            reverb = self._sound_reverb * (0.6 + plan.reverb_amount * 0.5)
+            self.synth.cinematic.set_user_tweaks(
+                reverb,
+                self._sound_width,
+                self._sound_brightness * plan.brightness,
+                self._sound_warmth,
+            )
+            self.synth.apply_composition_plan(plan)
+        else:
+            self.synth.sustain_pad(tones, plan.pad_gain)
+            self.synth.sustain_atmosphere(plan.atmosphere_gain)
 
-        # Melody from composition
-        for note in plan.melody_notes:
-            self.synth.set_layer_frequency("lead", note.midi)
-            self.synth.set_layer_gain("lead", note.velocity * plan.lead_gain)
-            self.synth.trigger_layer("lead", note.velocity)
+            bass_gain = plan.bass_gain * plan.bass_mult
+            if bass_gain > 0.04 and tones:
+                from composition_engine import ChordStyle
+                bass_midi = tones[0] - 12
+                if plan.pedal_midi and plan.chord_style == ChordStyle.PEDAL:
+                    bass_midi = plan.pedal_midi - 12
+                self.synth.set_layer_frequency("bass", bass_midi)
+                self.synth.set_layer_gain("bass", bass_gain)
+                if self.synth.layers["bass"].adsr.stage == "idle":
+                    self.synth.trigger_layer("bass", 0.35 + plan.energy_curve * 0.35)
 
-        if plan.gust_accent and tones:
-            accent = tones[-1]
-            self.synth.set_layer_frequency("lead", accent)
-            self.synth.trigger_layer("lead", 0.8)
+            for note in plan.melody_notes:
+                self.synth.set_layer_frequency("lead", note.midi)
+                self.synth.set_layer_gain("lead", note.velocity * plan.lead_gain)
+                self.synth.trigger_layer("lead", note.velocity)
 
-        # Rare events
-        if plan.rare_event:
-            self._apply_rare_event(plan)
+            if plan.gust_accent and tones:
+                accent = tones[-1]
+                self.synth.set_layer_frequency("lead", accent)
+                self.synth.trigger_layer("lead", 0.8)
 
-        cutoff = profile.lp_cutoff_base + plan.energy_curve * 4000.0 * profile.brightness * plan.brightness
-        for layer in self.synth.layers:
-            self.synth.set_filter_cutoff(layer, cutoff)
+            if plan.rare_event:
+                self._apply_rare_event(plan)
+
+            cutoff = profile.lp_cutoff_base + plan.energy_curve * 4000.0 * profile.brightness * plan.brightness
+            for layer in self.synth.layers:
+                self.synth.set_filter_cutoff(layer, cutoff)
 
         note_names = [self._scale_engine.note_name(n.midi) for n in plan.melody_notes]
         for t in tones[:3]:
             note_names.append(self._scale_engine.note_name(t))
+
+        active_layers: List[str] = []
+        if self.synth.use_cinematic and self.synth.cinematic._targets:
+            active_layers = sorted(self.synth.cinematic._targets.active_layers)
 
         with self.lock:
             self.visual.current_chord = chord.name if chord else "—"
@@ -276,11 +333,16 @@ class MusicEngine:
             self.visual.composition_state = plan.musical_state.value
             self.visual.mood = plan.mood
             self.visual.phrase_number = plan.phrase_number
+            self.visual.active_layers = active_layers
+            self.visual.peak_level = self.synth.cinematic.peak_level
+            self.visual.voice_count = self.synth.cinematic.voice_count
+            self.visual.audio_load_pct = self.synth.cinematic.render_load_pct
+            self.visual.limiter_active = self.synth.cinematic.limiter.active
 
         # Rhythm events from composition land in output callback via plan storage
         self._pending_rhythm_events = plan.rhythm_events
 
-        if plan.percussion > 0.25 and gust:
+        if plan.percussion > 0.25 and gust and not self.synth.use_cinematic:
             self.synth.trigger_layer("bass", plan.percussion * 0.45)
 
     def _apply_rare_event(self, plan) -> None:
@@ -320,8 +382,11 @@ class MusicEngine:
             logger.warning("Output status: %s", status)
 
         t0 = time.perf_counter()
-        mono = self.synth.render(frames)
-        stereo = self.effects.process_mono_to_stereo(mono)
+        rendered = self.synth.render(frames)
+        if rendered.ndim == 2 and rendered.shape[1] == 2:
+            stereo = rendered
+        else:
+            stereo = self.effects.process_mono_to_stereo(rendered)
 
         if self.recorder.is_recording:
             self.recorder.add_block(stereo)
@@ -329,20 +394,19 @@ class MusicEngine:
         outdata[:] = stereo
         self._sample_position += frames
 
-        # Composition-scheduled rhythm events
         for ev in self._pending_rhythm_events:
-            self.synth.trigger_layer(ev.layer, ev.strength)
+            self.synth.trigger_rhythm(ev.layer, ev.strength)
         self._pending_rhythm_events = []
 
-        # Legacy rhythm engine fallback for extra texture
-        events = self.rhythm_engine.update(
-            self._wind_state.energy if self._use_mic else self._weather_only_energy,
-            MODE_PROFILES[self._mode].rhythm_density,
-            self._sample_position,
-        )
-        for ev in events:
-            if ev.layer == "bass":
-                self.synth.trigger_layer("bass", ev.strength)
+        if not self.synth.use_cinematic:
+            events = self.rhythm_engine.update(
+                self._wind_state.energy if self._use_mic else self._weather_only_energy,
+                MODE_PROFILES[self._mode].rhythm_density,
+                self._sample_position,
+            )
+            for ev in events:
+                if ev.layer == "bass":
+                    self.synth.trigger_layer("bass", ev.strength)
 
         # CPU estimate
         elapsed = time.perf_counter() - t0
@@ -452,4 +516,9 @@ class MusicEngine:
                 composition_state=self.visual.composition_state,
                 mood=self.visual.mood,
                 phrase_number=self.visual.phrase_number,
+                active_layers=list(self.visual.active_layers),
+                peak_level=self.visual.peak_level,
+                voice_count=self.visual.voice_count,
+                audio_load_pct=self.visual.audio_load_pct,
+                limiter_active=self.visual.limiter_active,
             )

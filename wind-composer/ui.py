@@ -13,6 +13,7 @@ from matplotlib.figure import Figure
 from config import KEYS, InputSource, Mode, REFRESH_INTERVALS_SEC, ScaleName, VIS_INTERVAL_MS, AppSettings
 from music_controller import MusicController
 from ui_weather_panel import WeatherPanel
+from ui_sound_panel import SoundPanel
 from utils import list_audio_input_devices
 from visualizer import Visualizer
 from world_map import WorldMap
@@ -134,6 +135,16 @@ class WindComposerUI:
 
         self.info_label = ttk.Label(row3, text="Chord: —  |  Tempo: —  |  CPU: —", foreground=MUTED)
         self.info_label.pack(side=tk.RIGHT, padx=8)
+
+        sound_frame = ttk.Frame(self.root)
+        sound_frame.pack(fill=tk.X, padx=10, pady=2)
+        self.sound_panel = SoundPanel(
+            sound_frame,
+            self.controller,
+            on_change=self._on_sound_settings_change,
+        )
+        self.sound_panel.pack(fill=tk.X)
+        self.sound_panel.apply_settings(settings)
 
         # Tabs
         self.notebook = ttk.Notebook(self.root)
@@ -287,6 +298,15 @@ class WindComposerUI:
         self.settings.sensitivity = s
         self.controller.set_sensitivity(s)
 
+    def _on_sound_settings_change(self) -> None:
+        vals = self.sound_panel.get_settings_values()
+        self.settings.audio_quality = vals["audio_quality"]
+        self.settings.soundscape_preset = vals["soundscape_preset"]
+        self.settings.reverb_amount = vals["reverb_amount"]
+        self.settings.width_amount = vals["width_amount"]
+        self.settings.brightness_amount = vals["brightness_amount"]
+        self.settings.warmth_amount = vals["warmth_amount"]
+
     def _sync_settings(self) -> None:
         mode = Mode(self.mode_combo.get())
         scale = ScaleName(self.scale_combo.get())
@@ -321,6 +341,7 @@ class WindComposerUI:
             ),
         )
         self.weather_panel.update_live_info()
+        self.sound_panel.update_diagnostics()
         self.root.after(VIS_INTERVAL_MS, self._schedule_visual_update)
 
     def _on_close(self) -> None:

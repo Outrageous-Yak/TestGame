@@ -30,6 +30,12 @@
 
 **Reason:** User requirement for pluggable APIs (NOAA, METAR, OpenWeather) and reliability when one source is down.
 
+## D007 — Generative composition engine (Phase 3)
+
+**Decision:** Add `composition_engine.py` as a scheduling layer above existing synth/chord/melody/rhythm modules. Weather and mic energy feed `CompositionContext`; the engine outputs `CompositionPlan` on musical boundaries (beat/measure/phrase).
+
+**Reason:** Transform reactive parameter mapping into evolving ambient compositions with memory, states, and harmonic planning — without replacing weather or UI architecture.
+
 ## Notes
 
 - Target CPU usage under 15% on modern hardware; actual load depends on microphone and system audio stack.

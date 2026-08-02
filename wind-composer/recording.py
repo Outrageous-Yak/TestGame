@@ -36,6 +36,12 @@ class RecordingMetadata:
     phrase_number: int = 0
     phrase_length_bars: int = 0
     chord: str = ""
+    soundscape_preset: str = ""
+    active_instrument_presets: List[str] = field(default_factory=list)
+    reverb_profile: str = ""
+    quality_level: str = ""
+    peak_level: float = 0.0
+    engine_version: str = ""
     extra: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:

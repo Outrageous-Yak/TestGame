@@ -56,8 +56,9 @@ wind-composer/
 ├── chord_engine.py      # Chord progressions
 ├── melody_engine.py     # Melody generation
 ├── rhythm_engine.py     # Wind-scaled rhythm
-├── synth_engine.py      # Four-layer synthesizer
-├── effects.py           # Reverb, delay, filters
+├── synth_engine.py      # Cinematic + legacy synthesis coordinator
+├── audio/               # Phase 4 polyphonic engine (voices, effects, presets)
+├── effects.py           # Legacy reverb, delay, filters
 ├── music_engine.py      # Central orchestration
 ├── visualizer.py        # Matplotlib displays
 ├── ui.py                # Tkinter interface
@@ -121,3 +122,27 @@ Weather inspires **compositions**, not just parameters:
 
 Live conditions update continuously as weather changes.
 
+## Cinematic sound engine (Phase 4)
+
+Polyphonic layered synthesis with instrument presets, orchestration mapping, reverb/delay/chorus, and safety limiting. See `AUDIO_ARCHITECTURE.md` for signal flow and module layout.
+
+### Sound Engine UI
+
+The Compose tab includes quality, soundscape preset, reverb/width/brightness/warmth sliders, active layer display, peak meter, and collapsible diagnostics.
+
+### Tests
+
+```bash
+python3 test_composition.py
+python3 test_engines.py
+python3 test_weather.py
+python3 test_audio.py
+```
+
+Deterministic reference renders:
+
+```bash
+python3 -c "from audio.deterministic import render_all_references; render_all_references()"
+```
+
+Output is written to `test-output/` (gitignored).

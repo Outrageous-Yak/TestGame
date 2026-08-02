@@ -25,6 +25,19 @@ CHORD_MAX_SEC = 16.0
 REFRESH_INTERVALS_SEC = [10, 30, 60, 300]
 REFRESH_LABELS = ["10 seconds", "30 seconds", "60 seconds", "5 minutes"]
 
+AUDIO_QUALITY_LEVELS = ["Low", "Standard", "High"]
+
+SOUNDSCAPE_PRESETS = [
+    "Natural Ambient",
+    "Deep Space",
+    "Frozen World",
+    "Cinematic Storm",
+    "Dreaming Earth",
+    "Minimal Air",
+    "Dark Horizon",
+    "Luminous Sky",
+]
+
 
 class InputSource(str, Enum):
     MICROPHONE = "Microphone"
@@ -167,6 +180,12 @@ class AppSettings:
     window_height: int = 800
     input_source: InputSource = InputSource.MICROPHONE
     refresh_interval_sec: float = 30.0
+    audio_quality: str = "Standard"
+    soundscape_preset: str = "Natural Ambient"
+    reverb_amount: float = 0.45
+    width_amount: float = 0.35
+    brightness_amount: float = 0.5
+    warmth_amount: float = 0.5
 
     def save(self) -> None:
         data = asdict(self)
@@ -197,6 +216,12 @@ class AppSettings:
                 window_height=int(raw.get("window_height", 800)),
                 input_source=input_source,
                 refresh_interval_sec=float(raw.get("refresh_interval_sec", 30.0)),
+                audio_quality=raw.get("audio_quality", "Standard"),
+                soundscape_preset=raw.get("soundscape_preset", "Natural Ambient"),
+                reverb_amount=float(raw.get("reverb_amount", 0.45)),
+                width_amount=float(raw.get("width_amount", 0.35)),
+                brightness_amount=float(raw.get("brightness_amount", 0.5)),
+                warmth_amount=float(raw.get("warmth_amount", 0.5)),
             )
         except (json.JSONDecodeError, ValueError, KeyError):
             return cls()

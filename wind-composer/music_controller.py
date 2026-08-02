@@ -234,6 +234,24 @@ class MusicController:
     def set_sensitivity(self, s: float) -> None:
         self.engine.set_sensitivity(s)
 
+    def set_audio_quality(self, level: str) -> None:
+        self.engine.set_audio_quality(level)
+
+    def set_soundscape(self, name: str) -> None:
+        self.engine.set_soundscape(name)
+
+    def set_sound_tweaks(
+        self,
+        reverb: float,
+        width: float,
+        brightness: float,
+        warmth: float,
+    ) -> None:
+        self.engine.set_sound_tweaks(reverb, width, brightness, warmth)
+
+    def get_audio_diagnostics(self) -> dict:
+        return self.engine.get_audio_diagnostics()
+
     def get_visual_state(self) -> VisualState:
         return self.engine.get_visual_state()
 
