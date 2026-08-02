@@ -1,0 +1,14 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: wind-composer
+    runtime: docker
+    plan: free
+    dockerfilePath: ./wind-composer/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: WEB_DIST
+        value: /app/wind-composer/web/dist
+      - key: PYTHONUNBUFFERED
+        value: "1"

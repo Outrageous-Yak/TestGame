@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.wav
+test-output/
+web/node_modules/
+web/dist/
+*.log.txt
