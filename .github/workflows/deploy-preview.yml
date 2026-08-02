@@ -1,5 +1,5 @@
-# Deploy a feature branch to a subpath on GitHub Pages (no merge to main).
-# Trigger: push `.github/preview-deploy.json` on main, or Actions → Run workflow.
+# Optional manual full-site redeploy including preview subpath.
+# Normal path: push to main runs deploy.yml (bundles preview from preview-deploy.json).
 name: Deploy Preview (branch subpath)
 
 on:
@@ -15,11 +15,6 @@ on:
         required: true
         default: '2_5d'
         type: string
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/preview-deploy.json'
 
 permissions:
   contents: read
@@ -27,7 +22,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages-preview
+  group: pages
   cancel-in-progress: false
 
 jobs:
@@ -42,19 +37,6 @@ jobs:
         with:
           ref: main
 
-      - name: Resolve preview target
-        id: target
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "branch=${{ inputs.preview_branch }}" >> "$GITHUB_OUTPUT"
-            echo "slug=${{ inputs.preview_slug }}" >> "$GITHUB_OUTPUT"
-          else
-            BRANCH=$(jq -r '.preview_branch' .github/preview-deploy.json)
-            SLUG=$(jq -r '.preview_slug' .github/preview-deploy.json)
-            echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
-            echo "slug=${SLUG}" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -68,19 +50,19 @@ jobs:
       - name: Checkout preview branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.target.outputs.branch }}
+          ref: ${{ inputs.preview_branch }}
           path: preview-src
 
       - name: Build preview at subpath
         working-directory: preview-src
         run: |
           npm install
-          npm run build -- --base /TestGame/preview/${{ steps.target.outputs.slug }}/
+          npm run build -- --base /TestGame/preview/${{ inputs.preview_slug }}/
 
       - name: Merge site bundles
         run: |
-          mkdir -p dist/preview/${{ steps.target.outputs.slug }}
-          cp -r preview-src/dist/* dist/preview/${{ steps.target.outputs.slug }}/
+          mkdir -p dist/preview/${{ inputs.preview_slug }}
+          cp -r preview-src/dist/* dist/preview/${{ inputs.preview_slug }}/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

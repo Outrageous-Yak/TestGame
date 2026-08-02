@@ -32,6 +32,33 @@ jobs:
           npm install
           npm run build
 
+      - name: Read preview deploy config
+        if: hashFiles('.github/preview-deploy.json') != ''
+        id: preview_config
+        run: |
+          echo "branch=$(jq -r '.preview_branch' .github/preview-deploy.json)" >> "$GITHUB_OUTPUT"
+          echo "slug=$(jq -r '.preview_slug' .github/preview-deploy.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout preview branch
+        if: hashFiles('.github/preview-deploy.json') != ''
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.preview_config.outputs.branch }}
+          path: preview-src
+
+      - name: Build preview at subpath
+        if: hashFiles('.github/preview-deploy.json') != ''
+        working-directory: preview-src
+        run: |
+          npm install
+          npm run build -- --base /TestGame/preview/${{ steps.preview_config.outputs.slug }}/
+
+      - name: Merge preview into site bundle
+        if: hashFiles('.github/preview-deploy.json') != ''
+        run: |
+          mkdir -p dist/preview/${{ steps.preview_config.outputs.slug }}
+          cp -r preview-src/dist/* dist/preview/${{ steps.preview_config.outputs.slug }}/
+
       - name: Install and build Story Architecture Studio
         if: hashFiles('story-architecture-studio/package.json') != ''
         working-directory: story-architecture-studio
