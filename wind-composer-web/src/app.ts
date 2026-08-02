@@ -127,6 +127,15 @@ export class WindComposerApp {
     );
     root.append(row);
 
+    const styleRow = this.h("section", "style-panel");
+    styleRow.append(this.h("h2", "style-heading", "Musical Style"));
+    const styleWrap = this.h("div", "control-row style-row");
+    const styleLabel = this.labelWrap("Style", this.controls.style);
+    styleLabel.classList.add("style-select-wrap");
+    styleWrap.append(styleLabel);
+    styleRow.append(styleWrap);
+    root.append(styleRow);
+
     const row2 = this.h("div", "control-row");
     row2.append(
       this.labelWrap("Volume", this.controls.volume),
@@ -148,7 +157,6 @@ export class WindComposerApp {
     sound.append(
       this.labelWrap("Quality", this.controls.quality),
       this.labelWrap("Soundscape", this.controls.soundscape),
-      this.labelWrap("Style", this.controls.style),
       this.labelWrap("Reverb", this.controls.reverb),
       this.labelWrap("Width", this.controls.width),
       this.labelWrap("Bright", this.controls.brightness),

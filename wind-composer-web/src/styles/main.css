@@ -58,6 +58,36 @@ body {
   margin-bottom: 10px;
 }
 
+.style-panel {
+  background: #1a2a3a;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 10px 12px 12px;
+  margin-bottom: 12px;
+}
+
+.style-heading {
+  font-size: 0.95rem;
+  color: var(--accent);
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.style-select-wrap {
+  flex: 1;
+  min-width: 200px;
+}
+
+.style-select-wrap select {
+  width: 100%;
+  max-width: 100%;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid #334455;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
 button,
 select,
 input[type="search"] {

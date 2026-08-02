@@ -117,9 +117,13 @@ class WindComposerUI:
         self.key_combo = ttk.Combobox(row2, values=KEYS, width=5, state="readonly")
         self.key_combo.pack(side=tk.LEFT, padx=4)
 
-        ttk.Label(row2, text="Style:").pack(side=tk.LEFT, padx=(12, 4))
-        self.style_combo = ttk.Combobox(row2, values=MUSICAL_STYLES, width=16, state="readonly")
-        self.style_combo.pack(side=tk.LEFT, padx=4)
+        style_frame = ttk.LabelFrame(self.root, text="Musical Style")
+        style_frame.pack(fill=tk.X, padx=10, pady=6)
+        style_inner = ttk.Frame(style_frame)
+        style_inner.pack(fill=tk.X, padx=8, pady=6)
+        ttk.Label(style_inner, text="Style:").pack(side=tk.LEFT, padx=(0, 8))
+        self.style_combo = ttk.Combobox(style_inner, values=MUSICAL_STYLES, width=28, state="readonly")
+        self.style_combo.pack(side=tk.LEFT, padx=4, fill=tk.X, expand=True)
         self.style_combo.bind("<<ComboboxSelected>>", self._on_style_change)
 
         row3 = ttk.Frame(self.root)
