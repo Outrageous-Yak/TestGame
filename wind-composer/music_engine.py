@@ -24,6 +24,11 @@ from synth_engine import SynthEngine
 from utils import GustDetector, clamp
 from wind_detector import WindDetector, WindState
 
+try:
+    from weather.models import MusicDriveParams
+except ImportError:
+    MusicDriveParams = None  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 
@@ -51,9 +56,9 @@ class MusicEngine:
         self.lock = threading.Lock()
         self.visual = VisualState()
 
-        self.scale_engine = ScaleEngine()
-        self.chord_engine = ChordEngine(self.scale_engine)
-        self.melody_engine = MelodyEngine(self.scale_engine)
+        self._scale_engine = ScaleEngine()
+        self.chord_engine = ChordEngine(self._scale_engine)
+        self.melody_engine = MelodyEngine(self._scale_engine)
         self.rhythm_engine = RhythmEngine()
         self.signal_processor = SignalProcessor()
         self.wind_detector = WindDetector()
@@ -70,6 +75,27 @@ class MusicEngine:
         self._output_stream: Optional[sd.OutputStream] = None
         self._running = False
         self._last_cpu_time = time.perf_counter()
+        self._use_mic = False
+        self._last_mic_gust = False
+        self._weather_only_energy = 0.0
+
+    @property
+    def mode(self) -> Mode:
+        return self._mode
+
+    @property
+    def is_running(self) -> bool:
+        return self._running
+
+    @property
+    def scale_engine(self) -> ScaleEngine:
+        return self._scale_engine
+
+    def get_mic_energy(self) -> float:
+        return self._wind_state.energy
+
+    def get_mic_gust(self) -> bool:
+        return self._last_mic_gust
 
     def set_mode(self, mode: Mode) -> None:
         self._mode = mode
@@ -85,12 +111,12 @@ class MusicEngine:
         )
 
     def set_scale(self, scale: ScaleName) -> None:
-        self.scale_engine.set_scale(scale)
+        self._scale_engine.set_scale(scale)
         self.chord_engine.reset()
         self.melody_engine.reset()
 
     def set_key(self, key: str) -> None:
-        self.scale_engine.set_key(key)
+        self._scale_engine.set_key(key)
         self.chord_engine.reset()
         self.melody_engine.reset()
 
@@ -100,12 +126,28 @@ class MusicEngine:
     def set_sensitivity(self, sensitivity: float) -> None:
         self.wind_detector.set_sensitivity(sensitivity)
 
+    def apply_drive(self, drive: MusicDriveParams) -> None:
+        """Apply weather-mapped or blended drive parameters."""
+        self._weather_only_energy = drive.energy
+        self.effects.set_stereo_pan(drive.stereo_pan)
+        self.effects.reverb.set_mix(drive.reverb_amount)
+        self.effects.stereo_width = 0.25 + drive.atmosphere_layers * 0.35
+        self._update_music_from_energy(
+            energy=drive.energy,
+            gust=drive.gust,
+            tempo_override=drive.tempo_bpm,
+            bass_mult=drive.bass_intensity,
+            percussion=drive.percussion,
+            brightness_mult=drive.brightness,
+        )
+
     def _on_input_block(self, block: np.ndarray) -> None:
         feats = self.signal_processor.process(block)
         gust = self.gust_detector.update(feats.short_energy)
+        self._last_mic_gust = gust
         wind = self.wind_detector.analyse(feats, gust)
         self._wind_state = wind
-        self._update_music(wind, gust, feats)
+        self._update_music_from_energy(wind.energy, gust)
 
         with self.lock:
             self.visual.waveform = self.signal_processor.waveform.copy()
@@ -113,14 +155,24 @@ class MusicEngine:
             self.visual.wind_strength = wind.energy
             self.visual.wind_probability = wind.probability
 
-    def _update_music(self, wind: WindState, gust: bool, feats: SignalFeatures) -> None:
+    def _update_music_from_energy(
+        self,
+        energy: float,
+        gust: bool,
+        tempo_override: Optional[float] = None,
+        bass_mult: float = 1.0,
+        percussion: float = 0.0,
+        brightness_mult: float = 0.5,
+    ) -> None:
         profile = MODE_PROFILES[self._mode]
-        energy = wind.energy
+        energy = clamp(energy)
 
         chord = self.chord_engine.update(energy)
         self._chord_state = chord
 
-        tempo = profile.tempo_min + energy * (profile.tempo_max - profile.tempo_min)
+        tempo = tempo_override if tempo_override is not None else (
+            profile.tempo_min + energy * (profile.tempo_max - profile.tempo_min)
+        )
         self.rhythm_engine.set_tempo(tempo, SAMPLE_RATE)
 
         melody_notes = self.melody_engine.update(
@@ -134,9 +186,9 @@ class MusicEngine:
 
         # Layer control
         self.synth.sustain_pad(chord.tones, energy)
-        self.synth.sustain_atmosphere(energy)
+        self.synth.sustain_atmosphere(energy + percussion * 0.3)
 
-        bass_gain = clamp(energy - 0.25) * 0.5
+        bass_gain = clamp(energy - 0.15) * 0.5 * bass_mult
         if bass_gain > 0.05:
             bass_midi = chord.tones[0] - 12 if chord.tones else self.scale_engine.degree_root(0) - 12
             self.synth.set_layer_frequency("bass", bass_midi)
@@ -154,7 +206,7 @@ class MusicEngine:
             self.synth.set_layer_frequency("lead", accent_midi)
             self.synth.trigger_layer("lead", 0.85)
 
-        cutoff = profile.lp_cutoff_base + energy * 4000.0 * profile.brightness
+        cutoff = profile.lp_cutoff_base + energy * 4000.0 * profile.brightness * brightness_mult
         for layer in self.synth.layers:
             self.synth.set_filter_cutoff(layer, cutoff)
 
@@ -166,6 +218,11 @@ class MusicEngine:
             self.visual.current_chord = chord.name
             self.visual.current_notes = note_names[:6]
             self.visual.tempo_bpm = tempo
+            self.visual.wind_strength = energy
+
+        # Percussion from rain — trigger bass layer lightly
+        if percussion > 0.25 and gust:
+            self.synth.trigger_layer("bass", percussion * 0.5)
 
     def _output_callback(self, outdata: np.ndarray, frames: int, time_info, status) -> None:
         if status:
@@ -182,7 +239,7 @@ class MusicEngine:
         self._sample_position += frames
 
         events = self.rhythm_engine.update(
-            self._wind_state.energy,
+            self._wind_state.energy if self._use_mic else self._weather_only_energy,
             MODE_PROFILES[self._mode].rhythm_density,
             self._sample_position,
         )
@@ -197,10 +254,36 @@ class MusicEngine:
         with self.lock:
             self.visual.cpu_percent = cpu * 0.3 + self.visual.cpu_percent * 0.7
 
-    def start(self, mic_label: str) -> None:
+    def start_microphone(self, mic_label: str) -> None:
+        """Start with microphone input and synthesis output."""
         if self._running:
             return
         self._running = True
+        self._use_mic = True
+        self._reset_musical_state()
+
+        self._audio_input = AudioInput(self._on_input_block, mic_label)
+        self._audio_input.start()
+        self._start_output_stream()
+
+        with self.lock:
+            self.visual.is_running = True
+            self.visual.mic_active = self._audio_input.is_active
+
+    def start_output_only(self) -> None:
+        """Start synthesis without microphone (live weather mode)."""
+        if self._running:
+            return
+        self._running = True
+        self._use_mic = False
+        self._reset_musical_state()
+        self._start_output_stream()
+
+        with self.lock:
+            self.visual.is_running = True
+            self.visual.mic_active = False
+
+    def _reset_musical_state(self) -> None:
         self.signal_processor.reset()
         self.wind_detector.reset()
         self.gust_detector.reset()
@@ -208,9 +291,7 @@ class MusicEngine:
         self.melody_engine.reset()
         self.rhythm_engine.reset()
 
-        self._audio_input = AudioInput(self._on_input_block, mic_label)
-        self._audio_input.start()
-
+    def _start_output_stream(self) -> None:
         try:
             self._output_stream = sd.OutputStream(
                 samplerate=SAMPLE_RATE,
@@ -225,9 +306,9 @@ class MusicEngine:
             self.stop()
             raise
 
-        with self.lock:
-            self.visual.is_running = True
-            self.visual.mic_active = self._audio_input.is_active
+    def start(self, mic_label: str) -> None:
+        """Legacy entry — starts microphone mode."""
+        self.start_microphone(mic_label)
 
     def stop(self) -> None:
         self._running = False

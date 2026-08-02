@@ -130,6 +130,11 @@ class EffectsChain:
         self.reverb = SimpleReverb(0.4)
         self.chorus = Chorus(0.12)
         self.stereo_width = 0.35
+        self._stereo_pan = 0.0
+
+    def set_stereo_pan(self, pan: float) -> None:
+        """Pan in range -1 (left) to +1 (right)."""
+        self._stereo_pan = max(-1.0, min(1.0, pan))
 
     def configure(self, profile_mix: tuple[float, float, float], lp_base: float, hp_cut: float) -> None:
         self.reverb.set_mix(profile_mix[0])
@@ -151,14 +156,17 @@ class EffectsChain:
         x = self.reverb.process(x)
 
         width = self.stereo_width
-        # Haas-effect stereo widening
+        pan = self._stereo_pan
+        # Haas-effect stereo widening + wind-direction pan
         delay_samples = int(SAMPLE_RATE * 0.012)
         right = np.copy(x)
         if delay_samples < len(x):
             right[delay_samples:] = x[:-delay_samples]
             right[:delay_samples] = x[:delay_samples]
-        left = x * (1.0 - width * 0.15)
-        right = right * (1.0 + width * 0.15)
+        pan_l = 0.5 - pan * 0.35
+        pan_r = 0.5 + pan * 0.35
+        left = x * pan_l * (1.0 + width * 0.1)
+        right = right * pan_r * (1.0 + width * 0.1)
 
         stereo = np.column_stack([left, right])
         peak = np.max(np.abs(stereo)) + 1e-9

@@ -69,12 +69,44 @@ wind-composer/
 
 User preferences are saved to `~/.wind_composer_settings.json` automatically on exit.
 
-## Notes
+## Global live weather (v1.1)
 
-- Target CPU usage under 15% on modern hardware; actual load depends on microphone and system audio stack.
-- If no microphone is available, the app shows an error on Start and retries recovery in the background.
-- Recording captures **synthesized output** (not raw microphone input).
+Wind Composer can drive music from **live global weather** via a modular provider system.
 
-## Future expansion hooks
+### Data source
 
-Architecture supports adding MIDI output, AI harmony, plugins, multiple wind zones, and MP3 export without restructuring core modules.
+- **Open-Meteo** (default, free, no API key) — live forecast/current conditions at any coordinates
+- Provider architecture supports adding NOAA, OpenWeather, METAR, etc.
+
+### Features
+
+- Search by city, country, GPS coordinates, airport/station names
+- **World Map** tab — click anywhere to add a station at that location
+- Multiple simultaneous stations with **mix sliders** (e.g. Tokyo + Iceland + Antarctica)
+- **Favourites** saved to `~/.wind_composer_favourites.json`
+- Refresh intervals: 10s, 30s, 60s, 5 minutes
+- **Input modes:** Microphone, Live Weather, or Both (blended)
+
+### Weather → music mapping
+
+| Weather | Music |
+|---------|-------|
+| Wind speed | Tempo, energy |
+| Wind gusts | Accent notes |
+| Wind direction | Stereo pan |
+| Temperature | Brightness / warmth |
+| Humidity | Reverb |
+| Pressure | Bass intensity |
+| Rain / snow | Percussion |
+| Storms | Extra atmosphere layers |
+
+### Usage
+
+1. Open the **Global Weather** tab
+2. Search for a location (e.g. `Reykjavik`, `Tokyo`, `27.99, 86.93` for Everest)
+3. Add one or more stations; adjust mix sliders
+4. Set **Input** to `Live Weather` (or `Both` with microphone)
+5. Press **Start**
+
+Live conditions update continuously as weather changes.
+

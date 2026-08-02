@@ -22,6 +22,15 @@ MAX_MELODY_NOTES_PER_SEC = 4.0
 CHORD_MIN_SEC = 8.0
 CHORD_MAX_SEC = 16.0
 
+REFRESH_INTERVALS_SEC = [10, 30, 60, 300]
+REFRESH_LABELS = ["10 seconds", "30 seconds", "60 seconds", "5 minutes"]
+
+
+class InputSource(str, Enum):
+    MICROPHONE = "Microphone"
+    LIVE_WEATHER = "Live Weather"
+    BOTH = "Both"
+
 
 class Mode(str, Enum):
     AMBIENT = "Ambient"
@@ -154,13 +163,16 @@ class AppSettings:
     key: str = "C"
     master_volume: float = 0.75
     sensitivity: float = 0.6
-    window_width: int = 1000
-    window_height: int = 700
+    window_width: int = 1200
+    window_height: int = 800
+    input_source: InputSource = InputSource.MICROPHONE
+    refresh_interval_sec: float = 30.0
 
     def save(self) -> None:
         data = asdict(self)
         data["mode"] = self.mode.value
         data["scale"] = self.scale.value
+        data["input_source"] = self.input_source.value
         SETTINGS_PATH.write_text(json.dumps(data, indent=2))
 
     @classmethod
@@ -169,6 +181,11 @@ class AppSettings:
             return cls()
         try:
             raw = json.loads(SETTINGS_PATH.read_text())
+            input_src = raw.get("input_source", InputSource.MICROPHONE.value)
+            try:
+                input_source = InputSource(input_src)
+            except ValueError:
+                input_source = InputSource.MICROPHONE
             return cls(
                 microphone=raw.get("microphone", ""),
                 mode=Mode(raw.get("mode", Mode.AMBIENT.value)),
@@ -176,8 +193,10 @@ class AppSettings:
                 key=raw.get("key", "C"),
                 master_volume=float(raw.get("master_volume", 0.75)),
                 sensitivity=float(raw.get("sensitivity", 0.6)),
-                window_width=int(raw.get("window_width", 1000)),
-                window_height=int(raw.get("window_height", 700)),
+                window_width=int(raw.get("window_width", 1200)),
+                window_height=int(raw.get("window_height", 800)),
+                input_source=input_source,
+                refresh_interval_sec=float(raw.get("refresh_interval_sec", 30.0)),
             )
         except (json.JSONDecodeError, ValueError, KeyError):
             return cls()
