@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { GameState, Scenario, Hex } from "../engine/types";
 import { assertScenario } from "../engine/scenario";
 import { newGame, getMinMovesToGoal, tryMove } from "../engine/api";
+import type { MoveResult } from "../engine/api";
 
 import { ROW_LENS, enterLayer, revealHex } from "../engine/board";
 import { neighborIdsSameLayer } from "../engine/neighbors";
@@ -293,29 +294,6 @@ function findFirstPlayableHexId(st: GameState | null, layer: number): string | n
       if (hex && !hex.blocked && !hex.missing) return id;
     }
   }
-  return null;
-}
-
-function unwrapNextState(res: any): GameState | null {
-  if (!res) return null;
-
-  if (typeof res === "object" && "state" in res) {
-    const st = (res as any).state;
-    if (st && typeof st === "object") {
-      if (!(st as any).scenario && scenarioRef.current) {
-        (st as any).scenario = scenarioRef.current;
-      }
-      return st as GameState;
-    }
-    return null;
-  }
-
-  if (typeof res === "object" && (("hexesById" in res) || ("playerHexId" in res))) {
-    const st = res as any;
-    if (!st.scenario && scenarioRef.current) st.scenario = scenarioRef.current;
-    return st as GameState;
-  }
-
   return null;
 }
 
@@ -3380,44 +3358,39 @@ export default function App() {
 
       const pidBefore = state.playerHexId;
 
-      const res: any = tryMove(state, targetId);
-      let nextState = unwrapNextState(res);
-      if (nextState) ensureScenario(nextState);
+      const res: MoveResult = tryMove(state, targetId);
+      ensureScenario(res.state);
 
-      if (!nextState) {
+      if (!res.ok) {
+        setState(res.state);
+        forceRender((n) => n + 1);
         const msg =
-          (res && typeof res === "object" && "reason" in res && String((res as any).reason)) ||
-          "Move failed after rolling a 6 — click another tile and roll again.";
-
+          res.reason === "BLOCKED"
+            ? "Move failed after rolling a 6 — blocked tile wasted the turn."
+            : "Move failed after rolling a 6 — click another tile and roll again.";
         pushLog(msg, "bad");
         pendingEncounterMoveIdRef.current = null;
         return;
       }
 
-      const pidAfter = (nextState as any).playerHexId as string | null;
-      let landedId = pidAfter ?? targetId;
-
-      {
-        const ap = applyPortalIfAny(nextState as any, landedId);
-        nextState = ap.next as any;
-        landedId = ap.finalId;
-      }
+      const nextState = res.state;
+      const pidAfter = nextState.playerHexId;
+      const landedId = pidAfter;
 
       pendingEncounterMoveIdRef.current = null;
       setEncounter(null);
 
-      const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
+      const moved = !!pidBefore && pidAfter !== pidBefore;
       if (moved) {
         setIsWalking(true);
         if (walkTimer.current) window.clearTimeout(walkTimer.current);
         walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-
         setPlayerFacing(facingFromMove(state, pidBefore, pidAfter));
       }
 
       setMovesTaken((n) => n + 1);
 
-      const c2 = pidAfter ? idToCoord(pidAfter) : null;
+      const c2 = idToCoord(pidAfter);
       const nextLayerEnc = c2?.layer ?? currentLayer;
 
       setState(nextState);
@@ -3434,8 +3407,8 @@ export default function App() {
 
       setOptimalFromNow(computeOptimalMoves(nextState));
 
-      pushLog("Encounter cleared — moved to " + (pidAfter ?? targetId), "ok");
-      if (goalId && pidAfter && pidAfter === goalId) pushLog("Goal reached!", "ok");
+      pushLog("Encounter cleared — moved to " + pidAfter, "ok");
+      if (goalId && pidAfter === goalId) pushLog("Goal reached!", "ok");
     } catch (err: any) {
       console.error("Encounter resolution crashed:", err);
       pushLog("Encounter crashed: " + String(err?.message ?? err), "bad");
@@ -3696,13 +3669,8 @@ export default function App() {
       }
 
       const hex = getHexFromState(state, id) as any;
-      const bm = isBlockedOrMissing(hex);
-      if (bm.missing) {
+      if (!hex || hex.missing) {
         pushLog("Missing tile.", "bad");
-        return;
-      }
-      if (bm.blocked) {
-        pushLog("Blocked tile.", "bad");
         return;
       }
 
@@ -3716,44 +3684,29 @@ export default function App() {
         return;
       }
 
-      const res: any = tryMove(state, id);
-      let nextState = unwrapNextState(res);
-      if (nextState) ensureScenario(nextState);
+      const res: MoveResult = tryMove(state, id);
+      ensureScenario(res.state);
 
-      if (!nextState) {
-        if (reachable.has(id) && state) {
-          const forced: any = { ...(state as any) };
-          forced.playerHexId = id;
-          if (!forced.scenario && scenarioRef.current) forced.scenario = scenarioRef.current;
-          nextState = forced as any;
-          pushLog("Force-moved (engine rejected)", "info");
-        } else {
-          const msg =
-            (res && typeof res === "object" && "reason" in res && String((res as any).reason)) || "Move failed.";
-          pushLog(msg, "bad");
-          return;
-        }
+      if (!res.ok) {
+        setState(res.state);
+        forceRender((n) => n + 1);
+        setOptimalFromNow(computeOptimalMoves(res.state));
+        if (res.reason === "BLOCKED") pushLog("Blocked tile — lost turn.", "bad");
+        else pushLog("Invalid move.", "bad");
+        return;
       }
 
-      const pidAfter = (nextState as any).playerHexId as string | null;
+      const nextState = res.state;
+      const pidAfter = nextState.playerHexId;
+      const landedId = pidAfter;
 
       const fromLayer = (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
-      const toLayer = pidAfter ? idToCoord(pidAfter)?.layer ?? null : null;
-
-      const moved = !!pidBefore && !!pidAfter && pidAfter !== pidBefore;
-
-      let landedId = pidAfter ?? id;
-
-      {
-        const ap = applyPortalIfAny(nextState as any, landedId);
-        nextState = ap.next as any;
-        landedId = ap.finalId;
-      }
+      const moved = pidAfter !== pidBefore;
 
       setMovesTaken((n) => n + 1);
 
       const landedCoord = idToCoord(landedId);
-      const finalLayer = landedCoord?.layer ?? (toLayer ?? currentLayer);
+      const finalLayer = landedCoord?.layer ?? fromLayer;
 
       if (finalLayer && fromLayer && finalLayer !== fromLayer) {
         triggerLayerFx(finalLayer);
@@ -3763,7 +3716,6 @@ export default function App() {
         setIsWalking(true);
         if (walkTimer.current) window.clearTimeout(walkTimer.current);
         walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-
         setPlayerFacing(facingFromMove(state, pidBefore, pidAfter));
       }
 
@@ -3771,11 +3723,11 @@ export default function App() {
       setSelectedId(landedId);
       forceRender((n) => n + 1);
 
-      enterLayer(nextState as any, finalLayer);
+      enterLayer(nextState, finalLayer);
 
       if (finalLayer !== currentLayer) {
         setCurrentLayer(finalLayer);
-        revealWholeLayer(nextState as any, finalLayer);
+        revealWholeLayer(nextState, finalLayer);
       }
 
       const landedCard = findCardTriggerAt(landedId);
@@ -3792,7 +3744,6 @@ export default function App() {
     [
       state,
       encounterActive,
-      reachable,
       currentLayer,
       playerLayer,
       goalId,

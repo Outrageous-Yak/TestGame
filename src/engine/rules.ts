@@ -4,27 +4,27 @@ import { enterLayer, posId, revealHex } from "./board";
 import { neighborIdsSameLayer } from "./neighbors";
 
 export type MoveResult =
-  | { ok: true; triggeredTransition: boolean; won: boolean }
-  | { ok: false; reason: "INVALID" | "BLOCKED" };
+  | { ok: true; state: GameState; triggeredTransition: boolean; won: boolean }
+  | { ok: false; state: GameState; reason: "INVALID" | "BLOCKED" };
 
 export function attemptMove(state: GameState, targetId: string): MoveResult {
   const player = state.hexesById.get(state.playerHexId);
-  if (!player) return { ok: false, reason: "INVALID" };
+  if (!player) return { ok: false, state, reason: "INVALID" };
 
   const target = state.hexesById.get(targetId);
-  if (!target) return { ok: false, reason: "INVALID" };
+  if (!target) return { ok: false, state, reason: "INVALID" };
 
   // Must stay in same layer for a normal move
-  if (player.pos.layer !== target.pos.layer) return { ok: false, reason: "INVALID" };
+  if (player.pos.layer !== target.pos.layer) return { ok: false, state, reason: "INVALID" };
 
-  // Must be adjacent under current shifted row layout
+  // Must be adjacent under current row layout
   const neigh = new Set(neighborIdsSameLayer(state, state.playerHexId));
-  if (!neigh.has(targetId)) return { ok: false, reason: "INVALID" };
+  if (!neigh.has(targetId)) return { ok: false, state, reason: "INVALID" };
 
   // Blocked/missing wastes the turn
   if (target.blocked || target.missing) {
     endTurn(state);
-    return { ok: false, reason: "BLOCKED" };
+    return { ok: false, state, reason: "BLOCKED" };
   }
 
   // Move
@@ -43,18 +43,16 @@ export function attemptMove(state: GameState, targetId: string): MoveResult {
       triggered = true;
       state.playerHexId = destId;
 
-      // Make layer visible and reveal destination
       enterLayer(state, tr.to.layer);
       revealHex(state, destId);
     }
   }
 
-  // Win check (safe)
   const now = state.hexesById.get(state.playerHexId);
   const won = !!now && now.kind === "GOAL";
 
   endTurn(state);
-  return { ok: true, triggeredTransition: triggered, won };
+  return { ok: true, state, triggeredTransition: triggered, won };
 }
 
 export function passTurn(state: GameState) {
@@ -64,10 +62,8 @@ export function passTurn(state: GameState) {
 export function endTurn(state: GameState) {
   state.turn += 1;
 
-  // Shift ALL layers according to scenario.movement
   const movement = state.scenario.movement ?? {};
 
-  // safest: use scenario.layers if present, otherwise fall back to state.rows size
   const maxLayer =
     Number((state.scenario as any)?.layers) ||
     (state.rows && typeof state.rows.size === "number" ? state.rows.size : 1);
@@ -77,7 +73,6 @@ export function endTurn(state: GameState) {
     applyShift(state, layer, pat);
   }
 }
-
 
 export function getPatternForLayer(
   movement: Record<string, MovementPattern>,
@@ -104,7 +99,6 @@ export function applyShift(state: GameState, layer: number, pat: MovementPattern
       dir = r <= 2 ? "R" : "L";
     }
 
-    // Rotate ids in the row
     if (dir === "L") {
       const first = row.shift();
       if (first != null) row.push(first);
