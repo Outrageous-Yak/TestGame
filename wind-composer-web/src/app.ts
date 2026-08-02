@@ -28,6 +28,7 @@ export class WindComposerApp {
   private tickTimer: number | null = null;
   private vizTimer: number | null = null;
   private weatherTimer: number | null = null;
+  private countdownTimer: number | null = null;
   private running = false;
   private audioEnabled = false;
   private sampleDelta = 4096;
@@ -44,6 +45,7 @@ export class WindComposerApp {
     searchResults: document.createElement("div"),
     favouritesList: document.createElement("div"),
     livePanel: document.createElement("div"),
+    liveStatus: document.createElement("div"),
     mapContainer: document.createElement("div"),
     micDenied: document.createElement("div"),
     enableAudioPanel: document.createElement("div"),
@@ -185,7 +187,7 @@ export class WindComposerApp {
     this.el.canvas.width = 600;
     this.el.canvas.height = 120;
     this.el.canvas.className = "viz-canvas";
-    compose.append(this.el.canvas, this.el.info);
+    compose.append(this.el.canvas, this.el.info, this.el.liveStatus);
     root.append(compose);
 
     const weather = this.h("section", "tab-panel hidden");
@@ -292,7 +294,14 @@ export class WindComposerApp {
       }
       this.syncSettings();
       this.synth.scheduleStartupChord();
-      this.stations.refreshAll();
+      this.stations.refreshAll().then(() => {
+        const stations = this.stations.list().filter((s) => s.enabled && s.weather);
+        if (stations.length) {
+          const dominant = stations.reduce((best, s) => (s.mix > best.mix ? s : best));
+          if (dominant.weather) this.session.onStationWeatherUpdated(dominant.weather);
+        }
+        this.refreshStationUI();
+      });
       this.running = true;
       this.playStartMs = performance.now();
       this.el.silenceWarn.classList.add("hidden");
@@ -300,7 +309,11 @@ export class WindComposerApp {
       this.tickLoop();
       this.tickTimer = window.setInterval(() => this.tickLoop(), 350);
       this.vizTimer = window.setInterval(() => this.drawViz(), 50);
-      this.weatherTimer = window.setInterval(() => this.stations.refreshAll(), 30000);
+      this.weatherTimer = window.setInterval(
+        () => this.refreshWeather(),
+        this.session.settings.refresh_interval_sec * 1000,
+      );
+      this.countdownTimer = window.setInterval(() => this.updateLivePanel(), 1000);
       this.refreshStationUI();
       this.startDiagTimer();
     } catch (e) {
@@ -314,6 +327,7 @@ export class WindComposerApp {
     if (this.tickTimer) clearInterval(this.tickTimer);
     if (this.vizTimer) clearInterval(this.vizTimer);
     if (this.weatherTimer) clearInterval(this.weatherTimer);
+    if (this.countdownTimer) clearInterval(this.countdownTimer);
     this.synth.releaseAll();
     if (this.micStream) {
       this.micStream.getTracks().forEach((t) => t.stop());
@@ -337,9 +351,7 @@ export class WindComposerApp {
     }
     const tick = this.session.tick(micEnergy, gust, this.sampleDelta);
     this.synth.applyTick(tick);
-    const plan = tick.plan;
-    this.el.info.textContent = `Chord: ${plan.chord?.name ?? "—"} | ${plan.song_section ?? "Flow"} | ${plan.musical_style ?? "Ambient"} | ${plan.tempo_bpm.toFixed(0)} BPM`;
-    this.el.layers.textContent = `Layers: ${tick.orchestration.active_layers.join(", ") || "—"}`;
+    this.updateLivePanel(tick);
     this.el.peak.textContent = `Peak ${this.synth.peak.toFixed(2)} | RMS ${this.synth.getOutputRms().toFixed(4)}`;
     this.el.peak.classList.toggle("peak-warn", this.synth.peak > 0.88);
     if (this.running) {
@@ -351,11 +363,52 @@ export class WindComposerApp {
       }
     }
     this.updateDiagnostics();
+  }
+
+  private async refreshWeather() {
+    await this.stations.refreshAll();
+    const stations = this.stations.list().filter((s) => s.enabled && s.weather);
+    if (!stations.length) return;
+    const dominant = stations.reduce((best, s) => (s.mix > best.mix ? s : best));
+    if (dominant.weather) this.session.onStationWeatherUpdated(dominant.weather);
+    this.refreshStationUI();
+  }
+
+  private updateLivePanel(tick?: { plan: import("./types").CompositionPlan }) {
+    const live = this.session.getLiveStatus(tick?.plan);
+    const sec = live.nextUpdateSec;
+    const mm = String(Math.floor(sec / 60)).padStart(2, "0");
+    const ss = String(sec % 60).padStart(2, "0");
+    this.el.info.textContent =
+      `${live.chord} · ${live.section} · ${live.style} · ${live.bpm.toFixed(0)} BPM · ${live.key}`;
+    this.el.layers.textContent = `Layers: energy ${(live.energy * 100).toFixed(0)}% · phrase ${live.phrase}`;
+    this.el.liveStatus.className = "live-status-panel";
+    this.el.liveStatus.innerHTML = `
+      <div class="live-grid">
+        <div><span class="live-label">Style</span> ${live.style}</div>
+        <div><span class="live-label">Section</span> ${live.section}</div>
+        <div><span class="live-label">BPM</span> ${live.bpm.toFixed(0)}</div>
+        <div><span class="live-label">Energy</span> ${(live.energy * 100).toFixed(0)}%</div>
+        <div><span class="live-label">Wind</span> ${live.windKmh.toFixed(0)} km/h</div>
+        <div><span class="live-label">Humidity</span> ${live.humidity.toFixed(0)}%</div>
+        <div><span class="live-label">Pressure</span> ${live.pressure.toFixed(0)} hPa</div>
+        <div><span class="live-label">Temp</span> ${live.temperature.toFixed(0)}°C</div>
+        <div><span class="live-label">Trend</span> ${live.trend}</div>
+        <div><span class="live-label">Storm</span> ${(live.stormChance * 100).toFixed(0)}%</div>
+        <div><span class="live-label">Local Time</span> ${live.localTime}</div>
+        <div><span class="live-label">Last Update</span> ${live.lastWeatherUpdate}</div>
+        <div><span class="live-label">Next Update</span> ${mm}:${ss}</div>
+        <div><span class="live-label">Fill Prob</span> ${(live.fillProbability * 100).toFixed(0)}%</div>
+      </div>
+      ${live.weatherNotice ? `<p class="weather-notice">${live.weatherNotice.replace(/\n/g, "<br>")}</p>` : ""}
+    `;
     const primary = this.stations.list().find((s) => s.enabled && s.weather);
     if (primary?.weather) {
       const w = primary.weather;
-      this.el.livePanel.innerHTML = `<p><strong>${primary.display_name}</strong> — ${w.condition}</p>
-        <p>Wind ${w.wind_speed_kmh.toFixed(0)} km/h · ${w.temperature_c.toFixed(0)}°C</p>`;
+      this.el.livePanel.innerHTML = `
+        <p><strong>${primary.display_name}</strong> — ${w.condition}</p>
+        <p>Wind ${w.wind_speed_kmh.toFixed(0)} km/h · Cloud ${w.cloud_cover_pct.toFixed(0)}% · Rain ${w.precipitation_mm.toFixed(1)} mm</p>
+      `;
     }
   }
 

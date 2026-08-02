@@ -101,11 +101,15 @@ const KICK_DEFAULT = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0];
 class DrumEngine {
   constructor() {
     this.bpm = 120;
+    this.targetBpm = 120;
     this.kickPattern = KICK_DEFAULT.slice();
+    this.hatPattern = [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0];
     this.drumDensity = 0.5;
     this.kickGain = 0.9;
     this.hatGain = 0.42;
     this.snareGain = 0.55;
+    this.clapGain = 0.4;
+    this.swing = 0;
     this.enabled = true;
     this.sampleAcc = 0;
     this.step = 0;
@@ -115,27 +119,50 @@ class DrumEngine {
     this.kickPhase = 0;
     this.hatEnv = 0;
     this.hatNoise = 0;
+    this.openHatEnv = 0;
+    this.openHatNoise = 0;
     this.snareEnv = 0;
     this.snareNoise = 0;
     this.snareTonePhase = 0;
+    this.clapEnv = 0;
+    this.clapNoise = 0;
+    this.crashEnv = 0;
+    this.crashNoise = 0;
+    this.tomEnv = 0;
+    this.tomFreq = 120;
+    this.tomPhase = 0;
+    this.rideEnv = 0;
+    this.rideNoise = 0;
+    this.noiseEnv = 0;
+    this.noiseVal = 0;
+    this.fxEnv = 0;
+    this.fxType = "";
     this.pendingFill = 0;
   }
 
   setConfig(msg) {
-    if (msg.tempo_bpm > 0) this.bpm = msg.tempo_bpm;
+    if (msg.tempo_bpm > 0) this.targetBpm = msg.tempo_bpm;
     if (msg.kickPattern && msg.kickPattern.length) this.kickPattern = msg.kickPattern;
+    if (msg.hatPattern && msg.hatPattern.length) this.hatPattern = msg.hatPattern;
     if (msg.drumDensity != null) this.drumDensity = msg.drumDensity;
     if (msg.kickGain != null) this.kickGain = msg.kickGain;
     if (msg.hatGain != null) this.hatGain = msg.hatGain;
     if (msg.snareGain != null) this.snareGain = msg.snareGain;
+    if (msg.clapGain != null) this.clapGain = msg.clapGain;
+    if (msg.swing != null) this.swing = msg.swing;
     if (msg.enabled != null) this.enabled = Boolean(msg.enabled);
+    this._recalcStepLen();
+  }
+
+  _recalcStepLen() {
+    this.bpm += (this.targetBpm - this.bpm) * 0.02;
     this.samplesPerStep = (60 / Math.max(this.bpm, 40)) * sampleRate / 4;
     if (this.samplesPerStep < 1) this.samplesPerStep = 1;
   }
 
   triggerKick() {
     this.kickEnv = 1;
-    this.kickFreq = 185;
+    this.kickFreq = 188;
     this.kickPhase = 0;
   }
 
@@ -144,36 +171,93 @@ class DrumEngine {
     this.hatNoise = Math.random() * 2 - 1;
   }
 
+  triggerOpenHat(vel) {
+    this.openHatEnv = vel;
+    this.openHatNoise = Math.random() * 2 - 1;
+  }
+
   triggerSnare(vel) {
     this.snareEnv = vel;
     this.snareNoise = Math.random() * 2 - 1;
     this.snareTonePhase = 0;
   }
 
+  triggerClap(vel) {
+    this.clapEnv = vel;
+    this.clapNoise = Math.random() * 2 - 1;
+  }
+
+  triggerCrash(vel) {
+    this.crashEnv = vel;
+    this.crashNoise = Math.random() * 2 - 1;
+  }
+
+  triggerTom(vel) {
+    this.tomEnv = vel;
+    this.tomFreq = 95 + Math.random() * 40;
+    this.tomPhase = 0;
+  }
+
+  triggerRide(vel) {
+    this.rideEnv = vel;
+    this.rideNoise = Math.random() * 2 - 1;
+  }
+
+  triggerNoise(vel) {
+    this.noiseEnv = vel;
+    this.noiseVal = Math.random() * 2 - 1;
+  }
+
   triggerFill() {
-    this.pendingFill = 4;
+    this.pendingFill = 5;
+  }
+
+  triggerFx(fx) {
+    this.fxType = fx;
+    this.fxEnv = 1;
+    if (fx === "noise_riser") this.noiseEnv = 0.65;
+    if (fx === "reverse_crash") this.crashEnv = 0.7;
+    if (fx === "impact" || fx === "sub_drop") this.kickEnv = 1;
+  }
+
+  triggerLayer(layer, vel) {
+    const v = vel ?? 0.5;
+    if (layer === "kick") this.triggerKick();
+    else if (layer === "snare") this.triggerSnare(v);
+    else if (layer === "hat") this.triggerHat(v);
+    else if (layer === "open_hat") this.triggerOpenHat(v);
+    else if (layer === "clap") this.triggerClap(v);
+    else if (layer === "crash") this.triggerCrash(v);
+    else if (layer === "tom") this.triggerTom(v);
+    else if (layer === "ride") this.triggerRide(v);
+    else if (layer === "noise" || layer === "percussion") this.triggerNoise(v);
+    else this.triggerSnare(v * 0.7);
   }
 
   onStep() {
     const pat = this.kickPattern;
+    const hatPat = this.hatPattern;
     const idx = this.step % 16;
     if (pat[idx]) this.triggerKick();
-    if (this.drumDensity > 0.12 && idx % 2 === 1) {
+    if (hatPat[idx] && this.drumDensity > 0.1) {
       this.triggerHat(this.hatGain * (0.55 + this.drumDensity * 0.45));
     }
     if (this.drumDensity > 0.28 && (idx === 4 || idx === 12)) {
-      this.triggerSnare(this.snareGain * (0.7 + this.drumDensity * 0.3));
+      this.triggerSnare(this.snareGain * (0.72 + this.drumDensity * 0.28));
     }
     if (this.pendingFill > 0) {
-      this.triggerSnare(this.snareGain * 0.85);
-      this.triggerHat(this.hatGain * 0.7);
+      this.triggerSnare(this.snareGain * 0.88);
+      this.triggerHat(this.hatGain * 0.75);
       this.pendingFill -= 1;
     }
+    const swingDelay = this.swing > 0 && idx % 2 === 1 ? this.samplesPerStep * this.swing * 0.35 : 0;
+    this.sampleAcc -= swingDelay;
     this.step = (this.step + 1) % 16;
   }
 
   processSample(sr) {
     if (!this.enabled) return 0;
+    this._recalcStepLen();
     this.sampleAcc += 1;
     while (this.sampleAcc >= this.samplesPerStep) {
       this.sampleAcc -= this.samplesPerStep;
@@ -183,25 +267,67 @@ class DrumEngine {
     if (this.kickEnv > 0) {
       this.kickPhase += TAU * this.kickFreq / sr;
       if (this.kickPhase > TAU) this.kickPhase -= TAU;
-      out += Math.sin(this.kickPhase) * this.kickEnv * this.kickGain * 0.95;
-      this.kickFreq *= 0.9992;
-      this.kickEnv -= 1 / (0.11 * sr);
+      out += Math.sin(this.kickPhase) * this.kickEnv * this.kickGain * 0.98;
+      this.kickFreq *= 0.9991;
+      this.kickEnv -= 1 / (0.1 * sr);
       if (this.kickEnv < 0) this.kickEnv = 0;
     }
     if (this.hatEnv > 0) {
-      this.hatNoise = (this.hatNoise * 0.6 + (Math.random() * 2 - 1) * 0.4);
-      out += this.hatNoise * this.hatEnv * 0.35;
-      this.hatEnv -= 1 / (0.035 * sr);
+      this.hatNoise = this.hatNoise * 0.55 + (Math.random() * 2 - 1) * 0.45;
+      out += this.hatNoise * this.hatEnv * 0.32;
+      this.hatEnv -= 1 / (0.032 * sr);
       if (this.hatEnv < 0) this.hatEnv = 0;
+    }
+    if (this.openHatEnv > 0) {
+      this.openHatNoise = this.openHatNoise * 0.5 + (Math.random() * 2 - 1) * 0.5;
+      out += this.openHatNoise * this.openHatEnv * 0.28;
+      this.openHatEnv -= 1 / (0.18 * sr);
+      if (this.openHatEnv < 0) this.openHatEnv = 0;
     }
     if (this.snareEnv > 0) {
       this.snareTonePhase += TAU * 210 / sr;
       if (this.snareTonePhase > TAU) this.snareTonePhase -= TAU;
-      this.snareNoise = (this.snareNoise * 0.55 + (Math.random() * 2 - 1) * 0.45);
-      const tone = Math.sin(this.snareTonePhase) * 0.35;
-      out += (this.snareNoise * 0.65 + tone) * this.snareEnv * 0.55;
-      this.snareEnv -= 1 / (0.14 * sr);
+      this.snareNoise = this.snareNoise * 0.52 + (Math.random() * 2 - 1) * 0.48;
+      out += (this.snareNoise * 0.68 + Math.sin(this.snareTonePhase) * 0.32) * this.snareEnv * 0.52;
+      this.snareEnv -= 1 / (0.13 * sr);
       if (this.snareEnv < 0) this.snareEnv = 0;
+    }
+    if (this.clapEnv > 0) {
+      this.clapNoise = this.clapNoise * 0.4 + (Math.random() * 2 - 1) * 0.6;
+      out += this.clapNoise * this.clapEnv * this.clapGain * 0.45;
+      this.clapEnv -= 1 / (0.09 * sr);
+      if (this.clapEnv < 0) this.clapEnv = 0;
+    }
+    if (this.crashEnv > 0) {
+      this.crashNoise = this.crashNoise * 0.45 + (Math.random() * 2 - 1) * 0.55;
+      out += this.crashNoise * this.crashEnv * 0.42;
+      this.crashEnv -= 1 / (0.55 * sr);
+      if (this.crashEnv < 0) this.crashEnv = 0;
+    }
+    if (this.tomEnv > 0) {
+      this.tomPhase += TAU * this.tomFreq / sr;
+      if (this.tomPhase > TAU) this.tomPhase -= TAU;
+      out += Math.sin(this.tomPhase) * this.tomEnv * 0.38;
+      this.tomFreq *= 0.9985;
+      this.tomEnv -= 1 / (0.16 * sr);
+      if (this.tomEnv < 0) this.tomEnv = 0;
+    }
+    if (this.rideEnv > 0) {
+      this.rideNoise = this.rideNoise * 0.7 + (Math.random() * 2 - 1) * 0.3;
+      out += this.rideNoise * this.rideEnv * 0.22;
+      this.rideEnv -= 1 / (0.25 * sr);
+      if (this.rideEnv < 0) this.rideEnv = 0;
+    }
+    if (this.noiseEnv > 0) {
+      this.noiseVal = this.noiseVal * 0.5 + (Math.random() * 2 - 1) * 0.5;
+      const riser = this.fxType === "noise_riser" ? (1 - this.fxEnv) * 0.3 : 0;
+      out += this.noiseVal * this.noiseEnv * (0.28 + riser);
+      this.noiseEnv -= 1 / (0.2 * sr);
+      if (this.noiseEnv < 0) this.noiseEnv = 0;
+    }
+    if (this.fxEnv > 0) {
+      this.fxEnv -= 1 / (2.5 * sr);
+      if (this.fxEnv < 0) this.fxEnv = 0;
     }
     return out;
   }
@@ -261,14 +387,13 @@ class SynthProcessor extends AudioWorkletProcessor {
         this.port.postMessage({ type: "first_note", midi: msg.midi, layer: msg.layer });
       }
     } else if (msg.type === "perc") {
-      if (msg.layer === "kick") this.drums.triggerKick();
-      else if (msg.layer === "snare") this.drums.triggerSnare(msg.velocity ?? 0.6);
-      else if (msg.layer === "hat") this.drums.triggerHat(msg.velocity ?? 0.4);
-      else this.triggerPerc(msg.velocity);
+      this.drums.triggerLayer(msg.layer, msg.velocity);
     } else if (msg.type === "drum_seq") {
       this.drums.setConfig(msg);
     } else if (msg.type === "drum_fill") {
       this.drums.triggerFill();
+    } else if (msg.type === "transition_fx") {
+      this.drums.triggerFx(msg.fx);
     } else if (msg.type === "release_layer") {
       this.releaseLayer(msg.layer);
     } else if (msg.type === "release_all") {
@@ -392,28 +517,39 @@ class SynthProcessor extends AudioWorkletProcessor {
     const sr = sampleRate;
     let peak = 0;
     for (let i = 0; i < L.length; i++) {
-      let mono = 0;
+      let padMono = 0;
+      let bassMono = 0;
+      let leadL = 0;
+      let leadR = 0;
       for (const v of this.voices) {
         if (!v.active) continue;
         const lg = this.layerGains[v.layer] ?? 0.35;
-        mono += v.process(sr) * lg;
+        const sample = v.process(sr) * lg;
+        if (v.layer === "soft_bass" || v.layer === "sub_bass") bassMono += sample;
+        else if (v.layer === "lead" || v.layer === "bell") {
+          leadL += sample * 0.78;
+          leadR += sample * 0.78;
+        } else padMono += sample;
       }
       const layerCount = Math.max(1, Object.keys(this.layerGains).length);
       const comp = 1 / Math.sqrt(layerCount * 0.7);
-      mono *= comp * this.master;
+      padMono *= comp * this.master;
+      bassMono *= comp * this.master * 0.92;
+      leadL *= comp * this.master;
+      leadR *= comp * this.master;
 
       const drum = this.drums.processSample(sr);
       let padsL;
       let padsR;
       if (this.bypassEffects) {
-        padsL = mono;
-        padsR = mono;
+        padsL = padMono + bassMono;
+        padsR = padMono + bassMono;
       } else {
-        mono = this.softSat(mono, 0.15 + this.warmth * 0.25);
+        let wet = this.softSat(padMono, 0.15 + this.warmth * 0.25);
         const pan = this.stereoPan;
         const w = this.width;
-        padsL = mono * (0.5 - pan * 0.35) * (1 + w * 0.15);
-        padsR = mono * (0.5 + pan * 0.35) * (1 + w * 0.15);
+        padsL = wet * (0.5 - pan * 0.35) * (1 + w * 0.18);
+        padsR = wet * (0.5 + pan * 0.35) * (1 + w * 0.18);
         const rvIdx = wrapIndex(this.revPos - 4000, this.revL.length);
         const rv = (this.revL[rvIdx] + this.revR[rvIdx]) * 0.5 * this.reverbWet;
         this.revL[this.revPos] = padsL + rv * 0.4;
@@ -431,8 +567,9 @@ class SynthProcessor extends AudioWorkletProcessor {
         padsR = padsR * 0.88 + dr * this.dlyWet;
       }
 
-      let l = padsL + drum * 0.92;
-      let r = padsR + drum * 0.92;
+      const lw = this.width * 0.35 + 0.15;
+      let l = padsL + bassMono + drum * 0.96 + leadL * (1 + lw);
+      let r = padsR + bassMono + drum * 0.96 + leadR * (1 + lw);
 
       peak = Math.max(peak, Math.abs(l), Math.abs(r));
       const ceiling = 0.92;

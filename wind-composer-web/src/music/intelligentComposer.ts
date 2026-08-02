@@ -1,20 +1,60 @@
-import type { CompositionPlan, RhythmEventDto, WeatherSnapshot } from "../types";
+import type { CompositionPlan, MelodyNoteDto, RhythmEventDto, WeatherSnapshot } from "../types";
+import { clamp } from "../utils";
+import { ArrangementEngine } from "./arrangementEngine";
+import { BassEngine } from "./bassEngine";
+import { DrumEngine } from "./drumEngine";
+import { FillEngine } from "./fillEngine";
+import { LeadEngine } from "./leadEngine";
+import { MusicMemory } from "./musicMemory";
+import {
+  beatMicroDecision,
+  gustActionWeights,
+  pickGustAction,
+} from "./probabilityEngine";
+import type { ScaleEngine } from "./scaleEngine";
 import { getStyle } from "./styleEngine";
+import { TempoEngine, windToTargetBpm } from "./tempoEngine";
+import { TransitionEngine } from "./transitionEngine";
+import type { WeatherChangeSummary, WeatherMemory } from "./weatherMemory";
 
-function clamp(x: number, lo = 0, hi = 1): number {
-  return Math.max(lo, Math.min(hi, x));
+export interface EnhanceContext {
+  gust: boolean;
+  samplePosition: number;
+  sampleRate: number;
+  windKmh: number;
+  personalityHope: number;
 }
 
 export class IntelligentComposer {
   private styleName = "Ambient";
-  private section = "Flow";
-  private barsInSection = 0;
-  private beat = 0;
+  private memory = new MusicMemory();
+  private arrangement = new ArrangementEngine();
+  private bass: BassEngine;
+  private drums = new DrumEngine();
+  private lead: LeadEngine;
+  private fills: FillEngine;
+  private transitions: TransitionEngine;
+  private tempo = new TempoEngine();
   private localTimeStr = "";
   private lastNotice = "";
+  private lastChangeSummary: WeatherChangeSummary | null = null;
+  private fillProbabilityBoost = 0;
+  private phraseNumber = 0;
+
+  constructor(
+    private scale: ScaleEngine,
+    private weatherMemory: WeatherMemory,
+  ) {
+    this.bass = new BassEngine(this.memory);
+    this.lead = new LeadEngine(scale, this.memory);
+    this.fills = new FillEngine(this.memory);
+    this.transitions = new TransitionEngine(this.memory);
+  }
 
   setStyle(name: string): void {
     this.styleName = name;
+    const style = getStyle(name);
+    this.tempo.reset((style.bpmMin + style.bpmMax) / 2);
   }
 
   getLocalTime(): string {
@@ -25,79 +65,179 @@ export class IntelligentComposer {
     return this.lastNotice;
   }
 
-  onWeather(prev: WeatherSnapshot | null, snap: WeatherSnapshot): void {
-    if (snap.timestamp) {
-      const d = new Date(snap.timestamp);
-      this.localTimeStr = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    }
-    if (!prev) return;
-    const lines: string[] = ["Weather Updated"];
-    if (Math.abs(snap.wind_speed_kmh - prev.wind_speed_kmh) >= 1) {
-      lines.push(`Wind ${prev.wind_speed_kmh.toFixed(0)} → ${snap.wind_speed_kmh.toFixed(0)} km/h`);
-    }
-    if (Math.abs(snap.humidity_pct - prev.humidity_pct) >= 2) {
-      lines.push(`Humidity ${prev.humidity_pct.toFixed(0)} → ${snap.humidity_pct.toFixed(0)}%`);
-    }
-    if (Math.abs(snap.pressure_hpa - prev.pressure_hpa) >= 1) {
-      lines.push(`Pressure ${prev.pressure_hpa.toFixed(0)} → ${snap.pressure_hpa.toFixed(0)} hPa`);
-    }
-    lines.push("New Phrase Generated");
-    if (snap.wind_speed_kmh > prev.wind_speed_kmh + 5) lines.push("Bass Variation Added");
-    this.lastNotice = lines.join("\n");
+  getChangeSummary(): WeatherChangeSummary | null {
+    return this.lastChangeSummary;
   }
 
-  enhance(
-    plan: CompositionPlan,
-    weather: WeatherSnapshot | null,
-    gust: boolean,
-    samplePosition: number,
-    sampleRate: number,
-    windProxyKmh?: number,
-  ): CompositionPlan {
-    const style = getStyle(this.styleName);
-    const energy = plan.energy_curve;
+  getFillProbabilityBoost(): number {
+    return this.fillProbabilityBoost;
+  }
 
-    const windKmh = weather
-      ? weather.wind_speed_kmh
-      : windProxyKmh != null
-        ? windProxyKmh
-        : energy * 55;
-    const windFactor = clamp(windKmh / 55);
-    plan.tempo_bpm = clamp(
-      style.bpmMin + windFactor * (style.bpmMax - style.bpmMin),
+  onWeatherUpdated(snap: WeatherSnapshot, localTimeStr: string): void {
+    this.localTimeStr = localTimeStr;
+    const prev = this.weatherMemory.push(snap);
+    if (!prev) return;
+    const summary = this.weatherMemory.changeSummary(prev, snap);
+    if (!summary.lines.length) return;
+    this.lastChangeSummary = summary;
+    this.lastNotice = [...summary.lines, ...summary.musical_hints].join("\n");
+    this.fillProbabilityBoost = clamp(this.fillProbabilityBoost + summary.fill_prob_delta, 0, 0.25);
+  }
+
+  enhance(plan: CompositionPlan, weather: WeatherSnapshot | null, ctx: EnhanceContext): CompositionPlan {
+    const style = getStyle(this.styleName);
+    const trend = this.weatherMemory.trend();
+    const w = weather;
+
+    const windKmh = w
+      ? trend.avg_wind_kmh + trend.wind_delta * 0.2
+      : ctx.windKmh;
+
+    const targetBpm = windToTargetBpm(
+      windKmh,
       style.bpmMin,
       style.bpmMax,
+      trend.wind_delta,
+      trend.storm_likelihood,
     );
 
-    const tempo = plan.tempo_bpm;
-    const spb = (60 / Math.max(tempo, 20)) * sampleRate;
-    const beat = Math.floor(samplePosition / spb);
+    const spb = (60 / Math.max(plan.tempo_bpm, 40)) * ctx.sampleRate;
+    const beat = Math.floor(ctx.samplePosition / spb);
+    const measure = Math.floor(beat / 4);
 
-    if (weather) {
-      if (weather.humidity_pct > 70) plan.reverb_amount = clamp(plan.reverb_amount + 0.1);
-      if (weather.precipitation_mm > 0.5) plan.percussion = Math.max(plan.percussion, weather.precipitation_mm / 8);
-      if (weather.snowfall_mm > 0.1) plan.brightness *= 0.9;
-    }
-
+    plan.tempo_bpm = this.tempo.update(targetBpm, style.bpmMin, style.bpmMax, measure, ctx.gust);
     plan.musical_style = this.styleName;
-    plan.song_section = this.section;
     plan.local_time_str = this.localTimeStr;
 
-    const extra: RhythmEventDto[] = [];
-    if (gust && Math.random() < 0.4) {
-      extra.push({ layer: "percussion", strength: 0.75, is_pulse: true });
-      plan.weather_hints = [...(plan.weather_hints ?? []), "Gust fill"];
+    const section = this.arrangement.onPhrase(plan.energy_curve, trend.storm_likelihood > 0.5);
+    plan.song_section = section;
+    if (measure > 0 && measure % 32 === 0) this.phraseNumber += 1;
+    plan.phrase_number = this.phraseNumber;
+
+    const extraRhythm: RhythmEventDto[] = [...plan.rhythm_events];
+    const extraMelody: MelodyNoteDto[] = [...plan.melody_notes];
+    const arrState = this.arrangement.getState();
+
+    if (beat >= 0) {
+      extraRhythm.push(
+        ...this.drums.onBeat({
+          beat,
+          bar: measure,
+          energy: plan.energy_curve,
+          precipitation: w?.precipitation_mm ?? 0,
+          snowfall: w?.snowfall_mm ?? 0,
+          style,
+          sectionEnergy: arrState.sectionEnergy,
+        }),
+      );
+      const micro = beatMicroDecision(plan.energy_curve);
+      if (micro === "hat_ghost") {
+        extraRhythm.push({ layer: "hat", strength: 0.14, is_pulse: false });
+      }
     }
 
-    const measure = Math.floor(beat / 4);
-    if (measure > 0 && measure % 32 === 0) {
-      this.barsInSection += 32;
-      const sections = ["Intro", "Build", "Drop", "Breakdown", "Recovery", "Flow"];
-      this.section = sections[Math.floor(measure / 32) % sections.length];
-      plan.song_section = this.section;
+    if (measure > 0 && beat % 4 === 0) {
+      const tones = plan.chord?.tones ?? [];
+      extraMelody.push(
+        ...this.bass.onBar({
+          chordTones: tones,
+          energy: plan.energy_curve,
+          windDirection: w?.wind_direction_deg ?? 0,
+          pressureTrend: trend.pressure_delta,
+          barInPhrase: measure,
+          style,
+        }),
+      );
+
+      const fillProb = style.fillProbability + this.fillProbabilityBoost;
+      extraRhythm.push(
+        ...this.fills.maybeFill({
+          bar: measure,
+          phraseLength: plan.phrase_length_bars,
+          energy: plan.energy_curve,
+          stormLikelihood: trend.storm_likelihood,
+          fillProbability: fillProb,
+        }),
+      );
+      this.fillProbabilityBoost *= 0.92;
     }
 
-    plan.rhythm_events = extra;
+    if (plan.chord?.tones?.length) {
+      extraMelody.push(
+        ...this.lead.maybeNotes({
+          chordTones: plan.chord.tones,
+          energy: plan.energy_curve,
+          hope: ctx.personalityHope,
+          bar: measure,
+          gust: ctx.gust,
+          style,
+        }),
+      );
+    }
+
+    if (ctx.gust && w) {
+      const gustDelta = w.wind_gust_kmh - w.wind_speed_kmh;
+      const weights = gustActionWeights(w.wind_speed_kmh, gustDelta, plan.energy_curve);
+      const action = pickGustAction(weights);
+      if (action === "fill") extraRhythm.push({ layer: "snare", strength: 0.72, is_pulse: true });
+      else if (action === "lead_flourish" && plan.chord) {
+        extraMelody.push({
+          midi: plan.chord.tones[plan.chord.tones.length - 1],
+          velocity: 0.82,
+          duration_sec: 0.4,
+        });
+      } else if (action === "crash") extraRhythm.push({ layer: "crash", strength: 0.88, is_pulse: true });
+      else if (action === "reverse_fx") plan.transition_fx = "reverse_crash";
+      else if (action === "riser") plan.transition_fx = "noise_riser";
+      else if (action === "bass_variation" && plan.chord) {
+        extraMelody.push({
+          midi: plan.chord.tones[0] - 7,
+          velocity: 0.55,
+          duration_sec: 0.25,
+        });
+      }
+      plan.weather_hints = [...(plan.weather_hints ?? []), `Gust: ${action}`];
+    }
+
+    const fx = this.transitions.maybeTransition({
+      energy: plan.energy_curve,
+      stormLikelihood: trend.storm_likelihood,
+      sectionChange: arrState.barsInSection === 0,
+      transitionProbability: style.transitionProbability,
+      gust: ctx.gust,
+    });
+    if (fx) {
+      plan.transition_fx = fx;
+      if (["crash", "impact", "reverse_crash"].includes(fx)) {
+        extraRhythm.push({ layer: "crash", strength: 0.78, is_pulse: true });
+      }
+    }
+
+    if (w) {
+      if (w.snowfall_mm > 0.1) plan.brightness = clamp(plan.brightness * 0.9);
+      if (w.precipitation_mm > 0.5) plan.percussion = Math.max(plan.percussion, w.precipitation_mm / 8);
+      if (w.humidity_pct > 70) plan.reverb_amount = clamp(plan.reverb_amount + 0.1);
+      if (w.cloud_cover_pct > 80) plan.reverb_amount = clamp(plan.reverb_amount + 0.06);
+      if (w.temperature_c < 5) plan.brightness = clamp(plan.brightness * 0.88);
+      if (w.temperature_c > 25) plan.brightness = clamp(plan.brightness + 0.08);
+    }
+
+    if (trend.storm_likelihood > 0.4) plan.weather_hints = [...(plan.weather_hints ?? []), "Storm tension"];
+    if (trend.calm_trend) plan.weather_hints = [...(plan.weather_hints ?? []), "Calming trend"];
+    if (trend.accelerating_wind) plan.weather_hints = [...(plan.weather_hints ?? []), "Wind accelerating"];
+
+    plan.rhythm_events = extraRhythm;
+    plan.melody_notes = extraMelody.slice(0, 8);
+    plan.bass_notes = extraMelody.filter((n) => n.midi < 52);
+    plan.drum_events = extraRhythm.filter((e) =>
+      ["kick", "snare", "hat", "open_hat", "clap", "percussion", "crash", "tom", "ride", "noise"].includes(e.layer),
+    );
+
     return plan;
+  }
+
+  getArrangementLayerGains(energy: number): Record<string, number> {
+    const style = getStyle(this.styleName);
+    return this.arrangement.layerGains(style, energy);
   }
 }

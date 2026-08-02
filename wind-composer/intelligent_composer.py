@@ -19,6 +19,7 @@ from probability_engine import beat_micro_decision, gust_action_weights, pick_gu
 from rhythm_engine import RhythmEvent
 from scale_engine import ScaleEngine
 from style_engine import MusicalStyle, SongSection, get_style, style_bpm_range
+from tempo_engine import TempoEngine, wind_to_target_bpm
 from transition_engine import TransitionContext, TransitionEngine
 from weather_memory import WeatherMemory, WeatherTrend
 from weather.models import WeatherSnapshot
@@ -46,6 +47,7 @@ class IntelligentComposer:
     self._fills = FillEngine(self._memory)
     self._transitions = TransitionEngine(self._memory)
     self._style_name = MusicalStyle.AMBIENT.value
+    self._tempo = TempoEngine()
     self._last_notice: Optional[WeatherChangeNotice] = None
     self._local_time_str = ""
     self._rng = random.Random()
@@ -56,6 +58,8 @@ class IntelligentComposer:
 
   def set_style(self, name: str) -> None:
     self._style_name = name
+    style = get_style(name)
+    self._tempo.reset((style.bpm_min + style.bpm_max) / 2.0)
 
   def get_last_weather_notice(self) -> Optional[WeatherChangeNotice]:
     return self._last_notice
@@ -102,17 +106,26 @@ class IntelligentComposer:
     trend = self._weather_memory.trend()
     w = ctx.weather
 
-    # Weather-influenced tempo and energy
-    wind_factor = 0.0
+    wind_kmh = w.wind_speed_kmh if w else 0.0
     if w:
-      wind_factor = clamp(w.wind_speed_kmh / 55.0)
-      plan.tempo_bpm = clamp(
-        bpm_min + wind_factor * (bpm_max - bpm_min) + trend.storm_likelihood * 8,
-        bpm_min,
-        bpm_max,
-      )
-    else:
-      plan.tempo_bpm = clamp(plan.tempo_bpm, bpm_min, bpm_max)
+      wind_kmh = trend.avg_wind_kmh if hasattr(trend, "avg_wind_kmh") else w.wind_speed_kmh
+      if hasattr(trend, "wind_delta"):
+        wind_kmh += trend.wind_delta * 0.2
+
+    target_bpm = wind_to_target_bpm(
+      wind_kmh,
+      bpm_min,
+      bpm_max,
+      trend.wind_delta,
+      trend.storm_likelihood,
+    )
+    plan.tempo_bpm = self._tempo.update(
+      target_bpm,
+      bpm_min,
+      bpm_max,
+      measure,
+      ctx.gust,
+    )
 
     section = self._arrangement.on_phrase(plan.energy_curve, trend.storm_likelihood > 0.5)
     plan.song_section = section.value

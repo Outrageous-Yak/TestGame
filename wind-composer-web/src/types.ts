@@ -38,6 +38,10 @@ export interface CompositionPlan {
   song_section?: string;
   local_time_str?: string;
   weather_hints?: string[];
+  transition_fx?: string | null;
+  bass_notes?: MelodyNoteDto[];
+  drum_events?: RhythmEventDto[];
+  arrangement_gains?: Record<string, number>;
 }
 
 export interface WeatherSnapshot {

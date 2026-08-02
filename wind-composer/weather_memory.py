@@ -17,6 +17,8 @@ class WeatherTrend:
     storm_likelihood: float = 0.0
     calm_trend: bool = False
     accelerating_wind: bool = False
+    avg_wind_kmh: float = 0.0
+    max_gust_kmh: float = 0.0
 
 
 class WeatherMemory:
@@ -42,6 +44,8 @@ class WeatherMemory:
         wind_vals = [s.wind_speed_kmh for s in recent]
         pressure_vals = [s.pressure_hpa for s in recent]
         humidity_vals = [s.humidity_pct for s in recent]
+        avg_wind = sum(wind_vals) / n
+        max_gust = max(s.wind_gust_kmh for s in recent)
 
         wind_delta = new.wind_speed_kmh - old.wind_speed_kmh
         pressure_delta = new.pressure_hpa - old.pressure_hpa
@@ -62,6 +66,8 @@ class WeatherMemory:
             storm_likelihood=storm_likelihood,
             calm_trend=wind_delta < -3 and pressure_delta > 2,
             accelerating_wind=accelerating,
+            avg_wind_kmh=avg_wind,
+            max_gust_kmh=max_gust,
         )
 
     def change_summary(self, prev: WeatherSnapshot, new: WeatherSnapshot) -> List[str]:

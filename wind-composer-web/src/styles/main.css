@@ -59,6 +59,42 @@ body {
 }
 
 .style-panel {
+  margin: 12px 0;
+  padding: 12px;
+  background: var(--surface);
+  border-radius: 8px;
+}
+
+.live-status-panel {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--surface);
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.live-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px 12px;
+}
+
+.live-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin-bottom: 2px;
+}
+
+.weather-notice {
+  margin-top: 10px;
+  padding: 8px;
+  background: rgba(107, 159, 212, 0.12);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.style-panel {
   background: #1a2a3a;
   border: 1px solid var(--accent);
   border-radius: 10px;

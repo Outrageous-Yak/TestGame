@@ -62,35 +62,35 @@ KICK_TRANCE = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0]
 
 STYLE_PROFILES: Dict[MusicalStyle, StyleProfile] = {
     MusicalStyle.AMBIENT: StyleProfile(
-        MusicalStyle.AMBIENT, 40, 68, KICK_MINIMAL, "ambient", 0.35, 0.2, 0.1, 0.08, 0.05,
+        MusicalStyle.AMBIENT, 45, 70, KICK_MINIMAL, "ambient", 0.35, 0.2, 0.1, 0.08, 0.05,
         0.0, 0.7, 0.15, 0.15, 0.05, 0.2, 0.85,
     ),
     MusicalStyle.CHILLOUT: StyleProfile(
-        MusicalStyle.CHILLOUT, 72, 96, KICK_FOUR, "house", 0.45, 0.35, 0.35, 0.15, 0.1,
+        MusicalStyle.CHILLOUT, 75, 95, KICK_FOUR, "house", 0.45, 0.35, 0.35, 0.15, 0.1,
         0.08, 0.55, 0.35, 0.3, 0.25, 0.15, 0.9,
     ),
     MusicalStyle.DEEP_HOUSE: StyleProfile(
-        MusicalStyle.DEEP_HOUSE, 118, 124, KICK_HOUSE, "house", 0.5, 0.4, 0.55, 0.22, 0.12,
+        MusicalStyle.DEEP_HOUSE, 112, 124, KICK_HOUSE, "house", 0.5, 0.4, 0.55, 0.22, 0.12,
         0.12, 0.45, 0.5, 0.35, 0.4, 0.1, 0.75,
     ),
     MusicalStyle.MELODIC_HOUSE: StyleProfile(
-        MusicalStyle.MELODIC_HOUSE, 120, 126, KICK_HOUSE, "house", 0.55, 0.55, 0.6, 0.25, 0.15,
+        MusicalStyle.MELODIC_HOUSE, 118, 126, KICK_HOUSE, "house", 0.55, 0.55, 0.6, 0.25, 0.15,
         0.1, 0.5, 0.45, 0.5, 0.45, 0.15, 0.8,
     ),
     MusicalStyle.PROGRESSIVE_HOUSE: StyleProfile(
-        MusicalStyle.PROGRESSIVE_HOUSE, 124, 128, KICK_FOUR, "progressive", 0.6, 0.5, 0.5, 0.2, 0.18,
+        MusicalStyle.PROGRESSIVE_HOUSE, 118, 128, KICK_FOUR, "progressive", 0.6, 0.5, 0.5, 0.2, 0.18,
         0.05, 0.55, 0.45, 0.45, 0.35, 0.2, 0.85,
     ),
     MusicalStyle.MELODIC_TECHNO: StyleProfile(
-        MusicalStyle.MELODIC_TECHNO, 124, 132, KICK_FOUR, "techno", 0.45, 0.5, 0.65, 0.28, 0.2,
+        MusicalStyle.MELODIC_TECHNO, 120, 132, KICK_FOUR, "techno", 0.45, 0.5, 0.65, 0.28, 0.2,
         0.02, 0.4, 0.55, 0.5, 0.5, 0.05, 0.6,
     ),
     MusicalStyle.TRANCE: StyleProfile(
-        MusicalStyle.TRANCE, 132, 140, KICK_TRANCE, "trance", 0.55, 0.65, 0.7, 0.3, 0.22,
+        MusicalStyle.TRANCE, 128, 142, KICK_TRANCE, "trance", 0.55, 0.65, 0.7, 0.3, 0.22,
         0.0, 0.45, 0.5, 0.6, 0.55, 0.25, 0.9,
     ),
     MusicalStyle.SYNTHWAVE: StyleProfile(
-        MusicalStyle.SYNTHWAVE, 95, 110, KICK_FOUR, "house", 0.5, 0.45, 0.45, 0.18, 0.12,
+        MusicalStyle.SYNTHWAVE, 95, 118, KICK_FOUR, "house", 0.5, 0.45, 0.45, 0.18, 0.12,
         0.06, 0.5, 0.4, 0.45, 0.3, 0.1, 0.7,
     ),
     MusicalStyle.DOWNTEMPO: StyleProfile(

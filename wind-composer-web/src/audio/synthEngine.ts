@@ -235,19 +235,43 @@ export class WebSynthEngine {
       type: "drum_seq",
       tempo_bpm: tick.plan.tempo_bpm,
       kickPattern: style.kickPattern,
-      drumDensity: drumDensity,
-      kickGain: 0.75 + style.bassLayers * 0.25,
-      hatGain: 0.25 + drumDensity * 0.45,
-      snareGain: 0.4 + drumDensity * 0.35,
-      enabled: drumDensity > 0.08,
+      hatPattern: style.hatPattern,
+      drumDensity,
+      kickGain: 0.78 + style.bassLayers * 0.22,
+      hatGain: 0.28 + drumDensity * 0.42,
+      snareGain: 0.42 + drumDensity * 0.34,
+      clapGain: 0.38 + drumDensity * 0.3,
+      swing: style.swing,
+      enabled: drumDensity > 0.06,
     });
 
+    if (tick.plan.transition_fx) {
+      this.worklet.port.postMessage({ type: "transition_fx", fx: tick.plan.transition_fx });
+    }
+
+    for (const n of tick.plan.bass_notes ?? []) {
+      this.worklet.port.postMessage({
+        type: "note",
+        layer: "soft_bass",
+        midi: n.midi,
+        velocity: n.velocity,
+        preset: "Soft Analog Bass",
+      });
+      this.scheduledEvents += 1;
+    }
+
+    const drumLayers = new Set([
+      "kick", "snare", "hat", "open_hat", "clap", "crash", "tom", "ride", "noise", "percussion",
+    ]);
     for (const ev of tick.plan.rhythm_events ?? []) {
-      if (ev.layer === "kick" || ev.layer === "snare" || ev.layer === "hat") continue;
-      if (ev.is_pulse && ev.strength > 0.65) {
+      if (drumLayers.has(ev.layer)) {
+        this.worklet.port.postMessage({
+          type: "perc",
+          velocity: ev.strength,
+          layer: ev.layer,
+        });
+      } else if (ev.is_pulse && ev.strength > 0.6) {
         this.worklet.port.postMessage({ type: "drum_fill" });
-      } else {
-        this.worklet.port.postMessage({ type: "perc", velocity: ev.strength, layer: ev.layer });
       }
       this.scheduledEvents += 1;
     }

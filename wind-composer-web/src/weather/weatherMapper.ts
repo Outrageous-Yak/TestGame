@@ -74,4 +74,37 @@ export class WeatherMapper {
     blended.instrument_warmth = clamp(blended.instrument_warmth);
     return blended;
   }
+
+  /** Blend by dominant station — no averaging wind/tempo; max energy/percussion across locations. */
+  blendStationsDominant(stations: Station[], tempoMin: number, tempoMax: number): MusicDriveParams | null {
+    const enabled = stations.filter((s) => s.enabled && s.weather);
+    if (!enabled.length) return null;
+    const dominant = enabled.reduce((best, s) => (s.mix > best.mix ? s : best));
+    const base = this.mapSnapshot(dominant.weather!, tempoMin, tempoMax);
+    let energy = base.energy;
+    let percussion = base.percussion;
+    let gust = base.gust;
+    let atmosphere = base.atmosphere_layers;
+    let brightness = base.brightness;
+
+    for (const s of enabled) {
+      if (s === dominant) continue;
+      const p = this.mapSnapshot(s.weather!, tempoMin, tempoMax);
+      const weight = s.mix / Math.max(dominant.mix, 0.01);
+      energy = Math.max(energy, p.energy * Math.min(weight, 1));
+      percussion = Math.max(percussion, p.percussion * s.mix);
+      atmosphere = Math.max(atmosphere, p.atmosphere_layers * s.mix);
+      brightness = Math.max(brightness, p.brightness * s.mix);
+      gust = gust || p.gust;
+    }
+
+    return {
+      ...base,
+      energy: clamp(energy),
+      percussion: clamp(percussion),
+      atmosphere_layers: clamp(atmosphere),
+      brightness: clamp(brightness),
+      gust,
+    };
+  }
 }
