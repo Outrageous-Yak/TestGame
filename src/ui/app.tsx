@@ -21,6 +21,7 @@ import { facingFromMove, hexIdAtSlot, rowShiftLabel } from "../engine/layout";
 import * as WorldsMod from "../worlds";
 import { resolveTileVisualType, tileArtRelPath } from "./tileArt";
 import "./app.css";
+import { getBestScore, saveBestScore } from "./bestScore";
 import { StartScreen } from "./screens/StartScreen";
 import { MenuScreen } from "./screens/MenuScreen";
 import type {
@@ -352,21 +353,6 @@ function portalTransitionAt(
   return null;
 }
 
-function applyPortalIfAny(st: any, landedId: string): { next: any; finalId: string } {
-  const tr = portalTransitionAt(st, landedId);
-  if (!tr) return { next: st, finalId: landedId };
-
-  const destId = "L" + tr.to.layer + "-R" + tr.to.row + "-C" + tr.to.col;
-
-  const destHex = getHexFromState(st as any, destId) as any;
-  if (!destHex || destHex.missing || destHex.blocked) {
-    return { next: st, finalId: landedId };
-  }
-
-  const next = { ...(st as any), playerHexId: destId };
-  return { next, finalId: destId };
-}
-
 /* =========================================================
    Villains
 ========================================================= */
@@ -575,6 +561,7 @@ export default function App() {
     setGoalId(null);
     setOptimalAtStart(null);
     setOptimalFromNow(null);
+    setBestScore(null);
 
     logNRef.current = 0;
     setLog([]);
@@ -777,6 +764,7 @@ export default function App() {
   const [goalId, setGoalId] = useState<string | null>(null);
   const [optimalAtStart, setOptimalAtStart] = useState<number | null>(null);
   const [optimalFromNow, setOptimalFromNow] = useState<number | null>(null);
+  const [bestScore, setBestScore] = useState<number | null>(null);
 
   const computeOptimalMoves = useCallback((st: GameState | null) => {
     if (!st) return null;
@@ -791,6 +779,19 @@ export default function App() {
     const e: LogEntry = { n: logNRef.current, t: nowHHMM(), msg, kind };
     setLog((prev) => [e, ...prev].slice(0, 24));
   }, []);
+
+  const recordWin = useCallback(
+    (moveCount: number) => {
+      if (!scenarioEntry) {
+        pushLog("Goal reached!", "ok");
+        return;
+      }
+      const best = saveBestScore(scenarioEntry.id, moveCount, trackId);
+      setBestScore(best);
+      pushLog(`Goal reached in ${moveCount} moves! Best: ${best}`, "ok");
+    },
+    [scenarioEntry, trackId, pushLog]
+  );
 
   /* =========================
      Reachability (1-step neighbors)
@@ -1145,7 +1146,8 @@ export default function App() {
         setPlayerFacing(facingFromMove(state, pidBefore, pidAfter));
       }
 
-      setMovesTaken((n) => n + 1);
+      const newMoveCount = movesTaken + 1;
+      setMovesTaken(newMoveCount);
 
       const c2 = idToCoord(pidAfter);
       const nextLayerEnc = c2?.layer ?? currentLayer;
@@ -1165,7 +1167,7 @@ export default function App() {
       setOptimalFromNow(computeOptimalMoves(nextState));
 
       pushLog("Encounter cleared — moved to " + pidAfter, "ok");
-      if (goalId && pidAfter === goalId) pushLog("Goal reached!", "ok");
+      if (goalId && pidAfter === goalId) recordWin(newMoveCount);
     } catch (err: any) {
       console.error("Encounter resolution crashed:", err);
       pushLog("Encounter crashed: " + String(err?.message ?? err), "bad");
@@ -1174,11 +1176,13 @@ export default function App() {
     encounter,
     diceRolling,
     state,
+    movesTaken,
     diceValue,
     currentLayer,
     goalId,
     revealWholeLayer,
     computeOptimalMoves,
+    recordWin,
     pushLog,
   ]);
 
@@ -1377,6 +1381,7 @@ export default function App() {
     const startOptimal = computeOptimalMoves(st);
     setOptimalAtStart(startOptimal);
     setOptimalFromNow(startOptimal);
+    setBestScore(getBestScore(scenarioEntry.id, trackEntry?.id ?? trackId));
 
     logNRef.current = 0;
     setLog([]);
@@ -1460,7 +1465,8 @@ export default function App() {
       const fromLayer = (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
       const moved = pidAfter !== pidBefore;
 
-      setMovesTaken((n) => n + 1);
+      const newMoveCount = movesTaken + 1;
+      setMovesTaken(newMoveCount);
 
       const landedCoord = idToCoord(landedId);
       const finalLayer = landedCoord?.layer ?? fromLayer;
@@ -1496,7 +1502,7 @@ export default function App() {
       setOptimalFromNow(computeOptimalMoves(nextState));
 
       pushLog("Moved to " + landedId, "ok");
-      if (goalId && landedId === goalId) pushLog("Goal reached!", "ok");
+      if (goalId && landedId === goalId) recordWin(newMoveCount);
     },
     [
       state,
@@ -1504,9 +1510,11 @@ export default function App() {
       currentLayer,
       playerLayer,
       goalId,
+      movesTaken,
       pushLog,
       revealWholeLayer,
       computeOptimalMoves,
+      recordWin,
       findTriggerForHex,
       triggerLayerFx,
       findCardTriggerAt,
@@ -1858,6 +1866,10 @@ export default function App() {
                 <div className="miniRow">
                   <span className="k">Optimal (now)</span>
                   <span className="v">{optimalFromNow ?? "-"}</span>
+                </div>
+                <div className="miniRow">
+                  <span className="k">Best</span>
+                  <span className="v">{bestScore ?? "-"}</span>
                 </div>
               </div>
             </div>
