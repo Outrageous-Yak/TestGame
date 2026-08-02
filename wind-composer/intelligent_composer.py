@@ -51,6 +51,9 @@ class IntelligentComposer:
     self._last_notice: Optional[WeatherChangeNotice] = None
     self._local_time_str = ""
     self._rng = random.Random()
+    self._last_beat = -1
+    self._last_measure = -1
+    self._phrase_number = 0
 
   @property
   def style_name(self) -> str:
@@ -60,6 +63,8 @@ class IntelligentComposer:
     self._style_name = name
     style = get_style(name)
     self._tempo.reset((style.bpm_min + style.bpm_max) / 2.0)
+    self._last_beat = -1
+    self._last_measure = -1
 
   def get_last_weather_notice(self) -> Optional[WeatherChangeNotice]:
     return self._last_notice
@@ -127,18 +132,30 @@ class IntelligentComposer:
       ctx.gust,
     )
 
-    section = self._arrangement.on_phrase(plan.energy_curve, trend.storm_likelihood > 0.5)
-    plan.song_section = section.value
+    beat_changed = beat != self._last_beat
+    measure_changed = measure != self._last_measure
+    self._last_beat = beat
+    self._last_measure = measure
+
+    if measure_changed:
+      section = self._arrangement.on_bar(measure, plan.energy_curve, trend.storm_likelihood > 0.5)
+      plan.song_section = section.value
+      if measure > 0 and measure % 32 == 0:
+        self._phrase_number += 1
+    else:
+      plan.song_section = self._arrangement.state.section.value
+
+    plan.phrase_number = self._phrase_number
     plan.local_time_str = self._local_time_str
 
     layer_gains = self._arrangement.layer_gains(style, plan.energy_curve)
     plan.active_instruments = self._arrangement.state.active_layers
 
-    extra_rhythm: List[RhythmEvent] = list(plan.rhythm_events)
+    extra_rhythm: List[RhythmEvent] = []
     extra_melody: List[MelodyNote] = list(plan.melody_notes)
+    arr_state = self._arrangement.state
 
-    # Beat-level drums and micro evolution
-    if beat >= 0:
+    if beat_changed and beat >= 0:
       drum_ctx = DrumContext(
         beat=beat,
         bar=measure,
@@ -146,15 +163,14 @@ class IntelligentComposer:
         precipitation=w.precipitation_mm if w else 0,
         snowfall=w.snowfall_mm if w else 0,
         style=style,
-        section_energy=self._arrangement.state.section_energy,
+        section_energy=arr_state.section_energy,
       )
       extra_rhythm.extend(self._drums.on_beat(drum_ctx))
       micro = beat_micro_decision(plan.energy_curve, self._rng)
       if micro == "hat_ghost":
-        extra_rhythm.append(RhythmEvent("hat", 0.15, False))
+        extra_rhythm.append(RhythmEvent("hat", 0.14, False))
 
-    # Bar-level bass and fills
-    if measure > 0 and beat % 4 == 0:
+    if measure_changed and measure > 0 and beat % 4 == 0:
       tones = plan.chord.tones if plan.chord else []
       bass_ctx = BassContext(
         chord_tones=tones,
@@ -175,8 +191,7 @@ class IntelligentComposer:
       )
       extra_rhythm.extend(self._fills.maybe_fill(fill_ctx))
 
-    # Lead flourishes
-    if plan.chord and plan.chord.tones:
+    if measure_changed and plan.chord and plan.chord.tones:
       lead_ctx = LeadContext(
         chord_tones=plan.chord.tones,
         energy=plan.energy_curve,
@@ -187,34 +202,38 @@ class IntelligentComposer:
       )
       extra_melody.extend(self._lead.maybe_notes(lead_ctx))
 
-    # Gust-weighted actions
-    if ctx.gust and w:
+    if ctx.gust and w and beat_changed:
       gust_delta = w.wind_gust_kmh - w.wind_speed_kmh
       weights = gust_action_weights(w.wind_speed_kmh, gust_delta, plan.energy_curve)
       action = pick_gust_action(weights, self._rng)
       if action == "fill":
-        extra_rhythm.append(RhythmEvent("percussion", 0.7, True))
+        extra_rhythm.append(RhythmEvent("fill", 0.72, True))
       elif action == "lead_flourish" and plan.chord:
-        extra_melody.append(MelodyNote(midi=plan.chord.tones[-1], velocity=0.8, duration_sec=0.4))
+        extra_melody.append(MelodyNote(midi=plan.chord.tones[-1], velocity=0.82, duration_sec=0.4))
       elif action == "crash":
-        extra_rhythm.append(RhythmEvent("percussion", 0.85, True))
+        extra_rhythm.append(RhythmEvent("crash", 0.88, True))
+      elif action == "reverse_fx":
+        plan.transition_fx = "reverse_crash"
+      elif action == "riser":
+        plan.transition_fx = "noise_riser"
+      elif action == "bass_variation" and plan.chord:
+        extra_melody.append(MelodyNote(midi=plan.chord.tones[0] - 7, velocity=0.55, duration_sec=0.25))
       plan.weather_hints.append(f"Gust: {action}")
 
-    # Transitions on section boundaries
-    trans_ctx = TransitionContext(
-      energy=plan.energy_curve,
-      storm_likelihood=trend.storm_likelihood,
-      section_change=self._arrangement.state.bars_in_section == 0,
-      transition_probability=style.transition_probability,
-      gust=ctx.gust,
-    )
-    fx = self._transitions.maybe_transition(trans_ctx)
-    if fx:
-      plan.transition_fx = fx
-      if fx in ("crash", "impact", "reverse_crash"):
-        extra_rhythm.append(RhythmEvent("percussion", 0.75, True))
+    if measure_changed:
+      trans_ctx = TransitionContext(
+        energy=plan.energy_curve,
+        storm_likelihood=trend.storm_likelihood,
+        section_change=arr_state.bars_in_section == 0,
+        transition_probability=style.transition_probability,
+        gust=ctx.gust,
+      )
+      fx = self._transitions.maybe_transition(trans_ctx)
+      if fx:
+        plan.transition_fx = fx
+        if fx in ("crash", "impact", "reverse_crash"):
+          extra_rhythm.append(RhythmEvent("crash", 0.78, True))
 
-    # Weather modifiers on harmony density
     if w:
       if w.snowfall_mm > 0.1:
         plan.atmosphere_gain = clamp(plan.atmosphere_gain + 0.15)
@@ -231,11 +250,10 @@ class IntelligentComposer:
         plan.brightness = clamp(plan.brightness + 0.1)
 
     plan.rhythm_events = extra_rhythm
-    plan.melody_notes = extra_melody[:6]
-    plan.drum_events = [e for e in extra_rhythm if e.layer in ("kick", "snare", "hat", "percussion")]
+    plan.melody_notes = extra_melody[:8]
+    plan.drum_events = extra_rhythm
     plan.bass_notes = [n for n in extra_melody if n.midi < 52]
 
-    # Store hints for UI
     if trend.storm_likelihood > 0.4:
       plan.weather_hints.append("Storm tension")
     if trend.calm_trend:
@@ -246,3 +264,6 @@ class IntelligentComposer:
   def reset(self) -> None:
     self._memory.reset()
     self._arrangement = ArrangementEngine()
+    self._last_beat = -1
+    self._last_measure = -1
+    self._phrase_number = 0

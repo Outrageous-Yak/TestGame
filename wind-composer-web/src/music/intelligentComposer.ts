@@ -2,7 +2,6 @@ import type { CompositionPlan, MelodyNoteDto, RhythmEventDto, WeatherSnapshot } 
 import { clamp } from "../utils";
 import { ArrangementEngine } from "./arrangementEngine";
 import { BassEngine } from "./bassEngine";
-import { DrumEngine } from "./drumEngine";
 import { FillEngine } from "./fillEngine";
 import { LeadEngine } from "./leadEngine";
 import { MusicMemory } from "./musicMemory";
@@ -30,7 +29,6 @@ export class IntelligentComposer {
   private memory = new MusicMemory();
   private arrangement = new ArrangementEngine();
   private bass: BassEngine;
-  private drums = new DrumEngine();
   private lead: LeadEngine;
   private fills: FillEngine;
   private transitions: TransitionEngine;
@@ -40,13 +38,16 @@ export class IntelligentComposer {
   private lastChangeSummary: WeatherChangeSummary | null = null;
   private fillProbabilityBoost = 0;
   private phraseNumber = 0;
+  private lastBeat = -1;
+  private lastMeasure = -1;
+  private lastBassPattern: number[] = [];
 
   constructor(
     private scale: ScaleEngine,
     private weatherMemory: WeatherMemory,
   ) {
     this.bass = new BassEngine(this.memory);
-    this.lead = new LeadEngine(scale, this.memory);
+    this.lead = new LeadEngine(this.scale, this.memory);
     this.fills = new FillEngine(this.memory);
     this.transitions = new TransitionEngine(this.memory);
   }
@@ -55,6 +56,9 @@ export class IntelligentComposer {
     this.styleName = name;
     const style = getStyle(name);
     this.tempo.reset((style.bpmMin + style.bpmMax) / 2);
+    this.lastBeat = -1;
+    this.lastMeasure = -1;
+    this.lastBassPattern = [];
   }
 
   getLocalTime(): string {
@@ -73,6 +77,10 @@ export class IntelligentComposer {
     return this.fillProbabilityBoost;
   }
 
+  getBassPattern(): number[] {
+    return this.lastBassPattern;
+  }
+
   onWeatherUpdated(snap: WeatherSnapshot, localTimeStr: string): void {
     this.localTimeStr = localTimeStr;
     const prev = this.weatherMemory.push(snap);
@@ -89,10 +97,7 @@ export class IntelligentComposer {
     const trend = this.weatherMemory.trend();
     const w = weather;
 
-    const windKmh = w
-      ? trend.avg_wind_kmh + trend.wind_delta * 0.2
-      : ctx.windKmh;
-
+    const windKmh = w ? trend.avg_wind_kmh + trend.wind_delta * 0.2 : ctx.windKmh;
     const targetBpm = windToTargetBpm(
       windKmh,
       style.bpmMin,
@@ -101,53 +106,55 @@ export class IntelligentComposer {
       trend.storm_likelihood,
     );
 
+    const estimateBpm = this.tempo.getBpm();
+    const spbEst = (60 / Math.max(estimateBpm, 40)) * ctx.sampleRate;
+    const measureEst = Math.floor(Math.floor(ctx.samplePosition / spbEst) / 4);
+    plan.tempo_bpm = this.tempo.update(targetBpm, style.bpmMin, style.bpmMax, measureEst, ctx.gust);
+
     const spb = (60 / Math.max(plan.tempo_bpm, 40)) * ctx.sampleRate;
     const beat = Math.floor(ctx.samplePosition / spb);
     const measure = Math.floor(beat / 4);
+    const beatChanged = beat !== this.lastBeat;
+    const measureChanged = measure !== this.lastMeasure;
+    this.lastBeat = beat;
+    this.lastMeasure = measure;
 
-    plan.tempo_bpm = this.tempo.update(targetBpm, style.bpmMin, style.bpmMax, measure, ctx.gust);
     plan.musical_style = this.styleName;
     plan.local_time_str = this.localTimeStr;
 
-    const section = this.arrangement.onPhrase(plan.energy_curve, trend.storm_likelihood > 0.5);
-    plan.song_section = section;
-    if (measure > 0 && measure % 32 === 0) this.phraseNumber += 1;
+    if (measureChanged) {
+      plan.song_section = this.arrangement.onBar(measure, plan.energy_curve, trend.storm_likelihood > 0.5);
+      if (measure > 0 && measure % 32 === 0) this.phraseNumber += 1;
+    } else {
+      plan.song_section = this.arrangement.getState().section;
+    }
     plan.phrase_number = this.phraseNumber;
 
-    const extraRhythm: RhythmEventDto[] = [...plan.rhythm_events];
+    const extraRhythm: RhythmEventDto[] = [];
     const extraMelody: MelodyNoteDto[] = [...plan.melody_notes];
     const arrState = this.arrangement.getState();
 
-    if (beat >= 0) {
-      extraRhythm.push(
-        ...this.drums.onBeat({
-          beat,
-          bar: measure,
-          energy: plan.energy_curve,
-          precipitation: w?.precipitation_mm ?? 0,
-          snowfall: w?.snowfall_mm ?? 0,
-          style,
-          sectionEnergy: arrState.sectionEnergy,
-        }),
-      );
+    if (beatChanged && beat >= 0) {
       const micro = beatMicroDecision(plan.energy_curve);
       if (micro === "hat_ghost") {
-        extraRhythm.push({ layer: "hat", strength: 0.14, is_pulse: false });
+        extraRhythm.push({ layer: "hat_ghost", strength: 0.14, is_pulse: false });
       }
     }
 
-    if (measure > 0 && beat % 4 === 0) {
+    if (measureChanged && measure > 0 && beat % 4 === 0) {
       const tones = plan.chord?.tones ?? [];
-      extraMelody.push(
-        ...this.bass.onBar({
-          chordTones: tones,
-          energy: plan.energy_curve,
-          windDirection: w?.wind_direction_deg ?? 0,
-          pressureTrend: trend.pressure_delta,
-          barInPhrase: measure,
-          style,
-        }),
-      );
+      const bassNotes = this.bass.onBar({
+        chordTones: tones,
+        energy: plan.energy_curve,
+        windDirection: w?.wind_direction_deg ?? 0,
+        pressureTrend: trend.pressure_delta,
+        barInPhrase: measure,
+        style,
+      });
+      extraMelody.push(...bassNotes);
+      if (bassNotes.length) {
+        this.lastBassPattern = bassNotes.map((n) => n.midi);
+      }
 
       const fillProb = style.fillProbability + this.fillProbabilityBoost;
       extraRhythm.push(
@@ -162,7 +169,7 @@ export class IntelligentComposer {
       this.fillProbabilityBoost *= 0.92;
     }
 
-    if (plan.chord?.tones?.length) {
+    if (measureChanged && plan.chord?.tones?.length) {
       extraMelody.push(
         ...this.lead.maybeNotes({
           chordTones: plan.chord.tones,
@@ -175,11 +182,11 @@ export class IntelligentComposer {
       );
     }
 
-    if (ctx.gust && w) {
+    if (ctx.gust && w && beatChanged) {
       const gustDelta = w.wind_gust_kmh - w.wind_speed_kmh;
       const weights = gustActionWeights(w.wind_speed_kmh, gustDelta, plan.energy_curve);
       const action = pickGustAction(weights);
-      if (action === "fill") extraRhythm.push({ layer: "snare", strength: 0.72, is_pulse: true });
+      if (action === "fill") extraRhythm.push({ layer: "fill", strength: 0.72, is_pulse: true });
       else if (action === "lead_flourish" && plan.chord) {
         extraMelody.push({
           midi: plan.chord.tones[plan.chord.tones.length - 1],
@@ -199,17 +206,19 @@ export class IntelligentComposer {
       plan.weather_hints = [...(plan.weather_hints ?? []), `Gust: ${action}`];
     }
 
-    const fx = this.transitions.maybeTransition({
-      energy: plan.energy_curve,
-      stormLikelihood: trend.storm_likelihood,
-      sectionChange: arrState.barsInSection === 0,
-      transitionProbability: style.transitionProbability,
-      gust: ctx.gust,
-    });
-    if (fx) {
-      plan.transition_fx = fx;
-      if (["crash", "impact", "reverse_crash"].includes(fx)) {
-        extraRhythm.push({ layer: "crash", strength: 0.78, is_pulse: true });
+    if (measureChanged) {
+      const fx = this.transitions.maybeTransition({
+        energy: plan.energy_curve,
+        stormLikelihood: trend.storm_likelihood,
+        sectionChange: arrState.barsInSection === 0,
+        transitionProbability: style.transitionProbability,
+        gust: ctx.gust,
+      });
+      if (fx) {
+        plan.transition_fx = fx;
+        if (["crash", "impact", "reverse_crash"].includes(fx)) {
+          extraRhythm.push({ layer: "crash", strength: 0.78, is_pulse: true });
+        }
       }
     }
 
@@ -229,15 +238,12 @@ export class IntelligentComposer {
     plan.rhythm_events = extraRhythm;
     plan.melody_notes = extraMelody.slice(0, 8);
     plan.bass_notes = extraMelody.filter((n) => n.midi < 52);
-    plan.drum_events = extraRhythm.filter((e) =>
-      ["kick", "snare", "hat", "open_hat", "clap", "percussion", "crash", "tom", "ride", "noise"].includes(e.layer),
-    );
+    plan.drum_events = extraRhythm;
 
     return plan;
   }
 
   getArrangementLayerGains(energy: number): Record<string, number> {
-    const style = getStyle(this.styleName);
-    return this.arrangement.layerGains(style, energy);
+    return this.arrangement.layerGains(getStyle(this.styleName), energy);
   }
 }

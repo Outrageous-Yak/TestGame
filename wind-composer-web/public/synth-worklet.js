@@ -138,10 +138,19 @@ class DrumEngine {
     this.fxEnv = 0;
     this.fxType = "";
     this.pendingFill = 0;
+    this.bassPattern = [];
+    this.bassGain = 0.45;
+    this.bassEnv = 0;
+    this.bassPhase = 0;
+    this.bassFreq = 110;
+    this.skipChordBass = false;
   }
 
   setConfig(msg) {
-    if (msg.tempo_bpm > 0) this.targetBpm = msg.tempo_bpm;
+    if (msg.tempo_bpm > 0) {
+      this.targetBpm = msg.tempo_bpm;
+      this.bpm = msg.tempo_bpm;
+    }
     if (msg.kickPattern && msg.kickPattern.length) this.kickPattern = msg.kickPattern;
     if (msg.hatPattern && msg.hatPattern.length) this.hatPattern = msg.hatPattern;
     if (msg.drumDensity != null) this.drumDensity = msg.drumDensity;
@@ -151,13 +160,21 @@ class DrumEngine {
     if (msg.clapGain != null) this.clapGain = msg.clapGain;
     if (msg.swing != null) this.swing = msg.swing;
     if (msg.enabled != null) this.enabled = Boolean(msg.enabled);
+    if (msg.bassPattern) this.bassPattern = msg.bassPattern;
+    if (msg.bassGain != null) this.bassGain = msg.bassGain;
+    if (msg.skipChordBass != null) this.skipChordBass = Boolean(msg.skipChordBass);
     this._recalcStepLen();
   }
 
   _recalcStepLen() {
-    this.bpm += (this.targetBpm - this.bpm) * 0.02;
     this.samplesPerStep = (60 / Math.max(this.bpm, 40)) * sampleRate / 4;
     if (this.samplesPerStep < 1) this.samplesPerStep = 1;
+  }
+
+  triggerBass(midi) {
+    this.bassFreq = 440 * Math.pow(2, (midi - 69) / 12);
+    this.bassEnv = 1;
+    this.bassPhase = 0;
   }
 
   triggerKick() {
@@ -250,37 +267,42 @@ class DrumEngine {
       this.triggerHat(this.hatGain * 0.75);
       this.pendingFill -= 1;
     }
+    if (this.bassPattern.length && idx % 4 === 0) {
+      const bi = Math.floor(idx / 4) % this.bassPattern.length;
+      const midi = this.bassPattern[bi];
+      if (midi > 0) this.triggerBass(midi);
+    }
     const swingDelay = this.swing > 0 && idx % 2 === 1 ? this.samplesPerStep * this.swing * 0.35 : 0;
     this.sampleAcc -= swingDelay;
     this.step = (this.step + 1) % 16;
   }
 
   processSample(sr) {
-    if (!this.enabled) return 0;
-    this._recalcStepLen();
+    if (!this.enabled) return { drum: 0, bass: 0 };
     this.sampleAcc += 1;
     while (this.sampleAcc >= this.samplesPerStep) {
       this.sampleAcc -= this.samplesPerStep;
       this.onStep();
     }
-    let out = 0;
+    let drum = 0;
+    let bass = 0;
     if (this.kickEnv > 0) {
       this.kickPhase += TAU * this.kickFreq / sr;
       if (this.kickPhase > TAU) this.kickPhase -= TAU;
-      out += Math.sin(this.kickPhase) * this.kickEnv * this.kickGain * 0.98;
+      drum += Math.sin(this.kickPhase) * this.kickEnv * this.kickGain * 0.98;
       this.kickFreq *= 0.9991;
       this.kickEnv -= 1 / (0.1 * sr);
       if (this.kickEnv < 0) this.kickEnv = 0;
     }
     if (this.hatEnv > 0) {
       this.hatNoise = this.hatNoise * 0.55 + (Math.random() * 2 - 1) * 0.45;
-      out += this.hatNoise * this.hatEnv * 0.32;
+      drum += this.hatNoise * this.hatEnv * 0.32;
       this.hatEnv -= 1 / (0.032 * sr);
       if (this.hatEnv < 0) this.hatEnv = 0;
     }
     if (this.openHatEnv > 0) {
       this.openHatNoise = this.openHatNoise * 0.5 + (Math.random() * 2 - 1) * 0.5;
-      out += this.openHatNoise * this.openHatEnv * 0.28;
+      drum += this.openHatNoise * this.openHatEnv * 0.28;
       this.openHatEnv -= 1 / (0.18 * sr);
       if (this.openHatEnv < 0) this.openHatEnv = 0;
     }
@@ -288,40 +310,40 @@ class DrumEngine {
       this.snareTonePhase += TAU * 210 / sr;
       if (this.snareTonePhase > TAU) this.snareTonePhase -= TAU;
       this.snareNoise = this.snareNoise * 0.52 + (Math.random() * 2 - 1) * 0.48;
-      out += (this.snareNoise * 0.68 + Math.sin(this.snareTonePhase) * 0.32) * this.snareEnv * 0.52;
+      drum += (this.snareNoise * 0.68 + Math.sin(this.snareTonePhase) * 0.32) * this.snareEnv * 0.52;
       this.snareEnv -= 1 / (0.13 * sr);
       if (this.snareEnv < 0) this.snareEnv = 0;
     }
     if (this.clapEnv > 0) {
       this.clapNoise = this.clapNoise * 0.4 + (Math.random() * 2 - 1) * 0.6;
-      out += this.clapNoise * this.clapEnv * this.clapGain * 0.45;
+      drum += this.clapNoise * this.clapEnv * this.clapGain * 0.45;
       this.clapEnv -= 1 / (0.09 * sr);
       if (this.clapEnv < 0) this.clapEnv = 0;
     }
     if (this.crashEnv > 0) {
       this.crashNoise = this.crashNoise * 0.45 + (Math.random() * 2 - 1) * 0.55;
-      out += this.crashNoise * this.crashEnv * 0.42;
+      drum += this.crashNoise * this.crashEnv * 0.42;
       this.crashEnv -= 1 / (0.55 * sr);
       if (this.crashEnv < 0) this.crashEnv = 0;
     }
     if (this.tomEnv > 0) {
       this.tomPhase += TAU * this.tomFreq / sr;
       if (this.tomPhase > TAU) this.tomPhase -= TAU;
-      out += Math.sin(this.tomPhase) * this.tomEnv * 0.38;
+      drum += Math.sin(this.tomPhase) * this.tomEnv * 0.38;
       this.tomFreq *= 0.9985;
       this.tomEnv -= 1 / (0.16 * sr);
       if (this.tomEnv < 0) this.tomEnv = 0;
     }
     if (this.rideEnv > 0) {
       this.rideNoise = this.rideNoise * 0.7 + (Math.random() * 2 - 1) * 0.3;
-      out += this.rideNoise * this.rideEnv * 0.22;
+      drum += this.rideNoise * this.rideEnv * 0.22;
       this.rideEnv -= 1 / (0.25 * sr);
       if (this.rideEnv < 0) this.rideEnv = 0;
     }
     if (this.noiseEnv > 0) {
       this.noiseVal = this.noiseVal * 0.5 + (Math.random() * 2 - 1) * 0.5;
       const riser = this.fxType === "noise_riser" ? (1 - this.fxEnv) * 0.3 : 0;
-      out += this.noiseVal * this.noiseEnv * (0.28 + riser);
+      drum += this.noiseVal * this.noiseEnv * (0.28 + riser);
       this.noiseEnv -= 1 / (0.2 * sr);
       if (this.noiseEnv < 0) this.noiseEnv = 0;
     }
@@ -329,7 +351,15 @@ class DrumEngine {
       this.fxEnv -= 1 / (2.5 * sr);
       if (this.fxEnv < 0) this.fxEnv = 0;
     }
-    return out;
+    if (this.bassEnv > 0) {
+      this.bassPhase += TAU * this.bassFreq / sr;
+      if (this.bassPhase > TAU) this.bassPhase -= TAU;
+      bass += Math.sin(this.bassPhase) * this.bassEnv * this.bassGain * 0.55;
+      this.bassEnv -= 1 / (0.22 * sr);
+      if (this.bassEnv < 0) this.bassEnv = 0;
+    }
+    drum = Math.tanh(drum * 1.15);
+    return { drum, bass };
   }
 }
 
@@ -474,7 +504,7 @@ class SynthProcessor extends AudioWorkletProcessor {
       }
       const bassLayer = (orch.layer_gains?.sub_bass ?? 0) > (orch.layer_gains?.soft_bass ?? 0) ? "sub_bass" : "soft_bass";
       const bg = orch.layer_gains?.[bassLayer] ?? 0;
-      if (bg > 0.05) {
+      if (bg > 0.05 && !this.drums.skipChordBass) {
         this.sustainChord(bassLayer, [chord.tones[0] - 12], bg, orch.layer_presets?.[bassLayer] || "Sub Foundation");
       }
       const choir = orch.layer_gains?.choir ?? 0;
@@ -538,7 +568,9 @@ class SynthProcessor extends AudioWorkletProcessor {
       leadL *= comp * this.master;
       leadR *= comp * this.master;
 
-      const drum = this.drums.processSample(sr);
+      const drumOut = this.drums.processSample(sr);
+      const drum = drumOut.drum;
+      const seqBass = drumOut.bass;
       let padsL;
       let padsR;
       if (this.bypassEffects) {
@@ -568,8 +600,8 @@ class SynthProcessor extends AudioWorkletProcessor {
       }
 
       const lw = this.width * 0.35 + 0.15;
-      let l = padsL + bassMono + drum * 0.96 + leadL * (1 + lw);
-      let r = padsR + bassMono + drum * 0.96 + leadR * (1 + lw);
+      let l = padsL + bassMono + seqBass + drum * 0.96 + leadL * (1 + lw);
+      let r = padsR + bassMono + seqBass + drum * 0.96 + leadR * (1 + lw);
 
       peak = Math.max(peak, Math.abs(l), Math.abs(r));
       const ceiling = 0.92;

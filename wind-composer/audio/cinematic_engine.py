@@ -126,10 +126,40 @@ class CinematicSynthEngine:
         self.voices.allocate(root, velocity, preset)
 
     def trigger_perc(self, velocity: float) -> None:
-        # noise burst on percussion layer
         preset = self.presets.get("Electrical Storm")
         preset.layer = "percussion"
         self.voices.allocate(36, velocity * 0.5, preset)
+
+    def trigger_rhythm_layer(self, layer: str, strength: float) -> None:
+        """Distinct percussion layers for composition rhythm events."""
+        v = clamp(strength)
+        if layer == "kick":
+            preset = self.presets.get("Dark Drone Bass")
+            preset.layer = "percussion"
+            self.voices.allocate(36, v * 0.85, preset)
+        elif layer == "snare":
+            preset = self.presets.get("Electrical Storm")
+            preset.layer = "percussion"
+            self.voices.allocate(38, v * 0.72, preset)
+        elif layer in ("hat", "hat_ghost"):
+            preset = self.presets.get("Glass Bell")
+            preset.layer = "percussion"
+            self.voices.allocate(42, v * 0.42, preset)
+        elif layer == "crash":
+            preset = self.presets.get("Electrical Storm")
+            preset.layer = "percussion"
+            self.voices.allocate(49, v * 0.78, preset)
+        elif layer == "fill":
+            preset = self.presets.get("Electrical Storm")
+            preset.layer = "percussion"
+            self.voices.allocate(38, v * 0.8, preset)
+            self.voices.allocate(42, v * 0.55, preset)
+        elif layer == "bell":
+            preset = self.presets.get("Glass Bell")
+            preset.layer = "bell"
+            self.voices.allocate(72, v * 0.35, preset)
+        else:
+            self.trigger_perc(v)
 
     def _handle_rare_event(self, event) -> None:
         from composition_engine import RareEvent

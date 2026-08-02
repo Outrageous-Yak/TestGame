@@ -1,4 +1,4 @@
-const CACHE = "wind-composer-static-v6";
+const CACHE = "wind-composer-static-v7";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

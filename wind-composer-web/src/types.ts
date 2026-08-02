@@ -133,4 +133,5 @@ export interface TickResult {
     warmth: number;
     master: number;
   };
+  bassPattern?: number[];
 }

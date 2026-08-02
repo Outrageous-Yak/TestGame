@@ -36,7 +36,12 @@ class ArrangementEngine:
   def state(self) -> ArrangementState:
     return self._state
 
-  def on_phrase(self, energy: float, storm: bool) -> SongSection:
+  def on_bar(self, measure: int, energy: float, storm: bool) -> SongSection:
+    """Advance arrangement once per bar, not every composition tick."""
+    if measure <= 0:
+      self._state.section_energy = self._section_energy(energy)
+      return self._state.section
+
     self._state.bars_in_section += 1
     if self._state.bars_in_section >= 32 or (storm and self._state.section != SongSection.DROP):
       self._section_idx = (self._section_idx + 1) % len(self.SECTION_CYCLE)
@@ -48,6 +53,10 @@ class ArrangementEngine:
     self._state.section_energy = self._section_energy(energy)
     self._state.active_layers = self._layers_for_section(self._state.section)
     return self._state.section
+
+  def on_phrase(self, energy: float, storm: bool) -> SongSection:
+    """Legacy alias — prefer on_bar with measure index."""
+    return self.on_bar(1, energy, storm)
 
   def layer_gains(self, style: StyleProfile, energy: float) -> Dict[str, float]:
     s = self._state.section

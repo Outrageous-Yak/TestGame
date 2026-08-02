@@ -224,7 +224,7 @@ class SynthEngine:
     def trigger_rhythm(self, layer: str, strength: float) -> None:
         """Composition-scheduled percussion pulse."""
         if self._use_cinematic:
-            self._cinematic.trigger_perc(strength)
+            self._cinematic.trigger_rhythm_layer(layer, strength)
         else:
             mapped = "bass" if layer in ("bass", "pad", "lead") else layer
             self._legacy.trigger_layer(mapped, strength)

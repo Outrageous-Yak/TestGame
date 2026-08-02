@@ -228,7 +228,7 @@ class MusicEngine:
         self._stereo_pan = drive.stereo_pan
         self._brightness_mult = drive.brightness
         self._bass_mult = drive.bass_intensity
-        self._update_from_composition(drive.energy, drive.gust, tempo_override=drive.tempo_bpm)
+        self._update_from_composition(drive.energy, drive.gust)
 
     def _on_input_block(self, block: np.ndarray) -> None:
         feats = self.signal_processor.process(block)
@@ -248,16 +248,18 @@ class MusicEngine:
         self,
         energy: float,
         gust: bool,
-        tempo_override: Optional[float] = None,
     ) -> None:
         """Generative composition path — weather inspires structure, not just parameters."""
         profile = MODE_PROFILES[self._mode]
+        from style_engine import get_style
+
+        style_profile = get_style(self.visual.musical_style)
 
         ctx = CompositionContext(
             raw_energy=energy,
             gust=gust,
-            tempo_min=profile.tempo_min,
-            tempo_max=profile.tempo_max,
+            tempo_min=style_profile.bpm_min,
+            tempo_max=style_profile.bpm_max,
             sample_position=self._sample_position,
             weather=self._weather_snapshot,
             drive=self._last_drive,
@@ -265,9 +267,6 @@ class MusicEngine:
             percussion=self._percussion,
         )
         plan = self.composition_engine.tick(ctx)
-
-        if tempo_override is not None:
-            plan.tempo_bpm = tempo_override
 
         self.rhythm_engine.set_tempo(plan.tempo_bpm, SAMPLE_RATE)
 

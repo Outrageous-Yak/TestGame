@@ -34,7 +34,13 @@ export class ArrangementEngine {
     return this.state;
   }
 
-  onPhrase(energy: number, storm: boolean): SongSectionName {
+  /** Call once per bar (measure), not every composition tick. */
+  onBar(measure: number, energy: number, storm: boolean): SongSectionName {
+    if (measure <= 0) {
+      this.state.sectionEnergy = this.sectionEnergy(energy);
+      return this.state.section;
+    }
+
     this.state.barsInSection += 1;
     if (this.state.barsInSection >= 32 || (storm && this.state.section !== "Drop")) {
       this.sectionIdx = (this.sectionIdx + 1) % SONG_SECTIONS.length;

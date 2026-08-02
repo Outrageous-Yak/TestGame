@@ -165,10 +165,11 @@ export class MusicSession {
     return dominant.weather!.wind_speed_kmh + trend.wind_delta * 0.15;
   }
 
-  tick(micEnergy: number, gust: boolean, sampleDelta: number): TickResult {
-    this.samplePosition += sampleDelta;
+  tick(samplePosition: number, micEnergy: number, gust: boolean): TickResult {
+    this.samplePosition = samplePosition;
     const mode = this.settings.mode as ModeName;
     const profile = MODE_PROFILES[mode];
+    const styleProfile = getStyle(this.settings.musical_style);
     let energy = micEnergy;
     let g = gust;
     let drive = null;
@@ -197,8 +198,8 @@ export class MusicSession {
     const ctx: CompositionContext = {
       raw_energy: energy,
       gust: g,
-      tempo_min: profile.tempoMin,
-      tempo_max: profile.tempoMax,
+      tempo_min: styleProfile.bpmMin,
+      tempo_max: styleProfile.bpmMax,
       sample_position: this.samplePosition,
       weather: primary?.weather ?? null,
       drive,
@@ -211,8 +212,8 @@ export class MusicSession {
     const windKmh = primary?.weather
       ? this.dominantWindKmh(stationList)
       : drive
-        ? drive.energy * 45
-        : micEnergy * 45;
+        ? drive.energy * 55
+        : micEnergy * 55;
 
     const enhanced = this.intelligent.enhance(plan, primary?.weather ?? null, {
       gust: g,
@@ -234,7 +235,6 @@ export class MusicSession {
       }
     }
 
-    const styleProfile = getStyle(enhanced.musical_style ?? this.settings.musical_style);
     let reverb = this.settings.reverb_amount * (0.6 + enhanced.reverb_amount * 0.5);
     if (styleProfile.drumDensity > 0.35) reverb *= 0.68;
 
@@ -248,6 +248,7 @@ export class MusicSession {
         warmth: this.settings.warmth_amount,
         master: this.settings.master_volume,
       },
+      bassPattern: this.intelligent.getBassPattern(),
     };
   }
 }

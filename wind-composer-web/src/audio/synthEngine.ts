@@ -35,13 +35,13 @@ export class WebSynthEngine {
   private scheduledEvents = 0;
   private bypassEffects = false;
   peak = 0;
+  private lastPlanKey = "";
 
   setStateListener(fn: (state: string) => void): void {
     this.stateListener = fn;
     if (this.ctx) fn(this.ctx.state);
   }
 
-  /** Call synchronously inside a user tap handler (required on iOS Safari). */
   ensureContextSync(): AudioContext {
     if (!this.ctx) {
       this.ctx = new AudioContext({ latencyHint: "interactive" });
@@ -133,6 +133,7 @@ export class WebSynthEngine {
     await this.loadWorklet();
     if (this.masterGain) this.masterGain.gain.value = 1;
     this.setBypassEffects(this.bypassEffects);
+    this.lastPlanKey = "";
   }
 
   async playTestTone(): Promise<string> {
@@ -197,15 +198,30 @@ export class WebSynthEngine {
 
   releaseAll(): void {
     if (this.worklet) this.worklet.port.postMessage({ type: "release_all" });
+    this.lastPlanKey = "";
+  }
+
+  private planKey(plan: CompositionPlan, orch: OrchestrationTargets): string {
+    const chord = plan.chord?.name ?? "";
+    const section = plan.song_section ?? "";
+    const style = plan.musical_style ?? "";
+    const layers = Object.entries(orch.layer_gains)
+      .filter(([, g]) => g > 0.05)
+      .map(([k, g]) => `${k}:${g.toFixed(2)}`)
+      .join(",");
+    return `${chord}|${section}|${style}|${layers}`;
   }
 
   applyTick(tick: {
     plan: CompositionPlan;
     orchestration: OrchestrationTargets;
     sound_tweaks: { reverb: number; width: number; brightness: number; warmth: number; master: number };
+    bassPattern?: number[];
   }): void {
     if (!this.worklet) return;
     const orch = tick.orchestration;
+    const plan = tick.plan;
+
     this.worklet.port.postMessage({
       type: "orchestration",
       layerGains: orch.layer_gains,
@@ -222,58 +238,66 @@ export class WebSynthEngine {
       width: tick.sound_tweaks.width,
       warmth: tick.sound_tweaks.warmth,
     });
-    this.worklet.port.postMessage({
-      type: "apply_plan",
-      plan: tick.plan,
-      orchestration: orch,
-    });
 
-    const style = getStyle(tick.plan.musical_style ?? "Ambient");
-    const energy = tick.plan.energy_curve;
-    const drumDensity = style.drumDensity * (0.65 + energy * 0.5);
+    const planKey = this.planKey(plan, orch);
+    if (planKey !== this.lastPlanKey) {
+      this.lastPlanKey = planKey;
+      this.worklet.port.postMessage({
+        type: "apply_plan",
+        plan,
+        orchestration: orch,
+      });
+    }
+
+    const style = getStyle(plan.musical_style ?? "Ambient");
+    const energy = plan.energy_curve;
+    const drumDensity = style.drumDensity * (0.65 + energy * 0.5) * (orch.layer_gains.percussion ?? 0.5 + 0.5);
+    const bassPattern = tick.bassPattern ?? [];
+    const useBassSeq = bassPattern.length >= 2 && style.drumDensity > 0.2;
+
     this.worklet.port.postMessage({
       type: "drum_seq",
-      tempo_bpm: tick.plan.tempo_bpm,
+      tempo_bpm: plan.tempo_bpm,
       kickPattern: style.kickPattern,
       hatPattern: style.hatPattern,
       drumDensity,
-      kickGain: 0.78 + style.bassLayers * 0.22,
-      hatGain: 0.28 + drumDensity * 0.42,
-      snareGain: 0.42 + drumDensity * 0.34,
-      clapGain: 0.38 + drumDensity * 0.3,
+      kickGain: 0.82 + style.bassLayers * 0.18,
+      hatGain: 0.3 + drumDensity * 0.4,
+      snareGain: 0.45 + drumDensity * 0.32,
+      clapGain: 0.4 + drumDensity * 0.28,
       swing: style.swing,
       enabled: drumDensity > 0.06,
+      bassPattern: useBassSeq ? bassPattern : [],
+      bassGain: style.bassLayers * (0.4 + energy * 0.45),
+      skipChordBass: useBassSeq,
     });
 
-    if (tick.plan.transition_fx) {
-      this.worklet.port.postMessage({ type: "transition_fx", fx: tick.plan.transition_fx });
+    if (plan.transition_fx) {
+      this.worklet.port.postMessage({ type: "transition_fx", fx: plan.transition_fx });
     }
 
-    for (const n of tick.plan.bass_notes ?? []) {
-      this.worklet.port.postMessage({
-        type: "note",
-        layer: "soft_bass",
-        midi: n.midi,
-        velocity: n.velocity,
-        preset: "Soft Analog Bass",
-      });
-      this.scheduledEvents += 1;
-    }
-
-    const drumLayers = new Set([
-      "kick", "snare", "hat", "open_hat", "clap", "crash", "tom", "ride", "noise", "percussion",
-    ]);
-    for (const ev of tick.plan.rhythm_events ?? []) {
-      if (drumLayers.has(ev.layer)) {
-        this.worklet.port.postMessage({
-          type: "perc",
-          velocity: ev.strength,
-          layer: ev.layer,
-        });
-      } else if (ev.is_pulse && ev.strength > 0.6) {
+    for (const ev of plan.rhythm_events ?? []) {
+      if (ev.layer === "fill") {
         this.worklet.port.postMessage({ type: "drum_fill" });
+      } else if (ev.layer === "crash") {
+        this.worklet.port.postMessage({ type: "perc", velocity: ev.strength, layer: "crash" });
+      } else if (ev.layer === "hat_ghost") {
+        this.worklet.port.postMessage({ type: "perc", velocity: ev.strength, layer: "hat" });
       }
       this.scheduledEvents += 1;
+    }
+
+    for (const n of plan.melody_notes ?? []) {
+      if (n.midi >= 52) {
+        this.worklet.port.postMessage({
+          type: "note",
+          layer: "lead",
+          midi: n.midi,
+          velocity: n.velocity,
+          preset: "Soft Pulse",
+        });
+        this.scheduledEvents += 1;
+      }
     }
   }
 

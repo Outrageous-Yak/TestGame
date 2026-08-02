@@ -31,7 +31,7 @@ export class WindComposerApp {
   private countdownTimer: number | null = null;
   private running = false;
   private audioEnabled = false;
-  private sampleDelta = 4096;
+  private audioClockStart = 0;
   private playStartMs = 0;
   private diagTimer: number | null = null;
 
@@ -304,6 +304,8 @@ export class WindComposerApp {
       });
       this.running = true;
       this.playStartMs = performance.now();
+      const actx = this.synth.getContext();
+      this.audioClockStart = actx?.currentTime ?? 0;
       this.el.silenceWarn.classList.add("hidden");
       this.el.status.textContent = "Playing";
       this.tickLoop();
@@ -349,7 +351,12 @@ export class WindComposerApp {
       micEnergy = a.energy;
       gust = a.gust;
     }
-    const tick = this.session.tick(micEnergy, gust, this.sampleDelta);
+    const actx = this.synth.getContext();
+    const sampleRate = actx?.sampleRate ?? 44100;
+    const samplePosition = actx
+      ? Math.max(0, Math.floor((actx.currentTime - this.audioClockStart) * sampleRate))
+      : 0;
+    const tick = this.session.tick(samplePosition, micEnergy, gust);
     this.synth.applyTick(tick);
     this.updateLivePanel(tick);
     this.el.peak.textContent = `Peak ${this.synth.peak.toFixed(2)} | RMS ${this.synth.getOutputRms().toFixed(4)}`;
