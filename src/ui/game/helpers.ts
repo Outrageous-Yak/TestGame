@@ -62,6 +62,24 @@ export function layerCssVar(n: number) {
   return `var(--L${clamped})`;
 }
 
+/** Brighter accent for reach pulse on hexes with a card trigger (matches deck card identity). */
+export function cardAccentColor(card: CardKey): string {
+  switch (card) {
+    case "cosmic":
+      return "#4a5fd4";
+    case "risk":
+      return "#e8384f";
+    case "terrain":
+      return "#1fa88a";
+    case "shadow":
+      return "#9b7fd4";
+  }
+}
+
+export function reachPulseGlow(layer: number, card: CardKey | null): string {
+  return card ? cardAccentColor(card) : layerCssVar(layer);
+}
+
 export function nowHHMM() {
   const d = new Date();
   const hh = String(d.getHours()).padStart(2, "0");
