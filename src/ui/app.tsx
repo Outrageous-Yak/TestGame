@@ -660,6 +660,10 @@ body{
 }
 .spacer{ flex:1; }
 
+.topbar .dice3d{
+  flex: 0 0 auto;
+}
+
 /* =========================================================
    PANELS / COMMON UI
 ========================================================= */
@@ -837,17 +841,11 @@ body{
   height: var(--cube);
   position: relative;
   transform-style: preserve-3d;
-  transition: transform 180ms ease;
+  transition: transform 650ms cubic-bezier(.2,.9,.2,1);
 }
 
-.dice3d.rolling .cube{ animation: cubeWobble .35s ease-in-out infinite; }
-
-@keyframes cubeWobble{
-  0%{ transform: rotateX(0deg) rotateY(0deg); }
-  25%{ transform: rotateX(18deg) rotateY(-16deg); }
-  50%{ transform: rotateX(-16deg) rotateY(22deg); }
-  75%{ transform: rotateX(14deg) rotateY(16deg); }
-  100%{ transform: rotateX(0deg) rotateY(0deg); }
+.dice3d .cube.isSpinning{
+  transition: transform 900ms cubic-bezier(.12,.85,.18,1);
 }
 
 .dice3d .face{
@@ -3451,8 +3449,10 @@ export default function App() {
      Dice
   ========================= */
   const BASE_DICE_VIEW = { x: -28, y: -36 };
+  const DICE_SPIN_MS = 900;
   const [diceValue, setDiceValue] = useState<number>(2);
   const [diceRolling, setDiceRolling] = useState(false);
+  const [diceSpinning, setDiceSpinning] = useState(false);
   const [diceRot, setDiceRot] = useState<{ x: number; y: number }>(BASE_DICE_VIEW);
   const diceTimer = useRef<number | null>(null);
 
@@ -3483,36 +3483,72 @@ export default function App() {
     }
   }
 
+  function diceRotForValue(n: number) {
+    const face = rotForRoll(n);
+    return { x: BASE_DICE_VIEW.x + face.x, y: BASE_DICE_VIEW.y + face.y };
+  }
+
   const rollDice = useCallback(() => {
     if (diceRolling) return;
 
+    const final = 1 + Math.floor(Math.random() * 6);
+    lastRollValueRef.current = final;
+    setDiceValue(final);
+
+    const finalRot = diceRotForValue(final);
+    const extraY = 360 * (2 + Math.floor(Math.random() * 2));
+
     setDiceRolling(true);
+    setDiceSpinning(true);
+    setDiceRot({ x: finalRot.x, y: finalRot.y - extraY });
 
-    const start = performance.now();
-    const duration = 650;
+    diceTimer.current = window.setTimeout(() => {
+      setDiceRot(finalRot);
 
-    const tick = () => {
-      const elapsed = performance.now() - start;
-
-      const flicker = 1 + Math.floor(Math.random() * 6);
-      setDiceValue(flicker);
-      setDiceRot(rotForRoll(flicker));
-
-      if (elapsed < duration) {
-        diceTimer.current = window.setTimeout(tick, 55);
-      } else {
-        const final = 1 + Math.floor(Math.random() * 6);
-
-        lastRollValueRef.current = final;
-        setDiceValue(final);
-        setDiceRot(rotForRoll(final));
-
+      diceTimer.current = window.setTimeout(() => {
         setDiceRolling(false);
-      }
-    };
-
-    tick();
+        setDiceSpinning(false);
+      }, DICE_SPIN_MS);
+    }, 40);
   }, [diceRolling]);
+
+  const diceBorderStyle = {
+    ["--diceBorderUrl" as any]: DICE_BORDER_IMG ? "url(" + toPublicUrl(DICE_BORDER_IMG) + ")" : "none",
+  } as React.CSSProperties;
+
+  function Dice3d(props: { large?: boolean }) {
+    return (
+      <div
+        className={"dice3d" + (props.large ? " diceLg" : "")}
+        style={diceBorderStyle}
+        aria-label={"Dice showing " + diceValue}
+      >
+        <div
+          className={"cube" + (diceSpinning ? " isSpinning" : "")}
+          style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}
+        >
+          <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(2) + ")" }}>
+            <DiceCorners />
+          </div>
+          <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
+            <DiceCorners />
+          </div>
+          <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }}>
+            <DiceCorners />
+          </div>
+          <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }}>
+            <DiceCorners />
+          </div>
+          <div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }}>
+            <DiceCorners />
+          </div>
+          <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}>
+            <DiceCorners />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   /* =========================
      Reveal helpers
@@ -3815,6 +3851,7 @@ export default function App() {
           const vkr = pickRiskVillain();
           pendingEncounterMoveIdRef.current = null;
           setEncounter({ villainKey: vkr, tries: 0 });
+          setDiceValue(2);
           setDiceRot(BASE_DICE_VIEW);
           triggerCardFlip("risk", { villainKey: vkr, mode: "riskEncounter" });
           pushLog("Risk triggered — encounter: " + vkr + " (roll a 6)", "bad");
@@ -3999,6 +4036,8 @@ export default function App() {
       if (vk) {
         pendingEncounterMoveIdRef.current = id;
         setEncounter((prev) => (prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }));
+        setDiceValue(2);
+        setDiceRot(BASE_DICE_VIEW);
         pushLog("Encounter: " + vk + " — roll a 6 to continue", "bad");
         return;
       }
@@ -4284,6 +4323,8 @@ export default function App() {
       />
 
       <div className="topbar">
+        {!encounterActive ? <Dice3d /> : null}
+
         <div className="items">
           {items.map((it) => (
             <button
@@ -4636,28 +4677,7 @@ export default function App() {
 
             <div className="riskEncounterControls">
               <div className="encounterActionRow">
-                <div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
-                  <div className="cube" style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}>
-                    <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                  </div>
-                </div>
+                <Dice3d large />
 
                 <div className="encounterInfo">
                   <div className="encounterTitle">ENCOUNTER!</div>
@@ -4730,28 +4750,7 @@ export default function App() {
 
             <div className="encounterRight">
               <div className="encounterActionRow">
-                <div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
-                  <div className="cube" style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}>
-                    <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                  </div>
-                </div>
+                <Dice3d large />
 
                 <div className="encounterInfo">
                   <div className="encounterTitle">ENCOUNTER!</div>
