@@ -1,0 +1,10 @@
+services:
+  wind-composer:
+    build:
+      context: ..
+      dockerfile: wind-composer/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - WEB_DIST=/app/wind-composer/web/dist
+    restart: unless-stopped

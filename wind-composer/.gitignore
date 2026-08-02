@@ -4,4 +4,6 @@ __pycache__/
 *.pyo
 *.wav
 test-output/
+web/node_modules/
+web/dist/
 *.log.txt

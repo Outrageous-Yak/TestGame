@@ -126,6 +126,16 @@ Live conditions update continuously as weather changes.
 
 Polyphonic layered synthesis with instrument presets, orchestration mapping, reverb/delay/chorus, and safety limiting. See `AUDIO_ARCHITECTURE.md` for signal flow and module layout.
 
+## Progressive Web App (iPhone / Safari)
+
+Installable PWA with FastAPI backend and Web Audio frontend. See **[PWA_README.md](PWA_README.md)** for deployment.
+
+```bash
+./start.sh   # Docker or local uvicorn + built web/dist
+```
+
+Open on iPhone Safari → Share → Add to Home Screen.
+
 ### Sound Engine UI
 
 The Compose tab includes quality, soundscape preset, reverb/width/brightness/warmth sliders, active layer display, peak meter, and collapsible diagnostics.

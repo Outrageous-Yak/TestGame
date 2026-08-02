@@ -12,7 +12,7 @@ from audio.deterministic import render_scenario, RENDER_SCENARIOS
 from audio.envelopes import ADSREnvelope
 from audio.filters import OnePoleFilter
 from audio.limiter import SafetyLimiter
-from audio.orchestration import Orchestrator, STATE_LAYERS
+from audio.orchestration import Orchestrator
 from audio.preset_manager import PresetManager
 from audio.voice import VoiceAllocator
 from composition_engine import CompositionContext, CompositionEngine, CompositionPlan, MusicalState
