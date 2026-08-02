@@ -25,12 +25,15 @@ import {
   preloadTileArt,
 } from "./tileArt";
 import { BOARD_PERSPECTIVE_CONFIG, rowPerspectiveVars } from "./boardDepth";
-
-/** Visual-only 2.5D board tilt; set false to restore flat rendering. */
-const ENABLE_BOARD_PERSPECTIVE = true;
+import {
+  isFlatMode,
+  isOld25DMode,
+  isProjectedMode,
+} from "./boardRenderMode";
+import { layoutTileAt, projectBoardLayout, type ProjectedBoardLayout } from "./boardProjection";
 
 function hexRowPerspectiveStyle(rowIndex: number): React.CSSProperties | undefined {
-  if (!ENABLE_BOARD_PERSPECTIVE) return undefined;
+  if (!isOld25DMode()) return undefined;
   const v = rowPerspectiveVars(rowIndex, ROW_LENS.length);
   const scale = v.rowScale;
   return {
@@ -1275,6 +1278,78 @@ body{
   z-index: 1;
 }
 .boardScroll.boardZooming .hexGrid.boardTilted .hexAnchor::before{
+  box-shadow: none;
+}
+
+/* =========================================================
+   PROJECTED BOARD (coordinate projection; no CSS grid)
+========================================================= */
+.board.projectedBoard{
+  width: auto;
+  height: auto;
+  padding: 0;
+}
+.projectedBoardStage{
+  position: relative;
+  margin: 0 auto;
+}
+.projectedGhostLayer{
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.35;
+}
+.projectedHexSlot{
+  position: absolute;
+  overflow: visible;
+}
+.projectedHexSlot.empty{
+  opacity: 0;
+  pointer-events: none;
+}
+.projectedBoardStage .hex{
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+.projectedBoardStage .hexAnchor{
+  position: relative;
+}
+.projectedBoardStage .hexAnchor::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+  transform: translateY(var(--tileDepthPx, 5px));
+  background: linear-gradient(180deg, rgba(48,54,66,.96) 0%, rgba(20,24,32,.98) 55%, rgba(12,14,20,1) 100%);
+  box-shadow: 0 3px 7px rgba(0,0,0,.38);
+  pointer-events: none;
+  z-index: 0;
+}
+.projectedBoardStage .hexInner{
+  position: relative;
+  z-index: 2;
+}
+.projectedBoardStage .hexInner::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(25% 6%,75% 6%,98% 50%,75% 94%,25% 94%,2% 50%);
+  background: rgba(0,0,0,var(--rowDarken, 0));
+  pointer-events: none;
+  z-index: 1;
+}
+.projectedBoardStage .hexSlot > .cardBadge.hexDeckCard,
+.projectedHexSlot > .cardBadge.hexDeckCard{
+  width: calc(var(--slotW, 48px) * 0.55 * 3 / 4);
+  height: calc(var(--slotW, 48px) * 0.55);
+  border-radius: calc(var(--slotW, 48px) * 0.55 * 10 / 56);
+}
+.projectedBoardStage .hexId{
+  font-size: calc(var(--slotW, 48px) * 0.26);
+}
+.boardScroll.boardZooming .projectedBoardStage .hexAnchor::before{
   box-shadow: none;
 }
 
@@ -3105,6 +3180,7 @@ export default function App() {
   const boardZoomingRef = useRef(false);
   const boardZoomIdleTimerRef = useRef<number | null>(null);
   const [boardZooming, setBoardZooming] = useState(false);
+  const [boardViewportSize, setBoardViewportSize] = useState({ w: 0, h: 0 });
 
   const deckRefs = useRef<Record<CardKey, HTMLDivElement | null>>({
     cosmic: null,
@@ -3288,12 +3364,331 @@ export default function App() {
     return injected as any;
   }, [state, scenarioLayerCount, getLayerMoves]);
 
-  function GhostGrid(props: { layer: number }) {
-    const layer = props.layer;
+  const projectedLayout = useMemo((): ProjectedBoardLayout | null => {
+    if (!isProjectedMode()) return null;
+    const { w, h } = boardViewportSize;
+    if (w < 1 || h < 1) return null;
+    return projectBoardLayout(ROW_LENS, w, h);
+  }, [boardViewportSize]);
+
+  function resolveShiftWrapped(r: number, cols: number) {
+    const engineShiftRaw =
+      (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
+      (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
+    const engineShift = Number(engineShiftRaw ?? 0);
+    const rawShift =
+      Number.isFinite(engineShift) && engineShift !== 0
+        ? engineShift
+        : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
+    return normalizeRowShift(rawShift, cols).wrapped;
+  }
+
+  function renderHexSlotContent(opts: {
+    r: number;
+    c: number;
+    id: string;
+    bm: { missing: boolean; blocked: boolean };
+    isSel: boolean;
+    isPlayer: boolean;
+    isStart: boolean;
+    isReach: boolean;
+    cardHere: CardKey | null;
+    isGoal: boolean;
+    isTrigger: boolean;
+    isPortalUp: boolean;
+    isPortalDown: boolean;
+    tileClass: string;
+    portalColor: string | null;
+  }) {
+    const {
+      r,
+      c,
+      id,
+      bm,
+      isSel,
+      isPlayer,
+      isStart,
+      isReach,
+      cardHere,
+      isGoal,
+      isTrigger,
+      isPortalUp,
+      isPortalDown,
+      tileClass,
+      portalColor,
+    } = opts;
+
+    return (
+      <>
+        <button
+          ref={isPlayer ? playerBtnRef : undefined}
+          className={[
+            "hex",
+            isSel ? "sel" : "",
+            isReach ? "reach" : "",
+            bm.blocked ? "blocked" : "",
+            isPlayer ? "player" : "",
+            isGoal ? "goal" : "",
+            isTrigger ? "trigger" : "",
+            isStart ? "portalStart" : "",
+            isPortalUp ? "portalUp" : "",
+            isPortalDown ? "portalDown" : "",
+          ].join(" ")}
+          onClick={() => {
+            if (layerFx !== null) return;
+            if (playerLayer && currentLayer !== playerLayer) {
+              tryMoveToId(id);
+              return;
+            }
+            setSelectedId(id);
+            tryMoveToId(id);
+          }}
+          disabled={!state || bm.blocked || bm.missing || encounterActive || layerFx !== null}
+          style={
+            {
+              ["--hexGlow" as any]: layerCssVar(currentLayer),
+              ...(portalColor ? { ["--portalC" as any]: portalColor } : {}),
+            } as any
+          }
+          title={id}
+        >
+          <div className="hexAnchor">
+            <div className={"hexInner " + tileClass}>
+              <div className="hexCoords">
+                <div className="hexId">{r + "," + c}</div>
+              </div>
+              {isPortalUp || isPortalDown ? (
+                <div className="portalFx">
+                  <div className="pAura" />
+                  <div className="pOrbs" />
+                  <div className="pRim" />
+                  <div className="pOval" />
+                </div>
+              ) : null}
+              {isStart ? (
+                <div className="portalFx">
+                  <div className="pAura" />
+                  <div className="pRunes" />
+                  <div className="pVortex" />
+                  <div className="pWell" />
+                  <div className="pShine" />
+                </div>
+              ) : null}
+              <div className="hexMarks">
+                {isPortalUp ? <span className="mark">↑</span> : null}
+                {isPortalDown ? <span className="mark">↓</span> : null}
+                {isGoal ? <span className="mark g">G</span> : null}
+                {isTrigger ? <span className="mark t">!</span> : null}
+              </div>
+            </div>
+          </div>
+        </button>
+
+        {cardHere ? (
+          <div className={"cardBadge hexDeckCard " + cardHere} title={cardHere}>
+            <div className="deckFx" />
+          </div>
+        ) : null}
+
+        {isPlayer ? (
+          <span
+            className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
+            style={
+              {
+                ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
+                ["--frameW" as any]: FRAME_W,
+                ["--frameH" as any]: FRAME_H,
+                ["--cols" as any]: SPRITE_COLS,
+                ["--rows" as any]: SPRITE_ROWS,
+                ["--frameX" as any]: walkFrame,
+                ["--frameY" as any]: facingRow(playerFacing),
+              } as any
+            }
+          />
+        ) : null}
+      </>
+    );
+  }
+
+  function renderHexCell(r: number, c: number, shiftWrapped: number, cellStyle: React.CSSProperties) {
+    const id = idAtSlot(currentLayer, r, c, shiftWrapped);
+    const tr = portalTransitionAt(viewState as any, id);
+    const isPortalUp = tr?.type === "UP";
+    const isPortalDown = tr?.type === "DOWN";
+    const portalTargetLayer = tr?.to?.layer ?? null;
+    const portalColor = portalTargetLayer ? layerCssVar(portalTargetLayer) : null;
+    const hex = getHexFromState(viewState as any, id) as any;
+    const bm = isBlockedOrMissing(hex);
+
+    if (bm.missing) {
+      return <div key={id} className="hexSlot empty" style={cellStyle} />;
+    }
+
+    const isSel = selectedId === id;
+    const isPlayer = playerId === id;
+    const isStart = startHexId === id;
+    const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
+    const cardHere = findCardTriggerAt(id);
+    const isGoal = goalId === id;
+    const isTrigger = !!findTriggerForHex(id);
+    const tileVisual = resolveTileVisualType({
+      revealed: !!hex?.revealed,
+      blocked: bm.blocked,
+      isGoal,
+      isStart,
+      isPortalUp,
+      isPortalDown,
+    });
+    const tileClass = HEX_TILE ? "tile-theme" : tileArtClassName(tileVisual);
+
+    return (
+      <div key={"v-" + r + "-" + c} className="hexSlot" style={cellStyle}>
+        {renderHexSlotContent({
+          r,
+          c,
+          id,
+          bm,
+          isSel,
+          isPlayer,
+          isStart,
+          isReach,
+          cardHere,
+          isGoal,
+          isTrigger,
+          isPortalUp,
+          isPortalDown,
+          tileClass,
+          portalColor,
+        })}
+      </div>
+    );
+  }
+
+  function renderProjectedBoard() {
+    if (!projectedLayout) return null;
 
     return (
       <div
-        className={"ghostGrid" + (ENABLE_BOARD_PERSPECTIVE ? " boardTiltedGhost" : "")}
+        className="projectedBoardStage"
+        style={{ width: projectedLayout.stageWidth, height: projectedLayout.stageHeight }}
+      >
+        {showGhost ? (
+          <div className="projectedGhostLayer" aria-hidden="true">
+            {projectedLayout.tiles.map((rect) => (
+              <div
+                key={"pg-" + rect.row + "-" + rect.slotCol}
+                className="ghostSlot"
+                style={{
+                  position: "absolute",
+                  left: rect.left,
+                  top: rect.top,
+                  width: rect.width,
+                  height: rect.height,
+                }}
+              >
+                <div className="ghostHex" style={{ width: "100%", height: "100%" }} />
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {layerFx ? (
+          <div key={layerFx.key} className="layerFxOverlay" style={layerFxStyle} aria-live="polite">
+            <div className="layerFxCard">
+              <div className="layerFxTitle">Layer {layerFx.layer}</div>
+            </div>
+          </div>
+        ) : null}
+
+        {rows.map((r) => {
+          const cols = ROW_LENS[r] ?? 0;
+          const shiftWrapped = resolveShiftWrapped(r, cols);
+          return Array.from({ length: cols }, (_, c) => {
+            const rect = layoutTileAt(projectedLayout, r, c);
+            if (!rect) return null;
+            const id = idAtSlot(currentLayer, r, c, shiftWrapped);
+            const tr = portalTransitionAt(viewState as any, id);
+            const isPortalUp = tr?.type === "UP";
+            const isPortalDown = tr?.type === "DOWN";
+            const portalTargetLayer = tr?.to?.layer ?? null;
+            const portalColor = portalTargetLayer ? layerCssVar(portalTargetLayer) : null;
+            const hex = getHexFromState(viewState as any, id) as any;
+            const bm = isBlockedOrMissing(hex);
+
+            const slotStyle: React.CSSProperties = {
+              left: rect.left,
+              top: rect.top,
+              width: rect.width,
+              height: rect.height,
+              zIndex: rect.zIndex,
+              ["--slotW" as any]: `${rect.width}px`,
+              ["--tileDepthPx" as any]: `${rect.tileDepth}px`,
+              ["--rowDarken" as any]: rect.rowDarken,
+            };
+
+            if (bm.missing) {
+              return (
+                <div
+                  key={id}
+                  className="projectedHexSlot empty"
+                  style={slotStyle}
+                  aria-hidden="true"
+                />
+              );
+            }
+
+            const isSel = selectedId === id;
+            const isPlayer = playerId === id;
+            const isStart = startHexId === id;
+            const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
+            const cardHere = findCardTriggerAt(id);
+            const isGoal = goalId === id;
+            const isTrigger = !!findTriggerForHex(id);
+            const tileVisual = resolveTileVisualType({
+              revealed: !!hex?.revealed,
+              blocked: bm.blocked,
+              isGoal,
+              isStart,
+              isPortalUp,
+              isPortalDown,
+            });
+            const tileClass = HEX_TILE ? "tile-theme" : tileArtClassName(tileVisual);
+
+            return (
+              <div key={"pv-" + r + "-" + c} className="projectedHexSlot hexSlot" style={slotStyle}>
+                {renderHexSlotContent({
+                  r,
+                  c,
+                  id,
+                  bm,
+                  isSel,
+                  isPlayer,
+                  isStart,
+                  isReach,
+                  cardHere,
+                  isGoal,
+                  isTrigger,
+                  isPortalUp,
+                  isPortalDown,
+                  tileClass,
+                  portalColor,
+                })}
+              </div>
+            );
+          });
+        })}
+      </div>
+    );
+  }
+
+  function GhostGrid(props: { layer: number }) {
+    const layer = props.layer;
+
+    if (isProjectedMode()) return null;
+
+    return (
+      <div
+        className={"ghostGrid" + (isOld25DMode() ? " boardTiltedGhost" : "")}
         aria-hidden="true"
       >
         {rows.map((r) => {
@@ -3302,16 +3697,14 @@ export default function App() {
           return (
             <div
               key={"ghost-row-" + layer + "-" + r}
-              className={"ghostRow" + (ENABLE_BOARD_PERSPECTIVE ? " ghostRowDepth" : "")}
+              className={"ghostRow" + (isOld25DMode() ? " ghostRowDepth" : "")}
               style={hexRowPerspectiveStyle(r)}
             >
               {Array.from({ length: cols }, (_, c) => (
                 <div
                   key={"g-" + layer + "-" + r + "-" + c}
                   className="ghostSlot"
-                  style={
-                    ENABLE_BOARD_PERSPECTIVE ? hexSlotPlacement(r, c) : hexGridPlacement(r, c)
-                  }
+                  style={isOld25DMode() ? hexSlotPlacement(r, c) : hexGridPlacement(r, c)}
                 >
                   <div className="ghostHex" />
                 </div>
@@ -3621,6 +4014,39 @@ export default function App() {
       if (boardZoomIdleTimerRef.current) window.clearTimeout(boardZoomIdleTimerRef.current);
     };
   }, [screen, applyBoardZoom, markBoardZooming]);
+
+  useEffect(() => {
+    if (screen !== "game" || !isProjectedMode()) return;
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+
+    let raf = 0;
+    let lastW = 0;
+    let lastH = 0;
+
+    const measure = () => {
+      raf = 0;
+      const w = scroller.clientWidth;
+      const h = scroller.clientHeight;
+      if (Math.abs(w - lastW) < 1 && Math.abs(h - lastH) < 1) return;
+      lastW = w;
+      lastH = h;
+      setBoardViewportSize({ w, h });
+    };
+
+    const onResize = () => {
+      if (!raf) raf = window.requestAnimationFrame(measure);
+    };
+
+    const ro = new ResizeObserver(onResize);
+    ro.observe(scroller);
+    measure();
+
+    return () => {
+      ro.disconnect();
+      if (raf) window.cancelAnimationFrame(raf);
+    };
+  }, [screen]);
 
   const themeVars = useMemo(() => {
     const p = palette;
@@ -4634,8 +5060,13 @@ export default function App() {
             {isMobile ? null : <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />}
 
             <div className={"boardScroll" + (boardZooming ? " boardZooming" : "")} ref={scrollRef}>
-            <div className="board" ref={boardRef}>
-              {ENABLE_BOARD_PERSPECTIVE ? (
+            <div
+              className={"board" + (isProjectedMode() ? " projectedBoard" : "")}
+              ref={boardRef}
+            >
+              {isProjectedMode() ? (
+                renderProjectedBoard()
+              ) : isOld25DMode() ? (
                 <div
                   className="boardPerspectiveViewport"
                   style={
@@ -4654,7 +5085,6 @@ export default function App() {
                     }
                   >
                     {showGhost ? <GhostGrid layer={currentLayer} /> : null}
-
                     {layerFx ? (
                       <div key={layerFx.key} className="layerFxOverlay" style={layerFxStyle} aria-live="polite">
                         <div className="layerFxCard">
@@ -4662,341 +5092,45 @@ export default function App() {
                         </div>
                       </div>
                     ) : null}
-
-                    {/* REAL HEX BOARD */}
                     {rows.map((r) => {
                       const cols = ROW_LENS[r] ?? 0;
-
-                      const engineShiftRaw =
-                        (viewState as any)?.rowShifts?.[currentLayer]?.[r] ??
-                        (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
-
-                      const engineShift = Number(engineShiftRaw ?? 0);
-
-                      const rawShift =
-                        Number.isFinite(engineShift) && engineShift !== 0
-                          ? engineShift
-                          : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
-
-                      const ns = normalizeRowShift(rawShift, cols);
-                      const shiftWrapped = ns.wrapped;
-
+                      const shiftWrapped = resolveShiftWrapped(r, cols);
                       return (
                         <div
                           key={"row-" + r}
                           className="hexRow hexRowDepth"
                           style={hexRowPerspectiveStyle(r)}
                         >
-                          {Array.from({ length: cols }, (_, c) => {
-                            const id = idAtSlot(currentLayer, r, c, shiftWrapped);
-                            const cellStyle = hexSlotPlacement(r, c);
-
-                            const tr = portalTransitionAt(viewState as any, id);
-
-                            const isPortalUp = tr?.type === "UP";
-                            const isPortalDown = tr?.type === "DOWN";
-
-                            const portalTargetLayer = tr?.to?.layer ?? null;
-                            const portalColor = portalTargetLayer ? layerCssVar(portalTargetLayer) : null;
-
-                            const hex = getHexFromState(viewState as any, id) as any;
-                            const bm = isBlockedOrMissing(hex);
-
-                            if (bm.missing)
-                              return (
-                                <div key={id} className="hexSlot empty" style={cellStyle} />
-                              );
-
-                            const isSel = selectedId === id;
-                            const isPlayer = playerId === id;
-                            const isStart = startHexId === id;
-
-                            const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
-
-                            const cardHere = findCardTriggerAt(id);
-                            const isGoal = goalId === id;
-                            const isTrigger = !!findTriggerForHex(id);
-
-                            const tileVisual = resolveTileVisualType({
-                              revealed: !!hex?.revealed,
-                              blocked: bm.blocked,
-                              isGoal,
-                              isStart,
-                              isPortalUp,
-                              isPortalDown,
-                            });
-                            const tileClass = HEX_TILE ? "tile-theme" : tileArtClassName(tileVisual);
-
-                            return (
-                              <div key={"v-" + r + "-" + c} className="hexSlot" style={cellStyle}>
-                                <button
-                                  ref={isPlayer ? playerBtnRef : undefined}
-                                  className={[
-                                    "hex",
-                                    isSel ? "sel" : "",
-                                    isReach ? "reach" : "",
-                                    bm.blocked ? "blocked" : "",
-                                    isPlayer ? "player" : "",
-                                    isGoal ? "goal" : "",
-                                    isTrigger ? "trigger" : "",
-                                    isStart ? "portalStart" : "",
-                                    isPortalUp ? "portalUp" : "",
-                                    isPortalDown ? "portalDown" : "",
-                                  ].join(" ")}
-                                  onClick={() => {
-                                    if (layerFx !== null) return;
-                                    if (playerLayer && currentLayer !== playerLayer) {
-                                      tryMoveToId(id);
-                                      return;
-                                    }
-                                    setSelectedId(id);
-                                    tryMoveToId(id);
-                                  }}
-                                  disabled={!state || bm.blocked || bm.missing || encounterActive || layerFx !== null}
-                                  style={
-                                    {
-                                      ["--hexGlow" as any]: layerCssVar(currentLayer),
-                                      ...(portalColor ? { ["--portalC" as any]: portalColor } : {}),
-                                    } as any
-                                  }
-                                  title={id}
-                                >
-                                  <div className="hexAnchor">
-                                    <div className={"hexInner " + tileClass}>
-                                      <div className="hexCoords">
-                                        <div className="hexId">{r + "," + c}</div>
-                                      </div>
-                                      {isPortalUp || isPortalDown ? (
-                                        <div className="portalFx">
-                                          <div className="pAura" />
-                                          <div className="pOrbs" />
-                                          <div className="pRim" />
-                                          <div className="pOval" />
-                                        </div>
-                                      ) : null}
-                                      {isStart ? (
-                                        <div className="portalFx">
-                                          <div className="pAura" />
-                                          <div className="pRunes" />
-                                          <div className="pVortex" />
-                                          <div className="pWell" />
-                                          <div className="pShine" />
-                                        </div>
-                                      ) : null}
-                                      <div className="hexMarks">
-                                        {isPortalUp ? <span className="mark">↑</span> : null}
-                                        {isPortalDown ? <span className="mark">↓</span> : null}
-                                        {isGoal ? <span className="mark g">G</span> : null}
-                                        {isTrigger ? <span className="mark t">!</span> : null}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </button>
-
-                                {cardHere ? (
-                                  <div className={"cardBadge hexDeckCard " + cardHere} title={cardHere}>
-                                    <div className="deckFx" />
-                                  </div>
-                                ) : null}
-
-                                {isPlayer ? (
-                                  <span
-                                    className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
-                                    style={
-                                      {
-                                        ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
-                                        ["--frameW" as any]: FRAME_W,
-                                        ["--frameH" as any]: FRAME_H,
-                                        ["--cols" as any]: SPRITE_COLS,
-                                        ["--rows" as any]: SPRITE_ROWS,
-                                        ["--frameX" as any]: walkFrame,
-                                        ["--frameY" as any]: facingRow(playerFacing),
-                                      } as any
-                                    }
-                                  />
-                                ) : null}
-                              </div>
-                            );
-                          })}
+                          {Array.from({ length: cols }, (_, c) =>
+                            renderHexCell(r, c, shiftWrapped, hexSlotPlacement(r, c))
+                          )}
                         </div>
                       );
                     })}
                   </div>
                 </div>
               ) : (
-              <div className="hexGrid">
-                {showGhost ? <GhostGrid layer={currentLayer} /> : null}
-
-                {layerFx ? (
-                  <div key={layerFx.key} className="layerFxOverlay" style={layerFxStyle} aria-live="polite">
-                    <div className="layerFxCard">
-                      <div className="layerFxTitle">Layer {layerFx.layer}</div>
+                <div className="hexGrid">
+                  {showGhost ? <GhostGrid layer={currentLayer} /> : null}
+                  {layerFx ? (
+                    <div key={layerFx.key} className="layerFxOverlay" style={layerFxStyle} aria-live="polite">
+                      <div className="layerFxCard">
+                        <div className="layerFxTitle">Layer {layerFx.layer}</div>
+                      </div>
                     </div>
-                  </div>
-                ) : null}
-
-                {/* REAL HEX BOARD */}
-                {rows.map((r) => {
-                  const cols = ROW_LENS[r] ?? 0;
-
-                  const engineShiftRaw =
-                    (viewState as any)?.rowShifts?.[currentLayer]?.[r] ?? (viewState as any)?.rowShifts?.["L" + currentLayer]?.[r];
-
-                  const engineShift = Number(engineShiftRaw ?? 0);
-
-                  const rawShift =
-                    Number.isFinite(engineShift) && engineShift !== 0
-                      ? engineShift
-                      : derivedRowShiftUnits(viewState as any, currentLayer, r, getLayerMoves(currentLayer));
-
-                  const ns = normalizeRowShift(rawShift, cols);
-                  const shiftWrapped = ns.wrapped;
-
-                  return (
-                    <div key={"row-" + r} className="hexRow">
-                      {Array.from({ length: cols }, (_, c) => {
-                        const id = idAtSlot(currentLayer, r, c, shiftWrapped);
-                        const cellStyle = hexGridPlacement(r, c);
-
-                        const tr = portalTransitionAt(viewState as any, id);
-
-                        const isPortalUp = tr?.type === "UP";
-                        const isPortalDown = tr?.type === "DOWN";
-
-                        const portalTargetLayer = tr?.to?.layer ?? null;
-                        const portalColor = portalTargetLayer ? layerCssVar(portalTargetLayer) : null;
-
-                        const hex = getHexFromState(viewState as any, id) as any;
-                        const bm = isBlockedOrMissing(hex);
-
-                        if (bm.missing)
-                          return (
-                            <div
-                              key={id}
-                              className="hexSlot empty"
-                              style={cellStyle}
-                            />
-                          );
-
-                        const isSel = selectedId === id;
-                        const isPlayer = playerId === id;
-                        const isStart = startHexId === id;
-
-                        const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
-
-                        const cardHere = findCardTriggerAt(id);
-                        const isGoal = goalId === id;
-                        const isTrigger = !!findTriggerForHex(id);
-
-                        const tileVisual = resolveTileVisualType({
-                          revealed: !!hex?.revealed,
-                          blocked: bm.blocked,
-                          isGoal,
-                          isStart,
-                          isPortalUp,
-                          isPortalDown,
-                        });
-                        const tileClass = HEX_TILE ? "tile-theme" : tileArtClassName(tileVisual);
-
-                        return (
-                          <div
-                            key={"v-" + r + "-" + c}
-                            className="hexSlot"
-                            style={cellStyle}
-                          >
-                            <button
-                              ref={isPlayer ? playerBtnRef : undefined}
-                              className={[
-                                "hex",
-                                isSel ? "sel" : "",
-                                isReach ? "reach" : "",
-                                bm.blocked ? "blocked" : "",
-                                isPlayer ? "player" : "",
-                                isGoal ? "goal" : "",
-                                isTrigger ? "trigger" : "",
-                                isStart ? "portalStart" : "",
-                                isPortalUp ? "portalUp" : "",
-                                isPortalDown ? "portalDown" : "",
-                              ].join(" ")}
-                              onClick={() => {
-                                if (layerFx !== null) return;
-                                if (playerLayer && currentLayer !== playerLayer) {
-                                  tryMoveToId(id);
-                                  return;
-                                }
-                                setSelectedId(id);
-                                tryMoveToId(id);
-                              }}
-                              disabled={!state || bm.blocked || bm.missing || encounterActive || layerFx !== null}
-                              style={
-                                {
-                                  ["--hexGlow" as any]: layerCssVar(currentLayer),
-                                  ...(portalColor ? { ["--portalC" as any]: portalColor } : {}),
-                                } as any
-                              }
-                              title={id}
-                            >
-                              <div className="hexAnchor">
-                                <div className={"hexInner " + tileClass}>
-                                  <div className="hexCoords">
-                                    <div className="hexId">{r + "," + c}</div>
-                                  </div>
-                                  {isPortalUp || isPortalDown ? (
-                                    <div className="portalFx">
-                                      <div className="pAura" />
-                                      <div className="pOrbs" />
-                                      <div className="pRim" />
-                                      <div className="pOval" />
-                                    </div>
-                                  ) : null}
-                                  {isStart ? (
-                                    <div className="portalFx">
-                                      <div className="pAura" />
-                                      <div className="pRunes" />
-                                      <div className="pVortex" />
-                                      <div className="pWell" />
-                                      <div className="pShine" />
-                                    </div>
-                                  ) : null}
-                                  <div className="hexMarks">
-                                    {isPortalUp ? <span className="mark">↑</span> : null}
-                                    {isPortalDown ? <span className="mark">↓</span> : null}
-                                    {isGoal ? <span className="mark g">G</span> : null}
-                                    {isTrigger ? <span className="mark t">!</span> : null}
-                                  </div>
-                                </div>
-                              </div>
-                            </button>
-
-                            {cardHere ? (
-                              <div className={"cardBadge hexDeckCard " + cardHere} title={cardHere}>
-                                <div className="deckFx" />
-                              </div>
-                            ) : null}
-
-                            {isPlayer ? (
-                              <span
-                                className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
-                                style={
-                                  {
-                                    ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
-                                    ["--frameW" as any]: FRAME_W,
-                                    ["--frameH" as any]: FRAME_H,
-                                    ["--cols" as any]: SPRITE_COLS,
-                                    ["--rows" as any]: SPRITE_ROWS,
-                                    ["--frameX" as any]: walkFrame,
-                                    ["--frameY" as any]: facingRow(playerFacing),
-                                  } as any
-                                }
-                              />
-                            ) : null}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
+                  ) : null}
+                  {rows.map((r) => {
+                    const cols = ROW_LENS[r] ?? 0;
+                    const shiftWrapped = resolveShiftWrapped(r, cols);
+                    return (
+                      <div key={"row-" + r} className="hexRow">
+                        {Array.from({ length: cols }, (_, c) =>
+                          renderHexCell(r, c, shiftWrapped, hexGridPlacement(r, c))
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>
