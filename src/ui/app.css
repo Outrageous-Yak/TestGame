@@ -673,6 +673,8 @@ body{
   place-items: center;
   pointer-events: none;
   z-index: 14;
+  /* Hidden for players; markup kept for debug — remove visibility to show */
+  visibility: hidden;
 }
 
 .hexId{
