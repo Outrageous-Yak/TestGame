@@ -3,6 +3,11 @@ import type { SavedCharacter, SavedPixelSprite } from "../spriteTypes";
 import { characterAsSingleFrameSprite } from "../spriteTypes";
 import { SpriteBuilder } from "../SpriteBuilder";
 import { SpritePreview } from "../SpritePreview";
+import { ImportAssistant, DEFAULT_ASSISTANT_CHOICES } from "./ImportAssistant";
+import { HexPreviewPanel } from "./HexPreviewPanel";
+import { BoardPreviewPanel } from "./BoardPreviewPanel";
+import { SpriteAdjustmentsPanel } from "./SpriteAdjustmentsPanel";
+import { CharacterSummaryPanel } from "./CharacterSummaryPanel";
 import {
   decodeImageFile,
   imageDecodeErrorMessage,
@@ -12,7 +17,6 @@ import {
 import {
   DEFAULT_CROP_TRANSFORM,
   extractSquareCrop,
-  fitCharacterTransform,
   nextRotation,
   renderCropWorkspace,
   type CropTransform,
@@ -34,26 +38,64 @@ import {
 } from "./pixelConversion";
 import type { SheetType } from "./spriteSheetGeneration";
 import { createSheetFromConversion, createSpriteFromConversion } from "../spriteValidation";
+import type {
+  ImportAssistantChoices,
+  HexPreviewBackground,
+  BoardPreviewMode,
+  CharacterRenderSettings,
+} from "./importAssistantTypes";
+import { DEFAULT_RENDER_SETTINGS } from "./importAssistantTypes";
+import {
+  applyFramingToCrop,
+  buildConversionFromAssistant,
+  buildRenderSettingsFromAssistant,
+  choicesToImportMeta,
+} from "./importPresets";
+import { attachCharacterExtras } from "./importExport";
 
 export type ImportStage =
   | "choose"
+  | "assistant"
   | "crop"
   | "background"
   | "convert"
   | "sheet"
+  | "preview"
+  | "adjustments"
   | "edit"
   | "save";
 
-const STAGE_ORDER: ImportStage[] = ["choose", "crop", "background", "convert", "sheet", "edit", "save"];
+const STAGE_ORDER: ImportStage[] = [
+  "choose",
+  "assistant",
+  "crop",
+  "background",
+  "convert",
+  "sheet",
+  "preview",
+  "adjustments",
+  "edit",
+  "save",
+];
 
 const STAGE_LABELS: Record<ImportStage, string> = {
   choose: "Choose Image",
+  assistant: "Import Assistant",
   crop: "Crop & Position",
   background: "Background",
   convert: "Pixel Conversion",
-  sheet: "Sprite Preview",
+  sheet: "Sprite Sheet",
+  preview: "Game Preview",
+  adjustments: "Adjustments",
   edit: "Edit Pixels",
-  save: "Save / Select",
+  save: "Save",
+};
+
+const SHEET_LABELS: Record<SheetType, string> = {
+  static: "Static (1 frame)",
+  idle: "Simple Idle (4 frames)",
+  walk: "Simple Walk (4 frames)",
+  directional: "Directional (experimental)",
 };
 
 type ImageImportWizardProps = {
@@ -67,18 +109,22 @@ export function ImageImportWizard({ onComplete, onCancel }: ImageImportWizardPro
   const [stage, setStage] = useState<ImportStage>("choose");
   const [error, setError] = useState<string | null>(null);
   const [sourceCanvas, setSourceCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [assistantChoices, setAssistantChoices] = useState<ImportAssistantChoices>(DEFAULT_ASSISTANT_CHOICES);
+  const [assistantStep, setAssistantStep] = useState(1);
   const [cropTransform, setCropTransform] = useState<CropTransform>(DEFAULT_CROP_TRANSFORM);
   const [preparedData, setPreparedData] = useState<ImageData | null>(null);
   const [bgMode, setBgMode] = useState<BackgroundMode>("has-alpha");
   const [bgTolerance, setBgTolerance] = useState(32);
   const [removeAllMatching, setRemoveAllMatching] = useState(false);
   const [bgSeed, setBgSeed] = useState<{ x: number; y: number } | null>(null);
-  const [masking, setMasking] = useState(false);
   const [conversionSettings, setConversionSettings] = useState<ConversionSettings>(DEFAULT_CONVERSION_SETTINGS);
   const [convertedSprite, setConvertedSprite] = useState<SavedPixelSprite | null>(null);
   const [sheetType, setSheetType] = useState<SheetType>("static");
   const [frameDurationMs, setFrameDurationMs] = useState(150);
   const [previewBg, setPreviewBg] = useState<PreviewBg>("checker");
+  const [hexPreviewBg, setHexPreviewBg] = useState<HexPreviewBackground>("transparent");
+  const [boardPreviewMode, setBoardPreviewMode] = useState<BoardPreviewMode>("normal");
+  const [renderSettings, setRenderSettings] = useState<CharacterRenderSettings>(DEFAULT_RENDER_SETTINGS);
   const [characterName, setCharacterName] = useState("Imported Character");
   const [editingCharacter, setEditingCharacter] = useState<SavedCharacter | null>(null);
   const [selectOnSave, setSelectOnSave] = useState(true);
@@ -87,6 +133,7 @@ export function ImageImportWizard({ onComplete, onCancel }: ImageImportWizardPro
   const maskDrag = useRef<{ x: number; y: number } | null>(null);
 
   const workspaceSize = 512;
+  const stageIndex = STAGE_ORDER.indexOf(stage);
 
   const sourceData = useMemo(() => {
     if (!sourceCanvas) return null;
@@ -98,10 +145,48 @@ export function ImageImportWizard({ onComplete, onCancel }: ImageImportWizardPro
     return renderCropWorkspace(sourceData, workspaceSize, cropTransform);
   }, [sourceData, cropTransform]);
 
-  const stageIndex = STAGE_ORDER.indexOf(stage);
+  const buildDraftCharacter = (): SavedCharacter | null => {
+    if (!convertedSprite) return null;
+    const base =
+      sheetType === "static"
+        ? convertedSprite
+        : createSheetFromConversion(
+            characterName,
+            convertedSprite.palette,
+            convertedSprite.pixels,
+            sheetType,
+            frameDurationMs
+          );
+    return attachCharacterExtras(base, choicesToImportMeta(assistantChoices), renderSettings);
+  };
+
+  const draftCharacter = useMemo(() => editingCharacter ?? buildDraftCharacter(), [
+    editingCharacter,
+    convertedSprite,
+    sheetType,
+    frameDurationMs,
+    characterName,
+    assistantChoices,
+    renderSettings,
+  ]);
 
   const goBack = () => {
     if (stageIndex > 0) setStage(STAGE_ORDER[stageIndex - 1]!);
+  };
+
+  const applyAssistantPresets = () => {
+    setConversionSettings(buildConversionFromAssistant(assistantChoices));
+    setRenderSettings(buildRenderSettingsFromAssistant(assistantChoices));
+    if (sourceCanvas) {
+      setCropTransform(
+        applyFramingToCrop(assistantChoices.spriteFraming, sourceCanvas.width, sourceCanvas.height, workspaceSize)
+      );
+    }
+  };
+
+  const finishAssistant = () => {
+    applyAssistantPresets();
+    setStage("crop");
   };
 
   const goNext = () => {
@@ -121,23 +206,10 @@ export function ImageImportWizard({ onComplete, onCancel }: ImageImportWizardPro
       const { palette, pixels } = convertImageDataToSprite(preparedData, conversionSettings);
       setConvertedSprite(createSpriteFromConversion(characterName, palette, pixels));
     }
+    if (stage === "sheet") {
+      setEditingCharacter(buildDraftCharacter());
+    }
     if (stageIndex < STAGE_ORDER.length - 1) setStage(STAGE_ORDER[stageIndex + 1]!);
-  };
-
-  const skipToSave = () => {
-    if (!convertedSprite) return;
-    const char: SavedCharacter =
-      sheetType === "static"
-        ? { ...convertedSprite, name: characterName }
-        : createSheetFromConversion(
-            characterName,
-            convertedSprite.palette,
-            convertedSprite.pixels,
-            sheetType,
-            frameDurationMs
-          );
-    setEditingCharacter(char);
-    setStage("save");
   };
 
   const handleFile = async (file: File | null) => {
@@ -146,8 +218,8 @@ export function ImageImportWizard({ onComplete, onCancel }: ImageImportWizardPro
     try {
       const canvas = await decodeImageFile(file);
       setSourceCanvas(canvas);
-      setCropTransform(fitCharacterTransform(canvas.width, canvas.height, workspaceSize));
-      setStage("crop");
+      setAssistantStep(1);
+      setStage("assistant");
     } catch (e) {
       const code =
         e instanceof Error &&
@@ -208,34 +280,20 @@ export function ImageImportWizard({ onComplete, onCancel }: ImageImportWizardPro
     return createSpriteFromConversion("Preview", palette, pixels);
   }, [preparedData, conversionSettings]);
 
-  const sheetPreview = useMemo(() => {
-    if (!convertedSprite) return null;
-    if (sheetType === "static") return convertedSprite;
-    return createSheetFromConversion(
-      convertedSprite.name,
-      convertedSprite.palette,
-      convertedSprite.pixels,
-      sheetType,
-      frameDurationMs
-    );
-  }, [convertedSprite, sheetType, frameDurationMs]);
-
   const openEditor = () => {
-    if (!convertedSprite) return;
-    if (sheetType === "static") {
-      setEditingCharacter(convertedSprite);
-    } else {
-      setEditingCharacter(
-        createSheetFromConversion(
-          convertedSprite.name,
-          convertedSprite.palette,
-          convertedSprite.pixels,
-          sheetType,
-          frameDurationMs
-        )
-      );
-    }
+    const draft = buildDraftCharacter();
+    if (!draft) return;
+    setEditingCharacter(draft);
     setStage("edit");
+  };
+
+  const handleSave = () => {
+    const draft = buildDraftCharacter();
+    if (!draft) return;
+    onComplete(
+      attachCharacterExtras({ ...draft, name: characterName, updatedAt: Date.now() }, choicesToImportMeta(assistantChoices), renderSettings),
+      selectOnSave
+    );
   };
 
   const previewClass = `importPreviewBg ${previewBg}`;
@@ -260,7 +318,7 @@ export function ImageImportWizard({ onComplete, onCancel }: ImageImportWizardPro
 
       {stage === "choose" ? (
         <div className="importStage">
-          <p>Upload a PNG, JPEG, or WebP image. Processing happens locally in your browser.</p>
+          <p>Upload a PNG, JPEG, or WebP image. Everything is processed locally in your browser.</p>
           <input
             ref={fileRef}
             type="file"
@@ -275,10 +333,20 @@ export function ImageImportWizard({ onComplete, onCancel }: ImageImportWizardPro
         </div>
       ) : null}
 
+      {stage === "assistant" ? (
+        <ImportAssistant
+          choices={assistantChoices}
+          onChange={setAssistantChoices}
+          step={assistantStep}
+          onStepChange={setAssistantStep}
+          onComplete={finishAssistant}
+        />
+      ) : null}
+
       {stage === "crop" && croppedPreview ? (
         <div className="importStage">
           <div className="cropControls">
-            <button type="button" className="btn" onClick={() => sourceCanvas && setCropTransform(fitCharacterTransform(sourceCanvas.width, sourceCanvas.height, workspaceSize))}>Fit</button>
+            <button type="button" className="btn" onClick={() => sourceCanvas && setCropTransform(applyFramingToCrop(assistantChoices.spriteFraming, sourceCanvas.width, sourceCanvas.height, workspaceSize))}>Fit</button>
             <button type="button" className="btn" onClick={() => setCropTransform(DEFAULT_CROP_TRANSFORM)}>Reset</button>
             <button type="button" className="btn" onClick={() => setCropTransform((t) => ({ ...t, rotation: nextRotation(t.rotation) }))}>Rotate 90°</button>
             <button type="button" className="btn" onClick={() => setCropTransform((t) => ({ ...t, flipH: !t.flipH }))}>Flip H</button>
@@ -391,24 +459,40 @@ export function ImageImportWizard({ onComplete, onCancel }: ImageImportWizardPro
         <div className="importStage">
           <p>Choose sprite sheet type. Directional generation is approximate and editable.</p>
           <div className="sheetTypeRow">
-            {([
-              ["static", "Static (1 frame)"],
-              ["idle", "Simple Idle (4 frames)"],
-              ["walk", "Simple Walk (4 frames)"],
-              ["directional", "Directional (experimental)"],
-            ] as [SheetType, string][]).map(([t, label]) => (
-              <button key={t} type="button" className={"btn" + (sheetType === t ? " primary" : "")} onClick={() => setSheetType(t)}>{label}</button>
+            {(["static", "idle", "walk", "directional"] as SheetType[]).map((t) => (
+              <button key={t} type="button" className={"btn" + (sheetType === t ? " primary" : "")} onClick={() => setSheetType(t)}>{SHEET_LABELS[t]}</button>
             ))}
           </div>
           {sheetType !== "static" ? (
             <label>Frame duration (ms) <input type="number" min={50} max={1000} value={frameDurationMs} onChange={(e) => setFrameDurationMs(Number(e.target.value))} /></label>
           ) : null}
           <div className={previewClass}>
-            {sheetPreview ? <SpritePreview sprite={characterAsSingleFrameSprite(sheetPreview, 0)} size={192} /> : null}
+            {draftCharacter ? <SpritePreview sprite={characterAsSingleFrameSprite(draftCharacter, 0)} size={192} /> : null}
           </div>
-          {sheetType === "directional" ? (
-            <p className="spriteHint">Back and side views are procedural approximations — edit frames manually.</p>
-          ) : null}
+        </div>
+      ) : null}
+
+      {stage === "preview" && draftCharacter ? (
+        <div className="importStage importPreviewStage">
+          <HexPreviewPanel character={draftCharacter} background={hexPreviewBg} onBackgroundChange={setHexPreviewBg} />
+          <BoardPreviewPanel
+            character={draftCharacter}
+            renderSettings={renderSettings}
+            mode={boardPreviewMode}
+            onModeChange={setBoardPreviewMode}
+          />
+        </div>
+      ) : null}
+
+      {stage === "adjustments" && draftCharacter ? (
+        <div className="importStage importAdjustStage">
+          <SpriteAdjustmentsPanel settings={renderSettings} onChange={setRenderSettings} />
+          <BoardPreviewPanel
+            character={draftCharacter}
+            renderSettings={renderSettings}
+            mode={boardPreviewMode}
+            onModeChange={setBoardPreviewMode}
+          />
         </div>
       ) : null}
 
@@ -417,31 +501,33 @@ export function ImageImportWizard({ onComplete, onCancel }: ImageImportWizardPro
           initialCharacter={editingCharacter}
           isNew
           onSave={(c) => {
-            setEditingCharacter(c);
+            setEditingCharacter(attachCharacterExtras(c, choicesToImportMeta(assistantChoices), renderSettings));
             setStage("save");
           }}
-          onCancel={() => setStage("sheet")}
+          onCancel={() => setStage("adjustments")}
         />
       ) : null}
 
-      {stage === "save" && editingCharacter ? (
-        <div className="importStage">
-          <label>Name <input className="spriteNameInput" value={characterName} onChange={(e) => setCharacterName(e.target.value)} /></label>
-          <SpritePreview sprite={characterAsSingleFrameSprite(editingCharacter, 0)} size={128} />
-          <label><input type="checkbox" checked={selectOnSave} onChange={(e) => setSelectOnSave(e.target.checked)} /> Select as board character</label>
-          <button type="button" className="btn primary" onClick={() => onComplete({ ...editingCharacter, name: characterName, updatedAt: Date.now() }, selectOnSave)}>
-            Save Character
-          </button>
-        </div>
+      {stage === "save" && draftCharacter ? (
+        <CharacterSummaryPanel
+          character={draftCharacter}
+          characterName={characterName}
+          onNameChange={setCharacterName}
+          assistantChoices={assistantChoices}
+          sheetTypeLabel={SHEET_LABELS[sheetType]}
+          selectOnSave={selectOnSave}
+          onSelectOnSaveChange={setSelectOnSave}
+          onSave={handleSave}
+        />
       ) : null}
 
-      {stage !== "edit" ? (
+      {stage !== "edit" && stage !== "assistant" ? (
         <div className="importNavRow">
           <button type="button" className="btn" onClick={stage === "choose" ? onCancel : goBack} disabled={stage === "choose" && !sourceCanvas}>
             {stage === "choose" ? "Cancel" : "Back"}
           </button>
           {stage === "sheet" ? (
-            <button type="button" className="btn primary" onClick={openEditor}>Edit Pixels</button>
+            <button type="button" className="btn" onClick={openEditor}>Edit Pixels</button>
           ) : null}
           {stage !== "save" && stage !== "sheet" ? (
             <button type="button" className="btn primary" onClick={goNext} disabled={stage === "choose" && !sourceCanvas}>
@@ -449,9 +535,10 @@ export function ImageImportWizard({ onComplete, onCancel }: ImageImportWizardPro
             </button>
           ) : null}
           {stage === "sheet" ? (
-            <button type="button" className="btn" onClick={skipToSave}>
-              Skip to Save
-            </button>
+            <button type="button" className="btn primary" onClick={goNext}>Continue</button>
+          ) : null}
+          {stage === "adjustments" ? (
+            <button type="button" className="btn primary" onClick={() => setStage("save")}>Continue to Save</button>
           ) : null}
         </div>
       ) : null}

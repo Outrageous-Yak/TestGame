@@ -1,3 +1,5 @@
+import type { ImportMeta, CharacterRenderSettings } from "./import/importAssistantTypes";
+
 export type SpriteSize = 64;
 
 export type PixelIndex = number;
@@ -20,6 +22,8 @@ export interface SavedPixelSprite {
   createdAt: number;
   updatedAt: number;
   builtin?: boolean;
+  importMeta?: ImportMeta;
+  renderSettings?: CharacterRenderSettings;
 }
 
 export interface SpriteAnimation {
@@ -44,6 +48,8 @@ export interface SavedPixelSpriteSheet {
   createdAt: number;
   updatedAt: number;
   builtin?: boolean;
+  importMeta?: ImportMeta;
+  renderSettings?: CharacterRenderSettings;
 }
 
 export type SavedCharacter = SavedPixelSprite | SavedPixelSpriteSheet;
@@ -85,6 +91,8 @@ export function characterAsSingleFrameSprite(char: SavedCharacter, frameIndex = 
     createdAt: char.createdAt,
     updatedAt: char.updatedAt,
     builtin: char.builtin,
+    importMeta: char.importMeta,
+    renderSettings: char.renderSettings,
   };
 }
 

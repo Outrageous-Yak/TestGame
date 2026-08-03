@@ -2,6 +2,7 @@ import type { SavedCharacter, SavedPixelSprite, SavedPixelSpriteSheet } from "./
 import { SPRITE_HEIGHT, SPRITE_PIXEL_COUNT, SPRITE_WIDTH } from "./spriteTypes";
 import type { SheetType } from "./import/spriteSheetGeneration";
 import { generateFramesForType } from "./import/spriteSheetGeneration";
+import type { CharacterRenderSettings, ImportMeta } from "./import/importAssistantTypes";
 
 export type SpriteValidationResult =
   | { ok: true; sprite: SavedPixelSprite }
@@ -40,6 +41,20 @@ function validatePalette(raw: unknown): SavedPixelSprite["palette"] | null {
   return palette;
 }
 
+function parseCharacterExtras(s: Record<string, unknown>): {
+  importMeta?: ImportMeta;
+  renderSettings?: CharacterRenderSettings;
+} {
+  const out: { importMeta?: ImportMeta; renderSettings?: CharacterRenderSettings } = {};
+  if (s.importMeta && typeof s.importMeta === "object") {
+    out.importMeta = s.importMeta as ImportMeta;
+  }
+  if (s.renderSettings && typeof s.renderSettings === "object") {
+    out.renderSettings = s.renderSettings as CharacterRenderSettings;
+  }
+  return out;
+}
+
 export function validateSprite(raw: unknown): SpriteValidationResult {
   if (!raw || typeof raw !== "object") return { ok: false, error: "Sprite must be an object" };
   const s = raw as Record<string, unknown>;
@@ -57,6 +72,8 @@ export function validateSprite(raw: unknown): SpriteValidationResult {
   const createdAt = typeof s.createdAt === "number" ? s.createdAt : Date.now();
   const updatedAt = typeof s.updatedAt === "number" ? s.updatedAt : createdAt;
 
+  const extras = parseCharacterExtras(s);
+
   return {
     ok: true,
     sprite: {
@@ -70,6 +87,7 @@ export function validateSprite(raw: unknown): SpriteValidationResult {
       createdAt,
       updatedAt,
       builtin: s.builtin === true,
+      ...extras,
     },
   };
 }
@@ -117,6 +135,8 @@ export function validateSpriteSheet(raw: unknown): SheetValidationResult {
       });
   }
 
+  const extras = parseCharacterExtras(s);
+
   return {
     ok: true,
     sheet: {
@@ -133,6 +153,7 @@ export function validateSpriteSheet(raw: unknown): SheetValidationResult {
       createdAt,
       updatedAt,
       builtin: s.builtin === true,
+      ...extras,
     },
   };
 }

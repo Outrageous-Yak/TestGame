@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type { SavedCharacter } from "./spriteTypes";
 import { isSpriteSheet } from "./spriteTypes";
 import { createCharacterFrameDataUrl, pickPlaybackFrame } from "./spriteRenderer";
+import { renderSettingsToCss } from "./import/importExport";
 
 type Facing = "down" | "up" | "left" | "right";
 
@@ -103,7 +104,18 @@ export function PlayerToken({
     return <img src={dataUrl} alt="" className="miniPixelSprite" draggable={false} />;
   }
 
-  return <img src={dataUrl} alt="" className="playerPixelSprite" draggable={false} />;
+  const rs = customCharacter.renderSettings;
+  const extraStyle = rs ? renderSettingsToCss(rs) : undefined;
+
+  return (
+    <img
+      src={dataUrl}
+      alt=""
+      className="playerPixelSprite"
+      style={extraStyle}
+      draggable={false}
+    />
+  );
 }
 
 export function useCustomCharacter(
