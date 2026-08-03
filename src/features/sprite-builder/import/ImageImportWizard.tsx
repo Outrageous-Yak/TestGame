@@ -322,8 +322,7 @@ export function ImageImportWizard({ onComplete, onCancel }: ImageImportWizardPro
           <input
             ref={fileRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp"
-            capture="environment"
+            accept="image/*"
             className="importFileInput"
             onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
           />
