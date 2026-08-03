@@ -1,21 +1,23 @@
 import React, { useCallback, useState } from "react";
-import type { SavedPixelSprite } from "./spriteTypes";
+import type { SavedCharacter } from "./spriteTypes";
+import { isSpriteSheet } from "./spriteTypes";
 import { createBlankSprite, cloneSprite } from "./spriteConstants";
 import { SpriteBuilder } from "./SpriteBuilder";
 import { SpriteGallery } from "./SpriteGallery";
+import { ImageImportWizard } from "./import/ImageImportWizard";
 import {
-  deleteSprite,
-  duplicateSprite,
+  deleteCharacter,
+  duplicateCharacter,
   loadActiveSpriteId,
-  loadSprites,
-  renameSprite,
+  loadCharacters,
+  renameCharacter,
   saveActiveSpriteId,
-  saveSprites,
+  saveCharacters,
   safeActiveIdAfterDelete,
-  upsertSprite,
+  upsertCharacter,
 } from "./spriteStorage";
 
-type CharactersView = "menu" | "select" | "create" | "edit-list" | "builder";
+type CharactersView = "menu" | "select" | "create" | "import" | "edit-list" | "builder";
 
 type CharactersScreenProps = {
   themeVars: React.CSSProperties;
@@ -25,14 +27,14 @@ type CharactersScreenProps = {
 
 export function CharactersScreen({ themeVars, onBack, onActiveChange }: CharactersScreenProps) {
   const [view, setView] = useState<CharactersView>("menu");
-  const [sprites, setSprites] = useState<SavedPixelSprite[]>(() => loadSprites());
+  const [characters, setCharacters] = useState<SavedCharacter[]>(() => loadCharacters());
   const [activeId, setActiveId] = useState<string | null>(() => loadActiveSpriteId());
-  const [editingSprite, setEditingSprite] = useState<SavedPixelSprite | null>(null);
-  const [isNewSprite, setIsNewSprite] = useState(false);
+  const [editingCharacter, setEditingCharacter] = useState<SavedCharacter | null>(null);
+  const [isNewCharacter, setIsNewCharacter] = useState(false);
 
-  const persistSprites = useCallback((next: SavedPixelSprite[]) => {
-    setSprites(next);
-    saveSprites(next);
+  const persistCharacters = useCallback((next: SavedCharacter[]) => {
+    setCharacters(next);
+    saveCharacters(next);
   }, []);
 
   const setActive = useCallback(
@@ -44,55 +46,64 @@ export function CharactersScreen({ themeVars, onBack, onActiveChange }: Characte
     [onActiveChange]
   );
 
-  const handleSave = (sprite: SavedPixelSprite) => {
-    const next = upsertSprite(sprites, sprite);
-    persistSprites(next);
-    setEditingSprite(null);
-    setIsNewSprite(false);
-    if (view === "create") setView("menu");
+  const handleSave = (character: SavedCharacter) => {
+    const next = upsertCharacter(characters, character);
+    persistCharacters(next);
+    setEditingCharacter(null);
+    setIsNewCharacter(false);
+    if (view === "create" || view === "import") setView("menu");
     else if (view === "builder") setView("edit-list");
   };
 
   const handleCreate = () => {
-    const blank = createBlankSprite();
-    setEditingSprite(blank);
-    setIsNewSprite(true);
+    setEditingCharacter(createBlankSprite());
+    setIsNewCharacter(true);
     setView("builder");
   };
 
-  const handleEdit = (sprite: SavedPixelSprite) => {
-    if (sprite.builtin) {
-      const copy = duplicateSprite(sprite);
-      setEditingSprite(copy);
-      setIsNewSprite(true);
+  const handleEdit = (character: SavedCharacter) => {
+    if (character.builtin) {
+      setEditingCharacter(duplicateCharacter(character));
+      setIsNewCharacter(true);
+    } else if (isSpriteSheet(character)) {
+      setEditingCharacter(structuredClone(character) as SavedCharacter);
+      setIsNewCharacter(false);
     } else {
-      setEditingSprite(cloneSprite(sprite));
-      setIsNewSprite(false);
+      setEditingCharacter(cloneSprite(character));
+      setIsNewCharacter(false);
     }
     setView("builder");
   };
 
-  const handleDuplicate = (sprite: SavedPixelSprite) => {
-    const copy = duplicateSprite(sprite);
-    persistSprites(upsertSprite(sprites, copy));
+  const handleImportComplete = (character: SavedCharacter, selectActive: boolean) => {
+    const next = upsertCharacter(characters, character);
+    persistCharacters(next);
+    if (selectActive) setActive(character.id);
+    setView("menu");
   };
 
-  const handleDelete = (id: string) => {
-    const next = deleteSprite(sprites, id);
-    persistSprites(next);
-    const nextActive = safeActiveIdAfterDelete(activeId, id);
-    if (nextActive !== activeId) setActive(nextActive);
-  };
-
-  const handleRename = (id: string, name: string) => {
-    persistSprites(renameSprite(sprites, id, name));
-  };
-
-  if (view === "builder" && editingSprite) {
+  if (view === "import") {
     return (
       <div className="appRoot" style={themeVars}>
         <div className="topbar">
-          <button type="button" className="btn" onClick={() => setView(isNewSprite ? "create" : "edit-list")}>
+          <button type="button" className="btn" onClick={() => setView("menu")}>
+            ← Characters
+          </button>
+          <div className="spacer" />
+          <span className="topbarTitle">Import Image</span>
+        </div>
+        <div className="screen spriteScreen">
+          <ImageImportWizard onComplete={handleImportComplete} onCancel={() => setView("menu")} />
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "builder" && editingCharacter) {
+    return (
+      <div className="appRoot" style={themeVars}>
+        <div className="topbar">
+          <button type="button" className="btn" onClick={() => setView(isNewCharacter ? "menu" : "edit-list")}>
             ← Characters
           </button>
           <div className="spacer" />
@@ -100,10 +111,10 @@ export function CharactersScreen({ themeVars, onBack, onActiveChange }: Characte
         </div>
         <div className="screen spriteScreen">
           <SpriteBuilder
-            initialSprite={editingSprite}
-            isNew={isNewSprite}
+            initialCharacter={editingCharacter}
+            isNew={isNewCharacter}
             onSave={handleSave}
-            onCancel={() => setView(isNewSprite ? "menu" : "edit-list")}
+            onCancel={() => setView(isNewCharacter ? "menu" : "edit-list")}
           />
         </div>
       </div>
@@ -125,13 +136,16 @@ export function CharactersScreen({ themeVars, onBack, onActiveChange }: Characte
           {view === "menu" ? (
             <>
               <div className="title">Characters</div>
-              <div className="sub">Create pixel characters or choose one to play.</div>
+              <div className="sub">Create, import, or choose a pixel character.</div>
               <div className="charactersMenu">
                 <button type="button" className="btn primary charactersMenuBtn" onClick={() => setView("select")}>
                   Select Character
                 </button>
                 <button type="button" className="btn charactersMenuBtn" onClick={handleCreate}>
                   Create Character
+                </button>
+                <button type="button" className="btn charactersMenuBtn" onClick={() => setView("import")}>
+                  Import Image
                 </button>
                 <button type="button" className="btn charactersMenuBtn" onClick={() => setView("edit-list")}>
                   Edit Saved Character
@@ -144,7 +158,7 @@ export function CharactersScreen({ themeVars, onBack, onActiveChange }: Characte
             <>
               <div className="title">Select Character</div>
               <div className="sub">Choose which character appears on the board.</div>
-              <SpriteGallery sprites={sprites} activeId={activeId} mode="select" onSelect={setActive} />
+              <SpriteGallery characters={characters} activeId={activeId} mode="select" onSelect={setActive} />
               <div className="row">
                 <button type="button" className="btn" onClick={() => setView("menu")}>
                   Back
@@ -158,17 +172,25 @@ export function CharactersScreen({ themeVars, onBack, onActiveChange }: Characte
               <div className="title">Edit Saved Character</div>
               <div className="sub">Edit, rename, duplicate, or delete your characters.</div>
               <SpriteGallery
-                sprites={sprites}
+                characters={characters}
                 activeId={activeId}
                 mode="edit"
                 onEdit={handleEdit}
-                onDuplicate={handleDuplicate}
-                onDelete={handleDelete}
-                onRename={handleRename}
+                onDuplicate={(c) => persistCharacters(upsertCharacter(characters, duplicateCharacter(c)))}
+                onDelete={(id) => {
+                  const next = deleteCharacter(characters, id);
+                  persistCharacters(next);
+                  const nextActive = safeActiveIdAfterDelete(activeId, id);
+                  if (nextActive !== activeId) setActive(nextActive);
+                }}
+                onRename={(id, name) => persistCharacters(renameCharacter(characters, id, name))}
               />
               <div className="row">
                 <button type="button" className="btn primary" onClick={handleCreate}>
                   Create New
+                </button>
+                <button type="button" className="btn" onClick={() => setView("import")}>
+                  Import Image
                 </button>
                 <button type="button" className="btn" onClick={() => setView("menu")}>
                   Back

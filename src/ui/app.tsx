@@ -10,10 +10,10 @@ import type { Screen, WorldEntry } from "./types";
 import { CharactersScreen } from "../features/sprite-builder/CharactersScreen";
 import {
   loadActiveSpriteId,
-  loadSprites,
-  resolveActiveSprite,
+  loadCharacters,
+  resolveActiveCharacter,
 } from "../features/sprite-builder/spriteStorage";
-import type { SavedPixelSprite } from "../features/sprite-builder/spriteTypes";
+import type { SavedCharacter } from "../features/sprite-builder/spriteTypes";
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("start");
@@ -36,11 +36,11 @@ export default function App() {
     return tracks.find((t) => t.id === trackId) ?? null;
   }, [scenarioEntry, trackId]);
 
-  const [sprites, setSprites] = useState<SavedPixelSprite[]>(() => loadSprites());
+  const [characters, setCharacters] = useState<SavedCharacter[]>(() => loadCharacters());
   const [activeSpriteId, setActiveSpriteId] = useState<string | null>(() => loadActiveSpriteId());
-  const customSprite = useMemo(
-    () => resolveActiveSprite(sprites, activeSpriteId),
-    [sprites, activeSpriteId]
+  const customCharacter = useMemo(
+    () => resolveActiveCharacter(characters, activeSpriteId),
+    [characters, activeSpriteId]
   );
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export default function App() {
 
   const handleActiveChange = useCallback((id: string | null) => {
     setActiveSpriteId(id);
-    setSprites(loadSprites());
+    setCharacters(loadCharacters());
   }, []);
 
   const themeVars = useMemo(() => {
@@ -147,7 +147,7 @@ export default function App() {
       scenarioEntry={scenarioEntry}
       trackEntry={trackEntry}
       trackId={trackId}
-      customSprite={customSprite}
+      customCharacter={customCharacter}
       onExit={resetAll}
     />
   );

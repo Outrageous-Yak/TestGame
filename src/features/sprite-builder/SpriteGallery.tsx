@@ -1,15 +1,15 @@
 import React, { useState } from "react";
-import type { SavedPixelSprite } from "./spriteTypes";
-import { BUILTIN_SPRITE_ID } from "./spriteTypes";
+import type { SavedCharacter } from "./spriteTypes";
+import { characterAsSingleFrameSprite, isSpriteSheet } from "./spriteTypes";
 import { SpritePreview } from "./SpritePreview";
 
 type SpriteGalleryProps = {
-  sprites: SavedPixelSprite[];
+  characters: SavedCharacter[];
   activeId: string | null;
   mode: "select" | "edit";
   onSelect?: (id: string | null) => void;
-  onEdit?: (sprite: SavedPixelSprite) => void;
-  onDuplicate?: (sprite: SavedPixelSprite) => void;
+  onEdit?: (character: SavedCharacter) => void;
+  onDuplicate?: (character: SavedCharacter) => void;
   onDelete?: (id: string) => void;
   onRename?: (id: string, name: string) => void;
 };
@@ -17,7 +17,7 @@ type SpriteGalleryProps = {
 const BUILTIN_NAME = "Default Character";
 
 export function SpriteGallery({
-  sprites,
+  characters,
   activeId,
   mode,
   onSelect,
@@ -29,11 +29,11 @@ export function SpriteGallery({
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
-  const userSprites = sprites.filter((s) => !s.builtin);
+  const userCharacters = characters.filter((s) => !s.builtin);
 
-  const startRename = (sprite: SavedPixelSprite) => {
-    setRenamingId(sprite.id);
-    setRenameValue(sprite.name);
+  const startRename = (character: SavedCharacter) => {
+    setRenamingId(character.id);
+    setRenameValue(character.name);
   };
 
   const commitRename = () => {
@@ -63,13 +63,14 @@ export function SpriteGallery({
         </div>
       ) : null}
 
-      {sprites.map((sprite) => {
-        const isActive = activeId === sprite.id;
-        const isRenaming = renamingId === sprite.id;
+      {characters.map((character) => {
+        const isActive = activeId === character.id;
+        const isRenaming = renamingId === character.id;
+        const preview = characterAsSingleFrameSprite(character, 0);
 
         return (
-          <div key={sprite.id} className={"spriteGalleryCard" + (isActive ? " active" : "")}>
-            <SpritePreview sprite={sprite} size={64} />
+          <div key={character.id} className={"spriteGalleryCard" + (isActive ? " active" : "")}>
+            <SpritePreview sprite={preview} size={64} />
             <div className="spriteGalleryInfo">
               {isRenaming ? (
                 <input
@@ -86,9 +87,9 @@ export function SpriteGallery({
                 />
               ) : (
                 <>
-                  <div className="spriteGalleryName">{sprite.name}</div>
+                  <div className="spriteGalleryName">{character.name}</div>
                   <div className="spriteGalleryMeta">
-                    {sprite.builtin ? "Template" : "Custom"}
+                    {character.builtin ? "Template" : isSpriteSheet(character) ? `Sheet · ${character.frames.length} frames` : "Custom"}
                     {isActive ? " · Active" : ""}
                   </div>
                 </>
@@ -100,35 +101,30 @@ export function SpriteGallery({
                 <button
                   type="button"
                   className={"btn" + (isActive ? " primary" : "")}
-                  onClick={() => onSelect?.(sprite.id)}
+                  onClick={() => onSelect?.(character.id)}
                   aria-pressed={isActive}
                 >
                   {isActive ? "Active" : "Use"}
                 </button>
               ) : (
                 <>
-                  <button type="button" className="btn primary" onClick={() => onEdit?.(sprite)}>
+                  <button type="button" className="btn primary" onClick={() => onEdit?.(character)}>
                     Edit
                   </button>
-                  {!sprite.builtin ? (
+                  {!character.builtin ? (
                     <>
-                      <button type="button" className="btn" onClick={() => startRename(sprite)}>
+                      <button type="button" className="btn" onClick={() => startRename(character)}>
                         Rename
                       </button>
-                      <button type="button" className="btn" onClick={() => onDuplicate?.(sprite)}>
+                      <button type="button" className="btn" onClick={() => onDuplicate?.(character)}>
                         Duplicate
                       </button>
-                      <button
-                        type="button"
-                        className="btn danger"
-                        onClick={() => onDelete?.(sprite.id)}
-                        disabled={sprite.builtin}
-                      >
+                      <button type="button" className="btn danger" onClick={() => onDelete?.(character.id)}>
                         Delete
                       </button>
                     </>
                   ) : (
-                    <button type="button" className="btn" onClick={() => onDuplicate?.(sprite)}>
+                    <button type="button" className="btn" onClick={() => onDuplicate?.(character)}>
                       Copy to edit
                     </button>
                   )}
@@ -139,11 +135,11 @@ export function SpriteGallery({
         );
       })}
 
-      {mode === "edit" && userSprites.length === 0 ? (
-        <p className="spriteGalleryEmpty">No custom characters yet. Create one or copy a template.</p>
+      {mode === "edit" && userCharacters.length === 0 ? (
+        <p className="spriteGalleryEmpty">No custom characters yet. Create one, import an image, or copy a template.</p>
       ) : null}
     </div>
   );
 }
 
-export { BUILTIN_SPRITE_ID, BUILTIN_NAME };
+export { BUILTIN_NAME };

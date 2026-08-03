@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: "node",
+    setupFiles: ["src/features/sprite-builder/__tests__/setup.ts"],
     include: ["src/engine/**/*.test.ts", "src/features/sprite-builder/**/*.test.ts"],
   },
 });
