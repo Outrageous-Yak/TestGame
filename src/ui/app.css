@@ -2017,6 +2017,11 @@ body{
   .itemCharges{ font-size: 11px; }
   .btn{ padding: 6px 10px; font-size: 12px; border-radius: 10px; }
 
+  .spriteScreen{
+    height: calc(100dvh - 52px);
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+
   .gameLayout{
     height: calc(100dvh - 52px);
     padding: 8px;
@@ -2149,6 +2154,7 @@ body{
   height: calc(100vh - 64px);
   overflow: auto;
   padding: 14px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .charactersPanel{
@@ -2595,8 +2601,18 @@ body{
 }
 
 /* Import Assistant */
-.importAssistant{ display: grid; gap: 16px; }
-.assistantProgress{ display: flex; gap: 8px; justify-content: center; }
+.importAssistant{
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+.assistantBody{
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.assistantStepPanel{ display: grid; gap: 8px; }
+.assistantProgress{ display: flex; gap: 8px; justify-content: center; flex-shrink: 0; }
 .assistantDot{
   width: 10px; height: 10px; border-radius: 50%;
   background: rgba(255,255,255,.2);
@@ -2622,6 +2638,17 @@ body{
   background: rgba(120,220,255,.14);
 }
 .assistantHint{ font-size: 11px; opacity: .7; }
+
+.importAssistantNav{
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  flex-shrink: 0;
+  margin-top: auto;
+  padding: 10px 0 calc(10px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, rgba(11,15,26,0), rgba(11,15,26,.92) 28%, rgba(11,15,26,.98));
+  border-top: 1px solid rgba(255,255,255,.06);
+}
 
 .importPreviewStage, .importAdjustStage{
   display: grid;

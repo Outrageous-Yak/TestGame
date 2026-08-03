@@ -10,12 +10,14 @@ import type {
 import { DEFAULT_ASSISTANT_CHOICES } from "./importAssistantTypes";
 import { logicalSizeLabel, palettePresetHint } from "./importPresets";
 
+const LAST_STEP = 5;
+
 type ImportAssistantProps = {
   choices: ImportAssistantChoices;
   onChange: (choices: ImportAssistantChoices) => void;
   step: number;
   onStepChange: (step: number) => void;
-  onComplete: () => void;
+  onComplete: (choices: ImportAssistantChoices) => void;
 };
 
 const SUBJECTS: Array<{ id: SubjectType; label: string }> = [
@@ -57,16 +59,29 @@ export function ImportAssistant({ choices, onChange, step, onStepChange, onCompl
     onChange({ ...choices, [key]: value });
   };
 
+  const handleBack = () => {
+    if (step > 1) onStepChange(step - 1);
+  };
+
+  const handleContinue = () => {
+    if (step < LAST_STEP) {
+      onStepChange(step + 1);
+    } else {
+      onComplete(choices);
+    }
+  };
+
   return (
     <div className="importAssistant">
-      <div className="assistantProgress" aria-label={`Assistant step ${step} of 5`}>
-        {[1, 2, 3, 4, 5].map((n) => (
+      <div className="assistantProgress" aria-label={`Assistant step ${step} of ${LAST_STEP}`}>
+        {Array.from({ length: LAST_STEP }, (_, i) => i + 1).map((n) => (
           <span key={n} className={"assistantDot" + (step === n ? " active" : "") + (step > n ? " done" : "")} />
         ))}
       </div>
 
+      <div className="assistantBody">
       {step === 1 ? (
-        <div className="assistantStep">
+        <div className="assistantStepPanel">
           <h3 className="assistantTitle">What are you creating?</h3>
           <div className="assistantGrid">
             {SUBJECTS.map((s) => (
@@ -84,7 +99,7 @@ export function ImportAssistant({ choices, onChange, step, onStepChange, onCompl
       ) : null}
 
       {step === 2 ? (
-        <div className="assistantStep">
+        <div className="assistantStepPanel">
           <h3 className="assistantTitle">What type of sprite?</h3>
           <div className="assistantGrid">
             {FRAMINGS.map((f) => (
@@ -103,7 +118,7 @@ export function ImportAssistant({ choices, onChange, step, onStepChange, onCompl
       ) : null}
 
       {step === 3 ? (
-        <div className="assistantStep">
+        <div className="assistantStepPanel">
           <h3 className="assistantTitle">What size should the original sprite be?</h3>
           <div className="assistantGrid sizeGrid">
             {SIZES.map((sz) => (
@@ -122,7 +137,7 @@ export function ImportAssistant({ choices, onChange, step, onStepChange, onCompl
       ) : null}
 
       {step === 4 ? (
-        <div className="assistantStep">
+        <div className="assistantStepPanel">
           <h3 className="assistantTitle">What pixel style?</h3>
           <div className="assistantGrid">
             {STYLES.map((s) => (
@@ -140,7 +155,7 @@ export function ImportAssistant({ choices, onChange, step, onStepChange, onCompl
       ) : null}
 
       {step === 5 ? (
-        <div className="assistantStep">
+        <div className="assistantStepPanel">
           <h3 className="assistantTitle">Palette preset</h3>
           <div className="assistantGrid sizeGrid">
             {PALETTES.map((p) => (
@@ -157,25 +172,15 @@ export function ImportAssistant({ choices, onChange, step, onStepChange, onCompl
           </div>
         </div>
       ) : null}
+      </div>
 
-      <div className="importNavRow">
-        <button
-          type="button"
-          className="btn"
-          onClick={() => (step > 1 ? onStepChange(step - 1) : undefined)}
-          disabled={step <= 1}
-        >
+      <div className="importNavRow importAssistantNav">
+        <button type="button" className="btn" onClick={handleBack} disabled={step <= 1}>
           Back
         </button>
-        {step < 5 ? (
-          <button type="button" className="btn primary" onClick={() => onStepChange(step + 1)}>
-            Next
-          </button>
-        ) : (
-          <button type="button" className="btn primary" onClick={onComplete}>
-            Continue to Crop
-          </button>
-        )}
+        <button type="button" className="btn primary" onClick={handleContinue}>
+          {step < LAST_STEP ? "Next" : "Continue to Crop"}
+        </button>
       </div>
     </div>
   );

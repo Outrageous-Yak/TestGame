@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { SavedCharacter, SavedPixelSprite } from "../spriteTypes";
 import { characterAsSingleFrameSprite } from "../spriteTypes";
 import { SpriteBuilder } from "../SpriteBuilder";
@@ -129,6 +129,7 @@ export function ImageImportWizard({ onComplete, onCancel }: ImageImportWizardPro
   const [editingCharacter, setEditingCharacter] = useState<SavedCharacter | null>(null);
   const [selectOnSave, setSelectOnSave] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
+  const wizardRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
   const maskDrag = useRef<{ x: number; y: number } | null>(null);
 
@@ -174,20 +175,31 @@ export function ImageImportWizard({ onComplete, onCancel }: ImageImportWizardPro
     if (stageIndex > 0) setStage(STAGE_ORDER[stageIndex - 1]!);
   };
 
-  const applyAssistantPresets = () => {
-    setConversionSettings(buildConversionFromAssistant(assistantChoices));
-    setRenderSettings(buildRenderSettingsFromAssistant(assistantChoices));
+  const applyAssistantPresets = (choices: ImportAssistantChoices) => {
+    setConversionSettings(buildConversionFromAssistant(choices));
+    setRenderSettings(buildRenderSettingsFromAssistant(choices));
     if (sourceCanvas) {
       setCropTransform(
-        applyFramingToCrop(assistantChoices.spriteFraming, sourceCanvas.width, sourceCanvas.height, workspaceSize)
+        applyFramingToCrop(choices.spriteFraming, sourceCanvas.width, sourceCanvas.height, workspaceSize)
       );
     }
   };
 
-  const finishAssistant = () => {
-    applyAssistantPresets();
+  const finishAssistant = (choices: ImportAssistantChoices) => {
+    setAssistantChoices(choices);
+    applyAssistantPresets(choices);
+    setAssistantStep(1);
     setStage("crop");
   };
+
+  useEffect(() => {
+    if (stage !== "crop") return;
+    const scrollParent = wizardRef.current?.closest(".spriteScreen");
+    if (scrollParent instanceof HTMLElement) {
+      scrollParent.scrollTo({ top: 0, behavior: "auto" });
+    }
+    wizardRef.current?.scrollIntoView({ block: "start", behavior: "auto" });
+  }, [stage]);
 
   const goNext = () => {
     if (stage === "crop" && croppedPreview) {
@@ -299,7 +311,7 @@ export function ImageImportWizard({ onComplete, onCancel }: ImageImportWizardPro
   const previewClass = `importPreviewBg ${previewBg}`;
 
   return (
-    <div className="imageImportWizard">
+    <div className="imageImportWizard" ref={wizardRef}>
       <nav className="importStageNav" aria-label="Import progress">
         {STAGE_ORDER.map((s, i) => (
           <button
@@ -342,7 +354,7 @@ export function ImageImportWizard({ onComplete, onCancel }: ImageImportWizardPro
         />
       ) : null}
 
-      {stage === "crop" && croppedPreview ? (
+      {stage === "crop" && sourceCanvas ? (
         <div className="importStage">
           <div className="cropControls">
             <button type="button" className="btn" onClick={() => sourceCanvas && setCropTransform(applyFramingToCrop(assistantChoices.spriteFraming, sourceCanvas.width, sourceCanvas.height, workspaceSize))}>Fit</button>
