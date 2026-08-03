@@ -2141,3 +2141,302 @@ body{
   .hexId{ font-size: calc(var(--hexWMain) * 0.28); }
   .mark{ width: 14px; height: 14px; font-size: 8px; }
 }
+
+/* =========================================================
+   SPRITE BUILDER / CHARACTERS
+========================================================= */
+.spriteScreen{
+  height: calc(100vh - 64px);
+  overflow: auto;
+  padding: 14px;
+}
+
+.charactersPanel{
+  max-height: calc(100vh - 110px);
+  overflow: auto;
+}
+
+.charactersMenu{
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.charactersMenuBtn{
+  width: 100%;
+  padding: 14px 18px;
+  font-size: 15px;
+  text-align: left;
+}
+
+.topbarTitle{
+  font-weight: 600;
+  opacity: .9;
+}
+
+.spriteBuilder{
+  display: grid;
+  gap: 14px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.spriteBuilderHeader{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.spriteNameInput{
+  flex: 1;
+  min-width: 180px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: rgba(0,0,0,.25);
+  color: var(--text);
+  font-size: 16px;
+}
+
+.spriteBuilderHeaderActions{
+  display: flex;
+  gap: 8px;
+}
+
+.spriteToolbar{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.spriteToolGroup{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.spriteToolBtn{
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,.08);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.spriteToolBtn:hover{ background: rgba(255,255,255,.14); }
+.spriteToolBtn.active{
+  background: rgba(120,220,255,.22);
+  border-color: rgba(120,220,255,.45);
+}
+.spriteToolBtn.danger:hover{ background: rgba(255,80,80,.18); }
+.spriteToolBtn:disabled{ opacity: .45; cursor: not-allowed; }
+
+.spriteBuilderMain{
+  display: grid;
+  grid-template-columns: 1fr minmax(140px, 200px);
+  gap: 16px;
+  align-items: start;
+}
+
+.spriteCanvasWrap{
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--stroke);
+  background: rgba(0,0,0,.28);
+  overflow: auto;
+  touch-action: none;
+}
+
+.spriteCanvas{
+  image-rendering: pixelated;
+  cursor: crosshair;
+  touch-action: none;
+  border: 1px solid rgba(255,255,255,.12);
+  max-width: 100%;
+}
+
+.spriteBuilderSide{
+  display: grid;
+  gap: 12px;
+}
+
+.spritePreviewLabel{
+  font-size: 12px;
+  opacity: .7;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.spritePreview{
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: repeating-conic-gradient(#2a2a34 0% 25%, #1a1a22 0% 50%) 50% / 12px 12px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.spritePalette{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+  gap: 6px;
+}
+
+.spriteSwatch{
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.spriteSwatch.active{
+  border-color: rgba(120,220,255,.9);
+  box-shadow: 0 0 0 2px rgba(120,220,255,.25);
+}
+
+.spriteHint{
+  font-size: 12px;
+  opacity: .65;
+  margin: 0;
+}
+
+.spriteGallery{
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+  max-height: 50vh;
+  overflow: auto;
+}
+
+.spriteGalleryCard{
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: rgba(0,0,0,.18);
+}
+
+.spriteGalleryCard.active{
+  border-color: rgba(120,220,255,.45);
+}
+
+.spriteGalleryThumb.builtinThumb{
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  background:
+    url("/TestGame/images/players/sprite_sheet_20.png") 0 0 / 512px 640px no-repeat,
+    repeating-conic-gradient(#2a2a34 0% 25%, #1a1a22 0% 50%) 50% / 12px 12px;
+  image-rendering: pixelated;
+}
+
+.spriteGalleryInfo{ min-width: 0; }
+.spriteGalleryName{ font-weight: 600; }
+.spriteGalleryMeta{ font-size: 12px; opacity: .65; }
+
+.spriteGalleryActions{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.spriteGalleryEmpty{
+  opacity: .7;
+  text-align: center;
+  padding: 20px;
+}
+
+.spriteRenameInput{
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--stroke);
+  background: rgba(0,0,0,.25);
+  color: var(--text);
+}
+
+.spriteModalOverlay{
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,.55);
+  padding: 18px;
+}
+
+.spriteModal{
+  width: min(420px, 92vw);
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid var(--stroke);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.spriteModalTitle{ font-weight: 700; font-size: 18px; margin-bottom: 8px; }
+.spriteModalBody{ opacity: .8; margin: 0 0 14px; }
+.spriteModalActions{ display: flex; flex-wrap: wrap; gap: 8px; }
+
+.playerPixelSprite{
+  position: absolute;
+  left: 50%;
+  top: 86%;
+  width: 64px;
+  height: 64px;
+  --spriteScale: 1.55;
+  --footX: -10px;
+  --footY: 0px;
+  transform:
+    translate(calc(-50% + var(--footX)), calc(-100% + var(--footY)))
+    scale(var(--spriteScale));
+  transform-origin: 50% 100%;
+  z-index: 20;
+  pointer-events: none;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,.45));
+}
+
+.barPlayerMini .miniPixelSprite{
+  width: 22px;
+  height: 22px;
+  image-rendering: pixelated;
+  transform: scale(1.1);
+  transform-origin: center;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,.55));
+}
+
+.btn.danger{
+  border-color: rgba(255,100,100,.35);
+}
+.btn.danger:hover{
+  background: rgba(255,80,80,.16);
+}
+
+@media (max-width: 720px){
+  .spriteBuilderMain{
+    grid-template-columns: 1fr;
+  }
+
+  .spriteGalleryCard{
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .spriteGalleryActions{
+    justify-content: center;
+  }
+}

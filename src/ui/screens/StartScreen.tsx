@@ -4,10 +4,11 @@ type StartScreenProps = {
   themeVars: React.CSSProperties;
   worldsCount: number;
   onStart: () => void;
+  onCharacters: () => void;
   onReset: () => void;
 };
 
-export function StartScreen({ themeVars, worldsCount, onStart, onReset }: StartScreenProps) {
+export function StartScreen({ themeVars, worldsCount, onStart, onCharacters, onReset }: StartScreenProps) {
   return (
     <div className="appRoot" style={themeVars}>
       <div className="screen center">
@@ -18,6 +19,9 @@ export function StartScreen({ themeVars, worldsCount, onStart, onReset }: StartS
           <div className="row">
             <button className="btn primary" onClick={onStart}>
               Start
+            </button>
+            <button className="btn" onClick={onCharacters}>
+              Characters
             </button>
             <button className="btn" onClick={onReset}>
               Reset

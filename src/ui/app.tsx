@@ -7,6 +7,13 @@ import { MenuScreen } from "./screens/MenuScreen";
 import { GameController } from "./game/GameController";
 import { loadWorlds } from "./worldsLoader";
 import type { Screen, WorldEntry } from "./types";
+import { CharactersScreen } from "../features/sprite-builder/CharactersScreen";
+import {
+  loadActiveSpriteId,
+  loadSprites,
+  resolveActiveSprite,
+} from "../features/sprite-builder/spriteStorage";
+import type { SavedPixelSprite } from "../features/sprite-builder/spriteTypes";
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("start");
@@ -29,6 +36,13 @@ export default function App() {
     return tracks.find((t) => t.id === trackId) ?? null;
   }, [scenarioEntry, trackId]);
 
+  const [sprites, setSprites] = useState<SavedPixelSprite[]>(() => loadSprites());
+  const [activeSpriteId, setActiveSpriteId] = useState<string | null>(() => loadActiveSpriteId());
+  const customSprite = useMemo(
+    () => resolveActiveSprite(sprites, activeSpriteId),
+    [sprites, activeSpriteId]
+  );
+
   useEffect(() => {
     setWorlds(loadWorlds());
   }, []);
@@ -38,6 +52,11 @@ export default function App() {
     setScenarioId(null);
     setTrackId(null);
     setScreen("start");
+  }, []);
+
+  const handleActiveChange = useCallback((id: string | null) => {
+    setActiveSpriteId(id);
+    setSprites(loadSprites());
   }, []);
 
   const themeVars = useMemo(() => {
@@ -59,7 +78,18 @@ export default function App() {
         themeVars={themeVars}
         worldsCount={worlds.length}
         onStart={() => setScreen("world")}
+        onCharacters={() => setScreen("characters")}
         onReset={resetAll}
+      />
+    );
+  }
+
+  if (screen === "characters") {
+    return (
+      <CharactersScreen
+        themeVars={themeVars}
+        onBack={() => setScreen("start")}
+        onActiveChange={handleActiveChange}
       />
     );
   }
@@ -117,6 +147,7 @@ export default function App() {
       scenarioEntry={scenarioEntry}
       trackEntry={trackEntry}
       trackId={trackId}
+      customSprite={customSprite}
       onExit={resetAll}
     />
   );
