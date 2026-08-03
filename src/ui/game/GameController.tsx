@@ -21,6 +21,8 @@ import type {
   CardKey,
   CardTrigger,
 } from "../types";
+import { PlayerToken } from "../../features/sprite-builder/PlayerToken";
+import type { SavedPixelSprite } from "../../features/sprite-builder/spriteTypes";
 import {
   scenarioRef,
   ensureScenario,
@@ -45,10 +47,11 @@ export type GameControllerProps = {
   scenarioEntry: ScenarioEntry;
   trackEntry: Track | null;
   trackId: string | null;
+  customSprite?: SavedPixelSprite | null;
   onExit: () => void;
 };
 
-export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: GameControllerProps) {
+export function GameController({ scenarioEntry, trackEntry, trackId, customSprite = null, onExit }: GameControllerProps) {
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
   const pendingEncounterMoveIdRef = useRef<string | null>(null);
@@ -189,19 +192,16 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
 
             {playerLayerBar && playerLayerBar >= 1 && playerLayerBar <= 7 ? (
               <div className="barPlayerMini" style={{ left: markerLeftPct(playerLayerBar) }}>
-                <div
-                  className="miniSprite"
-                  style={
-                    {
-                      ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
-                      ["--frameW" as any]: FRAME_W,
-                      ["--frameH" as any]: FRAME_H,
-                      ["--cols" as any]: SPRITE_COLS,
-                      ["--rows" as any]: SPRITE_ROWS,
-                      ["--frameX" as any]: walkFrame,
-                      ["--frameY" as any]: facingRow(playerFacing),
-                    } as any
-                  }
+                <PlayerToken
+                  variant="mini"
+                  customSprite={customSprite}
+                  walkFrame={walkFrame}
+                  playerFacing={playerFacing}
+                  spriteSheetUrl={spriteSheetUrl()}
+                  frameW={FRAME_W}
+                  frameH={FRAME_H}
+                  cols={SPRITE_COLS}
+                  rows={SPRITE_ROWS}
                 />
               </div>
             ) : null}
@@ -1293,19 +1293,17 @@ export function GameController({ scenarioEntry, trackEntry, trackId, onExit }: G
                             ) : null}
 
                             {isPlayer ? (
-                              <span
-                                className={"playerSpriteSheet " + (isWalking ? "walking" : "")}
-                                style={
-                                  {
-                                    ["--spriteImg" as any]: "url(" + spriteSheetUrl() + ")",
-                                    ["--frameW" as any]: FRAME_W,
-                                    ["--frameH" as any]: FRAME_H,
-                                    ["--cols" as any]: SPRITE_COLS,
-                                    ["--rows" as any]: SPRITE_ROWS,
-                                    ["--frameX" as any]: walkFrame,
-                                    ["--frameY" as any]: facingRow(playerFacing),
-                                  } as any
-                                }
+                              <PlayerToken
+                                variant="board"
+                                customSprite={customSprite}
+                                isWalking={isWalking}
+                                walkFrame={walkFrame}
+                                playerFacing={playerFacing}
+                                spriteSheetUrl={spriteSheetUrl()}
+                                frameW={FRAME_W}
+                                frameH={FRAME_H}
+                                cols={SPRITE_COLS}
+                                rows={SPRITE_ROWS}
                               />
                             ) : null}
                           </div>

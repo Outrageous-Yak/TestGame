@@ -1,4 +1,4 @@
-export type Screen = "start" | "world" | "character" | "scenario" | "game";
+export type Screen = "start" | "world" | "characters" | "scenario" | "game";
 
 export type PlayerChoice =
   | { kind: "preset"; id: string; name: string }
