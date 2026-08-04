@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import type { ScenarioEntry, Track, WorldEntry } from "../types";
+import { getBestScore } from "../bestScore";
+import { loadTrackOptimalMap } from "../trackMenuStats";
 
 type MenuScreenProps = {
   themeVars: React.CSSProperties;
@@ -18,6 +20,11 @@ type MenuScreenProps = {
   onQuickStart: () => void;
 };
 
+function formatScore(n: number | null | undefined): string {
+  if (n == null) return "—";
+  return String(n);
+}
+
 export function MenuScreen({
   themeVars,
   worlds,
@@ -33,10 +40,39 @@ export function MenuScreen({
   onStart,
   onQuickStart,
 }: MenuScreenProps) {
+  const [trackOptimals, setTrackOptimals] = useState<Record<string, number | null>>({});
+  const [optimalsLoading, setOptimalsLoading] = useState(false);
+
+  const tracks = scenarioEntry?.tracks ?? [];
+  const showTrackList = tracks.length > 1;
+
+  useEffect(() => {
+    const list = scenarioEntry?.tracks;
+    if (!list || list.length <= 1) {
+      setTrackOptimals({});
+      setOptimalsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setOptimalsLoading(true);
+    loadTrackOptimalMap(list)
+      .then((map) => {
+        if (!cancelled) setTrackOptimals(map);
+      })
+      .finally(() => {
+        if (!cancelled) setOptimalsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [scenarioEntry?.id]);
+
   return (
     <div className="appRoot" style={themeVars}>
-      <div className="screen center">
-        <div className="panel wide">
+      <div className="screen center menuScreenScroll">
+        <div className="panel wide menuPanelScroll">
           <div className="title">Choose your run</div>
           <div className="sub">Pick a world, then a scenario, then (optionally) a track.</div>
 
@@ -77,19 +113,33 @@ export function MenuScreen({
             </div>
           ) : null}
 
-          {scenarioEntry && scenarioEntry.tracks && scenarioEntry.tracks.length > 1 ? (
+          {showTrackList ? (
             <div className="tracks">
               <div className="tracksTitle">Tracks</div>
-              <div className="tracksRow">
-                {scenarioEntry.tracks.map((t) => {
+              <div className="trackListScroll" role="listbox" aria-label="Tracks">
+                <div className="trackListHeader" aria-hidden="true">
+                  <span className="trackListColName">Track</span>
+                  <span className="trackListColStat">Least</span>
+                  <span className="trackListColStat">Your best</span>
+                </div>
+                {tracks.map((t) => {
                   const active = t.id === trackId;
+                  const optimal = trackOptimals[t.id];
+                  const best = scenarioEntry ? getBestScore(scenarioEntry.id, t.id) : null;
                   return (
                     <button
                       key={t.id}
-                      className={"chip " + (active ? "active" : "")}
+                      type="button"
+                      role="option"
+                      aria-selected={active}
+                      className={"trackListRow " + (active ? "active" : "")}
                       onClick={() => onSelectTrack(t.id)}
                     >
-                      {t.name}
+                      <span className="trackListColName">{t.name}</span>
+                      <span className="trackListColStat trackListColNum">
+                        {optimalsLoading && optimal == null ? "…" : formatScore(optimal)}
+                      </span>
+                      <span className="trackListColStat trackListColNum">{formatScore(best)}</span>
                     </button>
                   );
                 })}
@@ -101,9 +151,7 @@ export function MenuScreen({
             </div>
           ) : scenarioEntry ? (
             <div className="hint" style={{ marginTop: 12 }}>
-              {scenarioEntry.tracks && scenarioEntry.tracks.length === 1
-                ? "Only one track available."
-                : "No tracks for this scenario (it will start normally)."}
+              {tracks.length === 1 ? "Only one track available." : "No tracks for this scenario (it will start normally)."}
             </div>
           ) : null}
 

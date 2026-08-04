@@ -217,6 +217,92 @@ body{
   gap: 10px;
 }
 
+.menuScreenScroll{
+  overflow-y: auto;
+  max-height: 100dvh;
+  padding: 16px 0;
+}
+
+.menuPanelScroll{
+  max-height: none;
+}
+
+.trackListScroll{
+  margin-top: 10px;
+  max-height: min(52vh, 440px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 12px;
+  background: rgba(0,0,0,.18);
+  -webkit-overflow-scrolling: touch;
+}
+
+.trackListHeader{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px 72px;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .35px;
+  color: var(--muted);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.25);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.trackListRow{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px 72px;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 11px 12px;
+  border: 0;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.trackListRow:last-child{
+  border-bottom: 0;
+}
+
+.trackListRow:hover{
+  background: rgba(255,255,255,.06);
+}
+
+.trackListRow.active{
+  background: rgba(120,255,210,.12);
+  box-shadow: inset 0 0 0 1px rgba(120,255,210,.28);
+}
+
+.trackListColName{
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.trackListColStat{
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.trackListColNum{
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  color: var(--text);
+}
+
 .chip{
   padding: 10px 12px;
   border-radius: 999px;
