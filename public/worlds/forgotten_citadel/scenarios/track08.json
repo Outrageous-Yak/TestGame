@@ -1,0 +1,42 @@
+{
+  "id": "fc_t08_gate_order",
+  "name": "Gate Order",
+  "layers": 7,
+  "objective": "Reach the goal hex.",
+  "description": "Rotating tiers realign the gates. Time your crossings through shifting portals.",
+  "notes": [
+    "Layers 2 and 3 shift every turn.",
+    "The western gate and eastern gate trade places."
+  ],
+  "start": { "layer": 1, "row": 3, "col": 3 },
+  "goal": { "layer": 3, "row": 3, "col": 3 },
+  "missing": [
+    { "layer": 2, "row": 3, "col": 0 },
+    { "layer": 2, "row": 3, "col": 5 },
+    { "layer": 3, "row": 3, "col": 0 },
+    { "layer": 3, "row": 3, "col": 5 }
+  ],
+  "blocked": [],
+  "movement": {
+    "1": "NONE",
+    "2": "SEVEN_LEFT_SIX_RIGHT",
+    "3": "SEVEN_LEFT_SIX_RIGHT",
+    "4": "NONE",
+    "5": "NONE",
+    "6": "NONE",
+    "7": "NONE"
+  },
+  "transitions": [
+    {
+      "type": "UP",
+      "from": { "layer": 1, "row": 3, "col": 0 },
+      "to": { "layer": 2, "row": 0, "col": 3 }
+    },
+    {
+      "type": "UP",
+      "from": { "layer": 2, "row": 4, "col": 6 },
+      "to": { "layer": 3, "row": 0, "col": 3 }
+    }
+  ],
+  "revealOnEnterGuaranteedUp": false
+}

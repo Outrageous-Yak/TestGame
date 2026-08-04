@@ -1,0 +1,37 @@
+{
+  "id": "fc_t04_false_summit",
+  "name": "False Summit",
+  "layers": 7,
+  "objective": "Reach the goal hex.",
+  "description": "The eastern lift deposits you far from the true crown. Cross the shifting vault.",
+  "notes": [
+    "The quick ascent is not the finish.",
+    "Layer 3 rotates every turn."
+  ],
+  "start": { "layer": 1, "row": 6, "col": 6 },
+  "goal": { "layer": 3, "row": 0, "col": 0 },
+  "missing": [],
+  "blocked": [],
+  "movement": {
+    "1": "NONE",
+    "2": "SEVEN_LEFT_SIX_RIGHT",
+    "3": "SEVEN_LEFT_SIX_RIGHT",
+    "4": "NONE",
+    "5": "NONE",
+    "6": "NONE",
+    "7": "NONE"
+  },
+  "transitions": [
+    {
+      "type": "UP",
+      "from": { "layer": 1, "row": 0, "col": 6 },
+      "to": { "layer": 2, "row": 6, "col": 6 }
+    },
+    {
+      "type": "UP",
+      "from": { "layer": 2, "row": 0, "col": 6 },
+      "to": { "layer": 3, "row": 6, "col": 6 }
+    }
+  ],
+  "revealOnEnterGuaranteedUp": false
+}

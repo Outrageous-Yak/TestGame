@@ -1,0 +1,32 @@
+{
+  "id": "fc_t01_first_steps",
+  "name": "First Steps",
+  "layers": 7,
+  "objective": "Reach the goal hex.",
+  "description": "Learn the citadel stair: find an UP portal and cross a shifting tier.",
+  "notes": [
+    "The UP portal sits on the east rim of layer 1.",
+    "Layer 2 shifts after every move."
+  ],
+  "start": { "layer": 1, "row": 3, "col": 2 },
+  "goal": { "layer": 2, "row": 2, "col": 4 },
+  "missing": [],
+  "blocked": [],
+  "movement": {
+    "1": "NONE",
+    "2": "SEVEN_LEFT_SIX_RIGHT",
+    "3": "NONE",
+    "4": "NONE",
+    "5": "NONE",
+    "6": "NONE",
+    "7": "NONE"
+  },
+  "transitions": [
+    {
+      "type": "UP",
+      "from": { "layer": 1, "row": 4, "col": 5 },
+      "to": { "layer": 2, "row": 3, "col": 2 }
+    }
+  ],
+  "revealOnEnterGuaranteedUp": false
+}

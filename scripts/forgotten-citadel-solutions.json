@@ -1,0 +1,59 @@
+{
+  "fc_t01_first_steps": {
+    "concept": "Simple introduction — one UP portal, shifting layer 2",
+    "difficulty": 1,
+    "hexIds": [
+      "L1-R3-C3",
+      "L1-R4-C4",
+      "L1-R4-C5",
+      "L2-R3-C2",
+      "L2-R2-C3",
+      "L2-R2-C4"
+    ]
+  },
+  "fc_t02_rift_isles": {
+    "concept": "Missing islands — circumnavigate a central rift on static layer 1",
+    "difficulty": 2,
+    "hexIds": []
+  },
+  "fc_t03_portal_fork": {
+    "concept": "Portal routing — choose the correct ascent side",
+    "difficulty": 3,
+    "hexIds": []
+  },
+  "fc_t04_false_summit": {
+    "concept": "False summit — east ascent then cross shifting tier to true goal",
+    "difficulty": 4,
+    "hexIds": []
+  },
+  "fc_t05_broken_span": {
+    "concept": "Broken bridge — missing mid-row forces rim detour before climb",
+    "difficulty": 4,
+    "hexIds": []
+  },
+  "fc_t06_return_valve": {
+    "concept": "Repeated portal use — DOWN return then second ascent",
+    "difficulty": 5,
+    "hexIds": []
+  },
+  "fc_t07_helix_coil": {
+    "concept": "Spiral routing — staggered corner portals across tiers",
+    "difficulty": 5,
+    "hexIds": []
+  },
+  "fc_t08_gate_order": {
+    "concept": "Portal order — shifting layers align gates over multiple turns",
+    "difficulty": 6,
+    "hexIds": []
+  },
+  "fc_t09_twin_relics": {
+    "concept": "Parallel objectives — cards mark two routes; villains patrol rim",
+    "difficulty": 7,
+    "hexIds": []
+  },
+  "fc_t10_citadel_engine": {
+    "concept": "Machine systems — multi-layer shifts with full east-chain ascent",
+    "difficulty": 8,
+    "hexIds": []
+  }
+}

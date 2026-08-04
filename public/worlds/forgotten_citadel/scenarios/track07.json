@@ -1,0 +1,42 @@
+{
+  "id": "fc_t07_helix_coil",
+  "name": "Helix Coil",
+  "layers": 7,
+  "objective": "Reach the goal hex.",
+  "description": "Corner lifts wind upward in a spiral. Follow the coil to the inner sanctum.",
+  "notes": [
+    "Each tier's portal sits on an alternating corner.",
+    "Layers 2 and 3 shift together."
+  ],
+  "start": { "layer": 1, "row": 6, "col": 0 },
+  "goal": { "layer": 4, "row": 0, "col": 0 },
+  "missing": [],
+  "blocked": [],
+  "movement": {
+    "1": "NONE",
+    "2": "SEVEN_LEFT_SIX_RIGHT",
+    "3": "SEVEN_LEFT_SIX_RIGHT",
+    "4": "NONE",
+    "5": "NONE",
+    "6": "NONE",
+    "7": "NONE"
+  },
+  "transitions": [
+    {
+      "type": "UP",
+      "from": { "layer": 1, "row": 0, "col": 6 },
+      "to": { "layer": 2, "row": 6, "col": 6 }
+    },
+    {
+      "type": "UP",
+      "from": { "layer": 2, "row": 0, "col": 0 },
+      "to": { "layer": 3, "row": 6, "col": 0 }
+    },
+    {
+      "type": "UP",
+      "from": { "layer": 3, "row": 0, "col": 6 },
+      "to": { "layer": 4, "row": 6, "col": 6 }
+    }
+  ],
+  "revealOnEnterGuaranteedUp": false
+}

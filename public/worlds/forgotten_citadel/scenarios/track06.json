@@ -1,0 +1,42 @@
+{
+  "id": "fc_t06_return_valve",
+  "name": "Return Valve",
+  "layers": 7,
+  "objective": "Reach the goal hex.",
+  "description": "Ascend, drop through a DOWN portal, traverse the undercroft, and rise again.",
+  "notes": [
+    "The first stair is not the last.",
+    "Use the DOWN portal to reach the western gate."
+  ],
+  "start": { "layer": 1, "row": 6, "col": 6 },
+  "goal": { "layer": 2, "row": 0, "col": 1 },
+  "missing": [],
+  "blocked": [],
+  "movement": {
+    "1": "NONE",
+    "2": "SEVEN_LEFT_SIX_RIGHT",
+    "3": "NONE",
+    "4": "NONE",
+    "5": "NONE",
+    "6": "NONE",
+    "7": "NONE"
+  },
+  "transitions": [
+    {
+      "type": "UP",
+      "from": { "layer": 1, "row": 0, "col": 6 },
+      "to": { "layer": 2, "row": 6, "col": 6 }
+    },
+    {
+      "type": "DOWN",
+      "from": { "layer": 2, "row": 4, "col": 1 },
+      "to": { "layer": 1, "row": 2, "col": 0 }
+    },
+    {
+      "type": "UP",
+      "from": { "layer": 1, "row": 0, "col": 0 },
+      "to": { "layer": 2, "row": 0, "col": 0 }
+    }
+  ],
+  "revealOnEnterGuaranteedUp": false
+}

@@ -1,0 +1,43 @@
+{
+  "id": "fc_t03_portal_fork",
+  "name": "Portal Fork",
+  "layers": 7,
+  "objective": "Reach the goal hex.",
+  "description": "Two stairwells rise from the rift. Only one grants a clean crossing.",
+  "notes": [
+    "Study both UP portals before committing.",
+    "The shifting tier hides a broken midline."
+  ],
+  "start": { "layer": 1, "row": 3, "col": 1 },
+  "goal": { "layer": 2, "row": 2, "col": 4 },
+  "missing": [
+    { "layer": 1, "row": 3, "col": 3 },
+    { "layer": 1, "row": 3, "col": 4 },
+    { "layer": 1, "row": 3, "col": 5 },
+    { "layer": 2, "row": 3, "col": 2 },
+    { "layer": 2, "row": 3, "col": 3 }
+  ],
+  "blocked": [],
+  "movement": {
+    "1": "NONE",
+    "2": "SEVEN_LEFT_SIX_RIGHT",
+    "3": "NONE",
+    "4": "NONE",
+    "5": "NONE",
+    "6": "NONE",
+    "7": "NONE"
+  },
+  "transitions": [
+    {
+      "type": "UP",
+      "from": { "layer": 1, "row": 3, "col": 0 },
+      "to": { "layer": 2, "row": 0, "col": 2 }
+    },
+    {
+      "type": "UP",
+      "from": { "layer": 1, "row": 2, "col": 6 },
+      "to": { "layer": 2, "row": 6, "col": 3 }
+    }
+  ],
+  "revealOnEnterGuaranteedUp": false
+}

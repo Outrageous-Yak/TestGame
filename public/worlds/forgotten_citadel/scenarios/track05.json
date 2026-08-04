@@ -1,0 +1,38 @@
+{
+  "id": "fc_t05_broken_span",
+  "name": "Broken Span",
+  "layers": 7,
+  "objective": "Reach the goal hex.",
+  "description": "The bridge collapsed. Detour along the rim, then climb before the tier turns.",
+  "notes": [
+    "Only the rim columns remain on row 3.",
+    "Layer 2 shifts after each move."
+  ],
+  "start": { "layer": 1, "row": 6, "col": 0 },
+  "goal": { "layer": 2, "row": 1, "col": 2 },
+  "missing": [
+    { "layer": 1, "row": 3, "col": 1 },
+    { "layer": 1, "row": 3, "col": 2 },
+    { "layer": 1, "row": 3, "col": 3 },
+    { "layer": 1, "row": 3, "col": 4 },
+    { "layer": 1, "row": 3, "col": 5 }
+  ],
+  "blocked": [],
+  "movement": {
+    "1": "NONE",
+    "2": "SEVEN_LEFT_SIX_RIGHT",
+    "3": "NONE",
+    "4": "NONE",
+    "5": "NONE",
+    "6": "NONE",
+    "7": "NONE"
+  },
+  "transitions": [
+    {
+      "type": "UP",
+      "from": { "layer": 1, "row": 0, "col": 6 },
+      "to": { "layer": 2, "row": 6, "col": 0 }
+    }
+  ],
+  "revealOnEnterGuaranteedUp": false
+}
