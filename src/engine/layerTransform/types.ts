@@ -52,7 +52,7 @@ export interface ScenarioDocument extends Record<string, unknown> {
 }
 
 export const DEFAULT_VARIATION_RULES: TrackVariationRules = {
-  enabled: true,
+  enabled: false,
   allowedTransforms: ["identity", "reflect-horizontal", "symmetry-b", "symmetry-c"],
   independentPerLayer: true,
   avoidPreviousCombination: true,

@@ -96,5 +96,8 @@
       "to": { "layer": 3, "row": 6, "col": 3 }
     }
   ],
-  "revealOnEnterGuaranteedUp": false
+  "revealOnEnterGuaranteedUp": false,
+  "variationRules": {
+    "enabled": true
+  }
 }

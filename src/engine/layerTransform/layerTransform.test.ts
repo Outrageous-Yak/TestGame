@@ -67,6 +67,7 @@ function testScenario(): Scenario {
       { type: "DOWN", from: { layer: 5, row: 1, col: 4 }, to: { layer: 4, row: 1, col: 4 } },
     ],
     revealOnEnterGuaranteedUp: false,
+    variationRules: { enabled: true },
   };
 }
 
@@ -74,6 +75,7 @@ function authoredDocument(): ScenarioDocument {
   return {
     ...testScenario(),
     cardTriggers: [{ card: "risk", layer: 1, row: 2, col: 2 }],
+    variationRules: { enabled: true },
   };
 }
 
@@ -396,6 +398,55 @@ describe("layer transforms", () => {
       mode: "fixed",
     });
     expect(Object.values(selection.layerTransforms).every((id) => id === "identity")).toBe(true);
+  });
+
+  it("disables transforms by default for non-opt-in scenarios", () => {
+    const rainbow = JSON.parse(
+      readFileSync(
+        join(process.cwd(), "public/worlds/rainbow_realm/scenarios/prism_path/scenario.json"),
+        "utf8"
+      )
+    ) as ScenarioDocument;
+
+    const { selection } = buildRuntimeScenario(rainbow, {
+      trackId: "prism_path_t1",
+      mode: "new-on-replay",
+      seed: "rainbow-test",
+    });
+
+    expect(Object.values(selection.layerTransforms).every((id) => id === "identity")).toBe(true);
+  });
+
+  it("enables transforms for forgotten citadel tracks that opt in", () => {
+    const authored = JSON.parse(
+      readFileSync(
+        join(process.cwd(), "public/worlds/forgotten_citadel/scenarios/track01.json"),
+        "utf8"
+      )
+    ) as ScenarioDocument;
+
+    expect(authored.variationRules?.enabled).toBe(true);
+
+    const { scenario, selection } = buildRuntimeScenario(authored, {
+      trackId: "fc_t01",
+      mode: "seeded",
+      seed: "fc-opt-in-test",
+      forcedSelection: {
+        seed: "fc-opt-in-test",
+        layerTransforms: {
+          1: "reflect-horizontal",
+          2: "identity",
+          3: "identity",
+          4: "identity",
+          5: "identity",
+          6: "identity",
+          7: "identity",
+        },
+      },
+    });
+
+    expect(selection.layerTransforms[1]).toBe("reflect-horizontal");
+    expect(scenario.start).toEqual({ layer: 1, row: 3, col: 4 });
   });
 
   it("loads forgotten citadel track01 across all three-layer combinations", () => {

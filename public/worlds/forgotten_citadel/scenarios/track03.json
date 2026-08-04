@@ -47,5 +47,8 @@
       "to": { "layer": 2, "row": 6, "col": 4 }
     }
   ],
-  "revealOnEnterGuaranteedUp": false
+  "revealOnEnterGuaranteedUp": false,
+  "variationRules": {
+    "enabled": true
+  }
 }
