@@ -3,24 +3,29 @@
   "name": "Gate Order",
   "layers": 7,
   "objective": "Reach the goal hex.",
-  "description": "Rotating tiers realign the gates. Time your crossings through shifting portals.",
+  "description": "The gate rides a shifting tier. Several timings reach the goal in the same number of moves.",
   "notes": [
-    "Layers 2 and 3 shift every turn.",
-    "The western gate and eastern gate trade places."
+    "Layer 2 rotates every turn.",
+    "Watch the gate alignment before you step on the portal."
   ],
-  "start": { "layer": 1, "row": 3, "col": 3 },
-  "goal": { "layer": 3, "row": 3, "col": 3 },
+  "start": { "layer": 1, "row": 3, "col": 2 },
+  "goal": { "layer": 2, "row": 4, "col": 3 },
   "missing": [
+    { "layer": 1, "row": 3, "col": 5 },
     { "layer": 2, "row": 3, "col": 0 },
     { "layer": 2, "row": 3, "col": 5 },
-    { "layer": 3, "row": 3, "col": 0 },
-    { "layer": 3, "row": 3, "col": 5 }
+    { "layer": 2, "row": 2, "col": 1 },
+    { "layer": 2, "row": 2, "col": 2 },
+    { "layer": 2, "row": 2, "col": 4 },
+    { "layer": 2, "row": 2, "col": 5 },
+    { "layer": 2, "row": 4, "col": 1 },
+    { "layer": 2, "row": 4, "col": 5 }
   ],
   "blocked": [],
   "movement": {
     "1": "NONE",
     "2": "SEVEN_LEFT_SIX_RIGHT",
-    "3": "SEVEN_LEFT_SIX_RIGHT",
+    "3": "NONE",
     "4": "NONE",
     "5": "NONE",
     "6": "NONE",
@@ -31,11 +36,6 @@
       "type": "UP",
       "from": { "layer": 1, "row": 3, "col": 0 },
       "to": { "layer": 2, "row": 0, "col": 3 }
-    },
-    {
-      "type": "UP",
-      "from": { "layer": 2, "row": 4, "col": 6 },
-      "to": { "layer": 3, "row": 0, "col": 3 }
     }
   ],
   "revealOnEnterGuaranteedUp": false

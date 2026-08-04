@@ -3,24 +3,32 @@
   "name": "Portal Fork",
   "layers": 7,
   "objective": "Reach the goal hex.",
-  "description": "Two stairwells rise from the rift. Only one grants a clean crossing.",
+  "description": "Two stairwells rise from the hall. The east stair is longer but still viable.",
   "notes": [
-    "Study both UP portals before committing.",
-    "The shifting tier hides a broken midline."
+    "West and east portals land on different L2 zones.",
+    "The west gallery is the shorter route."
   ],
-  "start": { "layer": 1, "row": 3, "col": 1 },
+  "start": { "layer": 1, "row": 6, "col": 6 },
   "goal": { "layer": 2, "row": 2, "col": 4 },
   "missing": [
+    { "layer": 1, "row": 3, "col": 2 },
     { "layer": 1, "row": 3, "col": 3 },
     { "layer": 1, "row": 3, "col": 4 },
-    { "layer": 1, "row": 3, "col": 5 },
-    { "layer": 2, "row": 3, "col": 2 },
-    { "layer": 2, "row": 3, "col": 3 }
+    { "layer": 2, "row": 4, "col": 1 },
+    { "layer": 2, "row": 4, "col": 2 },
+    { "layer": 2, "row": 4, "col": 3 },
+    { "layer": 2, "row": 5, "col": 1 },
+    { "layer": 2, "row": 5, "col": 2 },
+    { "layer": 2, "row": 5, "col": 3 },
+    { "layer": 2, "row": 5, "col": 4 },
+    { "layer": 2, "row": 6, "col": 1 },
+    { "layer": 2, "row": 6, "col": 2 },
+    { "layer": 2, "row": 6, "col": 3 }
   ],
   "blocked": [],
   "movement": {
     "1": "NONE",
-    "2": "SEVEN_LEFT_SIX_RIGHT",
+    "2": "NONE",
     "3": "NONE",
     "4": "NONE",
     "5": "NONE",
@@ -30,13 +38,13 @@
   "transitions": [
     {
       "type": "UP",
-      "from": { "layer": 1, "row": 3, "col": 0 },
+      "from": { "layer": 1, "row": 6, "col": 0 },
       "to": { "layer": 2, "row": 0, "col": 2 }
     },
     {
       "type": "UP",
-      "from": { "layer": 1, "row": 2, "col": 6 },
-      "to": { "layer": 2, "row": 6, "col": 3 }
+      "from": { "layer": 1, "row": 0, "col": 6 },
+      "to": { "layer": 2, "row": 6, "col": 4 }
     }
   ],
   "revealOnEnterGuaranteedUp": false

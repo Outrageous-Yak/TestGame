@@ -10,21 +10,8 @@ Phase 2 engineering audit for PR #33. This document answers whether Forgotten Ci
 NOT READY
 ```
 
-### Remaining issues (must resolve before merge)
+- fc_t06_return_valve: optimal path bypasses DOWN valve
 
-1. **Elegance / multiple optimal solutions** — Shift-aware BFS finds many equally-short routes on most tracks (often 20–1000). Design target was a single elegant solution; current boards allow numerous optimal paths. Tracks affected: fc_t01, fc_t04–fc_t10 (see PRODUCTION_AUDIT.md).
-2. **Validator gaps** — `trackValidator.ts` does not detect soft locks, dead-end gameplay, blocked waste-turn branches, or portal loops (see §1). Production gate relies on `trackAnalysis.ts` for replay and originality.
-3. **Gameplay audit** — Several tracks score high on movement length vs mechanic depth (especially fc_t10 at 30 moves). Portal-heavy rim ascents were redesigned but central-column t10 still has long optimal paths.
-4. **Manual playthrough** — No human QA pass recorded in CI.
-
-### What passed
-
-- All 10 tracks solvable with deterministic replay
-- Geometry/portal/route originality gate ≤35% vs Prism Path (after redesign)
-- No engine code changes
-- 149 automated tests pass
-
----
 
 ## 1. Validator Audit (`trackValidator.ts`)
 

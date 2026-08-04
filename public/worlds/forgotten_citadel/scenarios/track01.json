@@ -3,14 +3,20 @@
   "name": "First Steps",
   "layers": 7,
   "objective": "Reach the goal hex.",
-  "description": "Learn the citadel stair: find an UP portal and cross a shifting tier.",
+  "description": "Learn the citadel stair: find the UP portal and cross a shifting tier.",
   "notes": [
-    "The UP portal sits on the south rim of layer 1.",
+    "Several rim paths reach the same stair.",
     "Layer 2 shifts after every move."
   ],
-  "start": { "layer": 1, "row": 2, "col": 2 },
-  "goal": { "layer": 2, "row": 4, "col": 4 },
-  "missing": [],
+  "start": { "layer": 1, "row": 3, "col": 1 },
+  "goal": { "layer": 2, "row": 2, "col": 4 },
+  "missing": [
+    { "layer": 1, "row": 3, "col": 2 },
+    { "layer": 1, "row": 3, "col": 3 },
+    { "layer": 1, "row": 3, "col": 4 },
+    { "layer": 1, "row": 4, "col": 2 },
+    { "layer": 1, "row": 5, "col": 2 }
+  ],
   "blocked": [],
   "movement": {
     "1": "NONE",
@@ -24,8 +30,8 @@
   "transitions": [
     {
       "type": "UP",
-      "from": { "layer": 1, "row": 5, "col": 5 },
-      "to": { "layer": 2, "row": 4, "col": 2 }
+      "from": { "layer": 1, "row": 4, "col": 5 },
+      "to": { "layer": 2, "row": 3, "col": 2 }
     }
   ],
   "revealOnEnterGuaranteedUp": false

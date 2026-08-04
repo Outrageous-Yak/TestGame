@@ -3,7 +3,7 @@
   "name": "Rift Isles",
   "layers": 7,
   "objective": "Reach the goal hex.",
-  "description": "A central rift splits the floor. Navigate the rim between floating isles.",
+  "description": "A central rift splits the floor. Navigate the rim between isles.",
   "notes": [
     "Layer 1 is static — plan your rim route.",
     "The middle row cannot be crossed directly."
