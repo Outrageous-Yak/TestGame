@@ -1,17 +1,19 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import {
-  loadSprites,
-  saveSprites,
+  loadCharacters,
+  saveCharacters,
   loadActiveSpriteId,
   saveActiveSpriteId,
-  upsertSprite,
-  deleteSprite,
-  duplicateSprite,
-  renameSprite,
-  resolveActiveSprite,
+  upsertCharacter,
+  deleteCharacter,
+  duplicateCharacter,
+  renameCharacter,
+  resolveActiveCharacter,
   safeActiveIdAfterDelete,
 } from "../spriteStorage";
 import { createBlankSprite } from "../spriteConstants";
+import { createSheetFromConversion } from "../spriteValidation";
+import { isSpriteSheet } from "../spriteTypes";
 
 const store: Record<string, string> = {};
 
@@ -30,45 +32,39 @@ beforeEach(() => {
 
 describe("spriteStorage", () => {
   it("seeds starter templates on first load", () => {
-    const sprites = loadSprites();
-    expect(sprites.length).toBeGreaterThanOrEqual(2);
-    expect(sprites.some((s) => s.id === "template-blue-elf")).toBe(true);
+    const chars = loadCharacters();
+    expect(chars.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("persists and reloads sprites", () => {
-    const custom = createBlankSprite("Hero");
-    saveSprites([custom]);
-    const loaded = loadSprites();
-    expect(loaded.some((s) => s.name === "Hero")).toBe(true);
+  it("persists v1 and v2 characters", () => {
+    const v1 = createBlankSprite("Hero");
+    const v2 = createSheetFromConversion("Walk", v1.palette, v1.pixels, "walk");
+    saveCharacters([v1, v2]);
+    const loaded = loadCharacters();
+    expect(loaded.some((c) => c.name === "Hero")).toBe(true);
+    expect(loaded.some((c) => isSpriteSheet(c) && c.name === "Walk")).toBe(true);
   });
 
-  it("upsertSprite updates existing entry", () => {
+  it("upsertCharacter updates existing entry", () => {
     const s = createBlankSprite("A");
-    const list = upsertSprite([], s);
+    const list = upsertCharacter([], s);
     const updated = { ...s, name: "B" };
-    const next = upsertSprite(list, updated);
+    const next = upsertCharacter(list, updated);
     expect(next.find((x) => x.id === s.id)?.name).toBe("B");
   });
 
-  it("deleteSprite refuses builtin sprites", () => {
-    const sprites = loadSprites();
-    const builtin = sprites.find((s) => s.builtin)!;
-    const next = deleteSprite(sprites, builtin.id);
-    expect(next.length).toBe(sprites.length);
+  it("deleteCharacter refuses builtin", () => {
+    const chars = loadCharacters();
+    const builtin = chars.find((s) => s.builtin)!;
+    expect(deleteCharacter(chars, builtin.id).length).toBe(chars.length);
   });
 
-  it("duplicateSprite creates editable copy", () => {
-    const sprites = loadSprites();
-    const builtin = sprites.find((s) => s.builtin)!;
-    const copy = duplicateSprite(builtin);
-    expect(copy.builtin).toBe(false);
-    expect(copy.id).not.toBe(builtin.id);
-  });
-
-  it("renameSprite changes name", () => {
-    const s = createBlankSprite("Old");
-    const next = renameSprite([s], s.id, "New");
-    expect(next[0].name).toBe("New");
+  it("duplicateCharacter copies sheets", () => {
+    const v1 = createBlankSprite();
+    const sheet = createSheetFromConversion("S", v1.palette, v1.pixels, "idle");
+    const copy = duplicateCharacter(sheet);
+    expect(isSpriteSheet(copy)).toBe(true);
+    expect(copy.id).not.toBe(sheet.id);
   });
 
   it("active sprite id round-trips", () => {
@@ -79,12 +75,18 @@ describe("spriteStorage", () => {
     expect(loadActiveSpriteId()).toBeNull();
   });
 
-  it("resolveActiveSprite returns null for missing id", () => {
-    expect(resolveActiveSprite([], "missing")).toBeNull();
+  it("resolveActiveCharacter returns null for missing id", () => {
+    expect(resolveActiveCharacter([], "missing")).toBeNull();
   });
 
   it("safeActiveIdAfterDelete clears deleted active", () => {
     expect(safeActiveIdAfterDelete("a", "a")).toBeNull();
     expect(safeActiveIdAfterDelete("b", "a")).toBe("b");
+  });
+
+  it("renameCharacter changes name", () => {
+    const s = createBlankSprite("Old");
+    const next = renameCharacter([s], s.id, "New");
+    expect(next[0].name).toBe("New");
   });
 });

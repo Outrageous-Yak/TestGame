@@ -22,7 +22,7 @@ import type {
   CardTrigger,
 } from "../types";
 import { PlayerToken } from "../../features/sprite-builder/PlayerToken";
-import type { SavedPixelSprite } from "../../features/sprite-builder/spriteTypes";
+import type { SavedCharacter } from "../../features/sprite-builder/spriteTypes";
 import {
   scenarioRef,
   ensureScenario,
@@ -47,11 +47,11 @@ export type GameControllerProps = {
   scenarioEntry: ScenarioEntry;
   trackEntry: Track | null;
   trackId: string | null;
-  customSprite?: SavedPixelSprite | null;
+  customCharacter?: SavedCharacter | null;
   onExit: () => void;
 };
 
-export function GameController({ scenarioEntry, trackEntry, trackId, customSprite = null, onExit }: GameControllerProps) {
+export function GameController({ scenarioEntry, trackEntry, trackId, customCharacter = null, onExit }: GameControllerProps) {
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
   const pendingEncounterMoveIdRef = useRef<string | null>(null);
@@ -194,7 +194,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
               <div className="barPlayerMini" style={{ left: markerLeftPct(playerLayerBar) }}>
                 <PlayerToken
                   variant="mini"
-                  customSprite={customSprite}
+                  customCharacter={customCharacter}
                   walkFrame={walkFrame}
                   playerFacing={playerFacing}
                   spriteSheetUrl={spriteSheetUrl()}
@@ -1295,7 +1295,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
                             {isPlayer ? (
                               <PlayerToken
                                 variant="board"
-                                customSprite={customSprite}
+                                customCharacter={customCharacter}
                                 isWalking={isWalking}
                                 walkFrame={walkFrame}
                                 playerFacing={playerFacing}

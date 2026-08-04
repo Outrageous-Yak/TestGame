@@ -1,7 +1,8 @@
-import type { SavedPixelSprite } from "./spriteTypes";
+import type { SavedCharacter, SavedPixelSprite, SavedPixelSpriteSheet } from "./spriteTypes";
+import { isSpriteSheet } from "./spriteTypes";
 import { BUILTIN_SPRITE_ID } from "./spriteTypes";
 import { STARTER_TEMPLATES } from "./spriteConstants";
-import { validateSpriteArray } from "./spriteValidation";
+import { validateCharacterArray } from "./spriteValidation";
 
 const SPRITES_KEY = "hexgame-pixelSprites:v1";
 const ACTIVE_KEY = "hexgame-activePixelSpriteId:v1";
@@ -25,29 +26,51 @@ function writeJson(key: string, value: unknown): boolean {
   }
 }
 
-function ensureStarterTemplates(sprites: SavedPixelSprite[]): SavedPixelSprite[] {
-  const byId = new Map(sprites.map((s) => [s.id, s]));
+function cloneCharacter(char: SavedCharacter): SavedCharacter {
+  if (isSpriteSheet(char)) {
+    return {
+      ...char,
+      palette: char.palette.map((c) => ({ ...c })),
+      frames: char.frames.map((f) => [...f]),
+      animation: char.animation?.map((a) => ({ ...a, frameIndices: [...a.frameIndices] })),
+    };
+  }
+  return {
+    ...char,
+    palette: char.palette.map((c) => ({ ...c })),
+    pixels: [...char.pixels],
+  };
+}
+
+function ensureStarterTemplates(chars: SavedCharacter[]): SavedCharacter[] {
+  const byId = new Map(chars.map((s) => [s.id, s]));
   for (const t of STARTER_TEMPLATES) {
     if (!byId.has(t.id)) {
-      byId.set(t.id, { ...t, palette: t.palette.map((c) => ({ ...c })), pixels: [...t.pixels] });
+      byId.set(t.id, cloneCharacter(t));
     }
   }
   return [...byId.values()];
 }
 
-export function loadSprites(): SavedPixelSprite[] {
+export function loadCharacters(): SavedCharacter[] {
   const raw = readJson(SPRITES_KEY);
-  const validated = validateSpriteArray(raw);
+  const validated = validateCharacterArray(raw);
   return ensureStarterTemplates(validated);
 }
 
-export function saveSprites(sprites: SavedPixelSprite[]): boolean {
-  const serializable = sprites.map((s) => ({
-    ...s,
-    palette: s.palette.map((c) => ({ ...c })),
-    pixels: [...s.pixels],
-  }));
+/** @deprecated Use loadCharacters */
+export function loadSprites(): SavedPixelSprite[] {
+  return loadCharacters().filter((c): c is SavedPixelSprite => !isSpriteSheet(c));
+}
+
+export function saveCharacters(characters: SavedCharacter[]): boolean {
+  const serializable = characters.map(cloneCharacter);
   return writeJson(SPRITES_KEY, serializable);
+}
+
+/** @deprecated Use saveCharacters */
+export function saveSprites(sprites: SavedPixelSprite[]): boolean {
+  return saveCharacters(sprites);
 }
 
 export function loadActiveSpriteId(): string | null {
@@ -74,61 +97,139 @@ export function saveActiveSpriteId(id: string | null): boolean {
   }
 }
 
-export function getSpriteById(sprites: SavedPixelSprite[], id: string): SavedPixelSprite | null {
-  return sprites.find((s) => s.id === id) ?? null;
+export function getCharacterById(characters: SavedCharacter[], id: string): SavedCharacter | null {
+  return characters.find((s) => s.id === id) ?? null;
 }
 
-export function upsertSprite(sprites: SavedPixelSprite[], sprite: SavedPixelSprite): SavedPixelSprite[] {
-  const copy = {
-    ...sprite,
-    palette: sprite.palette.map((c) => ({ ...c })),
-    pixels: [...sprite.pixels],
-  };
-  const idx = sprites.findIndex((s) => s.id === copy.id);
+/** @deprecated Use getCharacterById */
+export function getSpriteById(sprites: SavedCharacter[], id: string): SavedPixelSprite | null {
+  const found = getCharacterById(sprites, id);
+  if (!found || isSpriteSheet(found)) return null;
+  return found;
+}
+
+export function upsertCharacter(characters: SavedCharacter[], character: SavedCharacter): SavedCharacter[] {
+  const copy = cloneCharacter(character);
+  const idx = characters.findIndex((s) => s.id === copy.id);
   if (idx >= 0) {
-    const next = [...sprites];
+    const next = [...characters];
     next[idx] = copy;
     return next;
   }
-  return [...sprites, copy];
+  return [...characters, copy];
 }
 
-export function deleteSprite(sprites: SavedPixelSprite[], id: string): SavedPixelSprite[] {
-  const target = sprites.find((s) => s.id === id);
-  if (!target || target.builtin) return sprites;
-  return sprites.filter((s) => s.id !== id);
+/** @deprecated Use upsertCharacter */
+export function upsertSprite(sprites: SavedCharacter[], sprite: SavedPixelSprite): SavedCharacter[] {
+  return upsertCharacter(sprites, sprite);
 }
 
-export function duplicateSprite(sprite: SavedPixelSprite, name?: string): SavedPixelSprite {
+export function deleteCharacter(characters: SavedCharacter[], id: string): SavedCharacter[] {
+  const target = characters.find((s) => s.id === id);
+  if (!target || target.builtin) return characters;
+  return characters.filter((s) => s.id !== id);
+}
+
+/** @deprecated Use deleteCharacter */
+export function deleteSprite(sprites: SavedCharacter[], id: string): SavedCharacter[] {
+  return deleteCharacter(sprites, id);
+}
+
+export function duplicateCharacter(character: SavedCharacter, name?: string): SavedCharacter {
   const now = Date.now();
+  const base = cloneCharacter(character);
+  if (isSpriteSheet(base)) {
+    return {
+      ...base,
+      id: `sheet-${now}-${Math.random().toString(36).slice(2, 9)}`,
+      name: name ?? `${base.name} Copy`,
+      builtin: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
   return {
-    ...sprite,
+    ...base,
     id: `sprite-${now}-${Math.random().toString(36).slice(2, 9)}`,
-    name: name ?? `${sprite.name} Copy`,
-    palette: sprite.palette.map((c) => ({ ...c })),
-    pixels: [...sprite.pixels],
+    name: name ?? `${base.name} Copy`,
     builtin: false,
     createdAt: now,
     updatedAt: now,
   };
 }
 
-export function renameSprite(sprites: SavedPixelSprite[], id: string, name: string): SavedPixelSprite[] {
-  return sprites.map((s) =>
-    s.id === id ? { ...s, name, palette: s.palette.map((c) => ({ ...c })), pixels: [...s.pixels], updatedAt: Date.now() } : s
+/** @deprecated Use duplicateCharacter */
+export function duplicateSprite(sprite: SavedCharacter, name?: string): SavedCharacter {
+  return duplicateCharacter(sprite, name);
+}
+
+export function renameCharacter(characters: SavedCharacter[], id: string, name: string): SavedCharacter[] {
+  return characters.map((s) =>
+    s.id === id ? { ...cloneCharacter(s), name, updatedAt: Date.now() } : s
   );
 }
 
+/** @deprecated Use renameCharacter */
+export function renameSprite(characters: SavedCharacter[], id: string, name: string): SavedCharacter[] {
+  return renameCharacter(characters, id, name);
+}
+
+export function resolveActiveCharacter(
+  characters: SavedCharacter[],
+  activeId: string | null
+): SavedCharacter | null {
+  if (!activeId) return null;
+  return getCharacterById(characters, activeId);
+}
+
+/** @deprecated Use resolveActiveCharacter */
 export function resolveActiveSprite(
-  sprites: SavedPixelSprite[],
+  characters: SavedCharacter[],
   activeId: string | null
 ): SavedPixelSprite | null {
-  if (!activeId) return null;
-  const found = getSpriteById(sprites, activeId);
-  return found ?? null;
+  const found = resolveActiveCharacter(characters, activeId);
+  if (!found || isSpriteSheet(found)) return null;
+  return found;
 }
 
 export function safeActiveIdAfterDelete(activeId: string | null, deletedId: string): string | null {
   if (activeId === deletedId) return null;
   return activeId;
+}
+
+export function updateSheetFrame(
+  sheet: SavedPixelSpriteSheet,
+  frameIndex: number,
+  pixels: number[]
+): SavedPixelSpriteSheet {
+  const frames = sheet.frames.map((f, i) => (i === frameIndex ? [...pixels] : [...f]));
+  return { ...sheet, frames, updatedAt: Date.now() };
+}
+
+export function addSheetFrame(sheet: SavedPixelSpriteSheet, pixels?: number[]): SavedPixelSpriteSheet {
+  const blank = pixels ?? new Array(sheet.frames[0]?.length ?? 4096).fill(0);
+  return {
+    ...sheet,
+    frames: [...sheet.frames.map((f) => [...f]), [...blank]],
+    columns: sheet.frames.length + 1,
+    updatedAt: Date.now(),
+  };
+}
+
+export function deleteSheetFrame(sheet: SavedPixelSpriteSheet, frameIndex: number): SavedPixelSpriteSheet {
+  if (sheet.frames.length <= 1) return sheet;
+  const frames = sheet.frames.filter((_, i) => i !== frameIndex).map((f) => [...f]);
+  return { ...sheet, frames, columns: frames.length, updatedAt: Date.now() };
+}
+
+export function reorderSheetFrame(
+  sheet: SavedPixelSpriteSheet,
+  from: number,
+  to: number
+): SavedPixelSpriteSheet {
+  const frames = sheet.frames.map((f) => [...f]);
+  const [item] = frames.splice(from, 1);
+  if (!item) return sheet;
+  frames.splice(to, 0, item);
+  return { ...sheet, frames, updatedAt: Date.now() };
 }

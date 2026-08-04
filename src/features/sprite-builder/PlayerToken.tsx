@@ -1,12 +1,14 @@
-import React, { useEffect, useMemo, useState } from "react";
-import type { SavedPixelSprite } from "./spriteTypes";
-import { createPixelSpriteDataUrl } from "./spriteRenderer";
+import React, { useEffect, useRef, useState } from "react";
+import type { SavedCharacter } from "./spriteTypes";
+import { isSpriteSheet } from "./spriteTypes";
+import { createCharacterFrameDataUrl, pickPlaybackFrame } from "./spriteRenderer";
+import { renderSettingsToCss } from "./import/importExport";
 
 type Facing = "down" | "up" | "left" | "right";
 
 type PlayerTokenProps = {
   variant: "board" | "mini";
-  customSprite: SavedPixelSprite | null;
+  customCharacter: SavedCharacter | null;
   isWalking?: boolean;
   walkFrame?: number;
   playerFacing?: Facing;
@@ -34,7 +36,7 @@ function facingRow(facing: Facing): number {
 
 export function PlayerToken({
   variant,
-  customSprite,
+  customCharacter,
   isWalking = false,
   walkFrame = 0,
   playerFacing = "down",
@@ -45,16 +47,39 @@ export function PlayerToken({
   rows = 5,
 }: PlayerTokenProps) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const animStart = useRef(performance.now());
+  const [animTick, setAnimTick] = useState(0);
+
+  const hasCustomAnimation =
+    customCharacter && isSpriteSheet(customCharacter) && (customCharacter.animation?.length ?? 0) > 0;
 
   useEffect(() => {
-    if (!customSprite) {
+    if (!hasCustomAnimation) return;
+    let raf = 0;
+    const tick = () => {
+      setAnimTick(performance.now() - animStart.current);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [hasCustomAnimation, customCharacter?.id, customCharacter?.updatedAt]);
+
+  useEffect(() => {
+    animStart.current = performance.now();
+  }, [isWalking, customCharacter?.id]);
+
+  useEffect(() => {
+    if (!customCharacter) {
       setDataUrl(null);
       return;
     }
-    setDataUrl(createPixelSpriteDataUrl(customSprite));
-  }, [customSprite]);
+    const frameIndex = hasCustomAnimation
+      ? pickPlaybackFrame(customCharacter, isWalking, animTick)
+      : 0;
+    setDataUrl(createCharacterFrameDataUrl(customCharacter, frameIndex));
+  }, [customCharacter, hasCustomAnimation, isWalking, animTick]);
 
-  if (!customSprite || !dataUrl) {
+  if (!customCharacter || !dataUrl) {
     const className = variant === "board" ? "playerSpriteSheet" : "miniSprite";
     const walking = variant === "board" && isWalking ? " walking" : "";
     return (
@@ -76,29 +101,32 @@ export function PlayerToken({
   }
 
   if (variant === "mini") {
-    return (
-      <img
-        src={dataUrl}
-        alt=""
-        className="miniPixelSprite"
-        draggable={false}
-      />
-    );
+    return <img src={dataUrl} alt="" className="miniPixelSprite" draggable={false} />;
   }
+
+  const rs = customCharacter.renderSettings;
+  const extraStyle = rs ? renderSettingsToCss(rs) : undefined;
 
   return (
     <img
       src={dataUrl}
       alt=""
       className="playerPixelSprite"
+      style={extraStyle}
       draggable={false}
     />
   );
 }
 
-export function useCustomSprite(activeId: string | null, sprites: SavedPixelSprite[]): SavedPixelSprite | null {
-  return useMemo(() => {
-    if (!activeId) return null;
-    return sprites.find((s) => s.id === activeId) ?? null;
-  }, [activeId, sprites]);
+export function useCustomCharacter(
+  activeId: string | null,
+  characters: SavedCharacter[]
+): SavedCharacter | null {
+  if (!activeId) return null;
+  return characters.find((s) => s.id === activeId) ?? null;
+}
+
+/** @deprecated Use useCustomCharacter */
+export function useCustomSprite(activeId: string | null, characters: SavedCharacter[]): SavedCharacter | null {
+  return useCustomCharacter(activeId, characters);
 }
