@@ -752,6 +752,58 @@ body{
   overflow:visible;
 }
 
+/* =========================================================
+   FORGOTTEN CITADEL — marching dot hex border (theme: hexBorder)
+========================================================= */
+@property --hex-march-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.game.hexBorderMarching .hex:not(.blocked)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  box-sizing: border-box;
+  padding: 3px;
+  background: repeating-conic-gradient(
+    from var(--hex-march-angle),
+    #ffffff 0deg 5deg,
+    #0a0a0a 5deg 10deg
+  );
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: hexBorderMarchCCW 2.8s linear infinite;
+  pointer-events: none;
+  z-index: 6;
+}
+
+@keyframes hexBorderMarchCCW {
+  to {
+    --hex-march-angle: -360deg;
+  }
+}
+
+.game.hexBorderMarching .hex:not(.blocked) {
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.35))
+    drop-shadow(0 10px 16px rgba(0, 0, 0, 0.45));
+}
+
+.game.hexBorderMarching .hexInner {
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.45);
+}
+
 .hexCoords{
   position: absolute;
   inset: 0;
