@@ -1,0 +1,42 @@
+{
+  "id": "fc_t08_gate_order",
+  "name": "Gate Order",
+  "layers": 7,
+  "objective": "Reach the goal hex.",
+  "description": "The gate rides a shifting tier. Several timings reach the goal in the same number of moves.",
+  "notes": [
+    "Layer 2 rotates every turn.",
+    "Watch the gate alignment before you step on the portal."
+  ],
+  "start": { "layer": 1, "row": 3, "col": 2 },
+  "goal": { "layer": 2, "row": 4, "col": 3 },
+  "missing": [
+    { "layer": 1, "row": 3, "col": 5 },
+    { "layer": 2, "row": 3, "col": 0 },
+    { "layer": 2, "row": 3, "col": 5 },
+    { "layer": 2, "row": 2, "col": 1 },
+    { "layer": 2, "row": 2, "col": 2 },
+    { "layer": 2, "row": 2, "col": 4 },
+    { "layer": 2, "row": 2, "col": 5 },
+    { "layer": 2, "row": 4, "col": 1 },
+    { "layer": 2, "row": 4, "col": 5 }
+  ],
+  "blocked": [],
+  "movement": {
+    "1": "NONE",
+    "2": "SEVEN_LEFT_SIX_RIGHT",
+    "3": "NONE",
+    "4": "NONE",
+    "5": "NONE",
+    "6": "NONE",
+    "7": "NONE"
+  },
+  "transitions": [
+    {
+      "type": "UP",
+      "from": { "layer": 1, "row": 3, "col": 0 },
+      "to": { "layer": 2, "row": 0, "col": 3 }
+    }
+  ],
+  "revealOnEnterGuaranteedUp": false
+}

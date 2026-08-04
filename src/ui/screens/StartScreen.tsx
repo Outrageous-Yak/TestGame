@@ -3,12 +3,22 @@ import React from "react";
 type StartScreenProps = {
   themeVars: React.CSSProperties;
   worldsCount: number;
+  devMode: boolean;
   onStart: () => void;
   onCharacters: () => void;
+  onPuzzleStudio?: () => void;
   onReset: () => void;
 };
 
-export function StartScreen({ themeVars, worldsCount, onStart, onCharacters, onReset }: StartScreenProps) {
+export function StartScreen({
+  themeVars,
+  worldsCount,
+  devMode,
+  onStart,
+  onCharacters,
+  onPuzzleStudio,
+  onReset,
+}: StartScreenProps) {
   return (
     <div className="appRoot" style={themeVars}>
       <div className="screen center">
@@ -31,6 +41,15 @@ export function StartScreen({ themeVars, worldsCount, onStart, onCharacters, onR
           <div className="hint">
             Worlds loaded: <b>{worldsCount}</b>
           </div>
+
+          {devMode && onPuzzleStudio ? (
+            <div className="ps-devMenu">
+              <div className="ps-devMenuTitle">Developer</div>
+              <button className="btn" onClick={onPuzzleStudio}>
+                Puzzle Studio
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
