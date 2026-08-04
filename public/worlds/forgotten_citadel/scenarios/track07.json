@@ -8,9 +8,11 @@
     "Each tier's portal sits on an alternating corner.",
     "Layers 2 and 3 shift together."
   ],
-  "start": { "layer": 1, "row": 6, "col": 0 },
-  "goal": { "layer": 4, "row": 0, "col": 0 },
-  "missing": [],
+  "start": { "layer": 1, "row": 6, "col": 3 },
+  "goal": { "layer": 4, "row": 2, "col": 2 },
+  "missing": [
+    { "layer": 2, "row": 3, "col": 3 }
+  ],
   "blocked": [],
   "movement": {
     "1": "NONE",
@@ -24,8 +26,8 @@
   "transitions": [
     {
       "type": "UP",
-      "from": { "layer": 1, "row": 0, "col": 6 },
-      "to": { "layer": 2, "row": 6, "col": 6 }
+      "from": { "layer": 1, "row": 0, "col": 3 },
+      "to": { "layer": 2, "row": 6, "col": 3 }
     },
     {
       "type": "UP",

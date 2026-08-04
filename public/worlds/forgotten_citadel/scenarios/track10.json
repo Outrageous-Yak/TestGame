@@ -3,38 +3,32 @@
   "name": "Citadel Engine",
   "layers": 7,
   "objective": "Reach the goal hex.",
-  "description": "The engine hall: shifting machinery, hollow floor, and a full eastern lift chain.",
+  "description": "The engine hall: central lift column, scattered voids, and three shifting tiers.",
   "notes": [
     "Layers 2–4 rotate in sequence.",
     "Cards mark the control nodes.",
-    "The longest ascent in the citadel."
+    "Central portal column — not the rim chain."
   ],
   "villains": {
     "requiredRoll": 6,
     "triggers": [
-      { "id": "fc10a", "layer": 1, "row": 5, "col": 5 },
-      { "id": "fc10b", "layer": 2, "row": 2, "col": 0 },
-      { "id": "fc10c", "layer": 3, "row": 4, "col": 6 },
-      { "id": "fc10d", "layer": 4, "row": 1, "col": 3 }
+      { "id": "fc10a", "layer": 1, "row": 5 },
+      { "id": "fc10b", "layer": 2, "row": 2 },
+      { "id": "fc10c", "layer": 3, "row": 4 },
+      { "id": "fc10d", "layer": 4, "row": 1 }
     ]
   },
   "cardTriggers": [
-    { "card": "shadow", "layer": 1, "row": 0, "col": 6 },
+    { "card": "shadow", "layer": 1, "row": 6, "col": 3 },
     { "card": "cosmic", "layer": 4, "row": 3, "col": 3 }
   ],
-  "start": { "layer": 1, "row": 6, "col": 6 },
-  "goal": { "layer": 5, "row": 0, "col": 0 },
+  "start": { "layer": 1, "row": 0, "col": 0 },
+  "goal": { "layer": 5, "row": 0, "col": 6 },
   "missing": [
+    { "layer": 1, "row": 1, "col": 3 },
+    { "layer": 1, "row": 4, "col": 3 },
     { "layer": 1, "row": 3, "col": 1 },
-    { "layer": 1, "row": 3, "col": 2 },
-    { "layer": 1, "row": 3, "col": 3 },
-    { "layer": 1, "row": 3, "col": 4 },
-    { "layer": 1, "row": 3, "col": 5 },
-    { "layer": 1, "row": 5, "col": 1 },
-    { "layer": 1, "row": 5, "col": 2 },
-    { "layer": 1, "row": 5, "col": 3 },
-    { "layer": 1, "row": 5, "col": 4 },
-    { "layer": 1, "row": 5, "col": 5 }
+    { "layer": 1, "row": 3, "col": 5 }
   ],
   "blocked": [],
   "movement": {
@@ -49,23 +43,23 @@
   "transitions": [
     {
       "type": "UP",
-      "from": { "layer": 1, "row": 0, "col": 6 },
-      "to": { "layer": 2, "row": 6, "col": 6 }
+      "from": { "layer": 1, "row": 3, "col": 3 },
+      "to": { "layer": 2, "row": 3, "col": 3 }
     },
     {
       "type": "UP",
-      "from": { "layer": 2, "row": 0, "col": 6 },
-      "to": { "layer": 3, "row": 6, "col": 6 }
+      "from": { "layer": 2, "row": 3, "col": 0 },
+      "to": { "layer": 3, "row": 3, "col": 3 }
     },
     {
       "type": "UP",
-      "from": { "layer": 3, "row": 0, "col": 6 },
-      "to": { "layer": 4, "row": 6, "col": 6 }
+      "from": { "layer": 3, "row": 3, "col": 5 },
+      "to": { "layer": 4, "row": 3, "col": 3 }
     },
     {
       "type": "UP",
-      "from": { "layer": 4, "row": 0, "col": 6 },
-      "to": { "layer": 5, "row": 6, "col": 6 }
+      "from": { "layer": 4, "row": 3, "col": 0 },
+      "to": { "layer": 5, "row": 3, "col": 3 }
     }
   ],
   "revealOnEnterGuaranteedUp": false

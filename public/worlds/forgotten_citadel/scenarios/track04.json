@@ -3,14 +3,17 @@
   "name": "False Summit",
   "layers": 7,
   "objective": "Reach the goal hex.",
-  "description": "The eastern lift deposits you far from the true crown. Cross the shifting vault.",
+  "description": "The western lift deposits you on the wrong peak. Cross shifting tiers to the true crown.",
   "notes": [
-    "The quick ascent is not the finish.",
-    "Layer 3 rotates every turn."
+    "The western stair is a decoy summit.",
+    "Layers 2 and 3 rotate every turn."
   ],
-  "start": { "layer": 1, "row": 6, "col": 6 },
-  "goal": { "layer": 3, "row": 0, "col": 0 },
-  "missing": [],
+  "start": { "layer": 1, "row": 6, "col": 0 },
+  "goal": { "layer": 3, "row": 0, "col": 6 },
+  "missing": [
+    { "layer": 2, "row": 3, "col": 2 },
+    { "layer": 2, "row": 3, "col": 3 }
+  ],
   "blocked": [],
   "movement": {
     "1": "NONE",
@@ -24,13 +27,13 @@
   "transitions": [
     {
       "type": "UP",
-      "from": { "layer": 1, "row": 0, "col": 6 },
-      "to": { "layer": 2, "row": 6, "col": 6 }
+      "from": { "layer": 1, "row": 0, "col": 0 },
+      "to": { "layer": 2, "row": 0, "col": 0 }
     },
     {
       "type": "UP",
-      "from": { "layer": 2, "row": 0, "col": 6 },
-      "to": { "layer": 3, "row": 6, "col": 6 }
+      "from": { "layer": 2, "row": 6, "col": 0 },
+      "to": { "layer": 3, "row": 6, "col": 0 }
     }
   ],
   "revealOnEnterGuaranteedUp": false
