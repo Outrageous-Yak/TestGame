@@ -23,6 +23,12 @@ import type {
 } from "../types";
 import { PlayerToken } from "../../features/sprite-builder/PlayerToken";
 import type { SavedPixelSprite } from "../../features/sprite-builder/spriteTypes";
+import { CloudCover, MoveOverlay, computeCloudVisibility } from "../cloud";
+import {
+  REACH_PULSE_INTERVAL_MS,
+  shouldShowFullCloudMovePulse,
+  shouldUseButtonReachPulse,
+} from "../cloud/cloudBoardLayering";
 import {
   scenarioRef,
   ensureScenario,
@@ -83,6 +89,20 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
+
+  const [reducedMotion, setReducedMotion] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(prefers-reduced-motion: reduce)").matches : false
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => setReducedMotion(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  const cloudMode = scenarioEntry.cloudMode;
+  const isCloudScenario = cloudMode === "cloudy" || cloudMode === "full_cloud";
 
   const boardRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -362,12 +382,90 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
 
     const timer = window.setInterval(() => {
       setReachPulseIdx((i) => (i + 1) % count);
-    }, 850);
+    }, REACH_PULSE_INTERVAL_MS);
 
     return () => window.clearInterval(timer);
   }, [reachableKey, reachableOrdered.length]);
 
   const reachPulseId = reachableOrdered[reachPulseIdx] ?? null;
+
+  const terrainHexIdsOnLayer = useMemo(() => {
+    const set = new Set<string>();
+    if (!state) return set;
+    for (let r = 0; r < ROW_LENS.length; r++) {
+      const len = ROW_LENS[r] ?? 7;
+      for (let c = 0; c < len; c++) {
+        const id = hexIdAtSlot(state, currentLayer, r, c);
+        if (!id) continue;
+        const hex = getHexFromState(state, id);
+        const bm = isBlockedOrMissing(hex);
+        if (!bm.missing) set.add(id);
+      }
+    }
+    return set;
+  }, [state, currentLayer, uiTick]);
+
+  const portalHexIdsOnLayer = useMemo(() => {
+    const set = new Set<string>();
+    if (!state) return set;
+    for (const id of terrainHexIdsOnLayer) {
+      const tr = portalTransitionAt(state as any, id);
+      if (tr) set.add(id);
+    }
+    if (startHexId && movesTaken === 0) {
+      const sc = idToCoord(startHexId);
+      if (sc?.layer === currentLayer) set.add(startHexId);
+    }
+    return set;
+  }, [state, terrainHexIdsOnLayer, startHexId, movesTaken, currentLayer]);
+
+  const cloudVisibilityMap = useMemo(() => {
+    if (!isCloudScenario || !cloudMode || !state || !playerId) return null;
+    if (playerLayer !== currentLayer) return null;
+    return computeCloudVisibility({
+      mode: cloudMode,
+      currentHexId: playerId,
+      legalMoveHexIds: reachable,
+      allTerrainHexIds: terrainHexIdsOnLayer,
+      goalHexId: goalId,
+      portalHexIds: portalHexIdsOnLayer,
+      adjacency: (hexId) => new Set(neighborIdsSameLayer(state, hexId)),
+    });
+  }, [
+    isCloudScenario,
+    cloudMode,
+    state,
+    playerId,
+    playerLayer,
+    currentLayer,
+    reachable,
+    reachableKey,
+    terrainHexIdsOnLayer,
+    goalId,
+    portalHexIdsOnLayer,
+  ]);
+
+  const [cloudTransitions, setCloudTransitions] = useState<Record<string, "revealing" | "concealing">>({});
+  const prevPlayerForCloudRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isCloudScenario || !playerId) {
+      prevPlayerForCloudRef.current = playerId;
+      return;
+    }
+    const prev = prevPlayerForCloudRef.current;
+    if (prev && prev !== playerId) {
+      setCloudTransitions({ [prev]: "concealing", [playerId]: "revealing" });
+      const timer = window.setTimeout(() => setCloudTransitions({}), 700);
+      prevPlayerForCloudRef.current = playerId;
+      return () => window.clearTimeout(timer);
+    }
+    prevPlayerForCloudRef.current = playerId;
+  }, [playerId, isCloudScenario]);
+
+  useEffect(() => {
+    if (!isCloudScenario) setCloudTransitions({});
+  }, [scenarioEntry.id, trackId, isCloudScenario]);
 
   /* =========================
      Theme / assets
@@ -1202,13 +1300,33 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
                         const isGoal = goalId === id;
                         const isTrigger = !!findTriggerForHex(id);
 
+                        const cv = cloudVisibilityMap?.get(id);
+                        const cloudActive = isCloudScenario && cv;
+                        const cloudVis = cv?.visibility;
+                        const showCloudCover =
+                          cloudActive && (cloudVis === "partial" || cloudVis === "cloud");
+                        const cloudDensity = cloudVis === "partial" ? "partial" : "full";
+                        const hideSpecialTileArt =
+                          cloudActive &&
+                          cloudVis !== "visible" &&
+                          (isGoal || isPortalUp || isPortalDown || showStartPortal);
+                        const showGoalOverlay = cloudActive && cv?.hasGoal && cloudVis !== "visible";
+                        const showPortalOverlay =
+                          cloudActive &&
+                          cloudVis !== "visible" &&
+                          (isPortalUp || isPortalDown || showStartPortal);
+                        const portalInInner =
+                          (isPortalUp || isPortalDown || showStartPortal) && !showPortalOverlay;
+                        const showMovePulseOverlay = shouldShowFullCloudMovePulse(isReachPulse, cloudMode);
+                        const useReachPulse = shouldUseButtonReachPulse(isReachPulse, cloudMode);
+
                         const tileVisual = resolveTileVisualType({
                           revealed: !!hex?.revealed,
                           blocked: bm.blocked,
-                          isGoal,
-                          isStart: showStartPortal,
-                          isPortalUp,
-                          isPortalDown,
+                          isGoal: hideSpecialTileArt ? false : isGoal,
+                          isStart: hideSpecialTileArt ? false : showStartPortal,
+                          isPortalUp: hideSpecialTileArt ? false : isPortalUp,
+                          isPortalDown: hideSpecialTileArt ? false : isPortalDown,
                         });
                         // Theme hexTile (if set) overrides per-type art for backward compatibility.
                         const tileArtUrl = HEX_TILE
@@ -1218,15 +1336,50 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
                           ["--tileArt" as any]: `url(${tileArtUrl})`,
                         } as React.CSSProperties;
 
+                        const hexInnerContent = (
+                          <>
+                            <div className="hexCoords">
+                              <div className="hexId">{r + "," + c}</div>
+                            </div>
+                            {portalInInner && (isPortalUp || isPortalDown) ? (
+                              <div className="portalFx">
+                                <div className="pAura" />
+                                <div className="pOrbs" />
+                                <div className="pRim" />
+                                <div className="pOval" />
+                              </div>
+                            ) : null}
+                            {portalInInner && showStartPortal ? (
+                              <div className="portalFx">
+                                <div className="pAura" />
+                                <div className="pRunes" />
+                                <div className="pVortex" />
+                                <div className="pWell" />
+                                <div className="pShine" />
+                              </div>
+                            ) : null}
+                            <div className="hexMarks">
+                              {portalInInner && isPortalUp ? <span className="mark">↑</span> : null}
+                              {portalInInner && isPortalDown ? <span className="mark">↓</span> : null}
+                              {!showGoalOverlay && isGoal ? <span className="mark g">G</span> : null}
+                              {isTrigger ? <span className="mark t">!</span> : null}
+                            </div>
+                          </>
+                        );
+
                         return (
-                          <div key={"v-" + r + "-" + c} className="hexSlot" style={cellStyle}>
+                          <div
+                            key={"v-" + r + "-" + c}
+                            className={["hexSlot", isCloudScenario ? "cloudScenario" : ""].filter(Boolean).join(" ")}
+                            style={cellStyle}
+                          >
                             <button
                               ref={isPlayer ? playerBtnRef : undefined}
                               className={[
                                 "hex",
                                 isSel ? "sel" : "",
-                                isReachPulse ? "reachPulse" : "",
-                                isReachPulseCard ? "reachPulseCard" : "",
+                                useReachPulse ? "reachPulse" : "",
+                                useReachPulse && isReachPulseCard ? "reachPulseCard" : "",
                                 bm.blocked ? "blocked" : "",
                                 isPlayer ? "player" : "",
                                 isGoal ? "goal" : "",
@@ -1246,7 +1399,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
                               disabled={!state || bm.blocked || bm.missing || encounterActive}
                               style={
                                 {
-                                  ["--hexGlow" as any]: isReachPulse
+                                  ["--hexGlow" as any]: useReachPulse
                                     ? reachPulseGlow(currentLayer, cardHere)
                                     : layerCssVar(currentLayer),
                                   ...(portalColor ? { ["--portalC" as any]: portalColor } : {}),
@@ -1255,10 +1408,56 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
                               title={id}
                             >
                               <div className="hexAnchor">
-                                <div className="hexInner" style={hexInnerStyle}>
-                                  <div className="hexCoords">
-                                    <div className="hexId">{r + "," + c}</div>
+                                {isCloudScenario ? (
+                                  <div className="hexTerrainClip">
+                                    <div className="hexInner" style={hexInnerStyle}>{hexInnerContent}</div>
                                   </div>
+                                ) : (
+                                  <div className="hexInner" style={hexInnerStyle}>{hexInnerContent}</div>
+                                )}
+                              </div>
+                            </button>
+
+                            {cardHere ? (
+                              <div className={["cardLayer", isCloudScenario ? "cardLayerUnderCloud" : ""].filter(Boolean).join(" ")}>
+                                <div className={"cardBadge hexDeckCard " + cardHere} title={cardHere}>
+                                  <div className="deckFx" />
+                                </div>
+                              </div>
+                            ) : null}
+
+                            {showCloudCover ? (
+                              <CloudCover
+                                scenarioId={scenarioEntry.id}
+                                layerId={"L" + currentLayer}
+                                hexId={id}
+                                density={cloudDensity}
+                                reducedMotion={reducedMotion}
+                                transitioning={cloudTransitions[id] ?? null}
+                              />
+                            ) : null}
+
+                            {showMovePulseOverlay ? (
+                              <div className="hexOverlayAnchor movePulseAnchor">
+                                <MoveOverlay
+                                  glowVar={reachPulseGlow(currentLayer, cardHere)}
+                                  pulse={!reducedMotion}
+                                  cardPulse={isReachPulseCard}
+                                />
+                              </div>
+                            ) : null}
+
+                            {showGoalOverlay ? (
+                              <div className="hexOverlayAnchor goalOverlayAnchor">
+                                <div className="cloudGoalOverlay">
+                                  <span className="mark g">G</span>
+                                </div>
+                              </div>
+                            ) : null}
+
+                            {showPortalOverlay ? (
+                              <div className="hexOverlayAnchor portalOverlayAnchor">
+                                <div className="cloudPortalLayer">
                                   {isPortalUp || isPortalDown ? (
                                     <div className="portalFx">
                                       <div className="pAura" />
@@ -1279,16 +1478,8 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
                                   <div className="hexMarks">
                                     {isPortalUp ? <span className="mark">↑</span> : null}
                                     {isPortalDown ? <span className="mark">↓</span> : null}
-                                    {isGoal ? <span className="mark g">G</span> : null}
-                                    {isTrigger ? <span className="mark t">!</span> : null}
                                   </div>
                                 </div>
-                              </div>
-                            </button>
-
-                            {cardHere ? (
-                              <div className={"cardBadge hexDeckCard " + cardHere} title={cardHere}>
-                                <div className="deckFx" />
                               </div>
                             ) : null}
 

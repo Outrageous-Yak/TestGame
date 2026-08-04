@@ -1,0 +1,12 @@
+export { computeCloudVisibility, type CloudMode, type CloudVisibility, type CloudVisualState } from "./computeCloudVisibility";
+export { deriveCloudSeed, hashCloudSeed, cloudSeedClassName, CLOUD_TEMPLATE_COUNT, PARTIAL_PATTERN_COUNT } from "./cloudSeed";
+export {
+  REACH_PULSE_INTERVAL_MS,
+  shouldUseButtonReachPulse,
+  shouldShowFullCloudMovePulse,
+  shouldRenderCloudCover,
+  shouldCardSitUnderCloud,
+  countActiveMovePulses,
+} from "./cloudBoardLayering";
+export { CloudCover } from "./CloudCover";
+export { MoveOverlay } from "./MoveOverlay";
