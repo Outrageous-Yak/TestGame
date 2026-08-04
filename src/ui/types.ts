@@ -25,8 +25,6 @@ export type LayerPalette = {
 
 export type ScenarioTheme = {
   palette: LayerPalette;
-  /** Optional hex edge treatment for this scenario/world. */
-  hexBorder?: "marching-dots";
   assets: {
     backgroundGame?: string;
     backgroundLayers?: Partial<{

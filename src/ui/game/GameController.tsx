@@ -483,7 +483,6 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
   const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
   const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "images/villains";
   const HEX_TILE = activeTheme?.assets.hexTile ?? "";
-  const hexBorderMarching = activeTheme?.hexBorder === "marching-dots";
 
   const themeVars = useMemo(() => {
     const p = palette;
@@ -1167,12 +1166,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
     ]
   );
   return (
-    <div
-      className={["appRoot", "game", hexBorderMarching ? "hexBorderMarching" : ""]
-        .filter(Boolean)
-        .join(" ")}
-      style={themeVars}
-    >
+    <div className="appRoot game" style={themeVars}>
       <div
         className="gameBg"
         style={{

@@ -22,7 +22,6 @@ export const FORGOTTEN_CITADEL_THEME = {
     L6: "#4A5568",
     L7: "#2D3748",
   },
-  hexBorder: "marching-dots" as const,
   assets: {
     backgroundGame: "worlds/forgotten_citadel/assets/backgrounds/citadel-bg.png",
     diceFacesBase: "worlds/rainbow_realm/scenarios/prism_path/assets/dice/faces",
