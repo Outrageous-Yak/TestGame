@@ -1,4 +1,5 @@
 import type { TrackTransformSelection } from "./types";
+import { migrateTrackTransformSelection } from "./transformIdMigration";
 
 const PREFIX = "hexgame-track-variation:";
 
@@ -24,7 +25,11 @@ export function loadTrackVariationState(trackId: string): StoredTrackVariation |
   try {
     const raw = localStorage.getItem(storageKey(trackId));
     if (!raw) return null;
-    return JSON.parse(raw) as StoredTrackVariation;
+    const parsed = JSON.parse(raw) as StoredTrackVariation;
+    return {
+      ...parsed,
+      selection: migrateTrackTransformSelection(parsed.selection),
+    };
   } catch {
     return null;
   }

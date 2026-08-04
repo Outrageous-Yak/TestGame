@@ -1,5 +1,6 @@
-import type { Scenario } from "../types";
+import { inBounds, posId } from "../board";
 import { assertScenario } from "../scenario";
+import type { Scenario } from "../types";
 import type {
   LayerTransformId,
   ScenarioDocument,
@@ -52,7 +53,8 @@ function transformExtrasOnLayer(
 
 export function applyLayerTransformsToScenario(
   authored: ScenarioDocument,
-  selection: TrackTransformSelection
+  selection: TrackTransformSelection,
+  options?: { validateScenario?: boolean }
 ): ScenarioDocument {
   const clone = deepCloneScenario(authored);
   let scenario = clone as unknown as Scenario;
@@ -64,7 +66,9 @@ export function applyLayerTransformsToScenario(
     transformExtrasOnLayer(clone, layer, transformId);
   }
 
-  assertScenario(scenario);
+  if (options?.validateScenario !== false) {
+    assertScenario(scenario);
+  }
   return clone;
 }
 
@@ -92,6 +96,7 @@ export type BuildRuntimeScenarioOptions = {
   mode: TrackVariationMode;
   seed?: string;
   previousSelection?: TrackTransformSelection;
+  preserveSelection?: TrackTransformSelection;
   rules?: Partial<TrackVariationRules>;
   forcedSelection?: TrackTransformSelection;
 };
@@ -102,6 +107,14 @@ export function buildRuntimeScenario(
 ): { scenario: Scenario; selection: TrackTransformSelection } {
   const rules = mergeVariationRules(authored, options.rules);
   const layerCount = authored.layers ?? 7;
+
+  if (options.preserveSelection) {
+    const doc = applyLayerTransformsToScenario(authored, options.preserveSelection);
+    return {
+      scenario: doc as unknown as Scenario,
+      selection: options.preserveSelection,
+    };
+  }
 
   if (options.forcedSelection) {
     const doc = applyLayerTransformsToScenario(authored, options.forcedSelection);

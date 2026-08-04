@@ -1,14 +1,11 @@
 import type { Pos } from "../types";
 
+/** Canonical layer-transform IDs for the 7676767 board (four graph automorphisms). */
 export type LayerTransformId =
   | "identity"
-  | "rotate-60"
-  | "rotate-120"
-  | "rotate-180"
-  | "rotate-240"
-  | "rotate-300"
-  | "reflect-a"
-  | "reflect-b";
+  | "reflect-horizontal"
+  | "symmetry-b"
+  | "symmetry-c";
 
 export type BoardSlot = { row: number; col: number };
 
@@ -32,6 +29,7 @@ export interface TrackTransformSelection {
 
 export interface LayerTransformDefinition {
   id: LayerTransformId;
+  /** Player-facing label, e.g. "Variant 2". */
   label: string;
   applySlot: (slot: BoardSlot) => BoardSlot;
   applyDirection: (direction: BoardDirection) => BoardDirection;
@@ -55,16 +53,7 @@ export interface ScenarioDocument extends Record<string, unknown> {
 
 export const DEFAULT_VARIATION_RULES: TrackVariationRules = {
   enabled: true,
-  allowedTransforms: [
-    "identity",
-    "rotate-60",
-    "rotate-120",
-    "rotate-180",
-    "rotate-240",
-    "rotate-300",
-    "reflect-a",
-    "reflect-b",
-  ],
+  allowedTransforms: ["identity", "reflect-horizontal", "symmetry-b", "symmetry-c"],
   independentPerLayer: true,
   avoidPreviousCombination: true,
   allowIdentity: true,

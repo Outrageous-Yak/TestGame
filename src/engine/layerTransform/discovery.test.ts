@@ -2,11 +2,8 @@ import { describe, expect, it } from "vitest";
 import { getActiveLayerTransformIds } from "./transformDefinitions";
 
 describe("active transform ids", () => {
-  it("lists discovered ids", () => {
+  it("lists four canonical symmetry ids", () => {
     const ids = getActiveLayerTransformIds();
-    // eslint-disable-next-line no-console
-    console.log("active ids", ids);
-    expect(ids).toContain("identity");
-    expect(ids.length).toBe(4);
+    expect(ids).toEqual(["identity", "reflect-horizontal", "symmetry-b", "symmetry-c"]);
   });
 });

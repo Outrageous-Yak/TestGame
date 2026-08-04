@@ -33,8 +33,9 @@ import type { ScenarioDocument, TrackTransformSelection } from "../../engine/lay
 import {
   buildRuntimeScenario,
   formatLayerTransformDebug,
-  loadPreviousCombination,
+  loadTrackVariationState,
   parseForcedLayerTransforms,
+  resolveTrackRunOptions,
   saveTrackVariationState,
 } from "../../engine/layerTransform";
 import { isDevMode } from "../../features/puzzle-studio/devMode";
@@ -90,7 +91,9 @@ export function GameController({
   const [goalAchieved, setGoalAchieved] = useState<GoalAchievedState | null>(null);
   const goalAchievedActive = !!goalAchieved;
   const [layerTransformSelection, setLayerTransformSelection] = useState<TrackTransformSelection | null>(null);
-  const startScenarioOptionsRef = useRef<{ replay?: boolean; resume?: boolean }>({});
+  const startScenarioOptionsRef = useRef<{
+    intent?: import("../../engine/layerTransform").TrackRunIntent;
+  }>({});
 
   /* =========================
      Core game state
@@ -1035,30 +1038,26 @@ export function GameController({
 
     const trackKey = trackEntry?.id ?? trackId ?? scenarioEntry.id;
     const startOpts = startScenarioOptionsRef.current;
+    const intent = startOpts.intent ?? "fresh";
     startScenarioOptionsRef.current = {};
 
     const forced = typeof window !== "undefined" ? parseForcedLayerTransforms(window.location.search) : null;
-    const previousSelection = startOpts.replay
-      ? loadPreviousCombination(trackKey) ?? undefined
-      : undefined;
+    const stored = loadTrackVariationState(trackKey);
 
     const variationParam =
       typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("variation") : null;
 
-    const { scenario: s, selection } = buildRuntimeScenario(authored, {
-      trackId: trackKey,
-      mode:
-        forced || variationParam === "seeded"
-          ? "seeded"
-          : variationParam === "fixed" || (isDevMode() && variationParam === "fixed")
-            ? "fixed"
-            : startOpts.resume
-              ? "seeded"
-              : "new-on-replay",
-      seed: forced?.seed ?? `${trackKey}-${Date.now()}`,
-      previousSelection,
-      forcedSelection: forced ?? undefined,
-    });
+    const { scenario: s, selection } = buildRuntimeScenario(
+      authored,
+      resolveTrackRunOptions({
+        trackId: trackKey,
+        intent,
+        stored,
+        forcedSelection: forced,
+        variationParam,
+        devMode: isDevMode(),
+      })
+    );
 
     setLayerTransformSelection(selection);
     saveTrackVariationState({ trackId: trackKey, runSeed: selection.seed, selection });
@@ -1144,7 +1143,7 @@ export function GameController({
 
   const handleGoalReplay = useCallback(() => {
     setGoalAchieved(null);
-    startScenarioOptionsRef.current = { replay: true };
+    startScenarioOptionsRef.current = { intent: "replayAfterWin" };
     void startScenario();
   }, [startScenario]);
 
