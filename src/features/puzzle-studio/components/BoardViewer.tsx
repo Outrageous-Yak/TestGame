@@ -11,6 +11,7 @@ import {
   layerCssVar,
 } from "../../../ui/game/helpers";
 import { resolveTileVisualType, tileArtRelPath } from "../../../ui/tileArt";
+import { buildPortalColorMap } from "../studioOverlay";
 
 export type OverlayOptions = {
   portals: boolean;
@@ -43,8 +44,6 @@ function heatColor(count: number, max: number): string {
   return "rgba(239, 68, 68, 0.6)";
 }
 
-const PORTAL_COLORS = ["#f472b6", "#60a5fa", "#a78bfa", "#34d399", "#fb923c", "#f87171"];
-
 export function BoardViewer({
   state,
   viewLayer,
@@ -70,15 +69,10 @@ export function BoardViewer({
     : null;
   const playerId = state?.playerHexId ?? null;
 
-  const portalColorMap = useMemo(() => {
-    const map = new Map<string, string>();
-    if (!state?.scenario.transitions) return map;
-    state.scenario.transitions.forEach((t, i) => {
-      const from = `L${t.from.layer}-R${t.from.row}-C${t.from.col}`;
-      map.set(from, PORTAL_COLORS[i % PORTAL_COLORS.length]);
-    });
-    return map;
-  }, [state?.scenario.transitions]);
+  const portalColorMap = useMemo(
+    () => buildPortalColorMap(state?.scenario.transitions),
+    [state?.scenario.transitions]
+  );
 
   const movement = state?.scenario.movement ?? {};
 
@@ -224,10 +218,10 @@ export function BoardViewer({
 
       {overlays.portals && state?.scenario.transitions?.length ? (
         <div className="ps-portalLegend">
-          {state.scenario.transitions.map((t, i) => {
+          {state.scenario.transitions.map((t) => {
             const from = `L${t.from.layer}-R${t.from.row}-C${t.from.col}`;
             const to = `L${t.to.layer}-R${t.to.row}-C${t.to.col}`;
-            const color = PORTAL_COLORS[i % PORTAL_COLORS.length];
+            const color = portalColorMap.get(from) ?? "#888";
             return (
               <div key={from} className="ps-portalLegendItem">
                 <span className="ps-portalDot" style={{ background: color }} />

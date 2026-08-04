@@ -1,2 +1,2 @@
 export { PuzzleStudioScreen } from "./PuzzleStudioScreen";
-export { isDevMode } from "./devMode";
+export { isDevMode, resolveInitialScreen, shouldShowDevMenu } from "./devMode";

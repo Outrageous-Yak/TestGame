@@ -9,7 +9,7 @@ import { GameController } from "./game/GameController";
 import { loadWorlds } from "./worldsLoader";
 import type { Screen, WorldEntry } from "./types";
 import { CharactersScreen } from "../features/sprite-builder/CharactersScreen";
-import { PuzzleStudioScreen, isDevMode } from "../features/puzzle-studio";
+import { PuzzleStudioScreen, isDevMode, resolveInitialScreen } from "../features/puzzle-studio";
 import {
   loadActiveSpriteId,
   loadSprites,
@@ -19,11 +19,8 @@ import type { SavedPixelSprite } from "../features/sprite-builder/spriteTypes";
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>(() => {
-    if (typeof window !== "undefined" && isDevMode()) {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("studio") === "true" || params.get("dev") === "true") {
-        return "studio";
-      }
+    if (typeof window !== "undefined") {
+      return resolveInitialScreen(window.location.search);
     }
     return "start";
   });

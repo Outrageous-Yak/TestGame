@@ -1,6 +1,9 @@
-/** Developer gate — Puzzle Studio is never shown during normal gameplay. */
+import { shouldShowDevMenu } from "./studioRouting";
+
+/** Developer gate — Puzzle Studio menu is never shown during normal gameplay. */
 export function isDevMode(): boolean {
   if (typeof window === "undefined") return false;
-  const params = new URLSearchParams(window.location.search);
-  return params.get("dev") === "true" || params.get("studio") === "true";
+  return shouldShowDevMenu(window.location.search);
 }
+
+export { shouldShowDevMenu, resolveInitialScreen, parseStudioSearch } from "./studioRouting";
