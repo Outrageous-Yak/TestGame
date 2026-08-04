@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "validate:tracks": "vitest run src/engine/trackValidator.test.ts"
   },
   "dependencies": {
     "react": "^18.2.0",
