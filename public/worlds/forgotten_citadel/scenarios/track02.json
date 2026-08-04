@@ -26,5 +26,8 @@
     "7": "NONE"
   },
   "transitions": [],
-  "revealOnEnterGuaranteedUp": false
+  "revealOnEnterGuaranteedUp": false,
+  "variationRules": {
+    "enabled": true
+  }
 }

@@ -9,7 +9,7 @@ export * from "./applyTrackVariation";
 export * from "./trackVariationStorage";
 export * from "./seededRandom";
 export { preservesAdjacency, discoverUniqueAutomorphismMaps, composeMaps, isIdentityMap } from "./graphAutomorphism";
-export { parseForcedLayerTransforms, formatLayerTransformDebug } from "./devMode";
+export { parseForcedLayerTransforms, formatLayerTransformDebug, formatLayerTransformPlayerSummary } from "./devMode";
 export { migrateTransformId, migrateTrackTransformSelection } from "./transformIdMigration";
 export { buildTransformCatalog, PLAYER_VARIANT_LABELS, CANONICAL_TRANSFORM_IDS } from "./transformCatalog";
 export { resolveTrackRunOptions, intentFromStartOptions } from "./trackRunLifecycle";

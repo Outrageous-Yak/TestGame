@@ -33,6 +33,7 @@ import type { ScenarioDocument, TrackTransformSelection } from "../../engine/lay
 import {
   buildRuntimeScenario,
   formatLayerTransformDebug,
+  formatLayerTransformPlayerSummary,
   loadTrackVariationState,
   parseForcedLayerTransforms,
   resolveTrackRunOptions,
@@ -91,6 +92,10 @@ export function GameController({
   const [goalAchieved, setGoalAchieved] = useState<GoalAchievedState | null>(null);
   const goalAchievedActive = !!goalAchieved;
   const [layerTransformSelection, setLayerTransformSelection] = useState<TrackTransformSelection | null>(null);
+  const layerTransformSummary = useMemo(
+    () => (layerTransformSelection ? formatLayerTransformPlayerSummary(layerTransformSelection) : null),
+    [layerTransformSelection]
+  );
   const startScenarioOptionsRef = useRef<{
     intent?: import("../../engine/layerTransform").TrackRunIntent;
   }>({});
@@ -1047,20 +1052,36 @@ export function GameController({
     const variationParam =
       typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("variation") : null;
 
-    const { scenario: s, selection } = buildRuntimeScenario(
-      authored,
-      resolveTrackRunOptions({
+    const runOptions = resolveTrackRunOptions({
+      trackId: trackKey,
+      intent,
+      stored,
+      forcedSelection: forced,
+      variationParam,
+      devMode: isDevMode(),
+    });
+
+    let s: import("../../engine/types").Scenario;
+    let selection: TrackTransformSelection;
+    try {
+      ({ scenario: s, selection } = buildRuntimeScenario(authored, runOptions));
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("Layer transform failed", err);
+      ({ scenario: s, selection } = buildRuntimeScenario(authored, {
         trackId: trackKey,
-        intent,
-        stored,
-        forcedSelection: forced,
-        variationParam,
-        devMode: isDevMode(),
-      })
-    );
+        mode: "fixed",
+      }));
+      pushLog("Board layout could not be applied — using standard layout.", "bad");
+    }
 
     setLayerTransformSelection(selection);
     saveTrackVariationState({ trackId: trackKey, runSeed: selection.seed, selection });
+
+    const playerSummary = formatLayerTransformPlayerSummary(selection);
+    if (playerSummary) {
+      pushLog(playerSummary, "info");
+    }
 
     const runtimeDoc = s as ScenarioDocument;
     const cts = parseCardTriggersFromScenario(runtimeDoc);
@@ -1635,6 +1656,13 @@ export function GameController({
                 </div>
               </div>
             </div>
+
+            {layerTransformSummary ? (
+              <div className="panelMini layoutVariantPanel">
+                <div className="miniTitle">Layout variants</div>
+                <div className="layoutVariantText">{layerTransformSummary}</div>
+              </div>
+            ) : null}
 
             <div className="panelMini logPanel">
               <div className="miniTitle">Log</div>

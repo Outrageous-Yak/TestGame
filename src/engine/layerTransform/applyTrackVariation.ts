@@ -66,6 +66,8 @@ export function applyLayerTransformsToScenario(
     transformExtrasOnLayer(clone, layer, transformId);
   }
 
+  Object.assign(clone, scenario);
+
   if (options?.validateScenario !== false) {
     assertScenario(scenario);
   }
