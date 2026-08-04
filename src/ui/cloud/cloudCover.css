@@ -1,0 +1,346 @@
+/* Cloud scenario z-index stack (scoped under .hexSlot.cloudScenario) */
+.hexSlot.cloudScenario {
+  --z-terrain: 1;
+  --z-terrain-deco: 2;
+  --z-cloud: 20;
+  --z-move: 30;
+  --z-goal: 40;
+  --z-portal: 45;
+  --z-selection: 48;
+  --z-player-ground: 50;
+  --z-player: 60;
+  --z-fx: 70;
+}
+
+.hexSlot.cloudScenario .hexTerrainClip {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  z-index: var(--z-terrain);
+  clip-path: polygon(25% 6%, 75% 6%, 98% 50%, 75% 94%, 25% 94%, 2% 50%);
+}
+
+.hexSlot.cloudScenario .hexInner {
+  clip-path: none;
+}
+
+/* =========================================================
+   CLOUD COVER — premium layered CSS clouds
+========================================================= */
+.cloudCover {
+  position: absolute;
+  inset: -28% -32%;
+  pointer-events: none;
+  z-index: var(--z-cloud);
+  transform: scale(var(--cloudScaleX, 1), var(--cloudScaleY, 1)) rotate(var(--cloudRot, 0deg));
+  transform-origin: 50% 55%;
+  animation: cloudDrift var(--cloudDur, 24s) ease-in-out infinite alternate;
+}
+
+.cloudReducedMotion.cloudCover {
+  animation: none;
+}
+
+.cloudRevealing {
+  animation: cloudReveal 500ms ease forwards;
+}
+
+.cloudConcealing {
+  animation: cloudConceal 500ms ease forwards;
+}
+
+@keyframes cloudDrift {
+  0% {
+    transform: scale(var(--cloudScaleX, 1), var(--cloudScaleY, 1)) rotate(var(--cloudRot, 0deg))
+      translate(0, 0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(var(--cloudScaleX, 1), var(--cloudScaleY, 1)) rotate(var(--cloudRot, 0deg))
+      translate(var(--cloudDriftX, 0), var(--cloudDriftY, 0));
+    opacity: 0.97;
+  }
+}
+
+@keyframes cloudReveal {
+  from {
+    opacity: 1;
+    transform: scale(var(--cloudScaleX, 1), var(--cloudScaleY, 1)) rotate(var(--cloudRot, 0deg))
+      translate(0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.92, 0.92) rotate(var(--cloudRot, 0deg)) translate(4px, -6px);
+  }
+}
+
+@keyframes cloudConceal {
+  from {
+    opacity: 0;
+    transform: scale(0.92, 0.92) rotate(var(--cloudRot, 0deg));
+  }
+  to {
+    opacity: 1;
+    transform: scale(var(--cloudScaleX, 1), var(--cloudScaleY, 1)) rotate(var(--cloudRot, 0deg));
+  }
+}
+
+.cloudMass {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(1px);
+}
+
+.cloudMassBack {
+  inset: 8% 5% 18% 8%;
+  background: radial-gradient(
+    ellipse 90% 70% at 35% 40%,
+    rgba(210, 218, 228, 0.92) 0%,
+    rgba(175, 188, 204, 0.88) 45%,
+    rgba(130, 145, 162, 0.75) 100%
+  );
+  box-shadow: inset 0 -8px 16px rgba(80, 95, 115, 0.35);
+  animation: cloudInnerDrift var(--cloudInnerDur, 30s) ease-in-out infinite alternate;
+}
+
+.cloudMassMid {
+  inset: 2% 12% 28% 14%;
+  background: radial-gradient(
+    ellipse 85% 65% at 40% 35%,
+    rgba(245, 248, 252, 0.95) 0%,
+    rgba(220, 228, 238, 0.9) 50%,
+    rgba(185, 198, 214, 0.82) 100%
+  );
+  animation: cloudInnerDrift var(--cloudInnerDur, 28s) ease-in-out infinite alternate-reverse;
+}
+
+.cloudMassFront {
+  inset: 18% 8% 6% 10%;
+  background: radial-gradient(
+    ellipse 80% 60% at 55% 45%,
+    rgba(255, 255, 255, 0.88) 0%,
+    rgba(235, 240, 248, 0.85) 40%,
+    rgba(200, 210, 224, 0.78) 100%
+  );
+  box-shadow: 0 6px 14px rgba(90, 105, 125, 0.25);
+}
+
+.cloudWisp {
+  position: absolute;
+  height: 18%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  opacity: 0.5;
+  animation: cloudWispDrift var(--cloudDur, 26s) linear infinite;
+}
+
+.cloudWispA {
+  top: calc(20% + var(--cloudWisp, 0%) * 0.3);
+  left: -5%;
+  width: 55%;
+}
+
+.cloudWispB {
+  bottom: calc(15% + var(--cloudWisp, 0%) * 0.2);
+  right: -8%;
+  width: 48%;
+  animation-direction: reverse;
+}
+
+.cloudReducedMotion .cloudMass,
+.cloudReducedMotion .cloudWisp {
+  animation: none;
+}
+
+@keyframes cloudInnerDrift {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(3px, -2px);
+  }
+}
+
+@keyframes cloudWispDrift {
+  0% {
+    transform: translateX(0);
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translateX(8px);
+    opacity: 0.4;
+  }
+}
+
+/* 8 full-cloud templates — varied silhouettes */
+.cloudTpl0 .cloudMassBack {
+  border-radius: 45% 55% 50% 50% / 55% 45% 55% 45%;
+}
+.cloudTpl1 .cloudMassBack {
+  border-radius: 60% 40% 45% 55% / 40% 60% 40% 60%;
+  inset: 12% 2% 20% 2%;
+}
+.cloudTpl2 .cloudMassMid {
+  left: -8%;
+  width: 72%;
+}
+.cloudTpl3 .cloudMassMid {
+  right: -8%;
+  left: auto;
+  width: 72%;
+}
+.cloudTpl4 .cloudMassFront {
+  width: 45%;
+  left: 10%;
+}
+.cloudTpl4 .cloudMassBack {
+  width: 50%;
+  right: 5%;
+  left: auto;
+}
+.cloudTpl5 .cloudMassBack,
+.cloudTpl5 .cloudMassMid,
+.cloudTpl5 .cloudMassFront {
+  border-radius: 50%;
+}
+.cloudTpl5 .cloudMassMid {
+  inset: 0% 25% 35% 25%;
+  transform: scale(0.85);
+}
+.cloudTpl6 .cloudMassBack {
+  border-radius: 30% 70% 40% 60% / 50% 50% 50% 50%;
+  inset: 5% 0% 25% 0%;
+}
+.cloudTpl7 .cloudMassBack {
+  border-radius: 55% 45% 60% 40% / 45% 55% 45% 55%;
+  inset: 0% 8% 10% 8%;
+}
+
+/* Partial patterns — incomplete coverage */
+.cloudPartial0.cloudPartialDensity .cloudMassFront {
+  opacity: 0.55;
+  clip-path: inset(0 45% 0 0);
+}
+.cloudPartial1.cloudPartialDensity .cloudMassFront {
+  opacity: 0.6;
+  clip-path: inset(0 0 0 48%);
+}
+.cloudPartial2.cloudPartialDensity .cloudMassFront {
+  opacity: 0.58;
+  clip-path: inset(45% 0 0 0);
+}
+.cloudPartial3.cloudPartialDensity .cloudMassFront {
+  opacity: 0.58;
+  clip-path: inset(0 0 45% 0);
+}
+.cloudPartial4.cloudPartialDensity .cloudMassFront {
+  opacity: 0.5;
+  clip-path: polygon(0 0, 40% 0, 60% 100%, 0 100%);
+}
+.cloudPartial5.cloudPartialDensity .cloudMassMid {
+  opacity: 0.45;
+  clip-path: inset(20% 35% 20% 35%);
+}
+.cloudPartial6.cloudPartialDensity .cloudMassFront {
+  opacity: 0.55;
+  clip-path: polygon(0 0, 100% 0, 100% 55%, 0 45%);
+}
+
+.cloudFullDensity .cloudMassBack {
+  opacity: 0.98;
+}
+.cloudFullDensity .cloudMassMid {
+  opacity: 0.96;
+}
+.cloudFullDensity .cloudMassFront {
+  opacity: 0.94;
+}
+
+/* =========================================================
+   MOVE OVERLAY (Full Cloud)
+========================================================= */
+.moveOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-move);
+  clip-path: polygon(25% 6%, 75% 6%, 98% 50%, 75% 94%, 25% 94%, 2% 50%);
+  background: color-mix(in srgb, var(--moveGlow, #3ed7ff) 24%, transparent);
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--moveGlow, #3ed7ff) 65%, transparent),
+    0 0 12px color-mix(in srgb, var(--moveGlow, #3ed7ff) 35%, transparent);
+}
+
+.moveOverlayPulse {
+  animation: moveOverlayPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes moveOverlayPulse {
+  0%,
+  100% {
+    opacity: 0.85;
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 1;
+    filter: brightness(1.08);
+  }
+}
+
+.cloudReducedMotion .moveOverlayPulse {
+  animation: none;
+}
+
+/* Goal / portal overlays above cloud */
+.hexSlot.cloudScenario .cloudGoalOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-goal);
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 9px;
+}
+
+.hexSlot.cloudScenario .cloudPortalLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-portal);
+}
+
+.hexSlot.cloudScenario > .playerSpriteSheet,
+.hexSlot.cloudScenario > .playerPixelSprite {
+  z-index: var(--z-player);
+}
+
+.hexSlot.cloudScenario .hex.portalUp,
+.hexSlot.cloudScenario .hex.portalDown,
+.hexSlot.cloudScenario .hex.portalStart {
+  z-index: 4;
+}
+
+@media (max-width: 980px) {
+  .cloudCover {
+    inset: -22% -26%;
+  }
+  .cloudWisp {
+    display: none;
+  }
+  .cloudMass {
+    filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cloudCover,
+  .cloudMass,
+  .cloudWisp,
+  .moveOverlayPulse {
+    animation: none !important;
+  }
+}

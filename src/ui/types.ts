@@ -43,6 +43,8 @@ export type ScenarioTheme = {
   };
 };
 
+export type CloudMode = "cloudy" | "full_cloud";
+
 export type Track = { id: string; name: string; scenarioJson: string };
 
 export type ScenarioEntry = {
@@ -52,6 +54,7 @@ export type ScenarioEntry = {
   scenarioJson: string;
   theme: ScenarioTheme;
   tracks?: Track[];
+  cloudMode?: CloudMode;
 };
 
 export type WorldEntry = {

@@ -63,6 +63,9 @@ function normalizeWorldEntry(raw: any): WorldEntry | null {
             .filter(Boolean) as Track[])
         : undefined;
 
+      const cloudMode =
+        s.cloudMode === "cloudy" || s.cloudMode === "full_cloud" ? s.cloudMode : undefined;
+
       return {
         id: sid,
         name: sname,
@@ -70,6 +73,7 @@ function normalizeWorldEntry(raw: any): WorldEntry | null {
         scenarioJson,
         theme,
         tracks: tracks && tracks.length ? tracks : undefined,
+        cloudMode,
       };
     })
     .filter(Boolean) as ScenarioEntry[];

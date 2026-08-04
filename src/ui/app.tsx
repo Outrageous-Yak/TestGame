@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import "./app.css";
+import "./cloud/cloudCover.css";
 import { StartScreen } from "./screens/StartScreen";
 import { MenuScreen } from "./screens/MenuScreen";
 import { GameController } from "./game/GameController";
