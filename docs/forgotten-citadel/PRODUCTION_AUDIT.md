@@ -1,6 +1,6 @@
 # Forgotten Citadel — Production Audit
 
-Generated: 2026-08-04T15:42:30.992Z
+Generated: 2026-08-04T15:50:48.962Z
 
 ## Production Recommendation
 
@@ -24,7 +24,7 @@ See `docs/forgotten-citadel/PRODUCTION_READINESS.md` for full engineering audit.
 | Portal Fork | 5/10 | 2 portals | track track03.json | 5–11 min |
 | False Summit | 10/10 | 2 portals | track track04.json | 13–30 min |
 | Broken Span | 6/10 | 1 portals | track track05.json | 6–14 min |
-| Return Valve | 6/10 | 3 portals | track track06.json | 6–14 min |
+| Return Valve | 7/10 | 3 portals | track track06.json | 6–14 min |
 | Helix Coil | 10/10 | 2 portals | track track07.json | 13–32 min |
 | Gate Order | 4/10 | 1 portals | track track08.json | 4–9 min |
 | Twin Relics | 5/10 | 2 portals | track track09.json | 6–14 min |
@@ -48,7 +48,7 @@ Max Prism similarity (gate): 29.5% (scenario8.json)
 Estimated difficulty: 5/10
 Quality score: 9/10
 Engineering score: 10/10
-Solver: explored 228 states in 38.1ms
+Solver: explored 228 states in 36.6ms
 Gameplay notes: Missing hexes shape routing.; 13 optimal routes — elegance reduced.
 
 --- Replay ---
@@ -120,7 +120,7 @@ Max Prism similarity (gate): 35.0% (scenario11.json)
 Estimated difficulty: 4/10
 Quality score: 7/10
 Engineering score: 10/10
-Solver: explored 203 states in 40.1ms
+Solver: explored 203 states in 38.3ms
 Gameplay notes: Missing hexes shape routing.; 10 optimal routes — elegance reduced.
 
 --- Replay ---
@@ -180,7 +180,7 @@ Max Prism similarity (gate): 31.0% (scenario11.json)
 Estimated difficulty: 5/10
 Quality score: 9/10
 Engineering score: 10/10
-Solver: explored 202 states in 35.8ms
+Solver: explored 202 states in 31.4ms
 Gameplay notes: Requires portal sequencing.; Missing hexes shape routing.; 3 optimal routes — elegance reduced.
 
 --- Replay ---
@@ -240,7 +240,7 @@ Max Prism similarity (gate): 27.1% (scenario11.json)
 Estimated difficulty: 10/10
 Quality score: 8/10
 Engineering score: 10/10
-Solver: explored 1106 states in 232.7ms
+Solver: explored 1106 states in 173.5ms
 Gameplay notes: Requires portal sequencing.; Missing hexes shape routing.; 20 optimal routes — elegance reduced.; Long solve — verify movement is purposeful.
 
 --- Replay ---
@@ -364,7 +364,7 @@ Max Prism similarity (gate): 26.8% (scenario11.json)
 Estimated difficulty: 6/10
 Quality score: 8/10
 Engineering score: 10/10
-Solver: explored 366 states in 65.2ms
+Solver: explored 366 states in 57.4ms
 Gameplay notes: Missing hexes shape routing.; 5 optimal routes — elegance reduced.
 
 --- Replay ---
@@ -419,20 +419,20 @@ Goal
 Track: Return Valve (fc_t06_return_valve)
 Shortest solution: 11
 Estimated player moves: 11
-Portals used in optimal path: 1
+Portals used in optimal path: 3
 Layer visits: 1, 2
 Row-shift events (total layers shifted): 0
-Dead ends explored (search): 56
-Backtracking required: NO
+Dead ends explored (search): 41
+Backtracking required: YES
 Alternative optimal solutions: 2
 Soft locks detected: 0
 Portal loops: 0
-Max Prism similarity (gate): 31.4% (scenario11.json)
-  full max 50.0% geometry 31.4% portal 16.7% route 5.1% layer 50.0% moving-row 0.0%
-Estimated difficulty: 6/10
-Quality score: 9/10
+Max Prism similarity (gate): 34.4% (scenario11.json)
+  full max 100.0% geometry 34.4% portal 16.7% route 5.1% layer 100.0% moving-row 0.0%
+Estimated difficulty: 7/10
+Quality score: 10/10
 Engineering score: 10/10
-Solver: explored 67 states in 6.8ms
+Solver: explored 52 states in 4.2ms
 Gameplay notes: Requires portal sequencing.; Missing hexes shape routing.; 2 optimal routes — elegance reduced.
 
 --- Replay ---
@@ -458,23 +458,23 @@ Move northwest
 
 Move 6
 
-Move west
+UP portal → L2-R6-C6
 
 Move 7
 
-Move west
+Move northwest
 
 Move 8
 
-Move west
+Move north
 
 Move 9
 
-Move west
+Move north
 
 Move 10
 
-Move south
+DOWN portal → L1-R2-C1
 
 Move 11
 
@@ -500,7 +500,7 @@ Max Prism similarity (gate): 27.2% (scenario11.json)
 Estimated difficulty: 10/10
 Quality score: 8/10
 Engineering score: 10/10
-Solver: explored 1258 states in 216.1ms
+Solver: explored 1258 states in 207.2ms
 Gameplay notes: Requires portal sequencing.; Missing hexes shape routing.; 10 optimal routes — elegance reduced.; Long solve — verify movement is purposeful.
 
 --- Replay ---
@@ -628,7 +628,7 @@ Max Prism similarity (gate): 20.0% (scenario10.json)
 Estimated difficulty: 4/10
 Quality score: 9/10
 Engineering score: 10/10
-Solver: explored 267 states in 48.8ms
+Solver: explored 267 states in 46.7ms
 Gameplay notes: Missing hexes shape routing.; 7 optimal routes — elegance reduced.
 
 --- Replay ---
@@ -694,7 +694,7 @@ Max Prism similarity (gate): 20.0% (scenario9.json)
 Estimated difficulty: 5/10
 Quality score: 9/10
 Engineering score: 10/10
-Solver: explored 265 states in 38.2ms
+Solver: explored 265 states in 32.4ms
 Gameplay notes: Requires portal sequencing.; Missing hexes shape routing.; 4 optimal routes — elegance reduced.
 
 --- Replay ---
@@ -762,7 +762,7 @@ Max Prism similarity (gate): 12.2% (scenario14.json)
 Estimated difficulty: 9/10
 Quality score: 10/10
 Engineering score: 10/10
-Solver: explored 868 states in 130.3ms
+Solver: explored 868 states in 132.5ms
 Gameplay notes: Requires portal sequencing.; Missing hexes shape routing.; 2 optimal routes — elegance reduced.; Long solve — verify movement is purposeful.
 
 --- Replay ---

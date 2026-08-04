@@ -1,16 +1,14 @@
 # Forgotten Citadel — Phase 3 Puzzle Fitness
 
-Generated: 2026-08-04T15:42:32.396Z
+Generated: 2026-08-04T15:50:50.389Z
 
 ## Recommendation
 
 ```
-NOT READY
+READY FOR MERGE
 ```
 
-### Blockers
-
-- fc_t06_return_valve: optimal path bypasses DOWN valve
+All Phase 3 gates passed.
 
 ## Manual playthrough notes
 
@@ -500,20 +498,20 @@ Goal
 | Shortest solution | 11 |
 | Optimal solutions | 2 (target 2–10) |
 | Solutions within +5 | 1002 |
-| Portal usage | 1 |
+| Portal usage | 3 |
 | Layer visits | 1, 2 |
 | Row shift events | 0 |
-| Branching factor | 2.43 |
-| Dead ends explored | 67 |
+| Branching factor | 2.42 |
+| Dead ends explored | 52 |
 | Soft locks (trapped states) | 0 |
-| Unused portals | 1 |
-| Originality gate | 31.4% |
-| Difficulty | 4/10 |
+| Unused portals | 0 |
+| Originality gate | 34.4% |
+| Difficulty | 6/10 |
 | Est. solve time | 5–11 min |
-| **Puzzle fitness** | **9.2/10** |
+| **Puzzle fitness** | **9.3/10** |
 | Target met | YES |
 
-**Category scores:** fairness 10, elegance 9.5, discovery 9, surprise 8.5, flow 9.5, replay 10, originality 8.5, teaching 8.5, identity 9
+**Category scores:** fairness 10, elegance 9.5, discovery 9, surprise 9.5, flow 9.5, replay 10, originality 8.5, teaching 8.5, identity 9
 
 **Human review:** memorable=true, aha=true, designer-elegant=true
 
@@ -541,23 +539,23 @@ Move northwest
 
 Move 6
 
-Move west
+UP portal → L2-R6-C6
 
 Move 7
 
-Move west
+Move northwest
 
 Move 8
 
-Move west
+Move north
 
 Move 9
 
-Move west
+Move north
 
 Move 10
 
-Move south
+DOWN portal → L1-R2-C1
 
 Move 11
 

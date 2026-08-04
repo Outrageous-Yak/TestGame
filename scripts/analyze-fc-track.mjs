@@ -17,7 +17,7 @@ async function main() {
   const sol = computeOptimalSolution(base);
   const counts = countSolutionsWithin(base, 80, 5);
   const soft = detectSoftLocks(base);
-  const portals = sol.replay.filter((s) => s.portalType).map((s) => s.fromHexId);
+  const portals = sol.replay.filter((s) => s.portalType).map((s) => s.toHexId);
   const dead = detectDeadGameplay(scenario, sol.pathHexIds, portals);
 
   console.log("ID:", scenario.id);

@@ -480,7 +480,7 @@ function scoreCategories(
   const islandMaze =
     (scenario.missing?.length ?? 0) >= 3 && (scenario.transitions?.length ?? 0) === 0;
   const discovery = islandMaze ? 8.5 : scenario.transitions?.length ? 9 : 7;
-  const surprise = islandMaze ? 8.5 : backtrackingScore(scenario, solution);
+  let surprise = islandMaze ? 8.5 : backtrackingScore(scenario, solution);
   if (solution.replay.some((s) => s.portalType === "DOWN")) surprise = Math.max(surprise, 9.5);
   const flow = inTarget ? 9.5 : counts.optimal >= target.min ? 9 : 7;
   const replay = solution.replay.some((s) => s.won) ? 10 : 0;
