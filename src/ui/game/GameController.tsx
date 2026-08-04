@@ -49,19 +49,37 @@ import {
   parseVillainsFromScenario,
 } from "./helpers";
 
+type GoalAchievedState = {
+  moves: number;
+  least: number | null;
+  best: number | null;
+};
+
 export type GameControllerProps = {
   scenarioEntry: ScenarioEntry;
   trackEntry: Track | null;
   trackId: string | null;
   customSprite?: SavedPixelSprite | null;
   onExit: () => void;
+  onGoHome: () => void;
+  onPlayNextTrack: (trackId: string) => void;
 };
 
-export function GameController({ scenarioEntry, trackEntry, trackId, customSprite = null, onExit }: GameControllerProps) {
+export function GameController({
+  scenarioEntry,
+  trackEntry,
+  trackId,
+  customSprite = null,
+  onExit,
+  onGoHome,
+  onPlayNextTrack,
+}: GameControllerProps) {
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
   const pendingEncounterMoveIdRef = useRef<string | null>(null);
   const encounterActive = !!encounter;
+  const [goalAchieved, setGoalAchieved] = useState<GoalAchievedState | null>(null);
+  const goalAchievedActive = !!goalAchieved;
 
   /* =========================
      Core game state
@@ -332,16 +350,30 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
 
   const recordWin = useCallback(
     (moveCount: number) => {
-      if (!scenarioEntry) {
+      let best: number | null = bestScore;
+      if (scenarioEntry) {
+        best = saveBestScore(scenarioEntry.id, moveCount, trackId);
+        setBestScore(best);
+        pushLog(`Goal reached in ${moveCount} moves! Best: ${best}`, "ok");
+      } else {
         pushLog("Goal reached!", "ok");
-        return;
       }
-      const best = saveBestScore(scenarioEntry.id, moveCount, trackId);
-      setBestScore(best);
-      pushLog(`Goal reached in ${moveCount} moves! Best: ${best}`, "ok");
+      setGoalAchieved({
+        moves: moveCount,
+        least: optimalAtStart,
+        best,
+      });
     },
-    [scenarioEntry, trackId, pushLog]
+    [scenarioEntry, trackId, pushLog, optimalAtStart, bestScore]
   );
+
+  const nextTrack = useMemo(() => {
+    const tracks = scenarioEntry.tracks ?? [];
+    if (tracks.length <= 1) return null;
+    const idx = trackId ? tracks.findIndex((t) => t.id === trackId) : 0;
+    if (idx < 0 || idx >= tracks.length - 1) return null;
+    return tracks[idx + 1];
+  }, [scenarioEntry, trackId]);
 
   /* =========================
      Reachability (1-step neighbors)
@@ -984,6 +1016,8 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
 
     const chosenJson = hasTracks ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson : scenarioEntry.scenarioJson;
 
+    setGoalAchieved(null);
+
     const s = (await loadScenario(chosenJson)) as any;
 
     const cts = parseCardTriggersFromScenario(s);
@@ -1058,6 +1092,17 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
     startScenario();
   }, [startScenario]);
 
+  const handleGoalReplay = useCallback(() => {
+    setGoalAchieved(null);
+    void startScenario();
+  }, [startScenario]);
+
+  const handleGoalNext = useCallback(() => {
+    if (!nextTrack) return;
+    setGoalAchieved(null);
+    onPlayNextTrack(nextTrack.id);
+  }, [nextTrack, onPlayNextTrack]);
+
   /* =========================
      Movement
   ========================= */
@@ -1065,7 +1110,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
   const tryMoveToId = useCallback(
     (id: string) => {
       if (!state) return;
-      if (encounterActive) return;
+      if (encounterActive || goalAchievedActive) return;
 
       if (playerLayer && currentLayer !== playerLayer) {
         setCurrentLayer(playerLayer);
@@ -1152,6 +1197,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
     [
       state,
       encounterActive,
+      goalAchievedActive,
       currentLayer,
       playerLayer,
       goalId,
@@ -1180,7 +1226,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
             <button
               key={it.id}
               className={"itemBtn " + (it.charges <= 0 ? "off" : "")}
-              disabled={it.charges <= 0 || !state || (encounterActive && it.id !== "reroll")}
+              disabled={it.charges <= 0 || !state || goalAchievedActive || (encounterActive && it.id !== "reroll")}
               onClick={() => useItem(it.id)}
               title={it.name + " (" + it.charges + ")"}
             >
@@ -1197,7 +1243,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
 
         <button
           className="btn"
-          disabled={!state || !canGoDown || encounterActive}
+          disabled={!state || !canGoDown || encounterActive || goalAchievedActive}
           onClick={() => {
             if (!state) return;
             const next = Math.max(1, currentLayer - 1);
@@ -1216,7 +1262,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
 
         <button
           className="btn"
-          disabled={!state || !canGoUp || encounterActive}
+          disabled={!state || !canGoUp || encounterActive || goalAchievedActive}
           onClick={() => {
             if (!state) return;
             const next = Math.min(scenarioLayerCount, currentLayer + 1);
@@ -1396,7 +1442,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
                                 setSelectedId(id);
                                 tryMoveToId(id);
                               }}
-                              disabled={!state || bm.blocked || bm.missing || encounterActive}
+                              disabled={!state || bm.blocked || bm.missing || encounterActive || goalAchievedActive}
                               style={
                                 {
                                   ["--hexGlow" as any]: useReachPulse
@@ -1755,6 +1801,46 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {goalAchieved ? (
+        <div className="encounterScene goalScene" role="dialog" aria-modal="true" aria-labelledby="goalAchievedTitle">
+          <div className="goalScenePanel">
+            <div className="goalSceneBadge" aria-hidden="true">
+              ★
+            </div>
+            <div className="encounterTitle" id="goalAchievedTitle">
+              Goal Achieved
+            </div>
+            <div className="goalScoreGrid">
+              <div className="goalScoreItem">
+                <span className="goalScoreLabel">Least</span>
+                <span className="goalScoreValue">{goalAchieved.least ?? "—"}</span>
+              </div>
+              <div className="goalScoreVs">vs</div>
+              <div className="goalScoreItem">
+                <span className="goalScoreLabel">Moves</span>
+                <span className="goalScoreValue">{goalAchieved.moves}</span>
+              </div>
+            </div>
+            {goalAchieved.best != null ? (
+              <div className="goalBestNote">
+                Your best: <b>{goalAchieved.best}</b>
+              </div>
+            ) : null}
+            <div className="encounterButtons goalSceneButtons">
+              <button type="button" className="btn" onClick={handleGoalReplay}>
+                Replay
+              </button>
+              <button type="button" className="btn primary" disabled={!nextTrack} onClick={handleGoalNext}>
+                Play next level
+              </button>
+              <button type="button" className="btn" onClick={onGoHome}>
+                Home
+              </button>
             </div>
           </div>
         </div>

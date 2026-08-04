@@ -168,6 +168,8 @@ export default function App() {
       trackId={trackId}
       customSprite={customSprite}
       onExit={resetAll}
+      onGoHome={() => setScreen("scenario")}
+      onPlayNextTrack={setTrackId}
     />
   );
 }
