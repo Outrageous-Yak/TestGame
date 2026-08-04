@@ -29,12 +29,21 @@ import {
   shouldShowFullCloudMovePulse,
   shouldUseButtonReachPulse,
 } from "../cloud/cloudBoardLayering";
+import type { ScenarioDocument, TrackTransformSelection } from "../../engine/layerTransform/types";
+import {
+  buildRuntimeScenario,
+  formatLayerTransformDebug,
+  loadPreviousCombination,
+  parseForcedLayerTransforms,
+  saveTrackVariationState,
+} from "../../engine/layerTransform";
+import { isDevMode } from "../../features/puzzle-studio/devMode";
 import {
   scenarioRef,
   ensureScenario,
   idToCoord,
   toPublicUrl,
-  loadScenario,
+  fetchJson,
   getHexFromState,
   isBlockedOrMissing,
   layerCssVar,
@@ -80,6 +89,8 @@ export function GameController({
   const encounterActive = !!encounter;
   const [goalAchieved, setGoalAchieved] = useState<GoalAchievedState | null>(null);
   const goalAchievedActive = !!goalAchieved;
+  const [layerTransformSelection, setLayerTransformSelection] = useState<TrackTransformSelection | null>(null);
+  const startScenarioOptionsRef = useRef<{ replay?: boolean; resume?: boolean }>({});
 
   /* =========================
      Core game state
@@ -1018,15 +1029,54 @@ export function GameController({
 
     setGoalAchieved(null);
 
-    const s = (await loadScenario(chosenJson)) as any;
+    const cacheKey = "20260801e";
+    const url = chosenJson + (chosenJson.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(cacheKey);
+    const authored = await fetchJson<ScenarioDocument>(url);
 
-    const cts = parseCardTriggersFromScenario(s);
+    const trackKey = trackEntry?.id ?? trackId ?? scenarioEntry.id;
+    const startOpts = startScenarioOptionsRef.current;
+    startScenarioOptionsRef.current = {};
+
+    const forced = typeof window !== "undefined" ? parseForcedLayerTransforms(window.location.search) : null;
+    const previousSelection = startOpts.replay
+      ? loadPreviousCombination(trackKey) ?? undefined
+      : undefined;
+
+    const variationParam =
+      typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("variation") : null;
+
+    const { scenario: s, selection } = buildRuntimeScenario(authored, {
+      trackId: trackKey,
+      mode:
+        forced || variationParam === "seeded"
+          ? "seeded"
+          : variationParam === "fixed" || (isDevMode() && variationParam === "fixed")
+            ? "fixed"
+            : startOpts.resume
+              ? "seeded"
+              : "new-on-replay",
+      seed: forced?.seed ?? `${trackKey}-${Date.now()}`,
+      previousSelection,
+      forcedSelection: forced ?? undefined,
+    });
+
+    setLayerTransformSelection(selection);
+    saveTrackVariationState({ trackId: trackKey, runSeed: selection.seed, selection });
+
+    const runtimeDoc = s as ScenarioDocument;
+    const cts = parseCardTriggersFromScenario(runtimeDoc);
     setCardTriggers(cts);
     pushLog("Card triggers loaded: " + cts.length, "info");
 
-    const vts = parseVillainsFromScenario(s);
+    const vts = parseVillainsFromScenario(runtimeDoc);
     setVillainTriggers(vts);
     pushLog("Villain triggers loaded: " + vts.length, "info");
+
+    if (isDevMode()) {
+      // eslint-disable-next-line no-console
+      console.info(formatLayerTransformDebug(trackKey, selection));
+      pushLog(formatLayerTransformDebug(trackKey, selection), "info");
+    }
 
     setEncounter(null);
     pendingEncounterMoveIdRef.current = null;
@@ -1094,6 +1144,7 @@ export function GameController({
 
   const handleGoalReplay = useCallback(() => {
     setGoalAchieved(null);
+    startScenarioOptionsRef.current = { replay: true };
     void startScenario();
   }, [startScenario]);
 
