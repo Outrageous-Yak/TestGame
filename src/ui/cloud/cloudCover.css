@@ -1,7 +1,7 @@
 /* Cloud scenario z-index stack (scoped under .hexSlot.cloudScenario) */
 .hexSlot.cloudScenario {
   --z-terrain: 1;
-  --z-card: 10;
+  --z-card: 12;
   --z-terrain-deco: 2;
   --z-cloud: 20;
   --z-move: 30;
@@ -38,6 +38,7 @@
 .hexSlot.cloudScenario > .cardLayer.cardLayerUnderCloud .cardBadge {
   position: relative;
   z-index: auto;
+  isolation: auto;
 }
 
 /* Hex-aligned overlays (move pulse, goal, portal) centered in slot */
@@ -49,7 +50,18 @@
   height: var(--hexHMain);
   transform: translate(-50%, -50%);
   pointer-events: none;
+}
+
+.hexSlot.cloudScenario > .hexOverlayAnchor.movePulseAnchor {
   z-index: var(--z-move);
+}
+
+.hexSlot.cloudScenario > .hexOverlayAnchor.goalOverlayAnchor {
+  z-index: var(--z-goal);
+}
+
+.hexSlot.cloudScenario > .hexOverlayAnchor.portalOverlayAnchor {
+  z-index: var(--z-portal);
 }
 
 /* =========================================================
@@ -57,10 +69,10 @@
 ========================================================= */
 .hexSlot.cloudScenario > .cloudCover {
   position: absolute;
-  left: -30%;
-  top: -30%;
-  width: 160%;
-  height: 160%;
+  left: -35%;
+  top: -25%;
+  width: 170%;
+  height: 150%;
   pointer-events: none;
   z-index: var(--z-cloud);
   clip-path: none;
@@ -384,10 +396,10 @@
 
 @media (max-width: 980px) {
   .hexSlot.cloudScenario > .cloudCover {
-    left: -25%;
-    top: -25%;
-    width: 150%;
-    height: 150%;
+    left: -30%;
+    top: -22%;
+    width: 160%;
+    height: 145%;
   }
   .cloudWisp {
     display: none;

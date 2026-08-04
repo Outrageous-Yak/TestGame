@@ -25,6 +25,11 @@ import { PlayerToken } from "../../features/sprite-builder/PlayerToken";
 import type { SavedPixelSprite } from "../../features/sprite-builder/spriteTypes";
 import { CloudCover, MoveOverlay, computeCloudVisibility } from "../cloud";
 import {
+  REACH_PULSE_INTERVAL_MS,
+  shouldShowFullCloudMovePulse,
+  shouldUseButtonReachPulse,
+} from "../cloud/cloudBoardLayering";
+import {
   scenarioRef,
   ensureScenario,
   idToCoord,
@@ -377,7 +382,7 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
 
     const timer = window.setInterval(() => {
       setReachPulseIdx((i) => (i + 1) % count);
-    }, 850);
+    }, REACH_PULSE_INTERVAL_MS);
 
     return () => window.clearInterval(timer);
   }, [reachableKey, reachableOrdered.length]);
@@ -1312,9 +1317,8 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
                           (isPortalUp || isPortalDown || showStartPortal);
                         const portalInInner =
                           (isPortalUp || isPortalDown || showStartPortal) && !showPortalOverlay;
-                        const showMovePulseOverlay =
-                          isCloudScenario && cloudMode === "full_cloud" && isReachPulse;
-                        const useReachPulse = isReachPulse && cloudMode !== "full_cloud";
+                        const showMovePulseOverlay = shouldShowFullCloudMovePulse(isReachPulse, cloudMode);
+                        const useReachPulse = shouldUseButtonReachPulse(isReachPulse, cloudMode);
 
                         const tileVisual = resolveTileVisualType({
                           revealed: !!hex?.revealed,
@@ -1433,45 +1437,49 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
                               />
                             ) : null}
 
-                            {showMovePulseOverlay || showGoalOverlay || showPortalOverlay ? (
-                              <div className="hexOverlayAnchor">
-                                {showMovePulseOverlay ? (
-                                  <MoveOverlay
-                                    glowVar={reachPulseGlow(currentLayer, cardHere)}
-                                    pulse={!reducedMotion}
-                                    cardPulse={isReachPulseCard}
-                                  />
-                                ) : null}
-                                {showGoalOverlay ? (
-                                  <div className="cloudGoalOverlay">
-                                    <span className="mark g">G</span>
-                                  </div>
-                                ) : null}
-                                {showPortalOverlay ? (
-                                  <div className="cloudPortalLayer">
-                                    {isPortalUp || isPortalDown ? (
-                                      <div className="portalFx">
-                                        <div className="pAura" />
-                                        <div className="pOrbs" />
-                                        <div className="pRim" />
-                                        <div className="pOval" />
-                                      </div>
-                                    ) : null}
-                                    {showStartPortal ? (
-                                      <div className="portalFx">
-                                        <div className="pAura" />
-                                        <div className="pRunes" />
-                                        <div className="pVortex" />
-                                        <div className="pWell" />
-                                        <div className="pShine" />
-                                      </div>
-                                    ) : null}
-                                    <div className="hexMarks">
-                                      {isPortalUp ? <span className="mark">↑</span> : null}
-                                      {isPortalDown ? <span className="mark">↓</span> : null}
+                            {showMovePulseOverlay ? (
+                              <div className="hexOverlayAnchor movePulseAnchor">
+                                <MoveOverlay
+                                  glowVar={reachPulseGlow(currentLayer, cardHere)}
+                                  pulse={!reducedMotion}
+                                  cardPulse={isReachPulseCard}
+                                />
+                              </div>
+                            ) : null}
+
+                            {showGoalOverlay ? (
+                              <div className="hexOverlayAnchor goalOverlayAnchor">
+                                <div className="cloudGoalOverlay">
+                                  <span className="mark g">G</span>
+                                </div>
+                              </div>
+                            ) : null}
+
+                            {showPortalOverlay ? (
+                              <div className="hexOverlayAnchor portalOverlayAnchor">
+                                <div className="cloudPortalLayer">
+                                  {isPortalUp || isPortalDown ? (
+                                    <div className="portalFx">
+                                      <div className="pAura" />
+                                      <div className="pOrbs" />
+                                      <div className="pRim" />
+                                      <div className="pOval" />
                                     </div>
+                                  ) : null}
+                                  {showStartPortal ? (
+                                    <div className="portalFx">
+                                      <div className="pAura" />
+                                      <div className="pRunes" />
+                                      <div className="pVortex" />
+                                      <div className="pWell" />
+                                      <div className="pShine" />
+                                    </div>
+                                  ) : null}
+                                  <div className="hexMarks">
+                                    {isPortalUp ? <span className="mark">↑</span> : null}
+                                    {isPortalDown ? <span className="mark">↓</span> : null}
                                   </div>
-                                ) : null}
+                                </div>
                               </div>
                             ) : null}
 
