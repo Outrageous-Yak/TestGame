@@ -1,6 +1,10 @@
 {
   "preview_branch": "cursor/puzzle-studio-09fd",
   "preview_slug": "puzzle-studio",
+<<<<<<< HEAD
+  "triggered_at": "2026-08-04T16:45:00Z",
+=======
   "triggered_at": "2026-08-04T16:48:00Z",
+>>>>>>> origin/main
   "pr": 34
 }

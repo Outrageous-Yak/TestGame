@@ -1,0 +1,100 @@
+{
+  "id": "fc_t09_twin_relics",
+  "name": "Twin Relics",
+  "layers": 7,
+  "objective": "Reach the goal hex.",
+  "description": "Two relic markers flank the hall. Only the north stair is viable.",
+  "notes": [
+    "Cosmic and terrain cards mark the rim — north is the clean route.",
+    "Layer 2 is a narrow gallery after the north stair."
+  ],
+  "villains": {
+    "requiredRoll": 6,
+    "triggers": [
+      { "id": "fc09a", "layer": 1, "row": 6 },
+      { "id": "fc09b", "layer": 1, "row": 0 },
+      { "id": "fc09c", "layer": 2, "row": 5 },
+      { "id": "fc09d", "layer": 2, "row": 1 }
+    ]
+  },
+  "cardTriggers": [
+    { "card": "cosmic", "layer": 1, "row": 0, "col": 0 },
+    { "card": "terrain", "layer": 1, "row": 6, "col": 6 }
+  ],
+  "start": { "layer": 1, "row": 3, "col": 3 },
+  "goal": { "layer": 3, "row": 0, "col": 3 },
+  "missing": [
+    { "layer": 1, "row": 3, "col": 2 },
+    { "layer": 1, "row": 3, "col": 4 },
+    { "layer": 1, "row": 1, "col": 3 },
+    { "layer": 1, "row": 2, "col": 1 },
+    { "layer": 1, "row": 2, "col": 2 },
+    { "layer": 1, "row": 2, "col": 4 },
+    { "layer": 1, "row": 2, "col": 5 },
+    { "layer": 1, "row": 4, "col": 0 },
+    { "layer": 1, "row": 4, "col": 1 },
+    { "layer": 1, "row": 4, "col": 2 },
+    { "layer": 1, "row": 4, "col": 4 },
+    { "layer": 1, "row": 4, "col": 5 },
+    { "layer": 1, "row": 5, "col": 0 },
+    { "layer": 1, "row": 5, "col": 1 },
+    { "layer": 1, "row": 5, "col": 2 },
+    { "layer": 1, "row": 5, "col": 4 },
+    { "layer": 1, "row": 5, "col": 5 },
+    { "layer": 1, "row": 6, "col": 0 },
+    { "layer": 1, "row": 6, "col": 1 },
+    { "layer": 1, "row": 6, "col": 2 },
+    { "layer": 1, "row": 6, "col": 4 },
+    { "layer": 1, "row": 6, "col": 5 },
+    { "layer": 1, "row": 6, "col": 6 },
+    { "layer": 1, "row": 0, "col": 0 },
+    { "layer": 1, "row": 0, "col": 1 },
+    { "layer": 1, "row": 0, "col": 2 },
+    { "layer": 1, "row": 0, "col": 4 },
+    { "layer": 1, "row": 0, "col": 5 },
+    { "layer": 1, "row": 0, "col": 6 },
+    { "layer": 2, "row": 2, "col": 2 },
+    { "layer": 2, "row": 2, "col": 4 },
+    { "layer": 2, "row": 3, "col": 2 },
+    { "layer": 2, "row": 3, "col": 4 },
+    { "layer": 2, "row": 4, "col": 2 },
+    { "layer": 2, "row": 4, "col": 4 },
+    { "layer": 2, "row": 5, "col": 2 },
+    { "layer": 2, "row": 5, "col": 4 },
+    { "layer": 3, "row": 1, "col": 2 },
+    { "layer": 3, "row": 1, "col": 4 },
+    { "layer": 3, "row": 2, "col": 2 },
+    { "layer": 3, "row": 2, "col": 4 },
+    { "layer": 3, "row": 3, "col": 2 },
+    { "layer": 3, "row": 3, "col": 4 },
+    { "layer": 3, "row": 4, "col": 2 },
+    { "layer": 3, "row": 4, "col": 4 },
+    { "layer": 3, "row": 5, "col": 2 },
+    { "layer": 3, "row": 5, "col": 4 },
+    { "layer": 3, "row": 6, "col": 2 },
+    { "layer": 3, "row": 6, "col": 4 }
+  ],
+  "blocked": [],
+  "movement": {
+    "1": "NONE",
+    "2": "NONE",
+    "3": "NONE",
+    "4": "NONE",
+    "5": "NONE",
+    "6": "NONE",
+    "7": "NONE"
+  },
+  "transitions": [
+    {
+      "type": "UP",
+      "from": { "layer": 1, "row": 0, "col": 3 },
+      "to": { "layer": 2, "row": 0, "col": 3 }
+    },
+    {
+      "type": "UP",
+      "from": { "layer": 2, "row": 0, "col": 3 },
+      "to": { "layer": 3, "row": 6, "col": 3 }
+    }
+  ],
+  "revealOnEnterGuaranteedUp": false
+}

@@ -9,6 +9,7 @@ import { GameController } from "./game/GameController";
 import { loadWorlds } from "./worldsLoader";
 import type { Screen, WorldEntry } from "./types";
 import { CharactersScreen } from "../features/sprite-builder/CharactersScreen";
+import { PuzzleStudioScreen, isDevMode, resolveInitialScreen } from "../features/puzzle-studio";
 import {
   loadActiveSpriteId,
   loadSprites,
@@ -17,7 +18,12 @@ import {
 import type { SavedPixelSprite } from "../features/sprite-builder/spriteTypes";
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("start");
+  const [screen, setScreen] = useState<Screen>(() => {
+    if (typeof window !== "undefined") {
+      return resolveInitialScreen(window.location.search);
+    }
+    return "start";
+  });
 
   const [worlds, setWorlds] = useState<WorldEntry[]>([]);
   const [worldId, setWorldId] = useState<string | null>(null);
@@ -78,8 +84,10 @@ export default function App() {
       <StartScreen
         themeVars={themeVars}
         worldsCount={worlds.length}
+        devMode={isDevMode()}
         onStart={() => setScreen("world")}
         onCharacters={() => setScreen("characters")}
+        onPuzzleStudio={() => setScreen("studio")}
         onReset={resetAll}
       />
     );
@@ -91,6 +99,16 @@ export default function App() {
         themeVars={themeVars}
         onBack={() => setScreen("start")}
         onActiveChange={handleActiveChange}
+      />
+    );
+  }
+
+  if (screen === "studio") {
+    return (
+      <PuzzleStudioScreen
+        themeVars={themeVars}
+        worlds={worlds}
+        onBack={() => setScreen("start")}
       />
     );
   }
