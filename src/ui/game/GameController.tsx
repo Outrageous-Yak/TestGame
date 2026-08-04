@@ -1312,10 +1312,9 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
                           (isPortalUp || isPortalDown || showStartPortal);
                         const portalInInner =
                           (isPortalUp || isPortalDown || showStartPortal) && !showPortalOverlay;
-                        const showMoveOverlay =
-                          cloudMode === "full_cloud" && cloudActive && cv?.isLegalMove && !isPlayer;
-                        const useReachPulse =
-                          isReachPulse && !(isCloudScenario && cloudMode === "full_cloud");
+                        const showMovePulseOverlay =
+                          isCloudScenario && cloudMode === "full_cloud" && isReachPulse;
+                        const useReachPulse = isReachPulse && cloudMode !== "full_cloud";
 
                         const tileVisual = resolveTileVisualType({
                           revealed: !!hex?.revealed,
@@ -1412,18 +1411,36 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
                                 ) : (
                                   <div className="hexInner" style={hexInnerStyle}>{hexInnerContent}</div>
                                 )}
-                                {showCloudCover ? (
-                                  <CloudCover
-                                    scenarioId={scenarioEntry.id}
-                                    layerId={"L" + currentLayer}
-                                    hexId={id}
-                                    density={cloudDensity}
-                                    reducedMotion={reducedMotion}
-                                    transitioning={cloudTransitions[id] ?? null}
+                              </div>
+                            </button>
+
+                            {cardHere ? (
+                              <div className={["cardLayer", isCloudScenario ? "cardLayerUnderCloud" : ""].filter(Boolean).join(" ")}>
+                                <div className={"cardBadge hexDeckCard " + cardHere} title={cardHere}>
+                                  <div className="deckFx" />
+                                </div>
+                              </div>
+                            ) : null}
+
+                            {showCloudCover ? (
+                              <CloudCover
+                                scenarioId={scenarioEntry.id}
+                                layerId={"L" + currentLayer}
+                                hexId={id}
+                                density={cloudDensity}
+                                reducedMotion={reducedMotion}
+                                transitioning={cloudTransitions[id] ?? null}
+                              />
+                            ) : null}
+
+                            {showMovePulseOverlay || showGoalOverlay || showPortalOverlay ? (
+                              <div className="hexOverlayAnchor">
+                                {showMovePulseOverlay ? (
+                                  <MoveOverlay
+                                    glowVar={reachPulseGlow(currentLayer, cardHere)}
+                                    pulse={!reducedMotion}
+                                    cardPulse={isReachPulseCard}
                                   />
-                                ) : null}
-                                {showMoveOverlay ? (
-                                  <MoveOverlay glowVar={layerCssVar(currentLayer)} pulse={!reducedMotion} />
                                 ) : null}
                                 {showGoalOverlay ? (
                                   <div className="cloudGoalOverlay">
@@ -1455,12 +1472,6 @@ export function GameController({ scenarioEntry, trackEntry, trackId, customSprit
                                     </div>
                                   </div>
                                 ) : null}
-                              </div>
-                            </button>
-
-                            {cardHere ? (
-                              <div className={"cardBadge hexDeckCard " + cardHere} title={cardHere}>
-                                <div className="deckFx" />
                               </div>
                             ) : null}
 

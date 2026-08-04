@@ -1,6 +1,7 @@
 /* Cloud scenario z-index stack (scoped under .hexSlot.cloudScenario) */
 .hexSlot.cloudScenario {
   --z-terrain: 1;
+  --z-card: 10;
   --z-terrain-deco: 2;
   --z-cloud: 20;
   --z-move: 30;
@@ -24,17 +25,54 @@
   clip-path: none;
 }
 
-/* =========================================================
-   CLOUD COVER — premium layered CSS clouds
-========================================================= */
-.cloudCover {
+/* Card badges sit below cloud cover */
+.hexSlot.cloudScenario > .cardLayer.cardLayerUnderCloud {
   position: absolute;
-  inset: -28% -32%;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -50%);
+  z-index: var(--z-card);
+  pointer-events: none;
+}
+
+.hexSlot.cloudScenario > .cardLayer.cardLayerUnderCloud .cardBadge {
+  position: relative;
+  z-index: auto;
+}
+
+/* Hex-aligned overlays (move pulse, goal, portal) centered in slot */
+.hexSlot.cloudScenario > .hexOverlayAnchor {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--hexWMain);
+  height: var(--hexHMain);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: var(--z-move);
+}
+
+/* =========================================================
+   CLOUD COVER — premium layered CSS clouds (slot-level)
+========================================================= */
+.hexSlot.cloudScenario > .cloudCover {
+  position: absolute;
+  left: -30%;
+  top: -30%;
+  width: 160%;
+  height: 160%;
   pointer-events: none;
   z-index: var(--z-cloud);
+  clip-path: none;
+  overflow: visible;
   transform: scale(var(--cloudScaleX, 1), var(--cloudScaleY, 1)) rotate(var(--cloudRot, 0deg));
   transform-origin: 50% 55%;
   animation: cloudDrift var(--cloudDur, 24s) ease-in-out infinite alternate;
+}
+
+.cloudCover {
+  /* fallback if used outside slot selector */
+  pointer-events: none;
 }
 
 .cloudReducedMotion.cloudCover {
@@ -275,7 +313,27 @@
 }
 
 .moveOverlayPulse {
-  animation: moveOverlayPulse 2.4s ease-in-out infinite;
+  animation: moveOverlayPulse 850ms ease-in-out infinite;
+}
+
+.moveOverlayCard::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(25% 6%, 75% 6%, 98% 50%, 75% 94%, 25% 94%, 2% 50%);
+  background: rgba(255, 255, 255, 0.22);
+  z-index: -1;
+  animation: moveOverlayCardFlash 850ms ease-in-out infinite;
+}
+
+@keyframes moveOverlayCardFlash {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.85;
+  }
 }
 
 @keyframes moveOverlayPulse {
@@ -325,8 +383,11 @@
 }
 
 @media (max-width: 980px) {
-  .cloudCover {
-    inset: -22% -26%;
+  .hexSlot.cloudScenario > .cloudCover {
+    left: -25%;
+    top: -25%;
+    width: 150%;
+    height: 150%;
   }
   .cloudWisp {
     display: none;
