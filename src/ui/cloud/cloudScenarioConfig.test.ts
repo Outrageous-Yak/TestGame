@@ -31,16 +31,22 @@ const realm = worlds.find((w) => w.id === "rainbow_realm");
 const prism = realm?.scenarios.find((s) => s.id === "prism_path");
 const cloudy = realm?.scenarios.find((s) => s.id === "cloudy");
 const fullCloud = realm?.scenarios.find((s) => s.id === "full_cloud");
+const citadel = worlds.find((w) => w.id === "forgotten_citadel");
+const citadelPath = citadel?.scenarios.find((s) => s.id === "citadel_path");
+const citadelPartlyCloudy = citadel?.scenarios.find(
+  (s) => s.id === "citadel_partly_cloudy"
+);
+const citadelCloudy = citadel?.scenarios.find((s) => s.id === "citadel_cloudy");
 
 describe("cloud scenario registry", () => {
-  it("Cloudy exists", () => {
+  it("Partly Cloudy exists", () => {
     expect(cloudy).toBeDefined();
-    expect(cloudy?.name).toBe("Cloudy");
+    expect(cloudy?.name).toBe("Partly Cloudy");
   });
 
-  it("Full Cloud exists", () => {
+  it("Cloudy exists", () => {
     expect(fullCloud).toBeDefined();
-    expect(fullCloud?.name).toBe("Full Cloud");
+    expect(fullCloud?.name).toBe("Cloudy");
   });
 
   it("both scenario IDs are unique", () => {
@@ -87,6 +93,42 @@ describe("cloud scenarios match Prism Path gameplay per track", () => {
       const f = normalizeGameplay(loadJson(p.fullJson!));
       expect(c).toEqual(base);
       expect(f).toEqual(base);
+    });
+  }
+});
+
+describe("Forgotten Citadel cloud scenario registry", () => {
+  it("adds Partly Cloudy and Cloudy variants with unique IDs", () => {
+    expect(citadelPartlyCloudy?.name).toBe("Partly Cloudy");
+    expect(citadelPartlyCloudy?.cloudMode).toBe("cloudy");
+    expect(citadelCloudy?.name).toBe("Cloudy");
+    expect(citadelCloudy?.cloudMode).toBe("full_cloud");
+
+    const ids = citadel?.scenarios.map((scenario) => scenario.id) ?? [];
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toEqual([
+      "citadel_path",
+      "citadel_partly_cloudy",
+      "citadel_cloudy",
+    ]);
+  });
+
+  const pairs =
+    citadelPath?.tracks?.map((track, index) => ({
+      name: track.name,
+      baseJson: track.scenarioJson,
+      partlyJson: citadelPartlyCloudy?.tracks?.[index]?.scenarioJson,
+      cloudyJson: citadelCloudy?.tracks?.[index]?.scenarioJson,
+    })) ?? [];
+
+  for (const pair of pairs) {
+    it(`${pair.name}: cloud variants reuse Citadel Path gameplay`, () => {
+      expect(pair.partlyJson).toBe(pair.baseJson);
+      expect(pair.cloudyJson).toBe(pair.baseJson);
+
+      const base = normalizeGameplay(loadJson(pair.baseJson));
+      expect(normalizeGameplay(loadJson(pair.partlyJson!))).toEqual(base);
+      expect(normalizeGameplay(loadJson(pair.cloudyJson!))).toEqual(base);
     });
   }
 });

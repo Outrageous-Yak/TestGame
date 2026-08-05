@@ -19,7 +19,7 @@ export default {
     },
     {
       id: "cloudy",
-      name: "Cloudy",
+      name: "Partly Cloudy",
       desc: "Navigate through shifting cloud banks. Your position, possible moves, and the nearby path remain visible.",
       cloudMode: "cloudy",
       scenarioJson: "worlds/rainbow_realm/scenarios/prism_path/scenario.json",
@@ -28,7 +28,7 @@ export default {
     },
     {
       id: "full_cloud",
-      name: "Full Cloud",
+      name: "Cloudy",
       desc: "The board is hidden beneath dense clouds. Only your position, possible moves, portals, and the goal remain visible.",
       cloudMode: "full_cloud",
       scenarioJson: "worlds/rainbow_realm/scenarios/prism_path/scenario.json",

@@ -15,5 +15,23 @@ export default {
       theme: FORGOTTEN_CITADEL_THEME,
       tracks: [...FORGOTTEN_CITADEL_TRACKS],
     },
+    {
+      id: "citadel_partly_cloudy",
+      name: "Partly Cloudy",
+      desc: "Mist drifts through the citadel. Your position, possible moves, and nearby stone paths remain visible.",
+      cloudMode: "cloudy",
+      scenarioJson: "worlds/forgotten_citadel/scenarios/track01.json",
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [...FORGOTTEN_CITADEL_TRACKS],
+    },
+    {
+      id: "citadel_cloudy",
+      name: "Cloudy",
+      desc: "Dense storm clouds conceal the citadel. Only your position, possible moves, portals, and the goal remain visible.",
+      cloudMode: "full_cloud",
+      scenarioJson: "worlds/forgotten_citadel/scenarios/track01.json",
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [...FORGOTTEN_CITADEL_TRACKS],
+    },
   ],
 } as const;
