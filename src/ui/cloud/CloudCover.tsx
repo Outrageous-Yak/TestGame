@@ -1,6 +1,12 @@
 import React, { useMemo } from "react";
 import type { CloudDensity } from "./cloudSeed";
 import { deriveCloudSeed, cloudSeedClassName } from "./cloudSeed";
+import { toPublicUrl } from "../game/helpers";
+
+export const CLOUD_TEXTURE_PATHS: Record<CloudDensity, string> = {
+  partial: "images/clouds/realistic-cloud-soft.png",
+  full: "images/clouds/realistic-cloud-dense.png",
+};
 
 export interface CloudCoverProps {
   scenarioId: string;
@@ -48,6 +54,7 @@ export function CloudCover({
     ["--cloudDur" as string]: `${seed.durationSec}s`,
     ["--cloudInnerDur" as string]: `${seed.innerDurationSec}s`,
     ["--cloudWisp" as string]: `${seed.wispOffset}%`,
+    ["--cloudImage" as string]: `url(${toPublicUrl(CLOUD_TEXTURE_PATHS[density])})`,
   } as React.CSSProperties;
 
   return (

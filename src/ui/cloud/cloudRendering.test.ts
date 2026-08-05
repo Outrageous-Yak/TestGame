@@ -2,6 +2,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { describe, expect, it } from "vitest";
 import { computeCloudVisibility } from "./computeCloudVisibility";
+import { CLOUD_TEXTURE_PATHS } from "./CloudCover";
 
 describe("cloud rendering CSS", () => {
   const css = readFileSync(join(process.cwd(), "src/ui/cloud/cloudCover.css"), "utf8");
@@ -38,6 +39,18 @@ describe("cloud rendering CSS", () => {
     const portalZ = /--z-portal:\s*(\d+)/.exec(css)?.[1];
     const playerZ = /--z-player:\s*(\d+)/.exec(css)?.[1];
     expect(Number(playerZ)).toBeGreaterThan(Number(portalZ));
+  });
+
+  it("uses generated realistic RGBA cloud textures for both densities", () => {
+    expect(css).toContain("background-image: var(--cloudImage)");
+
+    for (const path of Object.values(CLOUD_TEXTURE_PATHS)) {
+      const file = readFileSync(join(process.cwd(), "public", path));
+      expect(file.subarray(1, 4).toString("ascii")).toBe("PNG");
+      expect(file.readUInt32BE(16)).toBeGreaterThanOrEqual(480);
+      expect(file.readUInt32BE(20)).toBeGreaterThanOrEqual(250);
+      expect(file[25]).toBe(6); // RGBA
+    }
   });
 });
 
