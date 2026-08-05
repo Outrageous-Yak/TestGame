@@ -1463,6 +1463,11 @@ body{
   z-index: 22;
 }
 
+/* Card triggers stay logical-only; fly-outs originate from the compact deck row. */
+.cardLayer{
+  display: none;
+}
+
 .hexSlot > .cardBadge.hexDeckCard{
   position: absolute;
   left: 50%;

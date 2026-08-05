@@ -27,4 +27,9 @@ describe("compact card deck row", () => {
     expect(controller).toContain("deckRefs.current[card]");
     expect(controller).toContain("el.getBoundingClientRect()");
   });
+
+  it("hides per-hex card markers without removing logical card triggers", () => {
+    expect(controller).toContain("findCardTriggerAt(landedId)");
+    expect(css).toMatch(/\.cardLayer\s*\{[^}]*display:\s*none;/);
+  });
 });
