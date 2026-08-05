@@ -47,7 +47,9 @@ export async function loadPrismReference(): Promise<PrismReference[]> {
     try {
       const scenario = await loadScenario(track.scenarioJson);
       const base = newGame(scenario);
-      const sol = computeOptimalSolution(base);
+      const sol = computeOptimalSolution(base, 80, 400000, {
+        countAlternativePaths: false,
+      });
       out.push({
         file: track.scenarioJson,
         label: track.name,

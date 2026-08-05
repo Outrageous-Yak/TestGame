@@ -1,4 +1,5 @@
 import { endTurn, passTurn } from "./endTurn";
+import { findSlot } from "./layout";
 import type { GameState } from "./types";
 import {
   attemptMoveToSlot,
@@ -18,7 +19,14 @@ export function attemptMove(state: GameState, targetId: string): MoveResult {
   const target = state.hexesById.get(targetId);
   if (!target) return { ok: false, state, reason: "INVALID" };
 
-  const outcome = attemptMoveToSlot(state, target.pos);
+  const slot = findSlot(state, target.pos.layer, targetId);
+  if (!slot) return { ok: false, state, reason: "INVALID" };
+
+  const outcome = attemptMoveToSlot(state, {
+    layer: target.pos.layer,
+    row: slot.row,
+    col: slot.col,
+  });
   return moveResultFromAttempt(outcome);
 }
 

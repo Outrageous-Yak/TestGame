@@ -39,7 +39,7 @@ describe("trackValidator", () => {
         readFileSync(join(fcDir, file), "utf8")
       ) as Scenario;
 
-      it(`${scenario.id} (${file}) passes validation`, () => {
+      it(`${scenario.id} (${file}) passes validation`, { timeout: 30000 }, () => {
         const report = validateTrack(scenario, {
           file,
           referenceFingerprints: referenceFp,

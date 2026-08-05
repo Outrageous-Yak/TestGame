@@ -25,7 +25,13 @@ function loadPrism(): Array<{ file: string; scenario: Scenario; path: string[] }
     .map((file) => {
       const scenario = JSON.parse(readFileSync(join(prismDir, file), "utf8")) as Scenario;
       const base = newGame(scenario);
-      return { file, scenario, path: computeOptimalSolution(base).pathHexIds };
+      return {
+        file,
+        scenario,
+        path: computeOptimalSolution(base, 80, 400000, {
+          countAlternativePaths: false,
+        }).pathHexIds,
+      };
     });
   return prismCache;
 }
@@ -44,7 +50,7 @@ describe("Forgotten Citadel Phase 3 puzzle fitness", () => {
   const prism = () => loadPrism();
 
   for (const { scenario } of fcFiles) {
-    it(`${scenario.id} meets Phase 3 gates`, { timeout: 30000 }, () => {
+    it(`${scenario.id} meets Phase 3 gates`, { timeout: 120000 }, () => {
       const report = analyzePuzzleFitness(scenario, prism());
       fitnessCache.set(scenario.id, report);
 

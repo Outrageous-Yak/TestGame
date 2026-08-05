@@ -45,6 +45,10 @@ export type OptimalSolution = {
   stats: SolverStats;
 };
 
+export type OptimalSolutionOptions = {
+  countAlternativePaths?: boolean;
+};
+
 export type SimilarityBreakdown = {
   geometryPercent: number;
   portalPercent: number;
@@ -86,10 +90,14 @@ function stateSignature(dto: GameStateLiteDTO): string {
   for (const entry of layerEntries) {
     rows += `|L${entry.layer}`;
     for (let i = 0; i < entry.rows.length; i++) {
-      rows += `|${entry.rows[i].join(",")}`;
+      // Rows only rotate; the first unique hex id fully identifies the rotation.
+      rows += `|${entry.rows[i][0] ?? ""}`;
     }
   }
-  return `p=${dto.playerHexId}|t=${dto.turn}${rows}`;
+  const activeLayers = [...(dto.movementActiveLayers ?? [])]
+    .sort((a, b) => a - b)
+    .join(",");
+  return `p=${dto.playerHexId}|active=${activeLayers}${rows}`;
 }
 
 function goalIdFromState(state: GameState): string | null {
@@ -202,7 +210,8 @@ type BfsNode = {
 export function computeOptimalSolution(
   base: GameState,
   maxTurns = 80,
-  maxNodes = 400000
+  maxNodes = 400000,
+  options: OptimalSolutionOptions = {}
 ): OptimalSolution {
   const start = performance.now();
   const goalId = goalIdFromState(base);
@@ -363,7 +372,10 @@ export function computeOptimalSolution(
   }
 
   // Count alternative optimal paths via layered DP
-  const altCount = countOptimalPaths(base, startDto, goalId, minMoves, maxTurns);
+  const altCount =
+    options.countAlternativePaths === false
+      ? 0
+      : countOptimalPaths(base, startDto, goalId, minMoves, maxTurns);
 
   const replay = buildReplay(base, pathTargets);
   const stats = finalizeStats(

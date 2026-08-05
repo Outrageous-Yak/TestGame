@@ -10,6 +10,7 @@ export type GameStateDTO = {
   scenario: Scenario;
   turn: number;
   visibleLayers: number[];
+  movementActiveLayers?: number[];
   playerHexId: string;
 
   hexes: HexDTO[];
@@ -28,6 +29,7 @@ export type GameStateDTO = {
 export type GameStateLiteDTO = {
   turn: number;
   visibleLayers: number[];
+  movementActiveLayers?: number[];
   playerHexId: string;
   rows: Array<{ layer: number; rows: string[][] }>;
 
@@ -44,6 +46,7 @@ export function snapshotState(state: GameState): GameStateDTO {
     scenario: state.scenario,
     turn: state.turn,
     visibleLayers: Array.from(state.visibleLayers),
+    movementActiveLayers: Array.from(state.movementActiveLayers),
     playerHexId: state.playerHexId,
 
     hexes: Array.from(state.hexesById.values()).map((h) => ({
@@ -86,6 +89,9 @@ export function restoreState(dto: GameStateDTO): GameState {
     scenario: dto.scenario,
     turn: dto.turn,
     visibleLayers: new Set(dto.visibleLayers),
+    movementActiveLayers: new Set(
+      dto.movementActiveLayers ?? [layerFromHexId(dto.playerHexId)]
+    ),
     playerHexId: dto.playerHexId,
     hexesById,
     rows,
@@ -107,6 +113,7 @@ export function snapshotStateLite(state: GameState): GameStateLiteDTO {
   return {
     turn: state.turn,
     visibleLayers: Array.from(state.visibleLayers),
+    movementActiveLayers: Array.from(state.movementActiveLayers),
     playerHexId: state.playerHexId,
 
     rows: Array.from(state.rows.entries()).map(([layer, r]) => ({
@@ -140,6 +147,9 @@ export function restoreStateLite(base: GameState, dto: GameStateLiteDTO): GameSt
     scenario,
     turn: dto.turn,
     visibleLayers: new Set(dto.visibleLayers),
+    movementActiveLayers: new Set(
+      dto.movementActiveLayers ?? [layerFromHexId(dto.playerHexId)]
+    ),
     playerHexId: dto.playerHexId,
     hexesById,
     rows,
@@ -147,4 +157,9 @@ export function restoreStateLite(base: GameState, dto: GameStateLiteDTO): GameSt
     lastGuaranteedUpId: dto.lastGuaranteedUpId,
     lastGuaranteedUpTurn: dto.lastGuaranteedUpTurn,
   };
+}
+
+function layerFromHexId(hexId: string): number {
+  const match = /^L(\d+)-/.exec(hexId);
+  return match ? Number(match[1]) : 1;
 }

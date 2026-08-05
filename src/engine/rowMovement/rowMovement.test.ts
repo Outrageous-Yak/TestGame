@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { newGame } from "../api";
 import { ROW_LENS } from "../board";
+import { activateLayerMovement } from "../endTurn";
 import { assertScenario } from "../scenario";
 import type { Scenario } from "../types";
 import { attemptMove, endTurn } from "../rules";
@@ -141,7 +142,7 @@ describe("runtime application", () => {
     expect(a.rows.get(2)).toEqual(b.rows.get(2));
   });
 
-  it("applies different amounts per row in one event", () => {
+  it("applies different amounts after the player enters the layer", () => {
     const scenario = baseScenario({
       "1": "NONE",
       "2": {
@@ -159,6 +160,11 @@ describe("runtime application", () => {
     assertScenario(scenario);
     const state = newGame(scenario);
     const before = JSON.stringify(state.rows.get(2));
+
+    endTurn(state);
+    expect(JSON.stringify(state.rows.get(2))).toBe(before);
+
+    activateLayerMovement(state, 2);
     endTurn(state);
     expect(JSON.stringify(state.rows.get(2))).not.toBe(before);
   });
