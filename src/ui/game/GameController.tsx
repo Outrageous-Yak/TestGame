@@ -33,7 +33,6 @@ import type { ScenarioDocument, TrackTransformSelection } from "../../engine/lay
 import {
   buildRuntimeScenario,
   formatLayerTransformDebug,
-  formatLayerTransformPlayerSummary,
   loadTrackVariationState,
   parseForcedLayerTransforms,
   resolveTrackRunOptions,
@@ -91,11 +90,6 @@ export function GameController({
   const encounterActive = !!encounter;
   const [goalAchieved, setGoalAchieved] = useState<GoalAchievedState | null>(null);
   const goalAchievedActive = !!goalAchieved;
-  const [layerTransformSelection, setLayerTransformSelection] = useState<TrackTransformSelection | null>(null);
-  const layerTransformSummary = useMemo(
-    () => (layerTransformSelection ? formatLayerTransformPlayerSummary(layerTransformSelection) : null),
-    [layerTransformSelection]
-  );
   const startScenarioOptionsRef = useRef<{
     intent?: import("../../engine/layerTransform").TrackRunIntent;
   }>({});
@@ -1075,13 +1069,7 @@ export function GameController({
       pushLog("Board layout could not be applied — using standard layout.", "bad");
     }
 
-    setLayerTransformSelection(selection);
     saveTrackVariationState({ trackId: trackKey, runSeed: selection.seed, selection });
-
-    const playerSummary = formatLayerTransformPlayerSummary(selection);
-    if (playerSummary) {
-      pushLog(playerSummary, "info");
-    }
 
     const runtimeDoc = s as ScenarioDocument;
     const cts = parseCardTriggersFromScenario(runtimeDoc);
@@ -1656,13 +1644,6 @@ export function GameController({
                 </div>
               </div>
             </div>
-
-            {layerTransformSummary ? (
-              <div className="panelMini layoutVariantPanel">
-                <div className="miniTitle">Layout variants</div>
-                <div className="layoutVariantText">{layerTransformSummary}</div>
-              </div>
-            ) : null}
 
             <div className="panelMini logPanel">
               <div className="miniTitle">Log</div>
