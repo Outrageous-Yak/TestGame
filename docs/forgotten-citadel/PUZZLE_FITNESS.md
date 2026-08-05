@@ -1,6 +1,6 @@
 # Forgotten Citadel — Phase 3 Puzzle Fitness
 
-Generated: 2026-08-05T09:07:25.741Z
+Generated: 2026-08-05T16:21:03.959Z
 
 ## Recommendation
 
@@ -14,7 +14,7 @@ All Phase 3 gates passed.
 
 ### First Steps (track01.json)
 
-- **Playthrough note:** Optimal path verified via replay (8 moves). The south rim stair was the only way up.
+- **Playthrough note:** Optimal path verified via replay (7 moves). The south rim stair was the only way up.
 - **Aha:** Yes
 
 ### Rift Isles (track02.json)
@@ -49,7 +49,7 @@ All Phase 3 gates passed.
 
 ### Gate Order (track08.json)
 
-- **Playthrough note:** Optimal path verified via replay (7 moves). I waited for the tiers to spin the gates into place.
+- **Playthrough note:** Optimal path verified via replay (8 moves). I waited for the tiers to spin the gates into place.
 - **Aha:** Yes
 
 ### Twin Relics (track09.json)
@@ -59,7 +59,7 @@ All Phase 3 gates passed.
 
 ### Citadel Engine (track10.json)
 
-- **Playthrough note:** Optimal path verified via replay (19 moves). The central column was the only machine that reached the spire.
+- **Playthrough note:** Optimal path verified via replay (18 moves). The central column was the only machine that reached the spire.
 - **Aha:** Yes
 
 
@@ -71,19 +71,19 @@ All Phase 3 gates passed.
 
 | Metric | Value |
 |--------|-------|
-| Shortest solution | 8 |
-| Optimal solutions | 13 (target 8–20) |
-| Solutions within +5 | 1013 |
+| Shortest solution | 7 |
+| Optimal solutions | 1 (target 1–3) |
+| Solutions within +5 | 1001 |
 | Portal usage | 1 |
 | Layer visits | 1, 2 |
-| Row shift events | 8 |
-| Branching factor | 4.33 |
-| Dead ends explored | 228 |
+| Row shift events | 7 |
+| Branching factor | 4.27 |
+| Dead ends explored | 41 |
 | Soft locks (trapped states) | 0 |
 | Unused portals | 0 |
 | Originality gate | 29.5% |
 | Difficulty | 3/10 |
-| Est. solve time | 4–8 min |
+| Est. solve time | 3–7 min |
 | **Puzzle fitness** | **9.2/10** |
 | Target met | YES |
 
@@ -131,12 +131,6 @@ Row shift (layers 2)
 
 Move 7
 
-Move east
-
-Row shift (layers 2)
-
-Move 8
-
 Move northwest
 
 Row shift (layers 2)
@@ -157,8 +151,8 @@ Goal
 | Portal usage | 0 |
 | Layer visits | 1 |
 | Row shift events | 0 |
-| Branching factor | 4.44 |
-| Dead ends explored | 203 |
+| Branching factor | 4.49 |
+| Dead ends explored | 41 |
 | Soft locks (trapped states) | 0 |
 | Unused portals | 0 |
 | Originality gate | 35.0% |
@@ -225,8 +219,8 @@ Goal
 | Portal usage | 1 |
 | Layer visits | 1, 2 |
 | Row shift events | 0 |
-| Branching factor | 4.48 |
-| Dead ends explored | 202 |
+| Branching factor | 4.52 |
+| Dead ends explored | 58 |
 | Soft locks (trapped states) | 0 |
 | Unused portals | 0 |
 | Originality gate | 31.0% |
@@ -293,8 +287,8 @@ Goal
 | Portal usage | 2 |
 | Layer visits | 1, 2, 3 |
 | Row shift events | 0 |
-| Branching factor | 4.02 |
-| Dead ends explored | 1106 |
+| Branching factor | 3.71 |
+| Dead ends explored | 69 |
 | Soft locks (trapped states) | 0 |
 | Unused portals | 0 |
 | Originality gate | 27.1% |
@@ -425,8 +419,8 @@ Goal
 | Portal usage | 1 |
 | Layer visits | 1, 2 |
 | Row shift events | 0 |
-| Branching factor | 4.57 |
-| Dead ends explored | 366 |
+| Branching factor | 4.37 |
+| Dead ends explored | 60 |
 | Soft locks (trapped states) | 0 |
 | Unused portals | 0 |
 | Originality gate | 26.8% |
@@ -501,8 +495,8 @@ Goal
 | Portal usage | 3 |
 | Layer visits | 1, 2 |
 | Row shift events | 0 |
-| Branching factor | 2.42 |
-| Dead ends explored | 52 |
+| Branching factor | 2.87 |
+| Dead ends explored | 15 |
 | Soft locks (trapped states) | 0 |
 | Unused portals | 0 |
 | Originality gate | 34.4% |
@@ -577,8 +571,8 @@ Goal
 | Portal usage | 2 |
 | Layer visits | 1, 2, 3 |
 | Row shift events | 0 |
-| Branching factor | 3.84 |
-| Dead ends explored | 1258 |
+| Branching factor | 3.47 |
+| Dead ends explored | 73 |
 | Soft locks (trapped states) | 0 |
 | Unused portals | 0 |
 | Originality gate | 27.2% |
@@ -707,19 +701,19 @@ Goal
 
 | Metric | Value |
 |--------|-------|
-| Shortest solution | 7 |
-| Optimal solutions | 7 (target 4–8) |
-| Solutions within +5 | 1007 |
+| Shortest solution | 8 |
+| Optimal solutions | 38 (target 20–50) |
+| Solutions within +5 | 1038 |
 | Portal usage | 1 |
 | Layer visits | 1, 2 |
-| Row shift events | 7 |
-| Branching factor | 4.64 |
-| Dead ends explored | 267 |
+| Row shift events | 8 |
+| Branching factor | 4.10 |
+| Dead ends explored | 136 |
 | Soft locks (trapped states) | 0 |
 | Unused portals | 0 |
-| Originality gate | 20.0% |
+| Originality gate | 11.8% |
 | Difficulty | 3/10 |
-| Est. solve time | 3–7 min |
+| Est. solve time | 4–8 min |
 | **Puzzle fitness** | **9.2/10** |
 | Target met | YES |
 
@@ -743,7 +737,7 @@ Row shift (layers 2)
 
 Move 3
 
-Move southeast
+Move east
 
 Row shift (layers 2)
 
@@ -767,6 +761,12 @@ Row shift (layers 2)
 
 Move 7
 
+Move southeast
+
+Row shift (layers 2)
+
+Move 8
+
 Move east
 
 Row shift (layers 2)
@@ -787,8 +787,8 @@ Goal
 | Portal usage | 2 |
 | Layer visits | 1, 2, 3 |
 | Row shift events | 0 |
-| Branching factor | 3.23 |
-| Dead ends explored | 265 |
+| Branching factor | 3.11 |
+| Dead ends explored | 55 |
 | Soft locks (trapped states) | 0 |
 | Unused portals | 0 |
 | Originality gate | 20.0% |
@@ -857,19 +857,19 @@ Goal
 
 | Metric | Value |
 |--------|-------|
-| Shortest solution | 19 |
-| Optimal solutions | 2 (target 2–5) |
-| Solutions within +5 | 1002 |
+| Shortest solution | 18 |
+| Optimal solutions | 8 (target 5–12) |
+| Solutions within +5 | 1008 |
 | Portal usage | 2 |
 | Layer visits | 1, 2, 3 |
-| Row shift events | 38 |
-| Branching factor | 3.39 |
-| Dead ends explored | 868 |
+| Row shift events | 36 |
+| Branching factor | 3.31 |
+| Dead ends explored | 566 |
 | Soft locks (trapped states) | 0 |
 | Unused portals | 0 |
-| Originality gate | 12.2% |
+| Originality gate | 10.3% |
 | Difficulty | 7/10 |
-| Est. solve time | 8–19 min |
+| Est. solve time | 8–18 min |
 | **Puzzle fitness** | **9.2/10** |
 | Target met | YES |
 
@@ -917,7 +917,7 @@ Row shift (layers 2, 3)
 
 Move 7
 
-Move north
+Move northwest
 
 Row shift (layers 2, 3)
 
@@ -941,7 +941,7 @@ Row shift (layers 2, 3)
 
 Move 11
 
-Move north
+Move northwest
 
 Row shift (layers 2, 3)
 
@@ -965,7 +965,7 @@ Row shift (layers 2, 3)
 
 Move 15
 
-Move west
+Move northwest
 
 Row shift (layers 2, 3)
 
@@ -977,19 +977,13 @@ Row shift (layers 2, 3)
 
 Move 17
 
-Move north
+Move northwest
 
 Row shift (layers 2, 3)
 
 Move 18
 
-Move northwest
-
-Row shift (layers 2, 3)
-
-Move 19
-
-Move northwest
+Move north
 
 Row shift (layers 2, 3)
 
