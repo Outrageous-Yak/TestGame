@@ -105,6 +105,7 @@ export function buildInitialState(scenario: Scenario): GameState {
     scenario,
     turn: 0,
     visibleLayers: new Set<number>(),
+    movementActiveLayers: new Set<number>([scenario.start.layer]),
     playerHexId: posId(scenario.start),
     hexesById,
     rows,

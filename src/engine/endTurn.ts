@@ -1,6 +1,10 @@
 import type { GameState } from "./types";
 import { applyLayerRowMovement, getRuntimeMovement } from "./rowMovement";
 
+export function activateLayerMovement(state: GameState, layer: number): void {
+  state.movementActiveLayers.add(layer);
+}
+
 export function endTurn(state: GameState) {
   state.turn += 1;
 
@@ -11,6 +15,7 @@ export function endTurn(state: GameState) {
     (state.rows && typeof state.rows.size === "number" ? state.rows.size : 1);
 
   for (let layer = 1; layer <= maxLayer; layer++) {
+    if (!state.movementActiveLayers.has(layer)) continue;
     applyLayerRowMovement(state, layer, movement);
   }
 }

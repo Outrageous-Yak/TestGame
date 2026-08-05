@@ -84,7 +84,10 @@ function stateSignature(dto: GameStateLiteDTO): string {
     rows += `|L${entry.layer}`;
     for (const row of entry.rows) rows += `|${row.join(",")}`;
   }
-  return `p=${dto.playerHexId}|t=${dto.turn}${rows}`;
+  const activeLayers = [...(dto.movementActiveLayers ?? [])]
+    .sort((a, b) => a - b)
+    .join(",");
+  return `p=${dto.playerHexId}|t=${dto.turn}|active=${activeLayers}${rows}`;
 }
 
 function goalId(state: GameState): string {

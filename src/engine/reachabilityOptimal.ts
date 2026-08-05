@@ -29,7 +29,10 @@ function signature(dto: GameStateLiteDTO): string {
     }
   }
 
-  return `p=${dto.playerHexId}|t=${dto.turn}${rows}`;
+  const activeLayers = [...(dto.movementActiveLayers ?? [])]
+    .sort((a, b) => a - b)
+    .join(",");
+  return `p=${dto.playerHexId}|t=${dto.turn}|active=${activeLayers}${rows}`;
 }
 
 /**

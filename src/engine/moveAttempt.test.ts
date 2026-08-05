@@ -111,19 +111,46 @@ describe("attemptMoveToSlot", () => {
     expect(state.moveHistory ?? []).toHaveLength(0);
   });
 
-  it("triggers row movement after failed move", () => {
-    const scenario = baseScenario();
+  it("triggers row movement after a failed move on an active layer", () => {
+    const scenario = baseScenario({
+      start: { layer: 2, row: 3, col: 1 },
+      goal: { layer: 2, row: 3, col: 4 },
+    });
     attachRuntimeMovement(scenario);
     const state = newGame(scenario);
     const rowsBefore = state.rows.get(2)?.map((r) => r.join(",")).join("|") ?? "";
 
-    attemptMoveToSlot(state, { layer: 1, row: 0, col: 0 });
+    attemptMoveToSlot(state, { layer: 2, row: 0, col: 0 });
 
     const rowsAfter = state.rows.get(2)?.map((r) => r.join(",")).join("|") ?? "";
     const shifting = shiftingLayersInMovement(getRuntimeMovement(scenario));
     if (shifting.includes(2)) {
       expect(rowsAfter).not.toBe(rowsBefore);
     }
+  });
+
+  it("activates destination-layer movement when a portal is entered", () => {
+    const scenario = baseScenario({
+      goal: { layer: 2, row: 0, col: 0 },
+      transitions: [
+        {
+          type: "UP",
+          from: { layer: 1, row: 3, col: 2 },
+          to: { layer: 2, row: 0, col: 0 },
+        },
+      ],
+    });
+    attachRuntimeMovement(scenario);
+    const state = newGame(scenario);
+    const rowsBefore = state.rows.get(2)?.map((r) => r.join(",")).join("|") ?? "";
+
+    const outcome = attemptMoveToSlot(state, { layer: 1, row: 3, col: 2 });
+
+    expect(outcome.result).toBe("MOVED");
+    expect(outcome.triggeredTransition).toBe(true);
+    expect(state.movementActiveLayers).toEqual(new Set([1, 2]));
+    const rowsAfter = state.rows.get(2)?.map((r) => r.join(",")).join("|") ?? "";
+    expect(rowsAfter).not.toBe(rowsBefore);
   });
 
   it("does not treat non-adjacent hex as reachable", () => {

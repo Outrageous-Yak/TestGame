@@ -1,7 +1,7 @@
 import { inBounds, posId, revealHex, enterLayer } from "./board";
 import { hexIdAtSlot } from "./layout";
 import { neighborIdsSameLayer } from "./neighbors";
-import { endTurn } from "./endTurn";
+import { activateLayerMovement, endTurn } from "./endTurn";
 import type { GameState, Pos } from "./types";
 
 export type BoardSlotRef = Pick<Pos, "layer" | "row" | "col">;
@@ -113,6 +113,7 @@ export function attemptMoveToSlot(state: GameState, slot: BoardSlotRef): MoveAtt
     if (dest && !dest.blocked && !dest.missing) {
       triggered = true;
       state.playerHexId = destId;
+      activateLayerMovement(state, tr.to.layer);
       enterLayer(state, tr.to.layer);
       revealHex(state, destId);
     }

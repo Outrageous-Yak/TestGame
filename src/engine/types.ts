@@ -71,6 +71,8 @@ export type GameState = {
   scenario: Scenario;
   turn: number;
   visibleLayers: Set<number>;
+  /** Layers whose row movement is active because the player has entered them. */
+  movementActiveLayers: Set<number>;
   playerHexId: string;
 
   hexesById: Map<string, Hex>;
