@@ -56,6 +56,7 @@ export function resolveTrackRunOptions(input: ResolveTrackRunOptionsInput): Buil
       mode: "new-on-replay",
       seed: `${trackKeySeed(trackId)}-${Date.now()}`,
       previousSelection: stored?.selection,
+      requiredChangedLayers: [1],
     };
   }
 

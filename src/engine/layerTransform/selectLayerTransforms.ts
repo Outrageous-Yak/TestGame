@@ -39,7 +39,8 @@ export function selectLayerTransforms(
   layerCount: number,
   seed: string,
   rules: TrackVariationRules = DEFAULT_VARIATION_RULES,
-  previousCombination?: Record<number, LayerTransformId>
+  previousCombination?: Record<number, LayerTransformId>,
+  requiredChangedLayers: number[] = []
 ): TrackTransformSelection {
   const activeIds = getActiveLayerTransformIds();
   const allowed = rules.allowedTransforms.filter((id) => activeIds.includes(id));
@@ -47,6 +48,15 @@ export function selectLayerTransforms(
 
   const maxAttempts = 32;
   let attemptSeed = seed;
+  const requiredLayerChanges = requiredChangedLayers.filter((layer) => {
+    const previous = previousCombination?.[layer];
+    if (!previous) return false;
+    if (rules.forcedTransformsByLayer?.[String(layer)]) return false;
+    const candidates = rules.allowIdentity
+      ? pool
+      : pool.filter((id) => id !== "identity");
+    return candidates.some((id) => id !== previous);
+  });
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const rng = createSeededRandom(`${trackId}:${attemptSeed}:layer-transforms`);
@@ -73,8 +83,16 @@ export function selectLayerTransforms(
 
     const key = combinationKey(layerTransforms);
     const prevKey = previousCombination ? combinationKey(previousCombination) : null;
+    const repeatsFullCombination =
+      rules.avoidPreviousCombination &&
+      !!prevKey &&
+      key === prevKey &&
+      pool.length ** layerCount > 1;
+    const repeatsRequiredLayer = requiredLayerChanges.some(
+      (layer) => layerTransforms[layer] === previousCombination?.[layer]
+    );
 
-    if (!rules.avoidPreviousCombination || !prevKey || key !== prevKey || pool.length ** layerCount <= 1) {
+    if (!repeatsFullCombination && !repeatsRequiredLayer) {
       return { seed: attemptSeed, layerTransforms };
     }
 
@@ -84,6 +102,23 @@ export function selectLayerTransforms(
   const fallback: Record<number, LayerTransformId> = {};
   for (let layer = 1; layer <= layerCount; layer++) {
     fallback[layer] = "identity";
+  }
+  const candidates = rules.allowIdentity
+    ? pool
+    : pool.filter((id) => id !== "identity");
+  for (const layer of requiredLayerChanges) {
+    const alternate = candidates.find(
+      (id) => id !== previousCombination?.[layer]
+    );
+    if (!alternate) continue;
+    if (rules.independentPerLayer) {
+      fallback[layer] = alternate;
+    } else {
+      for (let targetLayer = 1; targetLayer <= layerCount; targetLayer++) {
+        fallback[targetLayer] =
+          rules.forcedTransformsByLayer?.[String(targetLayer)] ?? alternate;
+      }
+    }
   }
   return { seed, layerTransforms: fallback };
 }

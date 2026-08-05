@@ -107,6 +107,7 @@ export type BuildRuntimeScenarioOptions = {
   mode: TrackVariationMode;
   seed?: string;
   previousSelection?: TrackTransformSelection;
+  requiredChangedLayers?: number[];
   preserveSelection?: TrackTransformSelection;
   rules?: Partial<TrackVariationRules>;
   forcedSelection?: TrackTransformSelection;
@@ -159,7 +160,8 @@ export function buildRuntimeScenario(
     layerCount,
     seed,
     rules,
-    options.previousSelection?.layerTransforms
+    options.previousSelection?.layerTransforms,
+    options.requiredChangedLayers
   );
 
   return {
