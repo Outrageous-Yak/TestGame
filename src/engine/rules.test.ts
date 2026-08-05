@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildInitialState } from "./board";
 import { newGame, tryMove } from "./api";
 import { computeMinMovesToGoal } from "./reachabilityOptimal";
+import { attemptMoveToSlot } from "./moveAttempt";
 import type { Scenario } from "./types";
 
 function oneStepScenario(): Scenario {
@@ -69,5 +70,17 @@ describe("rules and optimal path", () => {
   it("computeMinMovesToGoal finds 1 for adjacent start and goal", () => {
     const state = buildInitialState(oneStepScenario());
     expect(computeMinMovesToGoal(state, 10)).toBe(1);
+  });
+
+  it("unreachable hex consumes a turn without moving the player", () => {
+    const scenario = oneStepScenario();
+    const state = newGame(scenario);
+    const before = state.playerHexId;
+
+    const outcome = attemptMoveToSlot(state, { layer: 1, row: 0, col: 0 });
+
+    expect(outcome.result).toBe("UNREACHABLE");
+    expect(state.playerHexId).toBe(before);
+    expect(state.turn).toBe(1);
   });
 });

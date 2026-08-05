@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { GameState } from "../../engine/types";
-import { newGame, getMinMovesToGoal, tryMove } from "../../engine/api";
+import { newGame, getMinMovesToGoal, tryMove, attemptMoveToSlot } from "../../engine/api";
 import type { MoveResult } from "../../engine/api";
 
 import { ROW_LENS, enterLayer, revealHex } from "../../engine/board";
@@ -59,7 +59,8 @@ import {
   parseVillainsFromScenario,
 } from "./helpers";
 import { selectHexTileArtUrl } from "./hexTileVisual";
-import { playGoalLandSound, playPlayerMoveSound, playPortalLandSound, preloadSoundEffects } from "../audio/soundEffects";
+import { playGoalLandSound, playPlayerMoveSound, playPortalLandSound, playFailedMoveSound, preloadSoundEffects } from "../audio/soundEffects";
+import type { MoveAttemptResult } from "../../engine/moveAttempt";
 
 type GoalAchievedState = {
   moves: number;
@@ -566,7 +567,7 @@ export function GameController({
   }, [HEX_TILE_MOVABLE]);
 
   useEffect(() => {
-    void preloadSoundEffects(["playerMove", "portalLand", "goalLand"]);
+    void preloadSoundEffects(["playerMove", "portalLand", "goalLand", "failedMove"]);
   }, []);
 
   function diceImg(n: number) {
@@ -637,6 +638,13 @@ export function GameController({
   }, [isWalking]);
 
   const walkTimer = useRef<number | null>(null);
+  const boardInputLockedRef = useRef(false);
+  const [failedSlotFeedback, setFailedSlotFeedback] = useState<{
+    layer: number;
+    row: number;
+    col: number;
+    kind: MoveAttemptResult;
+  } | null>(null);
   useEffect(() => {
     return () => {
       if (walkTimer.current) window.clearTimeout(walkTimer.current);
@@ -1117,6 +1125,8 @@ export function GameController({
 
     setEncounter(null);
     pendingEncounterMoveIdRef.current = null;
+    boardInputLockedRef.current = false;
+    setFailedSlotFeedback(null);
 
     scenarioRef.current = s;
 
@@ -1195,100 +1205,106 @@ export function GameController({
      Movement
   ========================= */
 
-  const tryMoveToId = useCallback(
-    (id: string) => {
+  const releaseBoardInput = useCallback((delayMs: number) => {
+    window.setTimeout(() => {
+      boardInputLockedRef.current = false;
+      setFailedSlotFeedback(null);
+    }, delayMs);
+  }, []);
+
+  const attemptMoveAtSlot = useCallback(
+    (row: number, col: number) => {
       if (!state) return;
-      if (encounterActive || goalAchievedActive) return;
+      if (boardInputLockedRef.current || encounterActive || goalAchievedActive) return;
 
-      if (playerLayer && currentLayer !== playerLayer) {
-        setCurrentLayer(playerLayer);
-        enterLayer(state, playerLayer);
-        revealWholeLayer(state, playerLayer);
-        forceRender((n) => n + 1);
-        pushLog(
-          "You were viewing layer " + currentLayer + " but the player is on layer " + playerLayer + " — switched back.",
-          "info"
-        );
-        return;
-      }
+      const hexId = hexIdAtSlot(state, currentLayer, row, col);
+      if (!hexId) return;
 
-      const hex = getHexFromState(state, id) as any;
-      if (!hex || hex.missing) {
-        pushLog("Missing tile.", "bad");
-        return;
-      }
-
-      const pidBefore = state.playerHexId;
-
-      const vk = findTriggerForHex(id);
+      const vk = findTriggerForHex(hexId);
       if (vk) {
-        pendingEncounterMoveIdRef.current = id;
+        pendingEncounterMoveIdRef.current = hexId;
         setEncounter((prev) => (prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }));
         pushLog("Encounter: " + vk + " — roll a 6 to continue", "bad");
         return;
       }
 
-      const res: MoveResult = tryMove(state, id);
-      ensureScenario(res.state);
+      boardInputLockedRef.current = true;
+      const pidBefore = state.playerHexId;
+      const outcome = attemptMoveToSlot(state, { layer: currentLayer, row, col });
 
-      if (!res.ok) {
-        setState(res.state);
-        forceRender((n) => n + 1);
-        setOptimalFromNow(computeOptimalMoves(res.state));
-        if (res.reason === "BLOCKED") pushLog("Blocked tile — lost turn.", "bad");
-        else pushLog("Invalid move.", "bad");
+      if (outcome.result === "IGNORED") {
+        boardInputLockedRef.current = false;
         return;
       }
 
-      const nextState = res.state;
-      const pidAfter = nextState.playerHexId;
-      const landedId = pidAfter;
-
-      const fromLayer = (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
-      const moved = pidAfter !== pidBefore;
-
+      ensureScenario(state);
       const newMoveCount = movesTaken + 1;
       setMovesTaken(newMoveCount);
+      setOptimalFromNow(computeOptimalMoves(state));
 
-      const landedCoord = idToCoord(landedId);
-      const finalLayer = landedCoord?.layer ?? fromLayer;
+      if (outcome.result === "MOVED") {
+        const landedId = state.playerHexId;
+        const moved = landedId !== pidBefore;
+        const fromLayer = (pidBefore ? idToCoord(pidBefore)?.layer : currentLayer) ?? currentLayer;
+        const landedCoord = idToCoord(landedId);
+        const finalLayer = landedCoord?.layer ?? fromLayer;
 
-      if (moved) {
-        playMoveOutcomeSound(res, landedId, moved);
-        setIsWalking(true);
-        if (walkTimer.current) window.clearTimeout(walkTimer.current);
-        walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
-        setPlayerFacing(facingFromMove(state, pidBefore, pidAfter));
+        if (moved) {
+          playMoveOutcomeSound(
+            { ok: true, state, triggeredTransition: outcome.triggeredTransition ?? false, won: outcome.won ?? false },
+            landedId,
+            moved
+          );
+          setIsWalking(true);
+          if (walkTimer.current) window.clearTimeout(walkTimer.current);
+          walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
+          setPlayerFacing(facingFromMove(state, pidBefore, landedId));
+        }
+
+        setState(state);
+        setSelectedId(landedId);
+        forceRender((n) => n + 1);
+
+        enterLayer(state, finalLayer);
+        if (finalLayer !== currentLayer) {
+          setCurrentLayer(finalLayer);
+          revealWholeLayer(state, finalLayer);
+        }
+
+        const landedCard = findCardTriggerAt(landedId);
+        if (landedCard) {
+          triggerCardFlyout(landedCard, landedCard === "risk" ? { then: "encounter" } : undefined);
+          pushLog("Card triggered: " + landedCard, landedCard === "risk" ? "bad" : "info");
+        }
+
+        pushLog("Moved to " + landedId, "ok");
+        if (goalId && landedId === goalId) recordWin(newMoveCount);
+        releaseBoardInput(420);
+        return;
       }
 
-      setState(nextState);
-      setSelectedId(landedId);
+      playFailedMoveSound();
+      setFailedSlotFeedback({ layer: currentLayer, row, col, kind: outcome.result });
+      if (pidBefore) {
+        setPlayerFacing(facingFromMove(state, pidBefore, hexId));
+      }
+      const logMsg =
+        outcome.result === "MISSING"
+          ? "Missing space — lost turn."
+          : outcome.result === "BLOCKED"
+            ? "Blocked tile — lost turn."
+            : "Unreachable — lost turn.";
+      pushLog(logMsg, "bad");
+      setState(state);
+      setSelectedId(null);
       forceRender((n) => n + 1);
-
-      enterLayer(nextState, finalLayer);
-
-      if (finalLayer !== currentLayer) {
-        setCurrentLayer(finalLayer);
-        revealWholeLayer(nextState, finalLayer);
-      }
-
-      const landedCard = findCardTriggerAt(landedId);
-      if (landedCard) {
-        triggerCardFlyout(landedCard, landedCard === "risk" ? { then: "encounter" } : undefined);
-        pushLog("Card triggered: " + landedCard, landedCard === "risk" ? "bad" : "info");
-      }
-
-      setOptimalFromNow(computeOptimalMoves(nextState));
-
-      pushLog("Moved to " + landedId, "ok");
-      if (goalId && landedId === goalId) recordWin(newMoveCount);
+      releaseBoardInput(reducedMotion ? 280 : 450);
     },
     [
       state,
       encounterActive,
       goalAchievedActive,
       currentLayer,
-      playerLayer,
       goalId,
       movesTaken,
       pushLog,
@@ -1299,7 +1315,18 @@ export function GameController({
       findCardTriggerAt,
       triggerCardFlyout,
       playMoveOutcomeSound,
+      releaseBoardInput,
+      reducedMotion,
     ]
+  );
+
+  const handleSlotPointerUp = useCallback(
+    (e: React.PointerEvent, row: number, col: number) => {
+      if (e.button !== 0 && e.pointerType === "mouse") return;
+      e.preventDefault();
+      attemptMoveAtSlot(row, col);
+    },
+    [attemptMoveAtSlot]
   );
   return (
     <div className="appRoot game" style={themeVars}>
@@ -1421,8 +1448,37 @@ export function GameController({
 
                         const hex = getHexFromState(state, id) as any;
                         const bm = isBlockedOrMissing(hex);
+                        const failedHere =
+                          failedSlotFeedback &&
+                          failedSlotFeedback.layer === currentLayer &&
+                          failedSlotFeedback.row === r &&
+                          failedSlotFeedback.col === c;
+                        const failedClass = failedHere
+                          ? reducedMotion
+                            ? "failedMoveStatic"
+                            : "failedMovePulse"
+                          : "";
 
-                        if (bm.missing) return <div key={id} className="hexSlot empty" style={cellStyle} />;
+                        if (bm.missing) {
+                          return (
+                            <div
+                              key={id}
+                              className={["hexSlot", "missingSlotWrap", isCloudScenario ? "cloudScenario" : ""]
+                                .filter(Boolean)
+                                .join(" ")}
+                              style={cellStyle}
+                            >
+                              <button
+                                type="button"
+                                className={["hex", "missingSlot", failedClass].filter(Boolean).join(" ")}
+                                onPointerUp={(e) => handleSlotPointerUp(e, r, c)}
+                                disabled={!state || encounterActive || goalAchievedActive}
+                                aria-label="Missing hex. Selecting this space consumes a move."
+                                title="Missing hex"
+                              />
+                            </div>
+                          );
+                        }
 
                         const isSel = selectedId === id;
                         const isPlayer = playerId === id;
@@ -1520,6 +1576,7 @@ export function GameController({
                                 useReachPulse ? "reachPulse" : "",
                                 useReachPulse && isReachPulseCard ? "reachPulseCard" : "",
                                 bm.blocked ? "blocked" : "",
+                                failedClass,
                                 isPlayer ? "player" : "",
                                 isGoal ? "goal" : "",
                                 isTrigger ? "trigger" : "",
@@ -1527,15 +1584,8 @@ export function GameController({
                                 isPortalUp ? "portalUp" : "",
                                 isPortalDown ? "portalDown" : "",
                               ].join(" ")}
-                              onClick={() => {
-                                if (playerLayer && currentLayer !== playerLayer) {
-                                  tryMoveToId(id);
-                                  return;
-                                }
-                                setSelectedId(id);
-                                tryMoveToId(id);
-                              }}
-                              disabled={!state || bm.blocked || bm.missing || encounterActive || goalAchievedActive}
+                              onPointerUp={(e) => handleSlotPointerUp(e, r, c)}
+                              disabled={!state || encounterActive || goalAchievedActive}
                               style={
                                 {
                                   ["--hexGlow" as any]: useReachPulse
