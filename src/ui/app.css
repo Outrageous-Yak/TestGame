@@ -455,7 +455,7 @@ body{
   min-height: 0;
   display: grid;
   grid-template-columns: 1fr var(--sideColW);
-  grid-template-rows: 1fr;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 14px;
 }
 
@@ -611,6 +611,8 @@ body{
    BOARD WRAP
 ========================================================= */
 .boardWrap{
+  grid-column: 1;
+  grid-row: 1;
   position: relative;
   border-radius: 18px;
   border: 1px solid rgba(255,255,255,.08);
@@ -1222,6 +1224,8 @@ body{
    SIDEBAR (STATUS + LOG)
 ========================================================= */
 .side{
+  grid-column: 2;
+  grid-row: 1 / span 2;
   display:grid;
   grid-auto-rows: min-content;
   gap: 14px;
@@ -1507,9 +1511,11 @@ body{
 .hexDeckCard.terrain { --a:#0E3B2E; --b:#1FA88A; }
 .hexDeckCard.shadow  { --a:#1B1B1E; --b:#2A1E3F; }
 
-/* Mobile deck row (below board) */
+/* Compact deck row (below board on every screen size) */
 .mobileDeckRow{
-  display: none;
+  display: flex;
+  grid-column: 1;
+  grid-row: 2;
   gap: 8px;
   padding: 0 2px;
   justify-content: space-between;
@@ -2308,6 +2314,7 @@ body{
   }
 
   .side{
+    grid-column: 1;
     grid-row: 3;
     order: unset;
     gap: 0;
