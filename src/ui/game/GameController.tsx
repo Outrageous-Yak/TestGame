@@ -60,6 +60,7 @@ import {
 } from "./helpers";
 import { selectHexTileArtUrl } from "./hexTileVisual";
 import { playGoalLandSound, playPlayerMoveSound, playPortalLandSound, playFailedMoveSound, preloadSoundEffects } from "../audio/soundEffects";
+import { startBackgroundMusic, stopBackgroundMusic } from "../audio/backgroundMusic";
 import type { MoveAttemptResult } from "../../engine/moveAttempt";
 
 type GoalAchievedState = {
@@ -546,6 +547,7 @@ export function GameController({
   const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "images/villains";
   const HEX_TILE = activeTheme?.assets.hexTile ?? "";
   const HEX_TILE_MOVABLE = activeTheme?.assets.hexTileMovable ?? "";
+  const BACKGROUND_MUSIC = activeTheme?.assets.backgroundMusic ?? "";
 
   const themeVars = useMemo(() => {
     const p = palette;
@@ -569,6 +571,14 @@ export function GameController({
   useEffect(() => {
     void preloadSoundEffects(["playerMove", "portalLand", "goalLand", "failedMove"]);
   }, []);
+
+  useEffect(() => {
+    if (!BACKGROUND_MUSIC) return;
+    void startBackgroundMusic(BACKGROUND_MUSIC);
+    return () => {
+      void stopBackgroundMusic();
+    };
+  }, [BACKGROUND_MUSIC]);
 
   function diceImg(n: number) {
     return toPublicUrl(DICE_FACES_BASE + "/D20_" + n + ".png");
