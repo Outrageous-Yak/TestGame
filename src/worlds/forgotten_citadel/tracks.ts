@@ -28,6 +28,7 @@ export const FORGOTTEN_CITADEL_THEME = {
     diceCornerBorder: "worlds/rainbow_realm/scenarios/prism_path/assets/dice/borders/corner_flame_red.png",
     villainsBase: "worlds/rainbow_realm/scenarios/prism_path/assets/villains",
     hexTile: "worlds/forgotten_citadel/assets/tiles/hex-normal.png",
+    hexTileMovable: "worlds/forgotten_citadel/assets/tiles/hex-normal-white.png",
     backgroundLayers: {
       L1: "worlds/forgotten_citadel/assets/backgrounds/board-bg.png",
       L2: "worlds/forgotten_citadel/assets/backgrounds/board-bg.png",

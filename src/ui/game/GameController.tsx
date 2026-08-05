@@ -528,6 +528,7 @@ export function GameController({
   const DICE_BORDER_IMG = activeTheme?.assets.diceCornerBorder ?? "";
   const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "images/villains";
   const HEX_TILE = activeTheme?.assets.hexTile ?? "";
+  const HEX_TILE_MOVABLE = activeTheme?.assets.hexTileMovable ?? "";
 
   const themeVars = useMemo(() => {
     const p = palette;
@@ -1433,10 +1434,13 @@ export function GameController({
                           isPortalUp: hideSpecialTileArt ? false : isPortalUp,
                           isPortalDown: hideSpecialTileArt ? false : isPortalDown,
                         });
-                        // Theme hexTile (if set) overrides per-type art for backward compatibility.
-                        const tileArtUrl = HEX_TILE
-                          ? toPublicUrl(HEX_TILE)
-                          : toPublicUrl(tileArtRelPath(tileVisual));
+                        // Theme hexTile overrides per-type art; hexTileMovable applies to normal revealed hexes only.
+                        const tileArtUrl =
+                          tileVisual === "normal" && HEX_TILE_MOVABLE
+                            ? toPublicUrl(HEX_TILE_MOVABLE)
+                            : HEX_TILE
+                              ? toPublicUrl(HEX_TILE)
+                              : toPublicUrl(tileArtRelPath(tileVisual));
                         const hexInnerStyle = {
                           ["--tileArt" as any]: `url(${tileArtUrl})`,
                         } as React.CSSProperties;
