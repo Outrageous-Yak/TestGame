@@ -2,7 +2,8 @@ import { toPublicUrl } from "../game/helpers";
 import { normalizedBgmGain } from "./audioLevels";
 import { getSoundEffectsVolume, isSoundEffectsEnabled } from "./soundEffects";
 
-const FADE_SECONDS = 2.5;
+const FADE_IN_SECONDS = 3;
+const FADE_OUT_SECONDS = 1.5;
 
 let audioContext: AudioContext | null = null;
 let buffer: AudioBuffer | null = null;
@@ -67,12 +68,12 @@ async function loadBuffer(path: string): Promise<AudioBuffer | null> {
   return loading;
 }
 
-function clearCurrentSource() {
+function clearPlaybackNodes() {
   currentSource = null;
   currentGain = null;
 }
 
-function playLoopIteration() {
+function startLoopingSource() {
   if (stopping || !activePath || !buffer) return;
   if (!canPlay()) return;
 
@@ -82,27 +83,18 @@ function playLoopIteration() {
   const source = ctx.createBufferSource();
   const gain = ctx.createGain();
   source.buffer = buffer;
+  source.loop = true;
   source.connect(gain);
   gain.connect(ctx.destination);
 
   const now = ctx.currentTime;
-  const duration = buffer.duration;
-  const fade = Math.min(FADE_SECONDS, duration / 4);
   const vol = targetVolume();
 
   gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(vol, now + fade);
-  gain.gain.setValueAtTime(vol, now + Math.max(fade, duration - fade));
-  gain.gain.linearRampToValueAtTime(0, now + duration);
+  gain.gain.linearRampToValueAtTime(vol, now + FADE_IN_SECONDS);
 
   currentSource = source;
   currentGain = gain;
-
-  source.onended = () => {
-    clearCurrentSource();
-    if (!stopping && activePath) playLoopIteration();
-  };
-
   source.start(0);
 }
 
@@ -118,10 +110,10 @@ export async function startBackgroundMusic(path: string) {
   if (!loaded || stopping || activePath !== path) return;
   if (!canPlay()) return;
 
-  playLoopIteration();
+  startLoopingSource();
 }
 
-export async function stopBackgroundMusic(fadeOutSeconds = 1.5) {
+export async function stopBackgroundMusic(fadeOutSeconds = FADE_OUT_SECONDS) {
   stopping = true;
   activePath = null;
 
@@ -129,7 +121,7 @@ export async function stopBackgroundMusic(fadeOutSeconds = 1.5) {
   const gain = currentGain;
   const ctx = audioContext;
 
-  clearCurrentSource();
+  clearPlaybackNodes();
 
   if (!source) return;
 
