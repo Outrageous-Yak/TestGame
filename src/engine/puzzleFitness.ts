@@ -18,16 +18,16 @@ import {
 export type OptimalCountTarget = { min: number; max: number };
 
 export const OPTIMAL_COUNT_TARGETS: Record<string, OptimalCountTarget> = {
-  fc_t01_first_steps: { min: 8, max: 20 },
+  fc_t01_first_steps: { min: 1, max: 3 },
   fc_t02_rift_isles: { min: 8, max: 20 },
   fc_t03_portal_fork: { min: 3, max: 15 },
   fc_t04_false_summit: { min: 6, max: 20 },
   fc_t05_broken_span: { min: 5, max: 12 },
   fc_t06_return_valve: { min: 2, max: 10 },
   fc_t07_helix_coil: { min: 4, max: 10 },
-  fc_t08_gate_order: { min: 4, max: 8 },
+  fc_t08_gate_order: { min: 20, max: 50 },
   fc_t09_twin_relics: { min: 3, max: 6 },
-  fc_t10_citadel_engine: { min: 2, max: 5 },
+  fc_t10_citadel_engine: { min: 5, max: 12 },
 };
 
 export type PuzzleIdentity = {
