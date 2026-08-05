@@ -40,7 +40,7 @@ export type ScenarioTheme = {
     diceCornerBorder: string;
     villainsBase: string;
     hexTile?: string;
-    /** White-emblem (or high-contrast) tile art for reachable move targets only. */
+    /** White-emblem tile shown only during active reach-pulse flash on Forgotten Citadel. */
     hexTileMovable?: string;
   };
 };

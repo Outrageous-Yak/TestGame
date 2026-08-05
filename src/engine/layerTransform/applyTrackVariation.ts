@@ -1,6 +1,7 @@
 import { inBounds, posId } from "../board";
 import { assertScenario } from "../scenario";
 import type { Scenario } from "../types";
+import { attachRuntimeMovement } from "../rowMovement/attachRuntimeMovement";
 import type {
   LayerTransformId,
   ScenarioDocument,
@@ -67,6 +68,14 @@ export function applyLayerTransformsToScenario(
   }
 
   Object.assign(clone, scenario);
+
+  attachRuntimeMovement(
+    scenario,
+    Object.fromEntries(
+      Object.entries(selection.layerTransforms).map(([k, v]) => [Number(k), v])
+    )
+  );
+  clone.runtimeMovement = scenario.runtimeMovement;
 
   if (options?.validateScenario !== false) {
     assertScenario(scenario);

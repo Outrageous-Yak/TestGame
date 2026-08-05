@@ -5,7 +5,8 @@ import type { GameState, Scenario } from "./types";
 import { ROW_LENS, posId } from "./board";
 import { newGame } from "./api";
 import { neighborIdsSameLayer } from "./neighbors";
-import { attemptMove, getPatternForLayer } from "./rules";
+import { attemptMove } from "./rules";
+import { getRuntimeMovement, normalizeScenarioMovement, shiftingLayersInMovement } from "./rowMovement";
 import { restoreStateLite, snapshotStateLite, type GameStateLiteDTO } from "./snapshot";
 import {
   computeOptimalSolution,
@@ -270,11 +271,8 @@ export function detectDeadGameplay(
     }
   }
 
-  const shiftingLayers: number[] = [];
-  for (let l = 1; l <= scenario.layers; l++) {
-    const pat = getPatternForLayer(scenario.movement ?? {}, l);
-    if (pat !== "NONE") shiftingLayers.push(l);
-  }
+  const movement = getRuntimeMovement(scenario);
+  const shiftingLayers = shiftingLayersInMovement(movement);
 
   const layersInPath = new Set<number>();
   for (const hid of optimalPathHexes) {
@@ -528,7 +526,9 @@ function buildHumanReview(
   const memorable = scores.puzzleIdentity >= 8;
   const aha = scores.surprise >= 8 || scores.discovery >= 8;
   const observation = (scenario.missing?.length ?? 0) > 0 || (scenario.transitions?.length ?? 0) > 1;
-  const planning = (scenario.movement && Object.values(scenario.movement).some((v) => v !== "NONE")) ?? false;
+  const planning =
+    !!scenario.movement &&
+    shiftingLayersInMovement(normalizeScenarioMovement(scenario.movement)).length > 0;
   const understanding = counts.optimal <= 15;
   const designerElegant =
     scores.elegance >= 8.5 &&

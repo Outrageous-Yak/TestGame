@@ -8,33 +8,212 @@
     "The arena (Layer 4) is stable. Other layers shift.",
     "Timing matters."
   ],
-  "start": { "layer": 4, "row": 3, "col": 0 },
-  "goal": { "layer": 4, "row": 3, "col": 5 },
+  "start": {
+    "layer": 4,
+    "row": 3,
+    "col": 0
+  },
+  "goal": {
+    "layer": 4,
+    "row": 3,
+    "col": 5
+  },
   "missing": [
-    { "layer": 4, "row": 2, "col": 2 },
-    { "layer": 4, "row": 2, "col": 3 },
-    { "layer": 4, "row": 2, "col": 4 },
-    { "layer": 4, "row": 3, "col": 2 },
-    { "layer": 4, "row": 3, "col": 3 },
-    { "layer": 4, "row": 3, "col": 4 },
-    { "layer": 4, "row": 4, "col": 2 },
-    { "layer": 4, "row": 4, "col": 3 },
-    { "layer": 4, "row": 4, "col": 4 }
+    {
+      "layer": 4,
+      "row": 2,
+      "col": 2
+    },
+    {
+      "layer": 4,
+      "row": 2,
+      "col": 3
+    },
+    {
+      "layer": 4,
+      "row": 2,
+      "col": 4
+    },
+    {
+      "layer": 4,
+      "row": 3,
+      "col": 2
+    },
+    {
+      "layer": 4,
+      "row": 3,
+      "col": 3
+    },
+    {
+      "layer": 4,
+      "row": 3,
+      "col": 4
+    },
+    {
+      "layer": 4,
+      "row": 4,
+      "col": 2
+    },
+    {
+      "layer": 4,
+      "row": 4,
+      "col": 3
+    },
+    {
+      "layer": 4,
+      "row": 4,
+      "col": 4
+    }
   ],
-  "blocked": [{ "layer": 5, "row": 2, "col": 2 }],
+  "blocked": [
+    {
+      "layer": 5,
+      "row": 2,
+      "col": 2
+    }
+  ],
   "movement": {
     "1": "NONE",
-    "2": "SEVEN_LEFT_SIX_RIGHT",
-    "3": "TOP3_RIGHT_BOTTOM4_LEFT",
+    "2": {
+      "rows": {
+        "0": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "1": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "2": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "3": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "4": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "5": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "6": {
+          "direction": "LEFT",
+          "amount": 1
+        }
+      }
+    },
+    "3": {
+      "rows": {
+        "0": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "1": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "2": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "3": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "4": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "5": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "6": {
+          "direction": "LEFT",
+          "amount": 1
+        }
+      }
+    },
     "4": "NONE",
-    "5": "SEVEN_LEFT_SIX_RIGHT",
+    "5": {
+      "rows": {
+        "0": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "1": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "2": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "3": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "4": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "5": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "6": {
+          "direction": "LEFT",
+          "amount": 1
+        }
+      }
+    },
     "6": "NONE",
     "7": "NONE"
   },
   "transitions": [
-    { "type": "UP", "from": { "layer": 4, "row": 1, "col": 1 }, "to": { "layer": 5, "row": 1, "col": 1 } },
-    { "type": "DOWN", "from": { "layer": 5, "row": 1, "col": 5 }, "to": { "layer": 3, "row": 1, "col": 5 } },
-    { "type": "UP", "from": { "layer": 3, "row": 4, "col": 5 }, "to": { "layer": 4, "row": 4, "col": 5 } }
+    {
+      "type": "UP",
+      "from": {
+        "layer": 4,
+        "row": 1,
+        "col": 1
+      },
+      "to": {
+        "layer": 5,
+        "row": 1,
+        "col": 1
+      }
+    },
+    {
+      "type": "DOWN",
+      "from": {
+        "layer": 5,
+        "row": 1,
+        "col": 5
+      },
+      "to": {
+        "layer": 3,
+        "row": 1,
+        "col": 5
+      }
+    },
+    {
+      "type": "UP",
+      "from": {
+        "layer": 3,
+        "row": 4,
+        "col": 5
+      },
+      "to": {
+        "layer": 4,
+        "row": 4,
+        "col": 5
+      }
+    }
   ],
   "revealOnEnterGuaranteedUp": false
 }

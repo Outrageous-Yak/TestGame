@@ -113,10 +113,36 @@ function mk(def) {
   };
 }
 
-const SHIFT_L2 = { 1: "NONE", 2: "SEVEN_LEFT_SIX_RIGHT", 3: "NONE", 4: "NONE", 5: "NONE", 6: "NONE", 7: "NONE" };
-const SHIFT_L2_L4 = { ...SHIFT_L2, 4: "SEVEN_LEFT_SIX_RIGHT" };
-const SHIFT_L2_L3_L4 = { ...SHIFT_L2, 3: "SEVEN_LEFT_SIX_RIGHT", 4: "SEVEN_LEFT_SIX_RIGHT" };
-const SHIFT_L2_L3_L4_L5 = { ...SHIFT_L2_L3_L4, 5: "SEVEN_LEFT_SIX_RIGHT" };
+const SEVEN_LEFT_SIX_RIGHT_ROWS = {
+  0: { direction: "LEFT", amount: 1 },
+  1: { direction: "RIGHT", amount: 1 },
+  2: { direction: "LEFT", amount: 1 },
+  3: { direction: "RIGHT", amount: 1 },
+  4: { direction: "LEFT", amount: 1 },
+  5: { direction: "RIGHT", amount: 1 },
+  6: { direction: "LEFT", amount: 1 },
+};
+
+function shiftLayer2Movement() {
+  return {
+    rows: Object.fromEntries(
+      Object.entries(SEVEN_LEFT_SIX_RIGHT_ROWS).map(([k, v]) => [k, { ...v }])
+    ),
+  };
+}
+
+const SHIFT_L2 = {
+  1: "NONE",
+  2: shiftLayer2Movement(),
+  3: "NONE",
+  4: "NONE",
+  5: "NONE",
+  6: "NONE",
+  7: "NONE",
+};
+const SHIFT_L2_L4 = { ...SHIFT_L2, 4: shiftLayer2Movement() };
+const SHIFT_L2_L3_L4 = { ...SHIFT_L2, 3: shiftLayer2Movement(), 4: shiftLayer2Movement() };
+const SHIFT_L2_L3_L4_L5 = { ...SHIFT_L2_L3_L4, 5: shiftLayer2Movement() };
 
 const L1 = track12L1Passable();
 const START = { layer: 1, row: 6, col: 6 };

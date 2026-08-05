@@ -1,7 +1,9 @@
 // src/engine/rules.ts
-import type { GameState, MovementPattern } from "./types";
+import type { GameState } from "./types";
 import { enterLayer, posId, revealHex } from "./board";
 import { neighborIdsSameLayer } from "./neighbors";
+import { applyLayerRowMovement, getRuntimeMovement, normalizeScenarioMovement } from "./rowMovement";
+import type { ScenarioMovementDefinition } from "./rowMovement";
 
 export type MoveResult =
   | { ok: true; state: GameState; triggeredTransition: boolean; won: boolean }
@@ -62,49 +64,30 @@ export function passTurn(state: GameState) {
 export function endTurn(state: GameState) {
   state.turn += 1;
 
-  const movement = state.scenario.movement ?? {};
+  const movement = getRuntimeMovement(state.scenario);
 
   const maxLayer =
-    Number((state.scenario as any)?.layers) ||
+    Number((state.scenario as { layers?: number }).layers) ||
     (state.rows && typeof state.rows.size === "number" ? state.rows.size : 1);
 
   for (let layer = 1; layer <= maxLayer; layer++) {
-    const pat = getPatternForLayer(movement as any, layer);
-    applyShift(state, layer, pat);
+    applyLayerRowMovement(state, layer, movement);
   }
 }
 
+/** @deprecated Use getRuntimeMovement + layerHasMovement instead. */
 export function getPatternForLayer(
-  movement: Record<string, MovementPattern>,
+  movement: Record<string, string>,
   layer: number
-): MovementPattern {
+): string {
   return movement[String(layer)] ?? "NONE";
 }
 
-export function applyShift(state: GameState, layer: number, pat: MovementPattern) {
-  if (pat === "NONE") return;
-
-  const layerRows = state.rows.get(layer);
-  if (!layerRows) return;
-
-  for (let r = 0; r < layerRows.length; r++) {
-    const row = layerRows[r];
-    if (row.length <= 1) continue;
-
-    let dir: "L" | "R" = "L";
-
-    if (pat === "SEVEN_LEFT_SIX_RIGHT") {
-      dir = row.length === 7 ? "L" : "R";
-    } else if (pat === "TOP3_RIGHT_BOTTOM4_LEFT") {
-      dir = r <= 2 ? "R" : "L";
-    }
-
-    if (dir === "L") {
-      const first = row.shift();
-      if (first != null) row.push(first);
-    } else {
-      const last = row.pop();
-      if (last != null) row.unshift(last);
-    }
-  }
+/** @deprecated Use applyLayerRowMovement via endTurn. */
+export function applyShift(state: GameState, layer: number, pat: string) {
+  const movement = Object.fromEntries(
+    Array.from({ length: 7 }, (_, i) => [String(i + 1), i + 1 === layer ? pat : "NONE"])
+  ) as ScenarioMovementDefinition;
+  const normalized = normalizeScenarioMovement(movement);
+  applyLayerRowMovement(state, layer, normalized);
 }

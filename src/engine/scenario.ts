@@ -1,6 +1,9 @@
 // src/engine/scenario.ts
-import type { Scenario, Pos, Transition, MovementPattern } from "./types";
+import type { Scenario, Pos, Transition } from "./types";
 import { ROW_LENS, posId } from "./board";
+import { attachRuntimeMovement } from "./rowMovement/attachRuntimeMovement";
+import { validateScenarioMovementDefinition } from "./rowMovement/validateRowMovement";
+import type { ScenarioMovementDefinition } from "./rowMovement/types";
 
 /* =========================================================
    Bounds (v0.1: 7 layers, ROW_LENS.length rows)
@@ -85,27 +88,10 @@ export function assertScenario(s: Scenario) {
     }
   }
 
-  // Movement patterns
-  const allowed: Set<MovementPattern> = new Set([
-    "NONE",
-    "SEVEN_LEFT_SIX_RIGHT",
-    "TOP3_RIGHT_BOTTOM4_LEFT"
-  ]);
+  // Movement — validate authored JSON (legacy presets still accepted at load)
+  validateScenarioMovementDefinition((s.movement ?? {}) as ScenarioMovementDefinition, s.layers);
 
-  for (const [k, v] of Object.entries(s.movement)) {
-    const layer = Number(k);
-    if (!Number.isFinite(layer) || layer < 1 || layer > s.layers) {
-      throw new Error(`Invalid movement layer key: ${k}`);
-    }
-    if (!allowed.has(v as MovementPattern)) {
-      throw new Error(`Invalid movement pattern on layer ${layer}: ${String(v)}`);
-    }
-  }
-
-  // v0.1 rule: layer 1 must be static
-  if (s.movement["1"] && s.movement["1"] !== "NONE") {
-    throw new Error("v0.1: Layer 1 must be NONE/static");
-  }
+  attachRuntimeMovement(s);
 
   // Guaranteed UP reveal requires at least one usable UP transition per layer
   if (s.revealOnEnterGuaranteedUp) {

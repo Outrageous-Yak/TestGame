@@ -96,7 +96,17 @@ describe("Prism Path scenario.json unchanged baseline", () => {
     const s = loadJson(`${PRISM}/scenario.json`);
     expect(s.start).toEqual({ layer: 1, row: 3, col: 1 });
     expect(s.goal).toEqual({ layer: 2, row: 1, col: 4 });
-    expect(s.movement?.["2"]).toBe("SEVEN_LEFT_SIX_RIGHT");
+    expect(s.movement?.["2"]).toEqual({
+      rows: {
+        "0": { direction: "LEFT", amount: 1 },
+        "1": { direction: "RIGHT", amount: 1 },
+        "2": { direction: "LEFT", amount: 1 },
+        "3": { direction: "RIGHT", amount: 1 },
+        "4": { direction: "LEFT", amount: 1 },
+        "5": { direction: "RIGHT", amount: 1 },
+        "6": { direction: "LEFT", amount: 1 },
+      },
+    });
     expect(s.transitions?.length).toBeGreaterThanOrEqual(4);
   });
 });
