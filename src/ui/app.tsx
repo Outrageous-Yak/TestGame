@@ -16,6 +16,7 @@ import {
   resolveActiveSprite,
 } from "../features/sprite-builder/spriteStorage";
 import type { SavedPixelSprite } from "../features/sprite-builder/spriteTypes";
+import { resolveAnimatedSpriteSheet } from "../features/sprite-builder/animatedSpriteSheets";
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>(() => {
@@ -48,6 +49,10 @@ export default function App() {
   const customSprite = useMemo(
     () => resolveActiveSprite(sprites, activeSpriteId),
     [sprites, activeSpriteId]
+  );
+  const animatedSpriteSheet = useMemo(
+    () => resolveAnimatedSpriteSheet(activeSpriteId),
+    [activeSpriteId]
   );
 
   useEffect(() => {
@@ -167,6 +172,7 @@ export default function App() {
       trackEntry={trackEntry}
       trackId={trackId}
       customSprite={customSprite}
+      playerSpriteSheet={animatedSpriteSheet}
       onExit={resetAll}
       onGoHome={() => setScreen("scenario")}
       onPlayNextTrack={setTrackId}

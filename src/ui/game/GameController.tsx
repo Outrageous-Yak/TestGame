@@ -23,6 +23,7 @@ import type {
 } from "../types";
 import { PlayerToken } from "../../features/sprite-builder/PlayerToken";
 import type { SavedPixelSprite } from "../../features/sprite-builder/spriteTypes";
+import type { AnimatedSpriteSheet } from "../../features/sprite-builder/animatedSpriteSheets";
 import { CloudCover, MoveOverlay, computeCloudVisibility } from "../cloud";
 import {
   REACH_PULSE_INTERVAL_MS,
@@ -74,6 +75,7 @@ export type GameControllerProps = {
   trackEntry: Track | null;
   trackId: string | null;
   customSprite?: SavedPixelSprite | null;
+  playerSpriteSheet?: AnimatedSpriteSheet;
   onExit: () => void;
   onGoHome: () => void;
   onPlayNextTrack: (trackId: string) => void;
@@ -84,6 +86,7 @@ export function GameController({
   trackEntry,
   trackId,
   customSprite = null,
+  playerSpriteSheet,
   onExit,
   onGoHome,
   onPlayNextTrack,
@@ -567,14 +570,16 @@ export function GameController({
   const [playerFacing, setPlayerFacing] = useState<Facing>("down");
   const [isWalking, setIsWalking] = useState(false);
 
-  const SPRITE_COLS = 4;
-  const SPRITE_ROWS = 5;
+  const SPRITE_COLS = playerSpriteSheet?.cols ?? 4;
+  const SPRITE_ROWS = playerSpriteSheet?.rows ?? 5;
 
-  const FRAME_W = 128;
-  const FRAME_H = 128;
+  const FRAME_W = playerSpriteSheet?.frameWidth ?? 128;
+  const FRAME_H = playerSpriteSheet?.frameHeight ?? 128;
 
   function spriteSheetUrl() {
-    return toPublicUrl("images/players/sprite_sheet_20.png");
+    return toPublicUrl(
+      playerSpriteSheet?.path ?? "images/players/sprite_sheet_20.png"
+    );
   }
 
   const rafRef = useRef<number | null>(null);

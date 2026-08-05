@@ -2558,12 +2558,12 @@ body{
   border-color: rgba(120,220,255,.45);
 }
 
-.spriteGalleryThumb.builtinThumb{
+.spriteGalleryThumb.animatedSheetThumb{
   width: 64px;
   height: 64px;
   border-radius: 10px;
   background:
-    url("/TestGame/images/players/sprite_sheet_20.png") 0 0 / 512px 640px no-repeat,
+    var(--sheetUrl) 0 0 / 256px 320px no-repeat,
     repeating-conic-gradient(#2a2a34 0% 25%, #1a1a22 0% 50%) 50% / 12px 12px;
   image-rendering: pixelated;
 }

@@ -2,6 +2,11 @@ import React, { useState } from "react";
 import type { SavedPixelSprite } from "./spriteTypes";
 import { BUILTIN_SPRITE_ID } from "./spriteTypes";
 import { SpritePreview } from "./SpritePreview";
+import {
+  ANIMATED_SPRITE_SHEETS,
+  selectionIdForAnimatedSprite,
+} from "./animatedSpriteSheets";
+import { toPublicUrl } from "../../ui/game/helpers";
 
 type SpriteGalleryProps = {
   sprites: SavedPixelSprite[];
@@ -14,7 +19,7 @@ type SpriteGalleryProps = {
   onRename?: (id: string, name: string) => void;
 };
 
-const BUILTIN_NAME = "Default Character";
+const BUILTIN_NAME = ANIMATED_SPRITE_SHEETS[0].name;
 
 export function SpriteGallery({
   sprites,
@@ -46,21 +51,40 @@ export function SpriteGallery({
   return (
     <div className="spriteGallery">
       {mode === "select" ? (
-        <div className="spriteGalleryCard builtin">
-          <div className="spriteGalleryThumb builtinThumb" aria-hidden="true" />
-          <div className="spriteGalleryInfo">
-            <div className="spriteGalleryName">{BUILTIN_NAME}</div>
-            <div className="spriteGalleryMeta">Built-in animated sprite</div>
-          </div>
-          <button
-            type="button"
-            className={"btn" + (activeId == null ? " primary" : "")}
-            onClick={() => onSelect?.(null)}
-            aria-pressed={activeId == null}
-          >
-            {activeId == null ? "Active" : "Use"}
-          </button>
-        </div>
+        <>
+          {ANIMATED_SPRITE_SHEETS.map((sheet) => {
+            const selectionId = selectionIdForAnimatedSprite(sheet);
+            const isActive = activeId === selectionId;
+            return (
+              <div
+                key={sheet.id}
+                className={"spriteGalleryCard builtin" + (isActive ? " active" : "")}
+              >
+                <div
+                  className="spriteGalleryThumb animatedSheetThumb"
+                  style={
+                    {
+                      ["--sheetUrl" as string]: `url(${toPublicUrl(sheet.path)})`,
+                    } as React.CSSProperties
+                  }
+                  aria-hidden="true"
+                />
+                <div className="spriteGalleryInfo">
+                  <div className="spriteGalleryName">{sheet.name}</div>
+                  <div className="spriteGalleryMeta">{sheet.description}</div>
+                </div>
+                <button
+                  type="button"
+                  className={"btn" + (isActive ? " primary" : "")}
+                  onClick={() => onSelect?.(selectionId)}
+                  aria-pressed={isActive}
+                >
+                  {isActive ? "Active" : "Use"}
+                </button>
+              </div>
+            );
+          })}
+        </>
       ) : null}
 
       {sprites.map((sprite) => {
