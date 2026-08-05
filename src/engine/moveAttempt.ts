@@ -1,4 +1,5 @@
 import { inBounds, posId, revealHex, enterLayer } from "./board";
+import { hexIdAtSlot } from "./layout";
 import { neighborIdsSameLayer } from "./neighbors";
 import { endTurn } from "./endTurn";
 import type { GameState, Pos } from "./types";
@@ -68,7 +69,11 @@ export function attemptMoveToSlot(state: GameState, slot: BoardSlotRef): MoveAtt
     return { result: "IGNORED", state };
   }
 
-  const targetId = posId(slot);
+  const targetId = hexIdAtSlot(state, slot.layer, slot.row, slot.col);
+  if (!targetId) {
+    return { result: "IGNORED", state };
+  }
+
   const target = state.hexesById.get(targetId);
   if (!target) {
     return { result: "IGNORED", state };

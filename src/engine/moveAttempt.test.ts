@@ -3,13 +3,14 @@ import { newGame } from "./api";
 import { attemptMoveToSlot } from "./moveAttempt";
 import * as endTurnModule from "./endTurn";
 import { neighborIdsSameLayer } from "./neighbors";
-import { shiftingLayersInMovement, getRuntimeMovement } from "./rowMovement";
+import { shiftingLayersInMovement, getRuntimeMovement, applyLayerRowMovement } from "./rowMovement";
 import { attachRuntimeMovement } from "./rowMovement/attachRuntimeMovement";
 import { transformScenarioLayer } from "./layerTransform";
 import type { LayerTransformId } from "./layerTransform/types";
 import type { Scenario } from "./types";
 import { SEVEN_LEFT_SIX_RIGHT_ROWS } from "./rowMovement/legacyMovementMigration";
 import { posId } from "./board";
+import { findSlot, hexIdAtSlot } from "./layout";
 
 function baseScenario(overrides: Partial<Scenario> = {}): Scenario {
   return {
@@ -209,6 +210,52 @@ describe("attemptMoveToSlot", () => {
     "symmetry-b",
     "symmetry-c",
   ];
+
+  it("moves to the runtime hex at a visual slot after row shift", () => {
+    const scenario = baseScenario({
+      start: { layer: 2, row: 3, col: 1 },
+      goal: { layer: 2, row: 3, col: 4 },
+      movement: {
+        "1": "NONE",
+        "2": {
+          rows: Object.fromEntries(
+            [0, 1, 2, 3, 4, 5, 6].map((r) => [String(r), { direction: "LEFT", amount: 1 }])
+          ),
+        },
+        "3": "NONE",
+        "4": "NONE",
+        "5": "NONE",
+        "6": "NONE",
+        "7": "NONE",
+      },
+    });
+    attachRuntimeMovement(scenario);
+    const state = newGame(scenario);
+
+    applyLayerRowMovement(state, 2, getRuntimeMovement(scenario));
+
+    const neighbors = neighborIdsSameLayer(state, state.playerHexId).filter((id) => {
+      const hex = state.hexesById.get(id);
+      return hex && !hex.missing && !hex.blocked;
+    });
+    expect(neighbors.length).toBeGreaterThan(0);
+
+    const targetId = neighbors[0]!;
+    const slot = findSlot(state, 2, targetId);
+    expect(slot).toBeTruthy();
+
+    const runtimeId = hexIdAtSlot(state, 2, slot!.row, slot!.col);
+    const authoredId = posId({ layer: 2, row: slot!.row, col: slot!.col });
+    expect(runtimeId).toBe(targetId);
+    expect(runtimeId).not.toBe(authoredId);
+
+    const before = state.playerHexId;
+    const outcome = attemptMoveToSlot(state, { layer: 2, row: slot!.row, col: slot!.col });
+
+    expect(outcome.result).toBe("MOVED");
+    expect(state.playerHexId).toBe(targetId);
+    expect(state.playerHexId).not.toBe(before);
+  });
 
   it.each(LAYER_TRANSFORMS)(
     "missing slot consumes turn under layer transform %s",
