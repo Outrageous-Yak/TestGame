@@ -59,7 +59,7 @@ import {
   parseVillainsFromScenario,
 } from "./helpers";
 import { selectHexTileArtUrl } from "./hexTileVisual";
-import { playPlayerMoveSound, preloadSoundEffects } from "../audio/soundEffects";
+import { playGoalLandSound, playPlayerMoveSound, playPortalLandSound, preloadSoundEffects } from "../audio/soundEffects";
 
 type GoalAchievedState = {
   moves: number;
@@ -382,6 +382,20 @@ export function GameController({
     [scenarioEntry, trackId, pushLog, optimalAtStart, bestScore]
   );
 
+  const playMoveOutcomeSound = useCallback(
+    (res: MoveResult, landedId: string, moved: boolean) => {
+      if (!moved) return;
+      if (goalId && landedId === goalId) {
+        playGoalLandSound();
+      } else if (res.triggeredTransition) {
+        playPortalLandSound();
+      } else {
+        playPlayerMoveSound();
+      }
+    },
+    [goalId]
+  );
+
   const nextTrack = useMemo(() => {
     const tracks = scenarioEntry.tracks ?? [];
     if (tracks.length <= 1) return null;
@@ -552,7 +566,7 @@ export function GameController({
   }, [HEX_TILE_MOVABLE]);
 
   useEffect(() => {
-    void preloadSoundEffects(["playerMove"]);
+    void preloadSoundEffects(["playerMove", "portalLand", "goalLand"]);
   }, []);
 
   function diceImg(n: number) {
@@ -852,7 +866,7 @@ export function GameController({
 
       const moved = !!pidBefore && pidAfter !== pidBefore;
       if (moved) {
-        playPlayerMoveSound();
+        playMoveOutcomeSound(res, landedId, moved);
         setIsWalking(true);
         if (walkTimer.current) window.clearTimeout(walkTimer.current);
         walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
@@ -896,6 +910,7 @@ export function GameController({
     revealWholeLayer,
     computeOptimalMoves,
     recordWin,
+    playMoveOutcomeSound,
     pushLog,
   ]);
 
@@ -1239,7 +1254,7 @@ export function GameController({
       const finalLayer = landedCoord?.layer ?? fromLayer;
 
       if (moved) {
-        playPlayerMoveSound();
+        playMoveOutcomeSound(res, landedId, moved);
         setIsWalking(true);
         if (walkTimer.current) window.clearTimeout(walkTimer.current);
         walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
@@ -1283,6 +1298,7 @@ export function GameController({
       findTriggerForHex,
       findCardTriggerAt,
       triggerCardFlyout,
+      playMoveOutcomeSound,
     ]
   );
   return (

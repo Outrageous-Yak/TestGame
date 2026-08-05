@@ -2,6 +2,8 @@ import { toPublicUrl } from "../game/helpers";
 
 export const SOUND_EFFECT_PATHS = {
   playerMove: "sounds/effects/player-move.mp3",
+  portalLand: "sounds/effects/portal-land.mp3",
+  goalLand: "sounds/effects/goal-land.mp3",
 } as const;
 
 export type SoundEffectId = keyof typeof SOUND_EFFECT_PATHS;
@@ -136,4 +138,12 @@ export async function playSoundEffect(id: SoundEffectId, playbackRate = 1) {
 
 export function playPlayerMoveSound() {
   void playSoundEffect("playerMove");
+}
+
+export function playPortalLandSound() {
+  void playSoundEffect("portalLand");
+}
+
+export function playGoalLandSound() {
+  void playSoundEffect("goalLand");
 }

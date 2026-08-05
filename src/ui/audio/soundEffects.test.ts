@@ -11,8 +11,10 @@ describe("soundEffects", () => {
     configureSoundEffects({ enabled: true, volume: 0.5 });
   });
 
-  it("exposes player move asset path", () => {
+  it("exposes sound asset paths", () => {
     expect(SOUND_EFFECT_PATHS.playerMove).toBe("sounds/effects/player-move.mp3");
+    expect(SOUND_EFFECT_PATHS.portalLand).toBe("sounds/effects/portal-land.mp3");
+    expect(SOUND_EFFECT_PATHS.goalLand).toBe("sounds/effects/goal-land.mp3");
   });
 
   it("tracks enabled state", () => {
