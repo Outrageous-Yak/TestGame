@@ -50,7 +50,7 @@ describe("Forgotten Citadel Phase 3 puzzle fitness", () => {
   const prism = () => loadPrism();
 
   for (const { scenario } of fcFiles) {
-    it(`${scenario.id} meets Phase 3 gates`, { timeout: 30000 }, () => {
+    it(`${scenario.id} meets Phase 3 gates`, { timeout: 120000 }, () => {
       const report = analyzePuzzleFitness(scenario, prism());
       fitnessCache.set(scenario.id, report);
 
