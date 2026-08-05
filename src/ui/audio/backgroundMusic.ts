@@ -1,8 +1,8 @@
 import { toPublicUrl } from "../game/helpers";
+import { normalizedBgmGain } from "./audioLevels";
 import { getSoundEffectsVolume, isSoundEffectsEnabled } from "./soundEffects";
 
 const FADE_SECONDS = 2.5;
-const BGM_VOLUME_RATIO = 0.38;
 
 let audioContext: AudioContext | null = null;
 let buffer: AudioBuffer | null = null;
@@ -22,7 +22,7 @@ function canPlay(): boolean {
 }
 
 function targetVolume(): number {
-  return getSoundEffectsVolume() * BGM_VOLUME_RATIO;
+  return getSoundEffectsVolume() * normalizedBgmGain();
 }
 
 async function getAudioContext(): Promise<AudioContext | null> {

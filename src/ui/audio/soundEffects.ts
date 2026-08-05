@@ -1,4 +1,5 @@
 import { toPublicUrl } from "../game/helpers";
+import { normalizedSoundGain } from "./audioLevels";
 
 export const SOUND_EFFECT_PATHS = {
   playerMove: "sounds/effects/player-move.mp3",
@@ -130,7 +131,7 @@ export async function playSoundEffect(id: SoundEffectId, playbackRate = 1) {
   const gain = ctx.createGain();
   source.buffer = buffer;
   source.playbackRate.value = playbackRate;
-  gain.gain.value = volume;
+  gain.gain.value = volume * normalizedSoundGain(id);
   source.connect(gain);
   gain.connect(ctx.destination);
   source.start(0);
