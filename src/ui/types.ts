@@ -40,7 +40,7 @@ export type ScenarioTheme = {
     diceCornerBorder: string;
     villainsBase: string;
     hexTile?: string;
-    /** Optional alternate tile art for revealed normal (movable) hexes, e.g. higher-contrast emblem. */
+    /** White-emblem (or high-contrast) tile art for reachable move targets only. */
     hexTileMovable?: string;
   };
 };
