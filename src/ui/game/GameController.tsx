@@ -59,6 +59,7 @@ import {
   parseVillainsFromScenario,
 } from "./helpers";
 import { selectHexTileArtUrl } from "./hexTileVisual";
+import { playPlayerMoveSound, preloadSoundEffects } from "../audio/soundEffects";
 
 type GoalAchievedState = {
   moves: number;
@@ -550,6 +551,10 @@ export function GameController({
     img.src = toPublicUrl(HEX_TILE_MOVABLE);
   }, [HEX_TILE_MOVABLE]);
 
+  useEffect(() => {
+    void preloadSoundEffects(["playerMove"]);
+  }, []);
+
   function diceImg(n: number) {
     return toPublicUrl(DICE_FACES_BASE + "/D20_" + n + ".png");
   }
@@ -847,6 +852,7 @@ export function GameController({
 
       const moved = !!pidBefore && pidAfter !== pidBefore;
       if (moved) {
+        playPlayerMoveSound();
         setIsWalking(true);
         if (walkTimer.current) window.clearTimeout(walkTimer.current);
         walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
@@ -1233,6 +1239,7 @@ export function GameController({
       const finalLayer = landedCoord?.layer ?? fromLayer;
 
       if (moved) {
+        playPlayerMoveSound();
         setIsWalking(true);
         if (walkTimer.current) window.clearTimeout(walkTimer.current);
         walkTimer.current = window.setTimeout(() => setIsWalking(false), 420);
