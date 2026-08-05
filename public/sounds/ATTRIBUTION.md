@@ -1,7 +1,5 @@
 # Sound attribution
 
-| File | Source | License | Notes |
-|------|--------|---------|-------|
-| `effects/player-move.mp3` | Placeholder generated in-repo | — | Replace with your chosen Pixabay (or other licensed) move sound. |
-
-When you add a Pixabay sound, record the sound page URL and author here.
+| File | Source | Author | License | Notes |
+|------|--------|--------|---------|-------|
+| `effects/player-move.mp3` | [Sonar ping (Pixabay #290188)](https://pixabay.com/sound-effects/film-special-effects-sonar-ping-290188/) | Sunovia | [Pixabay Content License](https://pixabay.com/service/license-summary/) | Trimmed to ~1.1s for player move feedback |

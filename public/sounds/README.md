@@ -1,15 +1,12 @@
 # Game sound effects
 
-## Player move
+## Player move — Sonar ping
 
-- **Current file:** `effects/player-move.mp3`
+- **File:** `effects/player-move.mp3`
+- **Source:** [Pixabay — Sonar ping #290188](https://pixabay.com/sound-effects/film-special-effects-sonar-ping-290188/) by Sunovia
+- **License:** [Pixabay Content License](https://pixabay.com/service/license-summary/)
 - **Used for:** every successful player hex move
 
-### Replacing with a Pixabay sound
+The full Pixabay clip is ~6.7s; the in-game file is trimmed to ~1.1s so moves stay snappy.
 
-1. Open [Pixabay game move sounds](https://pixabay.com/sound-effects/search/game%20move/).
-2. Pick a sound and download the MP3.
-3. Replace `public/sounds/effects/player-move.mp3` with your download (keep the same filename), or update `SOUND_EFFECT_PATHS.playerMove` in `src/ui/audio/soundEffects.ts`.
-4. Add attribution in `public/sounds/ATTRIBUTION.md` (author + Pixabay URL) if you wish — not required by the [Pixabay Content License](https://pixabay.com/service/license-summary/), but helpful for your records.
-
-Automated download from Pixabay is blocked in CI/agents (Cloudflare), so the file must be added manually from your browser.
+To swap sounds, replace `player-move.mp3` or update `SOUND_EFFECT_PATHS.playerMove` in `src/ui/audio/soundEffects.ts`.
