@@ -208,7 +208,7 @@ function signatureLite(dto: ReturnType<typeof snapshotStateLite>): string {
   const activeLayers = [...(dto.movementActiveLayers ?? [])]
     .sort((a, b) => a - b)
     .join(",");
-  return `p=${dto.playerHexId}|t=${dto.turn}|active=${activeLayers}${rows}`;
+  return `p=${dto.playerHexId}|active=${activeLayers}${rows}`;
 }
 
 function simulateIntendedSolution(
