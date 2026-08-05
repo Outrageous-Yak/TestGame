@@ -25,7 +25,8 @@ function signature(dto: GameStateLiteDTO): string {
   for (const entry of layerEntries) {
     rows += `|L${entry.layer}`;
     for (let i = 0; i < entry.rows.length; i++) {
-      rows += `|${entry.rows[i].join(",")}`;
+      // Rows only rotate; the first unique hex id fully identifies the rotation.
+      rows += `|${entry.rows[i][0] ?? ""}`;
     }
   }
 

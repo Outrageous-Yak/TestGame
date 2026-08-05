@@ -82,7 +82,8 @@ function stateSignature(dto: GameStateLiteDTO): string {
   let rows = "";
   for (const entry of dto.rows.slice().sort((a, b) => a.layer - b.layer)) {
     rows += `|L${entry.layer}`;
-    for (const row of entry.rows) rows += `|${row.join(",")}`;
+    // Rows only rotate; the first unique hex id fully identifies the rotation.
+    for (const row of entry.rows) rows += `|${row[0] ?? ""}`;
   }
   const activeLayers = [...(dto.movementActiveLayers ?? [])]
     .sort((a, b) => a - b)

@@ -27,7 +27,9 @@ function loadPrismWithPaths(): Array<{ file: string; scenario: Scenario; path: s
     }));
   prismCache = items.map(({ file, scenario }) => {
     const base = newGame(scenario);
-    const sol = computeOptimalSolution(base);
+    const sol = computeOptimalSolution(base, 80, 400000, {
+      countAlternativePaths: false,
+    });
     return { file, scenario, path: sol.pathHexIds };
   });
   return prismCache;
