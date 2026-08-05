@@ -114,17 +114,6 @@ export function GameController({
 
   const [showGhost, setShowGhost] = useState(false);
 
-  const [isMobile, setIsMobile] = useState(() =>
-    typeof window !== "undefined" ? window.matchMedia("(max-width: 980px)").matches : false
-  );
-
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 980px)");
-    const onChange = () => setIsMobile(mq.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-
   const [reducedMotion, setReducedMotion] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(prefers-reduced-motion: reduce)").matches : false
   );
@@ -283,36 +272,6 @@ export function GameController({
               </div>
             );
           })}
-        </div>
-      </div>
-    );
-  }
-
-  function HexDeckCardsOverlay(props: { glowVar: string }) {
-    const overlayStyle = {
-      ["--cardGlow" as any]: props.glowVar,
-    } as React.CSSProperties;
-
-    return (
-      <div className="hexDeckOverlay" style={overlayStyle}>
-        <div className="hexDeckCol left">
-          <div className="hexDeckCard cosmic" ref={(el) => (deckRefs.current.cosmic = el)}>
-            <div className="deckFx" />
-          </div>
-
-          <div className="hexDeckCard risk" ref={(el) => (deckRefs.current.risk = el)}>
-            <div className="deckFx" />
-          </div>
-        </div>
-
-        <div className="hexDeckCol right">
-          <div className="hexDeckCard terrain" ref={(el) => (deckRefs.current.terrain = el)}>
-            <div className="deckFx" />
-          </div>
-
-          <div className="hexDeckCard shadow" ref={(el) => (deckRefs.current.shadow = el)}>
-            <div className="deckFx" />
-          </div>
         </div>
       </div>
     );
@@ -1427,8 +1386,6 @@ export function GameController({
               }}
             />
 
-            {isMobile ? null : <HexDeckCardsOverlay glowVar={layerCssVar(currentLayer)} />}
-
             <div className="boardScroll" ref={scrollRef}>
             <div className="board" ref={boardRef}>
               <div className="hexGrid">
@@ -1707,7 +1664,7 @@ export function GameController({
           </div>
           </div>
 
-          {isMobile ? <HexDeckCardsRow glowVar={layerCssVar(currentLayer)} /> : null}
+          <HexDeckCardsRow glowVar={layerCssVar(currentLayer)} />
 
           {/* SIDE PANEL */}
           <div className="side">
