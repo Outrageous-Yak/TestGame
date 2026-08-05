@@ -45,6 +45,10 @@ export type OptimalSolution = {
   stats: SolverStats;
 };
 
+export type OptimalSolutionOptions = {
+  countAlternativePaths?: boolean;
+};
+
 export type SimilarityBreakdown = {
   geometryPercent: number;
   portalPercent: number;
@@ -205,7 +209,8 @@ type BfsNode = {
 export function computeOptimalSolution(
   base: GameState,
   maxTurns = 80,
-  maxNodes = 400000
+  maxNodes = 400000,
+  options: OptimalSolutionOptions = {}
 ): OptimalSolution {
   const start = performance.now();
   const goalId = goalIdFromState(base);
@@ -366,7 +371,10 @@ export function computeOptimalSolution(
   }
 
   // Count alternative optimal paths via layered DP
-  const altCount = countOptimalPaths(base, startDto, goalId, minMoves, maxTurns);
+  const altCount =
+    options.countAlternativePaths === false
+      ? 0
+      : countOptimalPaths(base, startDto, goalId, minMoves, maxTurns);
 
   const replay = buildReplay(base, pathTargets);
   const stats = finalizeStats(

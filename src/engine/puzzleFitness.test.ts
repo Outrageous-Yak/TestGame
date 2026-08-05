@@ -25,7 +25,13 @@ function loadPrism(): Array<{ file: string; scenario: Scenario; path: string[] }
     .map((file) => {
       const scenario = JSON.parse(readFileSync(join(prismDir, file), "utf8")) as Scenario;
       const base = newGame(scenario);
-      return { file, scenario, path: computeOptimalSolution(base).pathHexIds };
+      return {
+        file,
+        scenario,
+        path: computeOptimalSolution(base, 80, 400000, {
+          countAlternativePaths: false,
+        }).pathHexIds,
+      };
     });
   return prismCache;
 }
