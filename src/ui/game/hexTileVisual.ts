@@ -21,3 +21,11 @@ export function selectHexTileArtUrl(
   }
   return regularHexTile;
 }
+
+export function shouldUseSolidGoldGoal(
+  enabled: boolean | undefined,
+  isGoal: boolean,
+  specialTileArtHidden: boolean
+): boolean {
+  return !!enabled && isGoal && !specialTileArtHidden;
+}

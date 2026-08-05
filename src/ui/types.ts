@@ -42,6 +42,8 @@ export type ScenarioTheme = {
     hexTile?: string;
     /** White-emblem tile shown only during active reach-pulse flash on Forgotten Citadel. */
     hexTileMovable?: string;
+    /** Render the goal as a solid metallic-gold hex instead of regular tile art. */
+    solidGoldGoal?: boolean;
     /** Optional looping background music for this scenario/world. */
     backgroundMusic?: string;
   };

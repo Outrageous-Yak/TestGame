@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { selectHexTileArtUrl, shouldShowMovableFlashHexTile } from "./hexTileVisual";
+import {
+  selectHexTileArtUrl,
+  shouldShowMovableFlashHexTile,
+  shouldUseSolidGoldGoal,
+} from "./hexTileVisual";
 
 const REGULAR = "worlds/forgotten_citadel/assets/tiles/hex-normal.png";
 const MOVABLE = "worlds/forgotten_citadel/assets/tiles/hex-normal-white.png";
@@ -27,5 +31,12 @@ describe("Forgotten Citadel hex tile visual", () => {
 
   it("non-reachable hex never uses white movable image", () => {
     expect(selectHexTileArtUrl(REGULAR, MOVABLE, false, true)).toBe(REGULAR);
+  });
+
+  it("uses solid gold only for a visible goal in an enabled theme", () => {
+    expect(shouldUseSolidGoldGoal(true, true, false)).toBe(true);
+    expect(shouldUseSolidGoldGoal(false, true, false)).toBe(false);
+    expect(shouldUseSolidGoldGoal(true, false, false)).toBe(false);
+    expect(shouldUseSolidGoldGoal(true, true, true)).toBe(false);
   });
 });

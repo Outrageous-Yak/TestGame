@@ -59,7 +59,10 @@ import {
   portalTransitionAt,
   parseVillainsFromScenario,
 } from "./helpers";
-import { selectHexTileArtUrl } from "./hexTileVisual";
+import {
+  selectHexTileArtUrl,
+  shouldUseSolidGoldGoal,
+} from "./hexTileVisual";
 import { playGoalLandSound, playPlayerMoveSound, playPortalLandSound, playFailedMoveSound, preloadSoundEffects } from "../audio/soundEffects";
 import { startBackgroundMusic, stopBackgroundMusic } from "../audio/backgroundMusic";
 import type { MoveAttemptResult } from "../../engine/moveAttempt";
@@ -509,6 +512,7 @@ export function GameController({
   const VILLAINS_BASE = activeTheme?.assets.villainsBase ?? "images/villains";
   const HEX_TILE = activeTheme?.assets.hexTile ?? "";
   const HEX_TILE_MOVABLE = activeTheme?.assets.hexTileMovable ?? "";
+  const SOLID_GOLD_GOAL = activeTheme?.assets.solidGoldGoal ?? false;
   const BACKGROUND_MUSIC = activeTheme?.assets.backgroundMusic ?? "";
 
   const themeVars = useMemo(() => {
@@ -1475,6 +1479,11 @@ export function GameController({
                           cloudVis !== "visible" &&
                           (isGoal || isPortalUp || isPortalDown || showStartPortal);
                         const showGoalOverlay = cloudActive && cv?.hasGoal && cloudVis !== "visible";
+                        const useSolidGoldGoal = shouldUseSolidGoldGoal(
+                          SOLID_GOLD_GOAL,
+                          isGoal,
+                          hideSpecialTileArt
+                        );
                         const showPortalOverlay =
                           cloudActive &&
                           cloudVis !== "visible" &&
@@ -1551,6 +1560,7 @@ export function GameController({
                                 failedClass,
                                 isPlayer ? "player" : "",
                                 isGoal ? "goal" : "",
+                                useSolidGoldGoal ? "solidGoldGoal" : "",
                                 isTrigger ? "trigger" : "",
                                 showStartPortal ? "portalStart" : "",
                                 isPortalUp ? "portalUp" : "",
