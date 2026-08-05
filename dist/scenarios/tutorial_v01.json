@@ -8,13 +8,52 @@
     "Look for ▲ (UP) to climb.",
     "Layer 2 shifts after each turn."
   ],
-  "start": { "layer": 1, "row": 3, "col": 1 },
-  "goal": { "layer": 2, "row": 3, "col": 4 },
+  "start": {
+    "layer": 1,
+    "row": 3,
+    "col": 1
+  },
+  "goal": {
+    "layer": 2,
+    "row": 3,
+    "col": 4
+  },
   "missing": [],
   "blocked": [],
   "movement": {
     "1": "NONE",
-    "2": "SEVEN_LEFT_SIX_RIGHT",
+    "2": {
+      "rows": {
+        "0": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "1": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "2": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "3": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "4": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "5": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "6": {
+          "direction": "LEFT",
+          "amount": 1
+        }
+      }
+    },
     "3": "NONE",
     "4": "NONE",
     "5": "NONE",
@@ -24,8 +63,16 @@
   "transitions": [
     {
       "type": "UP",
-      "from": { "layer": 1, "row": 2, "col": 2 },
-      "to": { "layer": 2, "row": 2, "col": 2 }
+      "from": {
+        "layer": 1,
+        "row": 2,
+        "col": 2
+      },
+      "to": {
+        "layer": 2,
+        "row": 2,
+        "col": 2
+      }
     }
   ],
   "revealOnEnterGuaranteedUp": false

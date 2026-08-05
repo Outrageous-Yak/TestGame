@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import type { GameState } from "../../../engine/types";
 import { ROW_LENS } from "../../../engine/board";
 import { hexIdAtSlot, rowShiftLabel } from "../../../engine/layout";
+import { getRuntimeMovement, layerHasMovement } from "../../../engine/rowMovement";
 import {
   hexGridPlacement,
   getHexFromState,
@@ -74,7 +75,7 @@ export function BoardViewer({
     [state?.scenario.transitions]
   );
 
-  const movement = state?.scenario.movement ?? {};
+  const movement = state ? getRuntimeMovement(state.scenario) : null;
 
   return (
     <div className="ps-boardWrap boardWrap studioBoard" ref={boardRef}>
@@ -140,9 +141,9 @@ export function BoardViewer({
 
                     const heat = heatMap?.get(id) ?? 0;
                     const portalColor = portalColorMap.get(id);
-                    const rowPat = movement[String(viewLayer)] ?? "NONE";
+                    const rowPat = movement ? layerHasMovement(movement[viewLayer as 1 | 2 | 3 | 4 | 5 | 6 | 7].rows) : false;
                     const rowLabel =
-                      overlays.rowMovement && state && rowPat !== "NONE"
+                      overlays.rowMovement && state && rowPat
                         ? rowShiftLabel(state, viewLayer, r)
                         : "";
 

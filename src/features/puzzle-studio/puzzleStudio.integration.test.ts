@@ -8,6 +8,7 @@ import type { Scenario } from "../../engine/types";
 import { posId } from "../../engine/board";
 import { newGame, tryMove } from "../../engine/api";
 import { rowShiftLabel } from "../../engine/layout";
+import { getRuntimeMovement, layerHasMovement } from "../../engine/rowMovement";
 import {
   computeOptimalSolution,
   compareToScenario,
@@ -222,8 +223,8 @@ describe("overlays", () => {
     const shifting = loadFcScenario("track01.json");
     const state = freshStudioState(shifting);
     const layer = 2;
-    const pat = shifting.movement?.[String(layer)];
-    if (pat && pat !== "NONE") {
+    const movement = getRuntimeMovement(shifting);
+    if (layerHasMovement(movement[layer as 1 | 2 | 3 | 4 | 5 | 6 | 7].rows)) {
       const label = rowShiftLabel(state, layer, 0);
       expect(typeof label).toBe("string");
     }

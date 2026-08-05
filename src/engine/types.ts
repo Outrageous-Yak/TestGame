@@ -1,5 +1,11 @@
 // src/engine/types.ts
 
+import type {
+  NormalizedScenarioMovement,
+  ScenarioMovementDefinition,
+} from "./rowMovement/types";
+
+/** @deprecated Legacy preset id — migrate via rowMovement/legacyMovementMigration */
 export type MovementPattern = "NONE" | "SEVEN_LEFT_SIX_RIGHT" | "TOP3_RIGHT_BOTTOM4_LEFT";
 export type TransitionType = "UP" | "DOWN";
 
@@ -37,7 +43,9 @@ export type Scenario = {
   missing?: Pos[];
   blocked?: Pos[];
 
-  movement?: Record<string, MovementPattern>;
+  movement?: ScenarioMovementDefinition;
+  /** Normalized per-row movement for runtime — set by assertScenario / attachRuntimeMovement. */
+  runtimeMovement?: NormalizedScenarioMovement;
   transitions?: Transition[];
 
   // Make optional because assertScenario sets default if missing

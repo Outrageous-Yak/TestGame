@@ -1,5 +1,5 @@
-{   
-  "id": "prism_path_t5", 
+{
+  "id": "prism_path_t5",
   "name": "Demo v0.1",
   "layers": 7,
   "objective": "Reach the goal hex.",
@@ -11,30 +11,226 @@
   "villains": {
     "requiredRoll": 6,
     "triggers": [
-      { "id": "bad1", "layer": 1, "row": 5 },
-      { "id": "bad2", "layer": 1, "row": 6 },
-      { "id": "bad3", "layer": 2, "row": 4 },
-      { "id": "bad4", "layer": 2, "row": 5 }
+      {
+        "id": "bad1",
+        "layer": 1,
+        "row": 5
+      },
+      {
+        "id": "bad2",
+        "layer": 1,
+        "row": 6
+      },
+      {
+        "id": "bad3",
+        "layer": 2,
+        "row": 4
+      },
+      {
+        "id": "bad4",
+        "layer": 2,
+        "row": 5
+      }
     ]
   },
-  "start": { "layer": 1, "row": 3, "col": 1 },
-  "goal": { "layer": 5, "row": 6, "col": 6 },
+  "start": {
+    "layer": 1,
+    "row": 3,
+    "col": 1
+  },
+  "goal": {
+    "layer": 5,
+    "row": 6,
+    "col": 6
+  },
   "missing": [],
   "blocked": [],
   "movement": {
     "1": "NONE",
-    "2": "SEVEN_LEFT_SIX_RIGHT",
-    "3": "SEVEN_LEFT_SIX_RIGHT",
-    "4": "SEVEN_LEFT_SIX_RIGHT",
-    "5": "SEVEN_LEFT_SIX_RIGHT",
+    "2": {
+      "rows": {
+        "0": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "1": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "2": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "3": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "4": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "5": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "6": {
+          "direction": "LEFT",
+          "amount": 1
+        }
+      }
+    },
+    "3": {
+      "rows": {
+        "0": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "1": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "2": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "3": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "4": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "5": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "6": {
+          "direction": "LEFT",
+          "amount": 1
+        }
+      }
+    },
+    "4": {
+      "rows": {
+        "0": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "1": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "2": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "3": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "4": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "5": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "6": {
+          "direction": "LEFT",
+          "amount": 1
+        }
+      }
+    },
+    "5": {
+      "rows": {
+        "0": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "1": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "2": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "3": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "4": {
+          "direction": "LEFT",
+          "amount": 1
+        },
+        "5": {
+          "direction": "RIGHT",
+          "amount": 1
+        },
+        "6": {
+          "direction": "LEFT",
+          "amount": 1
+        }
+      }
+    },
     "6": "NONE",
     "7": "NONE"
   },
   "transitions": [
-    { "type": "UP", "from": { "layer": 1, "row": 6, "col": 6 }, "to": { "layer": 2, "row": 2, "col": 2 } },
-    { "type": "UP", "from": { "layer": 2, "row": 6, "col": 6 }, "to": { "layer": 3, "row": 1, "col": 1 } },
-    { "type": "UP", "from": { "layer": 3, "row": 6, "col": 6 }, "to": { "layer": 4, "row": 2, "col": 2 } },
-    { "type": "UP", "from": { "layer": 4, "row": 6, "col": 6 }, "to": { "layer": 5, "row": 1, "col": 2 } }
+    {
+      "type": "UP",
+      "from": {
+        "layer": 1,
+        "row": 6,
+        "col": 6
+      },
+      "to": {
+        "layer": 2,
+        "row": 2,
+        "col": 2
+      }
+    },
+    {
+      "type": "UP",
+      "from": {
+        "layer": 2,
+        "row": 6,
+        "col": 6
+      },
+      "to": {
+        "layer": 3,
+        "row": 1,
+        "col": 1
+      }
+    },
+    {
+      "type": "UP",
+      "from": {
+        "layer": 3,
+        "row": 6,
+        "col": 6
+      },
+      "to": {
+        "layer": 4,
+        "row": 2,
+        "col": 2
+      }
+    },
+    {
+      "type": "UP",
+      "from": {
+        "layer": 4,
+        "row": 6,
+        "col": 6
+      },
+      "to": {
+        "layer": 5,
+        "row": 1,
+        "col": 2
+      }
+    }
   ],
   "revealOnEnterGuaranteedUp": false
 }

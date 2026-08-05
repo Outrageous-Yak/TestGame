@@ -58,6 +58,7 @@ import {
   portalTransitionAt,
   parseVillainsFromScenario,
 } from "./helpers";
+import { selectHexTileArtUrl } from "./hexTileVisual";
 
 type GoalAchievedState = {
   moves: number;
@@ -542,6 +543,12 @@ export function GameController({
       ["--L7" as any]: p?.L7 ?? "#ff5d7a",
     } as React.CSSProperties;
   }, [palette]);
+
+  useEffect(() => {
+    if (!HEX_TILE_MOVABLE) return;
+    const img = new Image();
+    img.src = toPublicUrl(HEX_TILE_MOVABLE);
+  }, [HEX_TILE_MOVABLE]);
 
   function diceImg(n: number) {
     return toPublicUrl(DICE_FACES_BASE + "/D20_" + n + ".png");
@@ -1434,13 +1441,13 @@ export function GameController({
                           isPortalUp: hideSpecialTileArt ? false : isPortalUp,
                           isPortalDown: hideSpecialTileArt ? false : isPortalDown,
                         });
-                        // Theme hexTile for the board; hexTileMovable only on reachable move targets.
-                        const tileArtUrl =
-                          isReach && HEX_TILE_MOVABLE
-                            ? toPublicUrl(HEX_TILE_MOVABLE)
-                            : HEX_TILE
-                              ? toPublicUrl(HEX_TILE)
-                              : toPublicUrl(tileArtRelPath(tileVisual));
+                        // White movable image only during active reach-pulse flash; otherwise regular tile.
+                        const tileArtUrl = selectHexTileArtUrl(
+                          HEX_TILE ? toPublicUrl(HEX_TILE) : toPublicUrl(tileArtRelPath(tileVisual)),
+                          HEX_TILE_MOVABLE ? toPublicUrl(HEX_TILE_MOVABLE) : undefined,
+                          isReach,
+                          isReachPulse
+                        );
                         const hexInnerStyle = {
                           ["--tileArt" as any]: `url(${tileArtUrl})`,
                         } as React.CSSProperties;

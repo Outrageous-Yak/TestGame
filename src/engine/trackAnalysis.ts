@@ -5,7 +5,8 @@ import type { GameState, Scenario, Transition } from "./types";
 import { ROW_LENS, posId } from "./board";
 import { newGame } from "./api";
 import { neighborIdsSameLayer } from "./neighbors";
-import { attemptMove, getPatternForLayer } from "./rules";
+import { attemptMove } from "./rules";
+import { getRuntimeMovement, layerHasMovement, normalizeScenarioMovement, shiftingLayersInMovement } from "./rowMovement";
 import {
   restoreStateLite,
   snapshotStateLite,
@@ -100,13 +101,8 @@ function goalIdFromState(state: GameState): string | null {
 }
 
 function shiftingLayersAfterTurn(scenario: Scenario): number[] {
-  const movement = scenario.movement ?? {};
-  const out: number[] = [];
-  for (let layer = 1; layer <= scenario.layers; layer++) {
-    const pat = getPatternForLayer(movement as Record<string, string>, layer);
-    if (pat !== "NONE") out.push(layer);
-  }
-  return out;
+  const movement = getRuntimeMovement(scenario);
+  return shiftingLayersInMovement(movement);
 }
 
 function describeDirection(
@@ -172,10 +168,7 @@ function buildReplay(
           : `UP portal → ${portalDest}`;
     }
 
-    const layersThatShift = shiftLayers.filter((l) => {
-      const pat = getPatternForLayer(st.scenario.movement ?? {}, l);
-      return pat !== "NONE";
-    });
+    const layersThatShift = shiftLayers;
 
     replay.push({
       moveNumber: i + 1,
@@ -488,14 +481,19 @@ function posSet(list: { layer: number; row: number; col: number }[] = []): Set<s
 }
 
 function movementSimilarityShiftingOnly(a: Scenario, b: Scenario): number {
+  const normA = normalizeScenarioMovement(a.movement ?? {});
+  const normB = normalizeScenarioMovement(b.movement ?? {});
   let match = 0;
   let total = 0;
   for (let layer = 1; layer <= 7; layer++) {
-    const pa = a.movement?.[String(layer)] ?? "NONE";
-    const pb = b.movement?.[String(layer)] ?? "NONE";
-    if (pa === "NONE" && pb === "NONE") continue;
+    const layerKey = layer as 1 | 2 | 3 | 4 | 5 | 6 | 7;
+    const aMoves = layerHasMovement(normA[layerKey].rows);
+    const bMoves = layerHasMovement(normB[layerKey].rows);
+    if (!aMoves && !bMoves) continue;
     total++;
-    if (pa === pb) match++;
+    if (JSON.stringify(normA[layerKey].rows) === JSON.stringify(normB[layerKey].rows)) {
+      match++;
+    }
   }
   return total === 0 ? 0 : (match / total) * 100;
 }
