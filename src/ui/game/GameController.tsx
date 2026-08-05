@@ -1434,9 +1434,9 @@ export function GameController({
                           isPortalUp: hideSpecialTileArt ? false : isPortalUp,
                           isPortalDown: hideSpecialTileArt ? false : isPortalDown,
                         });
-                        // Theme hexTile overrides per-type art; hexTileMovable applies to normal revealed hexes only.
+                        // Theme hexTile for the board; hexTileMovable only on reachable move targets.
                         const tileArtUrl =
-                          tileVisual === "normal" && HEX_TILE_MOVABLE
+                          isReach && HEX_TILE_MOVABLE
                             ? toPublicUrl(HEX_TILE_MOVABLE)
                             : HEX_TILE
                               ? toPublicUrl(HEX_TILE)
