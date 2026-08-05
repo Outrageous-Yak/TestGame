@@ -5,7 +5,7 @@ import { newGame } from "../api";
 import { ROW_LENS } from "../board";
 import { assertScenario } from "../scenario";
 import type { Scenario } from "../types";
-import { applyShift, attemptMove, endTurn } from "../rules";
+import { attemptMove, endTurn } from "../rules";
 import {
   SEVEN_LEFT_SIX_RIGHT_ROWS,
   TOP3_RIGHT_BOTTOM4_LEFT_ROWS,
@@ -135,7 +135,7 @@ describe("runtime application", () => {
 
     const a = newGame(legacy);
     const b = newGame(structured);
-    applyShift(a, 2, "SEVEN_LEFT_SIX_RIGHT");
+    applyLayerRowMovement(a, 2, getRuntimeMovement(a.scenario));
     applyLayerRowMovement(b, 2, getRuntimeMovement(b.scenario));
 
     expect(a.rows.get(2)).toEqual(b.rows.get(2));

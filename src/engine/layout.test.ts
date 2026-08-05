@@ -3,7 +3,7 @@ import type { Scenario } from "./types";
 import { buildInitialState } from "./board";
 import { findSlot, hexIdAtSlot, rowShiftVisual, clockwiseOrderFrom } from "./layout";
 import { neighborIdsSameLayer } from "./neighbors";
-import { applyShift } from "./rules";
+import { applyLayerRowMovement, getRuntimeMovement } from "./rowMovement";
 import { SEVEN_LEFT_SIX_RIGHT_ROWS } from "./rowMovement";
 
 const SHIFT_L2_ROWS = Object.fromEntries(
@@ -51,7 +51,7 @@ describe("layout", () => {
     const playerId = state.playerHexId;
     const before = neighborIdsSameLayer(state, playerId);
 
-    applyShift(state, 2, "SEVEN_LEFT_SIX_RIGHT");
+    applyLayerRowMovement(state, 2, getRuntimeMovement(state.scenario));
 
     expect(rowShiftVisual(state, 2, 3)).not.toBe(0);
     const after = neighborIdsSameLayer(state, playerId);

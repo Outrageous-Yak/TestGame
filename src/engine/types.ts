@@ -4,6 +4,7 @@ import type {
   NormalizedScenarioMovement,
   ScenarioMovementDefinition,
 } from "./rowMovement/types";
+import type { PlayerAction } from "./moveAttempt";
 
 /** @deprecated Legacy preset id — migrate via rowMovement/legacyMovementMigration */
 export type MovementPattern = "NONE" | "SEVEN_LEFT_SIX_RIGHT" | "TOP3_RIGHT_BOTTOM4_LEFT";
@@ -78,6 +79,9 @@ export type GameState = {
 
   lastGuaranteedUpId?: string;
   lastGuaranteedUpTurn?: number;
+
+  /** Player action log for replay/debug (moves and failed attempts). */
+  moveHistory?: PlayerAction[];
 };
 
 // Optional: centralize reachability typing here (recommended)

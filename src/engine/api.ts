@@ -3,12 +3,15 @@ import type { GameState, Scenario } from "./types";
 import { buildInitialState } from "./board";
 import { computeReachability } from "./reachability";
 import { computeMinMovesToGoal } from "./reachabilityOptimal";
-import { attemptMove, passTurn, type MoveResult } from "./rules";
+import { attemptMove, passTurn, attemptMoveToSlot, type MoveResult } from "./rules";
+import type { BoardSlotRef, MoveAttemptResponse, MoveAttemptResult } from "./moveAttempt";
 
 export type ReachInfo = { reachable: boolean; distance: number | null; explored: number };
 export type ReachMap = Record<string, ReachInfo>;
 
-export type { MoveResult };
+export type { MoveResult, BoardSlotRef, MoveAttemptResponse, MoveAttemptResult };
+
+export { attemptMoveToSlot };
 
 export function newGame(scenario: Scenario): GameState {
   return buildInitialState(scenario);
