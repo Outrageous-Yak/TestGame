@@ -60,6 +60,7 @@ describe("track run lifecycle", () => {
     });
     expect(opts.mode).toBe("new-on-replay");
     expect(opts.previousSelection).toEqual(storedSelection);
+    expect(opts.requiredChangedLayers).toEqual([1]);
     expect(opts.preserveSelection).toBeUndefined();
   });
 

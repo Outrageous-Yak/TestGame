@@ -238,6 +238,9 @@ describe("layer transforms", () => {
     expect(combinationKey(replay.selection.layerTransforms)).not.toBe(
       combinationKey(previous.layerTransforms)
     );
+    expect(replay.selection.layerTransforms[1]).not.toBe(
+      previous.layerTransforms[1]
+    );
   });
 
   it("fixed lifecycle uses identity transforms on every layer", () => {
@@ -505,5 +508,33 @@ describe("layer transforms", () => {
       previous.layerTransforms
     );
     expect(combinationKey(next.layerTransforms)).not.toBe(combinationKey(previous.layerTransforms));
+  });
+
+  it("forces requested replay layers to differ from the previous run", () => {
+    const rules = {
+      enabled: true,
+      allowedTransforms: getActiveLayerTransformIds(),
+      independentPerLayer: true,
+      avoidPreviousCombination: true,
+      allowIdentity: true,
+    };
+    const previous = selectLayerTransforms(
+      "track-layer-one",
+      7,
+      "previous",
+      rules
+    );
+
+    for (let replay = 0; replay < 20; replay++) {
+      const next = selectLayerTransforms(
+        "track-layer-one",
+        7,
+        `replay-${replay}`,
+        rules,
+        previous.layerTransforms,
+        [1]
+      );
+      expect(next.layerTransforms[1]).not.toBe(previous.layerTransforms[1]);
+    }
   });
 });
