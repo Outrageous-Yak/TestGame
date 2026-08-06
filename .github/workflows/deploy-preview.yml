@@ -1,5 +1,5 @@
-# Optional manual full-site redeploy including preview subpath.
-# Normal path: push to main runs deploy.yml (bundles preview from preview-deploy.json).
+# Manual full-site redeploy including a preview subpath.
+# Normal path: push to main runs deploy.yml (production bundle only).
 name: Deploy Preview (branch subpath)
 
 on:
@@ -23,7 +23,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
