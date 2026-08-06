@@ -17,6 +17,7 @@ describe("cloud rendering CSS", () => {
   it("documents z-index stack for cloud scenarios", () => {
     expect(css).toContain("--z-terrain: 1");
     expect(css).toContain("--z-cloud: 20");
+    expect(css).toContain("--z-sparkle: 25");
     expect(css).toContain("--z-move: 30");
     expect(css).toContain("--z-goal: 40");
     expect(css).toContain("--z-portal: 45");

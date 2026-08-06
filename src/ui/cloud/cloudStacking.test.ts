@@ -73,7 +73,7 @@ describe("cloud placement CSS", () => {
   const gc = readFileSync(join(process.cwd(), "src/ui/game/GameController.tsx"), "utf8");
 
   it("CloudCover is mounted as hexSlot sibling in GameController", () => {
-    expect(gc).toMatch(/<\/button>\s*\{cardHere[\s\S]*showCloudCover\s*\?[\s\S]*<CloudCover/);
+    expect(gc).toMatch(/<\/button>[\s\S]*showCloudCover\s*\?[\s\S]*<CloudCover/);
     const cloudMount = gc.match(/showCloudCover\s*\?[\s\S]*?<CloudCover[\s\S]*?\/>/)?.[0] ?? "";
     expect(cloudMount).not.toContain("hexTerrainClip");
     expect(cloudMount).not.toContain("hexInner");
@@ -117,8 +117,9 @@ describe("cloud z-index stack CSS", () => {
     expect(z("card", css)).toBeLessThan(z("cloud", css));
   });
 
-  it("cloud z-index is below move pulse", () => {
-    expect(z("cloud", css)).toBeLessThan(z("move", css));
+  it("cloud z-index is below sparkle and move pulse", () => {
+    expect(z("cloud", css)).toBeLessThan(z("sparkle", css));
+    expect(z("sparkle", css)).toBeLessThan(z("move", css));
   });
 
   it("move pulse is below goal and portal", () => {

@@ -24,7 +24,7 @@ import type {
 import { PlayerToken } from "../../features/sprite-builder/PlayerToken";
 import type { SavedPixelSprite } from "../../features/sprite-builder/spriteTypes";
 import type { AnimatedSpriteSheet } from "../../features/sprite-builder/animatedSpriteSheets";
-import { CloudCover, MoveOverlay, computeCloudVisibility } from "../cloud";
+import { CloudCover, MoveOverlay, StormWeather, cloudAtmosphereClass, computeCloudVisibility } from "../cloud";
 import {
   REACH_PULSE_INTERVAL_MS,
   shouldShowFullCloudMovePulse,
@@ -64,6 +64,8 @@ import {
   shouldUseSolidGoldGoal,
 } from "./hexTileVisual";
 import { playGoalLandSound, playPlayerMoveSound, playPortalLandSound, playFailedMoveSound, preloadSoundEffects } from "../audio/soundEffects";
+import { preloadThunderSound } from "../audio/stormAudio";
+import { ReachSparkle } from "./ReachSparkle";
 import { startBackgroundMusic, stopBackgroundMusic } from "../audio/backgroundMusic";
 import type { MoveAttemptResult } from "../../engine/moveAttempt";
 
@@ -553,7 +555,10 @@ export function GameController({
 
   useEffect(() => {
     void preloadSoundEffects(["playerMove", "portalLand", "goalLand", "failedMove"]);
-  }, []);
+    if (cloudMode === "full_cloud") {
+      void preloadThunderSound();
+    }
+  }, [cloudMode]);
 
   useEffect(() => {
     if (!BACKGROUND_MUSIC) return;
@@ -1331,6 +1336,9 @@ export function GameController({
           backgroundImage: GAME__URL ? "url(" + toPublicUrl(GAME__URL) + ")" : undefined,
         }}
       />
+      {isCloudScenario && cloudMode ? (
+        <div className={cloudAtmosphereClass(cloudMode, "scene")} aria-hidden="true" />
+      ) : null}
 
       <div className="topbar">
         <div className="items">
@@ -1401,6 +1409,12 @@ export function GameController({
       <div className="gameLayout">
         <div className="playColumn">
           <div className="boardWrap">
+            {isCloudScenario && cloudMode ? (
+              <div className={cloudAtmosphereClass(cloudMode, "board")} aria-hidden="true" />
+            ) : null}
+            {cloudMode === "full_cloud" ? (
+              <StormWeather scenarioId={scenarioEntry.id} reducedMotion={reducedMotion} />
+            ) : null}
             <SideBar side="top" currentLayer={currentLayer} />
             <SideBar side="left" currentLayer={currentLayer} />
 
@@ -1623,6 +1637,10 @@ export function GameController({
                                 )}
                               </div>
                             </button>
+
+                            {isReach ? (
+                              <ReachSparkle hexId={id} reducedMotion={reducedMotion} />
+                            ) : null}
 
                             {cardHere ? (
                               <div className={["cardLayer", isCloudScenario ? "cardLayerUnderCloud" : ""].filter(Boolean).join(" ")}>

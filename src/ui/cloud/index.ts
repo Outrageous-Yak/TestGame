@@ -10,3 +10,5 @@ export {
 } from "./cloudBoardLayering";
 export { CloudCover } from "./CloudCover";
 export { MoveOverlay } from "./MoveOverlay";
+export { StormWeather } from "./StormWeather";
+export { cloudAtmosphereClass } from "./cloudAtmosphere";
