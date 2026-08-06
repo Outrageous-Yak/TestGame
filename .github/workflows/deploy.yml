@@ -16,11 +16,12 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,6 +40,7 @@ jobs:
         if: hashFiles('.github/preview-deploy.json') != ''
         id: preview_config
         run: |
+          jq -e . .github/preview-deploy.json >/dev/null
           echo "branch=$(jq -r '.preview_branch' .github/preview-deploy.json)" >> "$GITHUB_OUTPUT"
           echo "slug=$(jq -r '.preview_slug' .github/preview-deploy.json)" >> "$GITHUB_OUTPUT"
 
@@ -119,6 +121,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
