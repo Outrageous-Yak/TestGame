@@ -40,8 +40,12 @@
   /* height of JUST the 7 hex rows (no top/bottom padding) */
   --hexRowsH: calc((var(--hexStepY) * 6) + var(--hexHMain));
 
-  /* height of rows + board padding */
+  /* height of rows + board padding (legacy; board uses --hexRowsH when centered) */
   --hexFieldH: calc(var(--hexRowsH) + var(--boardPadTop) + var(--boardPadBottom));
+
+  /* top layer bar block (padding + bar) — used to center hex rows in the play area */
+  --layerBarBlockH: calc(var(--barH) + 14px);
+  --boardHexInsetY: max(0px, calc((100% - var(--layerBarBlockH) - var(--hexRowsH)) / 2));
 
   /* segment height should match a row block */
   --layerSegH: calc(var(--hexRowsH) / 7);
@@ -468,10 +472,21 @@ body{
 .barWrap.barLeft{
   height: 100%;
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: var(--boardPadTop);
-  padding-bottom: var(--boardPadBottom);
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.barWrap.barLeft::before,
+.barWrap.barLeft::after{
+  content: "";
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+}
+.barWrap.barLeft .rowShiftBar{
+  flex: 0 0 auto;
 }
 .barLeft{ justify-content: flex-start; }
 
@@ -653,8 +668,16 @@ body{
   overflow: hidden;
   padding: 0 10px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+}
+.boardScroll::before,
+.boardScroll::after{
+  content: "";
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
 }
 
 .barWrap.barLeft{ grid-column: 1; grid-row: 2; }
@@ -662,9 +685,10 @@ body{
 .board{
   width: calc(var(--hexStepX) * var(--maxCols));
   margin: 0 auto;
-  padding: var(--boardPadTop) 0 var(--boardPadBottom);
+  padding: 0;
   position: relative;
-  height: var(--hexFieldH);
+  height: var(--hexRowsH);
+  flex: 0 0 auto;
   overflow: visible;
 }
 
@@ -1347,22 +1371,22 @@ body{
 
 .hexDeckCard.cosmic{
   left: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
-  top: calc(var(--boardPadTop) + var(--deckPadY));
+  top: calc(var(--layerBarBlockH) + var(--boardHexInsetY) + var(--deckPadY));
   transform: translateX(-45%);
 }
 .hexDeckCard.risk{
   left: calc(var(--barColW) + var(--boardInset) - var(--deckPadX));
-  bottom: calc(var(--boardPadBottom) + var(--deckPadY));
+  bottom: calc(var(--boardHexInsetY) + var(--deckPadY));
   transform: translateX(-45%);
 }
 .hexDeckCard.terrain{
   right: calc(var(--boardInset) - var(--deckPadX));
-  top: calc(var(--boardPadTop) + var(--deckPadY));
+  top: calc(var(--layerBarBlockH) + var(--boardHexInsetY) + var(--deckPadY));
   transform: translateX(45%);
 }
 .hexDeckCard.shadow{
   right: calc(var(--boardInset) - var(--deckPadX));
-  bottom: calc(var(--boardPadBottom) + var(--deckPadY));
+  bottom: calc(var(--boardHexInsetY) + var(--deckPadY));
   transform: translateX(45%);
 }
 
@@ -2391,6 +2415,7 @@ body{
     --boardPadBottom: 4px;
     --barW: 20px;
     --barH: 22px;
+    --layerBarBlockH: calc(var(--barH) + 10px);
     /* one-screen fit: topbar + layer bar + deck row + status + gaps */
     --hexWMain: min(
       64px,
