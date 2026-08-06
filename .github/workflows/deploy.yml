@@ -10,6 +10,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  deployments: write
 
 concurrency:
   group: pages
@@ -120,6 +121,36 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Unblock wedged Pages deployments
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          echo "Clearing wedged github-pages deployments before publish..."
+          mapfile -t shas < <(
+            gh api "repos/${GITHUB_REPOSITORY}/deployments?environment=github-pages&per_page=30" \
+              --jq '.[].sha' | sort -u
+          )
+          for sha in "${shas[@]}"; do
+            if [ "$sha" = "${{ github.sha }}" ]; then
+              continue
+            fi
+            echo "Cancelling Pages deployment for $sha"
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/deployments/${sha}/cancel" >/dev/null 2>&1 || true
+            mapfile -t dep_ids < <(
+              gh api "repos/${GITHUB_REPOSITORY}/deployments?environment=github-pages&sha=${sha}" --jq '.[].id'
+            )
+            for dep_id in "${dep_ids[@]}"; do
+              state=$(gh api "repos/${GITHUB_REPOSITORY}/deployments/${dep_id}/statuses" --jq '.[0].state' 2>/dev/null)
+              if [ "$state" = "in_progress" ] || [ "$state" = "queued" ] || [ "$state" = "waiting" ]; then
+                echo "Marking deployment ${dep_id} inactive (was ${state})"
+                gh api -X POST "repos/${GITHUB_REPOSITORY}/deployments/${dep_id}/statuses" \
+                  -f state=inactive \
+                  -f description="Cleared wedged Pages deployment" >/dev/null 2>&1 || true
+              fi
+            done
+          done
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
