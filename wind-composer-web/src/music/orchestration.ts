@@ -133,6 +133,13 @@ export class Orchestrator {
     if (styleName === "Synthwave") {
       layer_presets.lead = "Glass Bell";
       layer_presets.soft_bass = "Soft Analog Bass";
+    } else if (styleName === "UK Trance") {
+      layer_presets.lead = "supersaw";
+      layer_presets.main_pad = "Warm Horizon";
+      layer_gains.lead = Math.max(layer_gains.lead ?? 0, 0.72 + energy * 0.2);
+      layer_gains.main_pad = Math.min(layer_gains.main_pad ?? 0, 0.28);
+      layer_gains.atmosphere = Math.min(layer_gains.atmosphere ?? 0, 0.12);
+      if (layer_gains.lead > 0.08) active_layers.push("lead");
     } else if (styleName.includes("Techno") || styleName === "Trance") {
       layer_presets.lead = "Muted Pluck";
       layer_presets.sub_bass = "Sub Foundation";

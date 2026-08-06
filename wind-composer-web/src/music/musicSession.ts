@@ -315,7 +315,11 @@ export class MusicSession {
 
     const rootMidi = enhanced.chord?.root_midi ?? 48;
     const bassPattern = this.settings.dance_effects_enabled
-      ? this.producer.getBassMidiPattern(rootMidi, producerResult.bassPatternFamily)
+      ? this.producer.getBassMidiPattern(
+          rootMidi,
+          producerResult.bassPatternFamily,
+          this.settings.musical_style,
+        )
       : [];
 
     return {
@@ -341,6 +345,8 @@ export class MusicSession {
         allowPads: intent.allowPads,
         allowLeads: intent.allowLeads,
         startupGroovePhase: this.producer.getState().startupGroovePhase,
+        bassStepMode: this.producer.usesRollingBass(this.settings.musical_style) ? "16th" : "quarter",
+        leadPreset: this.producer.getLeadPreset(this.settings.musical_style),
       },
     };
   }

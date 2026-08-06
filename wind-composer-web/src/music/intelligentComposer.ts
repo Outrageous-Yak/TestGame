@@ -13,6 +13,7 @@ import {
 import type { ScaleEngine } from "./scaleEngine";
 import { getStyle } from "./styleEngine";
 import { TempoEngine, windToTargetBpm } from "./tempoEngine";
+import { TranceLeadEngine } from "./tranceLeadEngine";
 import { TransitionEngine } from "./transitionEngine";
 import type { ProducerAction, ProducerIntent } from "./producerTypes";
 import type { WeatherChangeSummary, WeatherMemory } from "./weatherMemory";
@@ -36,6 +37,7 @@ export class IntelligentComposer {
   private arrangement = new ArrangementEngine();
   private bass: BassEngine;
   private lead: LeadEngine;
+  private tranceLead: TranceLeadEngine;
   private fills: FillEngine;
   private transitions: TransitionEngine;
   private tempo = new TempoEngine();
@@ -54,6 +56,7 @@ export class IntelligentComposer {
   ) {
     this.bass = new BassEngine(this.memory);
     this.lead = new LeadEngine(this.scale, this.memory);
+    this.tranceLead = new TranceLeadEngine(this.scale, this.memory);
     this.fills = new FillEngine(this.memory);
     this.transitions = new TransitionEngine(this.memory);
   }
@@ -92,6 +95,7 @@ export class IntelligentComposer {
     this.lastMeasure = -1;
     this.lastBassPattern = [];
     this.fillProbabilityBoost = 0;
+    this.tranceLead.reset();
   }
 
   onWeatherUpdated(snap: WeatherSnapshot, localTimeStr: string): void {
@@ -226,16 +230,28 @@ export class IntelligentComposer {
         this.fillProbabilityBoost *= 0.92;
 
         if (plan.chord?.tones?.length) {
-          extraMelody.push(
-            ...this.lead.maybeNotes({
-              chordTones: plan.chord.tones,
-              energy: plan.energy_curve,
-              hope: ctx.personalityHope,
-              bar: m,
-              gust: ctx.gust,
-              style,
-            }),
-          );
+          if (this.styleName === "UK Trance") {
+            extraMelody.push(
+              ...this.tranceLead.maybeNotes({
+                chordTones: plan.chord.tones,
+                energy: plan.energy_curve,
+                section: plan.song_section ?? "Flow",
+                bar: m,
+                rootMidi: plan.chord.root_midi,
+              }),
+            );
+          } else {
+            extraMelody.push(
+              ...this.lead.maybeNotes({
+                chordTones: plan.chord.tones,
+                energy: plan.energy_curve,
+                hope: ctx.personalityHope,
+                bar: m,
+                gust: ctx.gust,
+                style,
+              }),
+            );
+          }
         }
 
         const fx = this.transitions.maybeTransition({

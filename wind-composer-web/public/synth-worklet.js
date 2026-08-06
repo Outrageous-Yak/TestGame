@@ -26,6 +26,9 @@ class Voice {
     this.filter = 0;
     this.cutoff = 2000;
     this.age = 0;
+    this.waveform = "default";
+    this.sawPhases = [0, 0, 0, 0, 0];
+    this.sawDetune = [0, 0.006, -0.006, 0.012, -0.012];
   }
 
   midiToFreq(m) {
@@ -85,9 +88,22 @@ class Voice {
     this.phase2 += inc2;
     if (this.phase1 > TAU) this.phase1 -= TAU;
     if (this.phase2 > TAU) this.phase2 -= TAU;
-    const s1 = Math.sin(this.phase1);
-    const s2 = Math.sin(this.phase2);
-    let raw = (s1 * 0.55 + s2 * 0.45) * this.env * this.vel;
+    let raw;
+    if (this.waveform === "supersaw") {
+      let sum = 0;
+      for (let i = 0; i < this.sawPhases.length; i++) {
+        const f = this.freq * (1 + this.sawDetune[i]);
+        this.sawPhases[i] += TAU * f / sr;
+        if (this.sawPhases[i] > TAU) this.sawPhases[i] -= TAU;
+        const p = this.sawPhases[i];
+        sum += 2 * (p / TAU - Math.floor(p / TAU + 0.5));
+      }
+      raw = (sum / this.sawPhases.length) * this.env * this.vel * 0.42;
+    } else {
+      const s1 = Math.sin(this.phase1);
+      const s2 = Math.sin(this.phase2);
+      raw = (s1 * 0.55 + s2 * 0.45) * this.env * this.vel;
+    }
     const alpha = Math.min(1, TAU * this.cutoff / sr);
     this.filter += alpha * (raw - this.filter);
     raw = this.filter;
@@ -148,6 +164,7 @@ class DrumEngine {
     this.skipChordBass = false;
     this.drumBusGain = 1.2;
     this.sidechainAmount = 0.35;
+    this.bassStepMode = "quarter";
     this.kickClickEnv = 0;
     this.bassDuck = 1;
   }
@@ -173,6 +190,7 @@ class DrumEngine {
     if (msg.skipChordBass != null) this.skipChordBass = Boolean(msg.skipChordBass);
     if (msg.drumBusGain != null) this.drumBusGain = msg.drumBusGain;
     if (msg.sidechainAmount != null) this.sidechainAmount = msg.sidechainAmount;
+    if (msg.bassStepMode) this.bassStepMode = msg.bassStepMode;
     this._recalcStepLen();
   }
 
@@ -287,10 +305,15 @@ class DrumEngine {
       this.triggerHat(this.hatGain * 0.75);
       this.pendingFill -= 1;
     }
-    if (this.bassPattern.length && idx % 4 === 0) {
-      const bi = Math.floor(idx / 4) % this.bassPattern.length;
-      const midi = this.bassPattern[bi];
-      if (midi > 0) this.triggerBass(midi);
+    if (this.bassPattern.length) {
+      if (this.bassStepMode === "16th") {
+        const midi = this.bassPattern[idx % this.bassPattern.length];
+        if (midi > 0) this.triggerBass(midi);
+      } else if (idx % 4 === 0) {
+        const bi = Math.floor(idx / 4) % this.bassPattern.length;
+        const midi = this.bassPattern[bi];
+        if (midi > 0) this.triggerBass(midi);
+      }
     }
     const swingDelay = this.swing > 0 && idx % 2 === 1 ? this.samplesPerStep * this.swing * 0.35 : 0;
     this.sampleAcc -= swingDelay;
@@ -475,8 +498,10 @@ class SynthProcessor extends AudioWorkletProcessor {
     const pads = { attack: 1.5, decay: 0.8, sustain: 0.7, release: 2.5, cutoff: 1200 };
     const bass = { attack: 0.1, decay: 0.2, sustain: 0.75, release: 0.5, cutoff: 500 };
     const lead = { attack: 0.05, decay: 0.2, sustain: 0.5, release: 0.6, cutoff: 2500 };
+    const supersaw = { attack: 0.02, decay: 0.35, sustain: 0.72, release: 0.85, cutoff: 4200 };
     const atmo = { attack: 2.5, decay: 1.5, sustain: 0.75, release: 4, cutoff: 800 };
     if (name === "startup") return startup;
+    if (name === "supersaw") return supersaw;
     if (name && name.toLowerCase().includes("bass")) return bass;
     if (name && (name.includes("Bell") || name.includes("Pluck"))) return lead;
     if (name && (name.includes("Haze") || name.includes("Mist") || name.includes("Storm"))) return atmo;
@@ -488,7 +513,8 @@ class SynthProcessor extends AudioWorkletProcessor {
     const v = this.allocVoice();
     v.layer = layer || "main_pad";
     v.cutoff = p.cutoff;
-    v.start(midi, vel * 0.55, p.attack, p.decay, p.sustain, p.release);
+    v.waveform = preset === "supersaw" ? "supersaw" : "default";
+    v.start(midi, vel * (preset === "supersaw" ? 0.72 : 0.55), p.attack, p.decay, p.sustain, p.release);
   }
 
   sustainChord(layer, midis, gain, preset) {
@@ -583,8 +609,9 @@ class SynthProcessor extends AudioWorkletProcessor {
         const sample = v.process(sr) * lg;
         if (v.layer === "soft_bass" || v.layer === "sub_bass") bassMono += sample;
         else if (v.layer === "lead" || v.layer === "bell") {
-          leadL += sample * 0.78;
-          leadR += sample * 0.78;
+          const leadBoost = v.layer === "lead" && v.waveform === "supersaw" ? 1.35 : 1;
+          leadL += sample * 0.78 * leadBoost;
+          leadR += sample * 0.78 * leadBoost;
         } else padMono += sample;
       }
       const layerCount = Math.max(1, Object.keys(this.layerGains).length);

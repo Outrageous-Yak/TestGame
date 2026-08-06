@@ -6,6 +6,7 @@ export const MUSICAL_STYLES = [
   "Progressive House",
   "Melodic Techno",
   "Trance",
+  "UK Trance",
   "Synthwave",
   "Downtempo",
   "Electronic Orchestra",
@@ -104,6 +105,11 @@ export const STYLE_PROFILES: Record<MusicalStyleName, StyleProfile> = {
   Trance: profile("Trance", 128, 142, KICK_TRANCE, HAT_16TH, "trance", 0.74, 0.68, 0.52, 0.32, 0.22, 0, {
     padLayers: 0.42,
     leadLayers: 0.62,
+  }),
+  "UK Trance": profile("UK Trance", 134, 146, KICK_FOUR, HAT_16TH, "uk_trance", 0.82, 0.78, 0.58, 0.36, 0.28, 0, {
+    padLayers: 0.28,
+    leadLayers: 0.82,
+    bassLayers: 0.62,
   }),
   Synthwave: profile("Synthwave", 95, 118, KICK_FOUR, HAT_OFFBEAT, "house", 0.48, 0.48, 0.42, 0.18, 0.12, 0.05, {
     padLayers: 0.5,

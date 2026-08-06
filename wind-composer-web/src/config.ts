@@ -33,7 +33,7 @@ export const AUDIO_QUALITY_LEVELS = ["Low", "Standard", "High"] as const;
 
 export const MUSICAL_STYLES = [
   "Ambient", "Chillout", "Deep House", "Melodic House", "Progressive House",
-  "Melodic Techno", "Trance", "Synthwave", "Downtempo", "Electronic Orchestra",
+  "Melodic Techno", "Trance", "UK Trance", "Synthwave", "Downtempo", "Electronic Orchestra",
 ] as const;
 
 export const REFRESH_INTERVALS_SEC = [10, 20, 30, 60, 120, 300];

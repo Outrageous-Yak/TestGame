@@ -160,5 +160,7 @@ export interface TickResult {
     allowPads: boolean;
     allowLeads: boolean;
     startupGroovePhase: number;
+    bassStepMode?: "16th" | "quarter";
+    leadPreset?: string;
   };
 }

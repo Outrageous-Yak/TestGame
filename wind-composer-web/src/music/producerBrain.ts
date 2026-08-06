@@ -9,6 +9,14 @@ import {
   type BassPatternFamily,
   deepHouseBassPattern,
 } from "./deepHouseGroove";
+import {
+  UK_TRANCE_HAT,
+  UK_TRANCE_KICK,
+  UK_TRANCE_MIX,
+  UK_TRANCE_TEMPO,
+  type UkTranceBassFamily,
+  ukTranceBassPattern,
+} from "./ukTranceGroove";
 import { evaluateMusicalState } from "./musicalEvaluator";
 import { NoveltyManager } from "./noveltyManager";
 import { createProducerState, updateProducerState } from "./producerState";
@@ -87,6 +95,7 @@ export class ProducerBrain {
   tick(ctx: ProducerTickContext): ProducerTickResult {
     const style = getStyle(ctx.styleName);
     const isDeepHouse = ctx.styleName === "Deep House";
+    const isUkTrance = ctx.styleName === "UK Trance";
     const isDance = style.drumDensity > 0.3;
     const wScale =
       WEATHER_INFLUENCE_SCALE[
@@ -95,14 +104,18 @@ export class ProducerBrain {
     const gStrength = grooveStrengthScale(ctx.grooveStrength);
     const varAmt = variationScale(ctx.variation);
 
-    const tempoProfile = isDeepHouse ? DEEP_HOUSE_TEMPO : {
-      minBpm: style.bpmMin,
-      preferredLow: style.bpmMin + 2,
-      preferredHigh: style.bpmMax - 2,
-      maxBpm: style.bpmMax,
-      maxChangePerBar: 1,
-      gustMaxChangePerBar: 2,
-    };
+    const tempoProfile = isDeepHouse
+      ? DEEP_HOUSE_TEMPO
+      : isUkTrance
+        ? UK_TRANCE_TEMPO
+        : {
+            minBpm: style.bpmMin,
+            preferredLow: style.bpmMin + 2,
+            preferredHigh: style.bpmMax - 2,
+            maxBpm: style.bpmMax,
+            maxChangePerBar: 1,
+            gustMaxChangePerBar: 2,
+          };
 
     const windTarget = windToTargetBpm(
       ctx.windKmh,
@@ -151,6 +164,7 @@ export class ProducerBrain {
       gStrength,
       varAmt,
       isDeepHouse,
+      isUkTrance,
       isDance,
     );
 
@@ -192,7 +206,7 @@ export class ProducerBrain {
       this.state.startupGroovePhase = Math.min(4, this.state.startupGroovePhase + 1);
     }
 
-    const bassFamily = this.pickBassFamily(section, intent, evaluation);
+    const bassFamily = this.pickBassFamily(section, intent, evaluation, isUkTrance);
     if (bassFamily !== this.state.bassPatternFamily) {
       this.lastBassChangeBar = ctx.bar;
     }
@@ -240,15 +254,20 @@ export class ProducerBrain {
     gStrength: number,
     varAmt: number,
     isDeepHouse: boolean,
+    isUkTrance: boolean,
     isDance: boolean,
   ): ProducerIntent {
-    const mix = isDeepHouse ? DEEP_HOUSE_MIX : {
-      padGainMax: 0.45,
-      atmosphereMax: 0.28,
-      noiseBudget: 0.6,
-      kickDryness: 0.9,
-      sidechainAmount: 0.35,
-    };
+    const mix = isDeepHouse
+      ? DEEP_HOUSE_MIX
+      : isUkTrance
+        ? UK_TRANCE_MIX
+        : {
+            padGainMax: 0.45,
+            atmosphereMax: 0.28,
+            noiseBudget: 0.6,
+            kickDryness: 0.9,
+            sidechainAmount: 0.35,
+          };
 
     const startupPhase = this.state.startupGroovePhase;
     const grooveRamp = clamp(startupPhase / 3, 0.25, 1);
@@ -261,7 +280,7 @@ export class ProducerBrain {
     );
 
     const bassActivity = clamp(
-      (isDeepHouse ? 0.55 : 0.4) * gStrength * grooveRamp + ctx.energy * 0.2,
+      ((isDeepHouse ? 0.55 : isUkTrance ? 0.72 : 0.4) * gStrength * grooveRamp + ctx.energy * 0.2),
       0.1,
       0.95,
     );
@@ -270,7 +289,9 @@ export class ProducerBrain {
     const atmoLimit = mix.atmosphereMax * (1 - rhythmicDensity * 0.3);
 
     const allowPads = startupPhase >= 2 || section !== "Intro";
-    const allowLeads = startupPhase >= 3 && section !== "Intro" && section !== "Build";
+    const allowLeads = isUkTrance
+      ? (startupPhase >= 2 && section !== "Intro") || section === "Drop"
+      : startupPhase >= 3 && section !== "Intro" && section !== "Build";
 
     return {
       energyTarget,
@@ -279,7 +300,11 @@ export class ProducerBrain {
       rhythmicDensity,
       bassActivity,
       harmonicComplexity: clamp(0.4 + varAmt * 0.35 + tension * 0.2, 0.3, 0.85),
-      melodicPresence: clamp(0.25 + varAmt * 0.4 - gStrength * 0.1, 0.1, 0.7),
+      melodicPresence: clamp(
+        (isUkTrance ? 0.55 : 0.25) + varAmt * 0.4 - (isUkTrance ? 0 : gStrength * 0.1),
+        0.1,
+        0.92,
+      ),
       atmosphericDensity: atmoLimit,
       brightness: clamp(0.5 + ctx.energy * 0.3, 0.35, 0.9),
       warmth: clamp(0.55 + (1 - ctx.energy) * 0.2, 0.4, 0.85),
@@ -381,6 +406,23 @@ export class ProducerBrain {
     section: SectionType,
     intent: ProducerIntent,
     eval_: ReturnType<typeof evaluateMusicalState>,
+    isUkTrance: boolean,
+  ): string {
+    if (isUkTrance) {
+      if (section === "Breakdown") return "breakdown";
+      if (section === "Build") return "pump";
+      if (section === "Drop") return "rolling_fifth";
+      if (eval_.repetitionScore > 0.65) return "rolling_fifth";
+      return "rolling";
+    }
+    const family = this.pickDeepHouseBassFamily(section, intent, eval_);
+    return family;
+  }
+
+  private pickDeepHouseBassFamily(
+    section: SectionType,
+    intent: ProducerIntent,
+    eval_: ReturnType<typeof evaluateMusicalState>,
   ): BassPatternFamily {
     if (section === "Breakdown") return "breakdown";
     if (section === "Build") return "syncopated";
@@ -403,6 +445,9 @@ export class ProducerBrain {
         }
       }
       return { clapPattern: DEEP_HOUSE_CLAP, hatPattern: hats };
+    }
+    if (styleName === "UK Trance") {
+      return { clapPattern: [], hatPattern: [...UK_TRANCE_HAT] };
     }
     return {
       clapPattern: style.useClap ? [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0] : [],
@@ -445,13 +490,25 @@ export class ProducerBrain {
     return labels[action] ?? action;
   }
 
-  getBassMidiPattern(rootMidi: number, family: string): number[] {
-    const f = family as BassPatternFamily;
-    return deepHouseBassPattern(f, rootMidi);
+  getBassMidiPattern(rootMidi: number, family: string, styleName: string): number[] {
+    if (styleName === "UK Trance") {
+      return ukTranceBassPattern(family as UkTranceBassFamily, rootMidi);
+    }
+    return deepHouseBassPattern(family as BassPatternFamily, rootMidi);
   }
 
   getKickPattern(styleName: string): number[] {
     if (styleName === "Deep House") return DEEP_HOUSE_KICK;
+    if (styleName === "UK Trance") return UK_TRANCE_KICK;
     return getStyle(styleName).kickPattern;
+  }
+
+  usesRollingBass(styleName: string): boolean {
+    return styleName === "UK Trance";
+  }
+
+  getLeadPreset(styleName: string): string {
+    if (styleName === "UK Trance") return "supersaw";
+    return "Soft Pulse";
   }
 }

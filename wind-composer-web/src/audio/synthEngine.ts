@@ -238,6 +238,8 @@ export class WebSynthEngine {
       allowPads: boolean;
       allowLeads: boolean;
       startupGroovePhase: number;
+      bassStepMode?: "16th" | "quarter";
+      leadPreset?: string;
     };
   }): void {
     if (!this.worklet) return;
@@ -295,7 +297,9 @@ export class WebSynthEngine {
     const clapPat = tick.drumPatterns?.clap;
     const useClap = clapPat && clapPat.some((x) => x > 0);
 
-    const drumKey = `${plan.tempo_bpm.toFixed(1)}|${style.name}|${drumDensity.toFixed(3)}|${useBassSeq}|${bassPattern.join(",")}|${drumEnabled}|${danceOn}|${kickPat.join("")}|${hatPat.join("")}|${producerMix?.sidechainAmount ?? 0}`;
+    const bassStepMode = producerMix?.bassStepMode ?? "quarter";
+
+    const drumKey = `${plan.tempo_bpm.toFixed(1)}|${style.name}|${drumDensity.toFixed(3)}|${useBassSeq}|${bassPattern.join(",")}|${drumEnabled}|${danceOn}|${kickPat.join("")}|${hatPat.join("")}|${producerMix?.sidechainAmount ?? 0}|${bassStepMode}`;
     if (drumKey !== this.lastDrumKey) {
       this.lastDrumKey = drumKey;
       this.worklet.port.postMessage({
@@ -317,6 +321,7 @@ export class WebSynthEngine {
         skipChordBass: useBassSeq,
         drumBusGain: danceOn ? 1.4 + style.drumDensity * 0.5 : 0,
         sidechainAmount: producerMix?.sidechainAmount ?? 0.35,
+        bassStepMode,
       });
     }
 
