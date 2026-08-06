@@ -5,8 +5,12 @@ export function activateLayerMovement(state: GameState, layer: number): void {
   state.movementActiveLayers.add(layer);
 }
 
-export function endTurn(state: GameState) {
+export function endTurn(state: GameState, options?: { applyRowMovement?: boolean }) {
   state.turn += 1;
+
+  if (options?.applyRowMovement === false) {
+    return;
+  }
 
   const movement = getRuntimeMovement(state.scenario);
 
