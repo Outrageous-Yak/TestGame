@@ -433,6 +433,21 @@ export function GameController({
     return set;
   }, [state, currentLayer, uiTick]);
 
+  const missingHexIdsOnLayer = useMemo(() => {
+    const set = new Set<string>();
+    if (!state) return set;
+    for (let r = 0; r < ROW_LENS.length; r++) {
+      const len = ROW_LENS[r] ?? 7;
+      for (let c = 0; c < len; c++) {
+        const id = hexIdAtSlot(state, currentLayer, r, c);
+        if (!id) continue;
+        const hex = getHexFromState(state, id);
+        if (isBlockedOrMissing(hex).missing) set.add(id);
+      }
+    }
+    return set;
+  }, [state, currentLayer, uiTick]);
+
   const portalHexIdsOnLayer = useMemo(() => {
     const set = new Set<string>();
     if (!state) return set;
@@ -455,6 +470,7 @@ export function GameController({
       currentHexId: playerId,
       legalMoveHexIds: reachable,
       allTerrainHexIds: terrainHexIdsOnLayer,
+      missingHexIds: missingHexIdsOnLayer,
       goalHexId: goalId,
       portalHexIds: portalHexIdsOnLayer,
       adjacency: (hexId) => new Set(neighborIdsSameLayer(state, hexId)),
@@ -469,6 +485,7 @@ export function GameController({
     reachable,
     reachableKey,
     terrainHexIdsOnLayer,
+    missingHexIdsOnLayer,
     goalId,
     portalHexIdsOnLayer,
   ]);
@@ -1436,6 +1453,14 @@ export function GameController({
                           : "";
 
                         if (bm.missing) {
+                          const missingCv = cloudVisibilityMap?.get(id);
+                          const missingCloudActive = isCloudScenario && missingCv;
+                          const missingCloudVis = missingCv?.visibility;
+                          const showMissingCloudCover =
+                            missingCloudActive &&
+                            (missingCloudVis === "partial" || missingCloudVis === "cloud");
+                          const missingCloudDensity = missingCloudVis === "partial" ? "partial" : "full";
+
                           return (
                             <div
                               key={id}
@@ -1452,6 +1477,16 @@ export function GameController({
                                 aria-label="Missing hex. Selecting this space consumes a move."
                                 title="Missing hex"
                               />
+                              {showMissingCloudCover ? (
+                                <CloudCover
+                                  scenarioId={scenarioEntry.id}
+                                  layerId={"L" + currentLayer}
+                                  hexId={id}
+                                  density={missingCloudDensity}
+                                  reducedMotion={reducedMotion}
+                                  transitioning={cloudTransitions[id] ?? null}
+                                />
+                              ) : null}
                             </div>
                           );
                         }

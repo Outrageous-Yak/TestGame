@@ -150,6 +150,53 @@ describe("computeCloudVisibility — Cloudy", () => {
     expect(stateOf(reset, "A").visibility).toBe("visible");
     expect(stateOf(reset, "F").visibility).toBe("cloud");
   });
+
+  it("missing hexes are always cloud-covered, never visible", () => {
+    const m = cloudy({
+      missingHexIds: new Set(["GAP"]),
+      adjacency: adjacencyMap({
+        A: ["B", "C", "GAP"],
+        B: ["A", "D"],
+        C: ["A", "E"],
+        D: ["B", "F"],
+        E: ["C"],
+        F: ["D"],
+        GAP: ["A"],
+      }),
+    });
+    expect(stateOf(m, "GAP").visibility).not.toBe("visible");
+    expect(stateOf(m, "GAP").isLegalMove).toBe(false);
+    expect(stateOf(m, "GAP").hasGoal).toBe(false);
+    expect(stateOf(m, "GAP").hasPortal).toBe(false);
+  });
+
+  it("missing hex adjacent to a legal move is partial in cloudy mode", () => {
+    const m = cloudy({
+      legalMoveHexIds: new Set(["B"]),
+      missingHexIds: new Set(["GAP"]),
+      adjacency: adjacencyMap({
+        A: ["B"],
+        B: ["A", "GAP"],
+        GAP: ["B"],
+      }),
+      allTerrainHexIds: new Set(["A", "B"]),
+    });
+    expect(stateOf(m, "GAP").visibility).toBe("partial");
+  });
+
+  it("distant missing hex is fully cloudy", () => {
+    const m = cloudy({
+      legalMoveHexIds: new Set(["B"]),
+      missingHexIds: new Set(["GAP"]),
+      adjacency: adjacencyMap({
+        A: ["B"],
+        B: ["A"],
+        GAP: [],
+      }),
+      allTerrainHexIds: new Set(["A", "B"]),
+    });
+    expect(stateOf(m, "GAP").visibility).toBe("cloud");
+  });
 });
 
 describe("computeCloudVisibility — Full Cloud", () => {
@@ -207,5 +254,14 @@ describe("computeCloudVisibility — Full Cloud", () => {
     const m = fullCloud({ legalMoveHexIds: new Set() });
     expect(stateOf(m, "A").visibility).toBe("visible");
     expect([...m.values()].every((v) => !v.isLegalMove)).toBe(true);
+  });
+
+  it("missing hexes are always fully cloudy", () => {
+    const m = fullCloud({
+      missingHexIds: new Set(["GAP"]),
+      adjacency: adjacencyMap({ A: ["GAP"], GAP: ["A"] }),
+    });
+    expect(stateOf(m, "GAP").visibility).toBe("cloud");
+    expect(stateOf(m, "GAP").isLegalMove).toBe(false);
   });
 });
