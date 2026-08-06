@@ -111,7 +111,7 @@ describe("attemptMoveToSlot", () => {
     expect(state.moveHistory ?? []).toHaveLength(0);
   });
 
-  it("triggers row movement after a failed move on an active layer", () => {
+  it("does not shift rows after a failed move on an active layer", () => {
     const scenario = baseScenario({
       start: { layer: 2, row: 3, col: 1 },
       goal: { layer: 2, row: 3, col: 4 },
@@ -119,14 +119,14 @@ describe("attemptMoveToSlot", () => {
     attachRuntimeMovement(scenario);
     const state = newGame(scenario);
     const rowsBefore = state.rows.get(2)?.map((r) => r.join(",")).join("|") ?? "";
+    const turn0 = state.turn;
 
-    attemptMoveToSlot(state, { layer: 2, row: 0, col: 0 });
+    const outcome = attemptMoveToSlot(state, { layer: 2, row: 0, col: 0 });
 
+    expect(outcome.result).toBe("UNREACHABLE");
+    expect(state.turn).toBe(turn0 + 1);
     const rowsAfter = state.rows.get(2)?.map((r) => r.join(",")).join("|") ?? "";
-    const shifting = shiftingLayersInMovement(getRuntimeMovement(scenario));
-    if (shifting.includes(2)) {
-      expect(rowsAfter).not.toBe(rowsBefore);
-    }
+    expect(rowsAfter).toBe(rowsBefore);
   });
 
   it("activates destination-layer movement when a portal is entered", () => {

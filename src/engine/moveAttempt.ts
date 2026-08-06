@@ -48,7 +48,7 @@ function failTurn(
   reason: FailedMoveReason,
   result: Exclude<MoveAttemptResult, "MOVED" | "IGNORED">
 ): MoveAttemptResponse {
-  endTurn(state);
+  endTurn(state, { applyRowMovement: false });
   const action: FailedMoveAction = {
     type: "FAILED_MOVE",
     reason,
