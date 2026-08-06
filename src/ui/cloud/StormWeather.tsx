@@ -69,6 +69,7 @@ export function StormWeather({ scenarioId, reducedMotion = false }: StormWeather
     >
       <div className="stormRain" />
       <div className="stormRain stormRainLayerB" />
+      <div className="stormRain stormRainLayerC" />
       <div
         className={["stormLightningBolt", flashActive ? "active" : ""].filter(Boolean).join(" ")}
         style={{ ["--boltX" as string]: boltX }}
