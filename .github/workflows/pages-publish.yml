@@ -1,9 +1,11 @@
-name: Deploy to GitHub Pages
+name: Publish to GitHub Pages
 
-# Legacy workflow — use pages-publish.yml for automatic main deploys.
-# Kept for manual re-runs via workflow_dispatch.
+# Primary deploy path: runs on each push to main (replaces deploy.yml push trigger).
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
