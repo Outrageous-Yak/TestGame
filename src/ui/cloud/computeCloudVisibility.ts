@@ -13,14 +13,36 @@ export interface ComputeCloudVisibilityArgs {
   currentHexId: string;
   legalMoveHexIds: ReadonlySet<string>;
   allTerrainHexIds: ReadonlySet<string>;
+  /** Missing hex slots on the current layer — always cloud-covered, never revealed. */
+  missingHexIds?: ReadonlySet<string>;
   goalHexId: string | null;
   portalHexIds: ReadonlySet<string>;
   /** Returns graph neighbors on the same layer for a hex id. */
   adjacency: (hexId: string) => ReadonlySet<string>;
 }
 
+function mergeCloudHexIds(
+  allTerrainHexIds: ReadonlySet<string>,
+  missingHexIds?: ReadonlySet<string>
+): Set<string> {
+  const merged = new Set(allTerrainHexIds);
+  if (missingHexIds) {
+    for (const hexId of missingHexIds) merged.add(hexId);
+  }
+  return merged;
+}
+
+function missingCloudState(): CloudVisualState {
+  return {
+    visibility: "cloud",
+    isLegalMove: false,
+    hasGoal: false,
+    hasPortal: false,
+  };
+}
+
 /**
- * Resolve every terrain hex into exactly one visibility state.
+ * Resolve every terrain and missing hex into exactly one visibility state.
  * Legal-move and goal/portal flags are independent overlay hints.
  */
 export function computeCloudVisibility(args: ComputeCloudVisibilityArgs): Map<string, CloudVisualState> {
@@ -29,15 +51,21 @@ export function computeCloudVisibility(args: ComputeCloudVisibilityArgs): Map<st
     currentHexId,
     legalMoveHexIds,
     allTerrainHexIds,
+    missingHexIds,
     goalHexId,
     portalHexIds,
     adjacency,
   } = args;
 
   const result = new Map<string, CloudVisualState>();
+  const allCloudHexIds = mergeCloudHexIds(allTerrainHexIds, missingHexIds);
 
   if (mode === "full_cloud") {
-    for (const hexId of allTerrainHexIds) {
+    for (const hexId of allCloudHexIds) {
+      if (missingHexIds?.has(hexId)) {
+        result.set(hexId, missingCloudState());
+        continue;
+      }
       const isCurrent = hexId === currentHexId;
       result.set(hexId, {
         visibility: isCurrent ? "visible" : "cloud",
@@ -57,13 +85,21 @@ export function computeCloudVisibility(args: ComputeCloudVisibilityArgs): Map<st
   const partialSet = new Set<string>();
   for (const legalId of legalMoveHexIds) {
     for (const nb of adjacency(legalId)) {
-      if (!visibleSet.has(nb) && allTerrainHexIds.has(nb)) {
+      if (!visibleSet.has(nb) && allCloudHexIds.has(nb)) {
         partialSet.add(nb);
       }
     }
   }
 
-  for (const hexId of allTerrainHexIds) {
+  for (const hexId of allCloudHexIds) {
+    if (missingHexIds?.has(hexId)) {
+      result.set(hexId, {
+        ...missingCloudState(),
+        visibility: partialSet.has(hexId) ? "partial" : "cloud",
+      });
+      continue;
+    }
+
     let visibility: CloudVisibility = "cloud";
     if (visibleSet.has(hexId)) visibility = "visible";
     else if (partialSet.has(hexId)) visibility = "partial";
