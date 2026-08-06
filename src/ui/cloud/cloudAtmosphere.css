@@ -1,25 +1,25 @@
-/* Scene dimming for cloud scenarios — sits over backgrounds, under interactive UI */
+/* Scene dimming for cloud scenarios — soft, low-contrast overlays */
 .cloudSceneDim {
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
   background: radial-gradient(
-    ellipse 120% 90% at 50% 45%,
-    rgba(8, 14, 28, 0.15) 0%,
-    rgba(4, 8, 18, var(--cloudDimStrength, 0.35)) 55%,
-    rgba(0, 0, 0, var(--cloudDimEdge, 0.55)) 100%
+    ellipse 115% 88% at 50% 42%,
+    rgba(24, 36, 58, 0.08) 0%,
+    rgba(18, 28, 48, var(--cloudDimStrength, 0.22)) 58%,
+    rgba(12, 20, 36, var(--cloudDimEdge, 0.34)) 100%
   );
 }
 
 .cloudSceneDim--cloudy {
-  --cloudDimStrength: 0.22;
-  --cloudDimEdge: 0.38;
+  --cloudDimStrength: 0.14;
+  --cloudDimEdge: 0.24;
 }
 
 .cloudSceneDim--full_cloud {
-  --cloudDimStrength: 0.48;
-  --cloudDimEdge: 0.72;
+  --cloudDimStrength: 0.28;
+  --cloudDimEdge: 0.42;
 }
 
 .cloudBoardDim {
@@ -28,19 +28,28 @@
   z-index: 2;
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(0, 0, 0, var(--boardDimTop, 0.18)) 0%, transparent 28%),
-    linear-gradient(0deg, rgba(0, 0, 0, var(--boardDimBottom, 0.22)) 0%, transparent 32%),
-    rgba(6, 10, 22, var(--boardDimBase, 0.28));
+    linear-gradient(180deg, rgba(16, 24, 40, var(--boardDimTop, 0.1)) 0%, transparent 30%),
+    linear-gradient(0deg, rgba(16, 24, 40, var(--boardDimBottom, 0.12)) 0%, transparent 34%),
+    rgba(20, 30, 48, var(--boardDimBase, 0.18));
 }
 
 .cloudBoardDim--cloudy {
-  --boardDimTop: 0.1;
-  --boardDimBottom: 0.14;
-  --boardDimBase: 0.16;
+  --boardDimTop: 0.06;
+  --boardDimBottom: 0.08;
+  --boardDimBase: 0.1;
 }
 
 .cloudBoardDim--full_cloud {
-  --boardDimTop: 0.28;
-  --boardDimBottom: 0.34;
-  --boardDimBase: 0.42;
+  --boardDimTop: 0.16;
+  --boardDimBottom: 0.2;
+  --boardDimBase: 0.26;
+}
+
+/* Gentle scene-wide softening during cloud scenarios */
+.appRoot.game.cloudScenarioActive .gameBg {
+  filter: saturate(0.92) contrast(0.94) brightness(0.97);
+}
+
+.appRoot.game.cloudScenarioActive .boardLayerBg {
+  opacity: 0.92;
 }

@@ -20,6 +20,12 @@ describe("storm weather CSS", () => {
     expect(css).toMatch(/\.stormLightningFlash\s*\{[^}]*pointer-events:\s*none/);
     expect(css).toMatch(/\.stormLightningBolt\s*\{[^}]*pointer-events:\s*none/);
   });
+
+  it("rain uses vertical dot specks", () => {
+    expect(css).toContain("radial-gradient");
+    expect(css).toMatch(/@keyframes stormRainFall[\s\S]*background-position:\s*0 16px/);
+    expect(css).not.toMatch(/105deg/);
+  });
 });
 
 describe("cloud atmosphere CSS", () => {

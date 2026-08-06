@@ -16,6 +16,18 @@
   z-index: var(--z-sparkle, 25);
 }
 
+.hexSlot.cloudScenario > .reachSparkle .reachSparkleParticle {
+  opacity: 0.55;
+  box-shadow:
+    0 0 4px color-mix(in srgb, var(--sparkleColor, #fff) 70%, transparent),
+    0 0 8px color-mix(in srgb, var(--sparkleColor, #fff) 35%, transparent);
+}
+
+.hexSlot.cloudScenario > .reachSparkle .reachSparkleParticle::before,
+.hexSlot.cloudScenario > .reachSparkle .reachSparkleParticle::after {
+  opacity: 0.45;
+}
+
 .reachSparkleParticle {
   position: absolute;
   width: var(--sparkleSize, 5px);

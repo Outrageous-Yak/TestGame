@@ -1329,7 +1329,10 @@ export function GameController({
     [attemptMoveAtSlot]
   );
   return (
-    <div className="appRoot game" style={themeVars}>
+    <div
+      className={["appRoot", "game", isCloudScenario ? "cloudScenarioActive" : ""].filter(Boolean).join(" ")}
+      style={themeVars}
+    >
       <div
         className="gameBg"
         style={{
