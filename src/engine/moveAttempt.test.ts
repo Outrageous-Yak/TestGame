@@ -3,7 +3,7 @@ import { newGame } from "./api";
 import { attemptMoveToSlot } from "./moveAttempt";
 import * as endTurnModule from "./endTurn";
 import { neighborIdsSameLayer } from "./neighbors";
-import { shiftingLayersInMovement, getRuntimeMovement, applyLayerRowMovement } from "./rowMovement";
+import { getRuntimeMovement, applyLayerRowMovement } from "./rowMovement";
 import { attachRuntimeMovement } from "./rowMovement/attachRuntimeMovement";
 import { transformScenarioLayer } from "./layerTransform";
 import type { LayerTransformId } from "./layerTransform/types";
