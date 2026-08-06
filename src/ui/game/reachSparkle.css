@@ -1,0 +1,77 @@
+/* Colorful sparkles on reachable hexes — complements reach pulse / white tile flash */
+.hexSlot > .reachSparkle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--hexWMain);
+  height: var(--hexHMain);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 14;
+  clip-path: polygon(25% 6%, 75% 6%, 98% 50%, 75% 94%, 25% 94%, 2% 50%);
+  overflow: visible;
+}
+
+.hexSlot.cloudScenario > .reachSparkle {
+  z-index: var(--z-sparkle, 25);
+}
+
+.reachSparkleParticle {
+  position: absolute;
+  width: var(--sparkleSize, 5px);
+  height: var(--sparkleSize, 5px);
+  border-radius: 50%;
+  background: var(--sparkleColor, #fff);
+  box-shadow:
+    0 0 6px var(--sparkleColor, #fff),
+    0 0 12px color-mix(in srgb, var(--sparkleColor, #fff) 60%, transparent);
+  left: var(--sparkleX, 50%);
+  top: var(--sparkleY, 50%);
+  transform: translate(-50%, -50%) scale(var(--sparkleScale, 1));
+  opacity: var(--sparkleOpacity, 0.85);
+  animation: reachSparkleTwinkle var(--sparkleDur, 1.4s) ease-in-out infinite;
+  animation-delay: var(--sparkleDelay, 0s);
+}
+
+.reachSparkleParticle::before,
+.reachSparkleParticle::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 140%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--sparkleColor, #fff),
+    transparent
+  );
+  transform: translate(-50%, -50%) rotate(var(--sparkleRot, 0deg));
+  opacity: 0.75;
+}
+
+.reachSparkleParticle::after {
+  transform: translate(-50%, -50%) rotate(calc(var(--sparkleRot, 0deg) + 90deg));
+}
+
+@keyframes reachSparkleTwinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+  45% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.15);
+  }
+  70% {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+}
+
+.reachSparkle.reachSparkleReduced .reachSparkleParticle {
+  animation: none;
+  opacity: 0.7;
+}

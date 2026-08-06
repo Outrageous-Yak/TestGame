@@ -1,0 +1,46 @@
+/* Scene dimming for cloud scenarios — sits over backgrounds, under interactive UI */
+.cloudSceneDim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 120% 90% at 50% 45%,
+    rgba(8, 14, 28, 0.15) 0%,
+    rgba(4, 8, 18, var(--cloudDimStrength, 0.35)) 55%,
+    rgba(0, 0, 0, var(--cloudDimEdge, 0.55)) 100%
+  );
+}
+
+.cloudSceneDim--cloudy {
+  --cloudDimStrength: 0.22;
+  --cloudDimEdge: 0.38;
+}
+
+.cloudSceneDim--full_cloud {
+  --cloudDimStrength: 0.48;
+  --cloudDimEdge: 0.72;
+}
+
+.cloudBoardDim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, var(--boardDimTop, 0.18)) 0%, transparent 28%),
+    linear-gradient(0deg, rgba(0, 0, 0, var(--boardDimBottom, 0.22)) 0%, transparent 32%),
+    rgba(6, 10, 22, var(--boardDimBase, 0.28));
+}
+
+.cloudBoardDim--cloudy {
+  --boardDimTop: 0.1;
+  --boardDimBottom: 0.14;
+  --boardDimBase: 0.16;
+}
+
+.cloudBoardDim--full_cloud {
+  --boardDimTop: 0.28;
+  --boardDimBottom: 0.34;
+  --boardDimBase: 0.42;
+}
