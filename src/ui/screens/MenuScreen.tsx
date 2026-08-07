@@ -50,6 +50,7 @@ export function MenuScreen({
   themeVars,
   worlds,
   world,
+  worldId,
   scenarioId,
   trackId,
   scenarioEntry,
