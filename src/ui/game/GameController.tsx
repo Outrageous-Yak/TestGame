@@ -64,6 +64,7 @@ import {
   shouldUseSolidGoldGoal,
 } from "./hexTileVisual";
 import { playGoalLandSound, playPlayerMoveSound, playPortalLandSound, playFailedMoveSound, playRedCardEvilLaughSound, preloadSoundEffects } from "../audio/soundEffects";
+import { unlockGameAudio } from "../audio/gameAudioContext";
 import { playVillainVoice, preloadVillainVoices, villainDisplayName } from "../audio/villainVoice";
 import { preloadThunderSound } from "../audio/stormAudio";
 import { ReachSparkle } from "./ReachSparkle";
@@ -1005,8 +1006,10 @@ export function GameController({
       const then = opts?.then ?? "flip";
 
       if (card === "cosmic") {
-        playRedCardEvilLaughSound();
-        void playVillainVoice("bad1");
+        void unlockGameAudio().then(async () => {
+          await playRedCardEvilLaughSound();
+          window.setTimeout(() => void playVillainVoice("bad1"), 500);
+        });
       }
 
       const afterFly = () => {
@@ -1333,6 +1336,7 @@ export function GameController({
     (e: React.PointerEvent, row: number, col: number) => {
       if (e.button !== 0 && e.pointerType === "mouse") return;
       e.preventDefault();
+      void unlockGameAudio();
       attemptMoveAtSlot(row, col);
     },
     [attemptMoveAtSlot]

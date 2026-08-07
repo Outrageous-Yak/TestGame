@@ -1,5 +1,6 @@
 import { toPublicUrl } from "../game/helpers";
 import { normalizedSoundGain } from "./audioLevels";
+import { getGameAudioContext } from "./gameAudioContext";
 
 export const SOUND_EFFECT_PATHS = {
   playerMove: "sounds/effects/player-move.mp3",
@@ -18,7 +19,6 @@ type SoundEffectsOptions = {
 
 const STORAGE_KEY = "testgame.soundEffects.enabled";
 
-let audioContext: AudioContext | null = null;
 let enabled = true;
 let volume = 0.55;
 const buffers = new Map<SoundEffectId, AudioBuffer>();
@@ -68,23 +68,6 @@ export function getSoundEffectsVolume(): number {
   return volume;
 }
 
-async function getAudioContext(): Promise<AudioContext | null> {
-  if (typeof window === "undefined") return null;
-  if (!audioContext) {
-    const Ctx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return null;
-    audioContext = new Ctx();
-  }
-  if (audioContext.state === "suspended") {
-    try {
-      await audioContext.resume();
-    } catch {
-      return null;
-    }
-  }
-  return audioContext;
-}
-
 async function loadBuffer(id: SoundEffectId): Promise<AudioBuffer | null> {
   if (buffers.has(id)) return buffers.get(id)!;
 
@@ -92,7 +75,7 @@ async function loadBuffer(id: SoundEffectId): Promise<AudioBuffer | null> {
   if (pending) return pending;
 
   const promise = (async () => {
-    const ctx = await getAudioContext();
+    const ctx = await getGameAudioContext();
     if (!ctx) return null;
 
     const path = SOUND_EFFECT_PATHS[id];
@@ -122,7 +105,7 @@ export async function playSoundEffect(id: SoundEffectId, playbackRate = 1) {
     return false;
   }
 
-  const ctx = await getAudioContext();
+  const ctx = await getGameAudioContext();
   if (!ctx) return false;
 
   const buffer = await loadBuffer(id);
@@ -155,6 +138,6 @@ export function playFailedMoveSound() {
   void playSoundEffect("failedMove");
 }
 
-export function playRedCardEvilLaughSound() {
-  void playSoundEffect("redCardEvilLaugh");
+export async function playRedCardEvilLaughSound() {
+  return playSoundEffect("redCardEvilLaugh");
 }
