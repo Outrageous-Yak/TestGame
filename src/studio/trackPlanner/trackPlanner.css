@@ -276,6 +276,17 @@
   opacity: 0.8;
 }
 
+.tp-selectionHint {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+}
+
+.tp-formError {
+  color: #f87171;
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+}
+
 .tp-auditTable {
   width: 100%;
   border-collapse: collapse;
@@ -334,11 +345,5 @@
 @media (min-width: 900px) {
   .tp-editor {
     padding: 16px 24px;
-  }
-
-  .tp-editorMain {
-    display: grid;
-    grid-template-columns: 1fr 280px;
-    gap: 16px;
   }
 }

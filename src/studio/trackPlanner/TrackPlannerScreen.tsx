@@ -3,6 +3,7 @@ import type { WorldEntry } from "../../ui/types";
 import type { PlannerDraftBundle, PlannerScenario, PlannerTrack, PlannerWorld } from "./types";
 import { createEmptyTrack } from "./types";
 import {
+  emptyBundle,
   loadDraftBundle,
   saveDraftBundle,
   upsertScenario,
@@ -27,20 +28,33 @@ type TrackPlannerScreenProps = {
 };
 
 export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerScreenProps) {
-  const [bundle, setBundle] = useState<PlannerDraftBundle>(() =>
-    mergeBundles(seedBundleFromWorlds(worlds), loadDraftBundle()),
-  );
+  const [bundle, setBundle] = useState<PlannerDraftBundle>(() => emptyBundle());
+  const [catalogReady, setCatalogReady] = useState(false);
   const [screen, setScreen] = useState<Screen>("home");
   const [selectedWorldId, setSelectedWorldId] = useState<string | null>(null);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
   const [editingTrack, setEditingTrack] = useState<PlannerTrack | null>(null);
   const [expandedWorlds, setExpandedWorlds] = useState<Set<string>>(new Set());
   const [formName, setFormName] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
   const [openingTrack, setOpeningTrack] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (cancelled) return;
+      setBundle(mergeBundles(seedBundleFromWorlds(worlds), loadDraftBundle()));
+      setCatalogReady(true);
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [worlds]);
 
   const persist = useCallback((next: PlannerDraftBundle) => {
     setBundle(next);
-    queueMicrotask(() => saveDraftBundle(next));
+    window.setTimeout(() => saveDraftBundle(next), 0);
   }, []);
 
   const selectedWorld = bundle.worlds.find((w) => w.worldId === selectedWorldId);
@@ -58,8 +72,11 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
 
   const openTrack = async (track: PlannerTrack) => {
     setOpeningTrack(true);
+    setFormError(null);
     let t = track;
-    const needsHydrate = track.sourceScenarioJson && track.features.length === 0;
+    const needsHydrate =
+      !!track.sourceScenarioJson &&
+      (track.layers.length === 0 || track.features.length === 0);
     if (needsHydrate) {
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 15000);
@@ -70,7 +87,9 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
           return res.json();
         });
       } catch {
-        /* keep stub */
+        setFormError("Could not load track data. Try again.");
+        setOpeningTrack(false);
+        return;
       } finally {
         window.clearTimeout(timeout);
       }
@@ -78,6 +97,12 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
     setEditingTrack(t);
     setScreen("editor");
     setOpeningTrack(false);
+  };
+
+  const resolveWorldId = (): string | null => {
+    if (selectedWorldId) return selectedWorldId;
+    const sc = bundle.scenarios.find((s) => s.scenarioId === selectedScenarioId);
+    return sc?.worldId ?? null;
   };
 
   const createWorld = () => {
@@ -123,21 +148,35 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
   };
 
   const createTrack = () => {
-    if (!selectedWorldId || !selectedScenarioId) return;
+    const worldId = resolveWorldId();
+    if (!selectedScenarioId || !worldId) {
+      setFormError("Select a scenario in the list below first (tap a scenario name).");
+      return;
+    }
+    setFormError(null);
     const trackId = newId("track");
-    const track = createEmptyTrack(trackId, selectedScenarioId, selectedWorldId, formName || "New Track");
+    const track = createEmptyTrack(
+      trackId,
+      selectedScenarioId,
+      worldId,
+      formName.trim() || "New Track",
+    );
     setFormName("");
-    // Open editor immediately so the UI does not block on localStorage / bundle writes.
     setEditingTrack(track);
     setScreen("editor");
-    setBundle((prev) => {
-      const sc = prev.scenarios.find((s) => s.scenarioId === selectedScenarioId);
-      const next = sc
-        ? upsertTrack(upsertScenario(prev, { ...sc, trackOrder: [...sc.trackOrder, trackId] }), track)
-        : upsertTrack(prev, track);
-      queueMicrotask(() => saveDraftBundle(next));
-      return next;
-    });
+    window.setTimeout(() => {
+      setBundle((prev) => {
+        const sc = prev.scenarios.find((s) => s.scenarioId === selectedScenarioId);
+        const next = sc
+          ? upsertTrack(
+              upsertScenario(prev, { ...sc, trackOrder: [...sc.trackOrder, trackId] }),
+              track,
+            )
+          : upsertTrack(prev, track);
+        saveDraftBundle(next);
+        return next;
+      });
+    }, 0);
   };
 
   if (screen === "editor" && editingTrack) {
@@ -151,8 +190,23 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
             persist(upsertTrack(bundle, t));
             setEditingTrack(t);
           }}
-          onBack={() => setScreen("home")}
+          onBack={() => {
+            setScreen("home");
+            setEditingTrack(null);
+          }}
         />
+      </div>
+    );
+  }
+
+  if (!catalogReady) {
+    return (
+      <div className="appRoot tp-root" style={themeVars}>
+        <div className="screen tp-home">
+          <div className="panel tp-panel">
+            <p className="tp-hint">Loading Track Planner…</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -176,7 +230,10 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
               type="button"
               className="btn"
               disabled={!selectedWorldId}
-              onClick={() => setScreen("scenarioNew")}
+              onClick={() => {
+                setFormError(null);
+                setScreen("scenarioNew");
+              }}
             >
               Add Scenario
             </button>
@@ -186,12 +243,25 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
               disabled={!selectedScenarioId || openingTrack}
               onClick={() => {
                 setFormName("");
+                setFormError(null);
                 setScreen("trackNew");
               }}
             >
               Add Track
             </button>
           </div>
+
+          {selectedScenario ? (
+            <p className="tp-selectionHint">
+              Selected: <b>{selectedWorld?.name ?? "World"}</b> → <b>{selectedScenario.name}</b>
+            </p>
+          ) : (
+            <p className="tp-selectionHint tp-hint">
+              Expand a world below and tap a scenario name before adding a track.
+            </p>
+          )}
+
+          {formError ? <p className="tp-formError">{formError}</p> : null}
 
           {openingTrack ? (
             <p className="tp-hint">Loading track…</p>
@@ -255,7 +325,11 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
                               className={`tp-scenarioTitle${
                                 selectedScenarioId === sc.scenarioId ? " selected" : ""
                               }`}
-                              onClick={() => setSelectedScenarioId(sc.scenarioId)}
+                              onClick={() => {
+                                setSelectedScenarioId(sc.scenarioId);
+                                setSelectedWorldId(world.worldId);
+                                setFormError(null);
+                              }}
                             >
                               {sc.name}
                             </button>

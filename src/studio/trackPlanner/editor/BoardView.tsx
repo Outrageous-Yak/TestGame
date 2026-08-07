@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import type { PlannerTrack, Pos } from "../types";
-import { AllLayersBoard } from "../components/LayerBoardGrid";
+import { emptyLayerBoard } from "../types";
+import { AllLayersBoard, LayerBoardGrid } from "../components/LayerBoardGrid";
 import { RowMovementControls } from "../components/RowMovementControls";
 import { setRowMovement, toggleMissingHex } from "../state/authoringState";
 
@@ -23,7 +24,8 @@ export function BoardView({
   onSelectSlot,
   onSelectLayer,
 }: BoardViewProps) {
-  const layerBoard = track.layers.find((l) => l.layer === selectedLayer);
+  const [showAllLayers, setShowAllLayers] = useState(false);
+  const layerBoard = track.layers.find((l) => l.layer === selectedLayer) ?? emptyLayerBoard(selectedLayer);
 
   const handleSlot = (pos: Pos) => {
     onSelectSlot(pos);
@@ -37,10 +39,8 @@ export function BoardView({
   return (
     <div className="tp-boardView">
       <div className="tp-toolbar">
-        <span className="tp-toolbarLabel">Board tool:</span>
-        <span className="tp-hint">Use parent toolbar for Remove / Restore</span>
         <label className="tp-jumpLayer">
-          Jump layer
+          Layer
           <select
             className="tp-select"
             value={selectedLayer}
@@ -53,21 +53,35 @@ export function BoardView({
             ))}
           </select>
         </label>
+        <button
+          type="button"
+          className={`btn tp-miniBtn${showAllLayers ? " active" : ""}`}
+          onClick={() => setShowAllLayers((v) => !v)}
+        >
+          {showAllLayers ? "Single layer" : "All layers"}
+        </button>
       </div>
 
-      {layerBoard ? (
-        <RowMovementControls
-          layer={selectedLayer}
-          rowMovement={layerBoard.rowMovement}
-          onChange={(row, inst) => onTrackChange(setRowMovement(track, selectedLayer, row, inst))}
-        />
-      ) : null}
-
-      <AllLayersBoard
-        track={track}
-        selectedSlot={selectedSlot}
-        onSlotClick={(pos) => handleSlot(pos)}
+      <RowMovementControls
+        layer={selectedLayer}
+        rowMovement={layerBoard.rowMovement}
+        onChange={(row, inst) => onTrackChange(setRowMovement(track, selectedLayer, row, inst))}
       />
+
+      {showAllLayers ? (
+        <AllLayersBoard
+          track={track}
+          selectedSlot={selectedSlot}
+          onSlotClick={(pos) => handleSlot(pos)}
+        />
+      ) : (
+        <LayerBoardGrid
+          track={track}
+          layer={selectedLayer}
+          selectedSlot={selectedSlot}
+          onSlotClick={(pos) => handleSlot(pos)}
+        />
+      )}
     </div>
   );
 }

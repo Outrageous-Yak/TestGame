@@ -6,7 +6,6 @@ import type {
   PlannerTrack,
   PlannerWorld,
   TrackFeature,
-  VisibilityStateType,
 } from "../types";
 import { UndoStack, cloneTrack } from "../state/authoringState";
 import { saveDraftBundle, loadDraftBundle, upsertTrack } from "../storage";

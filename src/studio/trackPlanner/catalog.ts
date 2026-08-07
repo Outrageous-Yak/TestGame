@@ -54,7 +54,8 @@ export function seedBundleFromWorlds(worlds: WorldEntry[]): PlannerDraftBundle {
           scenarioId: sc.id,
           worldId: w.id,
           name: tr.name,
-          layers: Array.from({ length: 7 }, (_, i) => emptyLayerBoard(i + 1)),
+          /** Layers loaded on demand from sourceScenarioJson — keeps catalog lightweight. */
+          layers: [],
           features: [],
           visibility: [{ id: "vis_default", state: "REGULAR", coverage: "FULL_BOARD", positions: [] }],
           builtIn: true,
