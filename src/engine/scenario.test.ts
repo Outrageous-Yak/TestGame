@@ -29,10 +29,20 @@ describe("assertScenario", () => {
     expect(() => assertScenario(baseScenario())).not.toThrow();
   });
 
-  it("rejects layer 1 movement other than NONE", () => {
+  it("accepts layer 1 row movement when explicitly authored", () => {
     const s = baseScenario();
-    s.movement = { ...s.movement, "1": "SEVEN_LEFT_SIX_RIGHT" };
-    expect(() => assertScenario(s)).toThrow(/Layer 1 must be NONE/);
+    s.movement = {
+      ...s.movement,
+      "1": {
+        rows: Object.fromEntries(
+          [0, 1, 2, 3, 4, 5, 6].map((row) => [
+            String(row),
+            row === 5 ? { direction: "LEFT" as const, amount: 2 } : { direction: "NONE" as const, amount: 0 },
+          ])
+        ),
+      },
+    };
+    expect(() => assertScenario(s)).not.toThrow();
   });
 
   it("rejects start on a blocked hex", () => {

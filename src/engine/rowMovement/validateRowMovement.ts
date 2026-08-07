@@ -117,10 +117,6 @@ export function validateScenarioMovementDefinition(
 
     validateStructuredLayer(value, layer as LayerNumber);
   }
-
-  if (movement["1"] && movement["1"] !== "NONE") {
-    throw new Error("Layer 1 must be NONE/static");
-  }
 }
 
 export function layerHasMovement(
