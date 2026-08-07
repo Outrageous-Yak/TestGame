@@ -1,0 +1,358 @@
+/* =========================================================
+   CITADEL FRAME — Forgotten Citadel immersive presentation
+   Scoped under .citadelFrame; 7676767 grid unchanged.
+========================================================= */
+
+.citadelFrame {
+  --citadel-stone: #4a3f35;
+  --citadel-stone-deep: #2a221c;
+  --citadel-mortar: #1a1510;
+  --citadel-warm: #c9a86c;
+  --citadel-warm-dim: rgba(201, 168, 108, 0.45);
+  --citadel-torch: rgba(255, 190, 90, 0.22);
+  --citadel-glow-green: rgba(72, 180, 120, 0.28);
+  --citadel-glow-blue: rgba(80, 140, 200, 0.22);
+}
+
+/* --- Topbar: carved stone command strip --- */
+.citadelFrame .topbar {
+  background:
+    linear-gradient(180deg, rgba(42, 34, 28, 0.92), rgba(26, 21, 16, 0.88));
+  border-bottom: 1px solid rgba(201, 168, 108, 0.18);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.citadelFrame .topbar .btn {
+  border-radius: 10px;
+  border: 1px solid rgba(201, 168, 108, 0.22);
+  background: linear-gradient(180deg, rgba(74, 63, 53, 0.85), rgba(42, 34, 28, 0.9));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.08),
+    0 4px 12px rgba(0, 0, 0, 0.25);
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.citadelFrame .topbar .btn:hover {
+  background: linear-gradient(180deg, rgba(90, 76, 64, 0.9), rgba(52, 42, 34, 0.95));
+  border-color: rgba(201, 168, 108, 0.38);
+}
+
+.citadelFrame .topbar .itemBtn {
+  border-radius: 10px;
+  border: 1px solid rgba(201, 168, 108, 0.2);
+  background: linear-gradient(180deg, rgba(58, 48, 40, 0.9), rgba(36, 28, 22, 0.92));
+}
+
+/* --- Board tunnel frame --- */
+.citadelFrame .boardWrap {
+  border-radius: 14px;
+  border: 2px solid rgba(74, 63, 53, 0.85);
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 0%, var(--citadel-torch), transparent 62%),
+    radial-gradient(ellipse 120% 90% at 50% 100%, rgba(0, 0, 0, 0.55), transparent 70%),
+    linear-gradient(180deg, #3d342c 0%, #2a221c 45%, #1a1510 100%);
+  box-shadow:
+    inset 0 0 80px rgba(0, 0, 0, 0.45),
+    inset 0 24px 48px rgba(255, 180, 80, 0.06),
+    0 22px 56px rgba(0, 0, 0, 0.55);
+}
+
+.citadelFrame .boardWrap[data-layer-depth="1"] {
+  --citadel-depth-tint: rgba(255, 200, 120, 0.08);
+}
+.citadelFrame .boardWrap[data-layer-depth="2"] {
+  --citadel-depth-tint: rgba(220, 180, 100, 0.06);
+}
+.citadelFrame .boardWrap[data-layer-depth="3"] {
+  --citadel-depth-tint: rgba(180, 160, 120, 0.05);
+}
+.citadelFrame .boardWrap[data-layer-depth="4"] {
+  --citadel-depth-tint: rgba(120, 140, 160, 0.06);
+}
+.citadelFrame .boardWrap[data-layer-depth="5"] {
+  --citadel-depth-tint: rgba(90, 120, 150, 0.08);
+}
+.citadelFrame .boardWrap[data-layer-depth="6"] {
+  --citadel-depth-tint: rgba(70, 100, 140, 0.1);
+}
+.citadelFrame .boardWrap[data-layer-depth="7"] {
+  --citadel-depth-tint: rgba(50, 80, 120, 0.14);
+}
+
+.citadelFrame .boardLayerBg {
+  opacity: 0.62;
+  filter: saturate(0.9) contrast(1.05) sepia(0.12);
+}
+
+.citadelFrame .citadelTunnelDecor {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.citadelFrame .citadelTunnelLight {
+  position: absolute;
+  top: -8%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 72%;
+  height: 42%;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 200, 110, 0.28), transparent 68%);
+  opacity: 0.9;
+}
+
+.citadelFrame .citadelTunnelDepth {
+  position: absolute;
+  inset: 0;
+  background: var(--citadel-depth-tint, transparent);
+  transition: background 420ms ease;
+}
+
+.citadelFrame .citadelTunnelWall {
+  position: absolute;
+  top: 8%;
+  bottom: 6%;
+  width: 14%;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(58, 48, 40, 0.95) 0px,
+      rgba(42, 34, 28, 0.98) 8px,
+      rgba(36, 28, 22, 1) 16px
+    );
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.5);
+  opacity: 0.88;
+}
+
+.citadelFrame .citadelTunnelWall--left {
+  left: 0;
+  border-right: 2px solid rgba(26, 21, 16, 0.9);
+  border-radius: 12px 0 0 12px;
+}
+
+.citadelFrame .citadelTunnelWall--right {
+  right: 0;
+  border-left: 2px solid rgba(26, 21, 16, 0.9);
+  border-radius: 0 12px 12px 0;
+}
+
+.citadelFrame .citadelTunnelWall::after {
+  content: "";
+  position: absolute;
+  inset: 12% 0;
+  background:
+    radial-gradient(ellipse 80% 40% at 50% 20%, var(--citadel-glow-green), transparent 70%),
+    radial-gradient(ellipse 60% 35% at 30% 70%, var(--citadel-glow-blue), transparent 65%);
+  opacity: 0.35;
+  mix-blend-mode: screen;
+}
+
+/* Side platform ledges (concept image floating walkways) */
+.citadelFrame .boardScroll::before,
+.citadelFrame .boardScroll::after {
+  content: "";
+  position: absolute;
+  top: 14%;
+  bottom: 12%;
+  width: 11%;
+  z-index: 0;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(90, 76, 64, 0.55), rgba(42, 34, 28, 0.75)),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 220, 160, 0.04) 0px,
+      rgba(255, 220, 160, 0.04) 2px,
+      transparent 2px,
+      transparent 14px
+    );
+  box-shadow:
+    inset 0 0 16px rgba(0, 0, 0, 0.4),
+    0 8px 20px rgba(0, 0, 0, 0.35);
+  opacity: 0.7;
+}
+
+.citadelFrame .boardScroll::before {
+  left: 2%;
+}
+
+.citadelFrame .boardScroll::after {
+  right: 2%;
+}
+
+.citadelFrame .board {
+  z-index: 1;
+  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.45));
+}
+
+/* Walkway tiles: warmer stone underfoot */
+.citadelFrame .hex .hexInner {
+  border-color: rgba(201, 168, 108, 0.18);
+  box-shadow:
+    inset 0 2px 8px rgba(255, 220, 160, 0.08),
+    inset 0 -4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.citadelFrame .hex:hover {
+  filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.5))
+    drop-shadow(0 0 12px rgba(255, 190, 90, 0.12));
+}
+
+/* Missing hex = chasm */
+.citadelFrame .hex.missingSlot {
+  background: transparent;
+  filter: none;
+  box-shadow: none;
+}
+
+.citadelFrame .missingSlotWrap::after {
+  content: "";
+  position: absolute;
+  inset: 18% 12%;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 80%, rgba(180, 60, 40, 0.35), transparent 70%),
+    linear-gradient(180deg, rgba(10, 8, 6, 0.2), rgba(0, 0, 0, 0.85));
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* --- Layer bar: carved depth strip --- */
+.citadelFrame .layerBar {
+  border-radius: 10px;
+  border: 2px solid rgba(74, 63, 53, 0.9);
+  background:
+    linear-gradient(180deg, rgba(58, 48, 40, 0.95), rgba(26, 21, 16, 0.98));
+  box-shadow:
+    inset 0 2px 0 rgba(255, 220, 160, 0.1),
+    inset 0 -3px 8px rgba(0, 0, 0, 0.4),
+    0 10px 28px rgba(0, 0, 0, 0.4);
+}
+
+.citadelFrame .layerBarHorizontal .barSeg {
+  border-right: 1px solid rgba(0, 0, 0, 0.35);
+  opacity: 0.88;
+}
+
+.citadelFrame .layerBarHorizontal .barSeg:last-child {
+  border-right: none;
+}
+
+.citadelFrame .barSeg.isActive {
+  filter: brightness(1.2) saturate(1.1);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 220, 160, 0.35),
+    0 0 16px 4px rgba(255, 190, 90, 0.15);
+}
+
+.citadelFrame .goalMarker {
+  color: rgba(255, 220, 140, 0.98);
+  background: rgba(42, 34, 28, 0.85);
+  border: 2px solid rgba(201, 168, 108, 0.65);
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+/* --- Row shift: runic markers --- */
+.citadelFrame .rowShiftBar {
+  border-radius: 10px;
+  background:
+    linear-gradient(90deg, rgba(58, 48, 40, 0.95), rgba(36, 28, 22, 0.98));
+}
+
+.citadelFrame .rowShiftBar .rowSeg {
+  background: rgba(255, 220, 160, 0.03);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+}
+
+.citadelFrame .rowShiftLabel {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(201, 168, 108, 0.92);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  letter-spacing: 0.5px;
+}
+
+/* --- Deck cards: stone relic tablets --- */
+.citadelFrame .mobileDeckRow .mobileDeckCard,
+.citadelFrame .hexDeckCard {
+  border-radius: 14px;
+  border: 2px solid rgba(201, 168, 108, 0.35);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 220, 160, 0.12),
+    inset 0 -4px 12px rgba(0, 0, 0, 0.35),
+    0 14px 36px rgba(0, 0, 0, 0.5);
+}
+
+.citadelFrame .mobileDeckRow .mobileDeckCard::after,
+.citadelFrame .hexDeckCard::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 220, 160, 0.08);
+  pointer-events: none;
+}
+
+/* --- Status panel --- */
+.citadelFrame .statusPanel {
+  border-radius: 14px;
+  border: 1px solid rgba(201, 168, 108, 0.18);
+  background: linear-gradient(180deg, rgba(42, 34, 28, 0.88), rgba(26, 21, 16, 0.92));
+}
+
+.citadelFrame .statusPanel .miniTitle,
+.citadelFrame .logPanel .miniTitle {
+  color: rgba(201, 168, 108, 0.95);
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: 0.4px;
+}
+
+.citadelFrame .logPanel {
+  border-radius: 14px;
+  border: 1px solid rgba(201, 168, 108, 0.14);
+  background: linear-gradient(180deg, rgba(42, 34, 28, 0.88), rgba(26, 21, 16, 0.92));
+}
+
+/* --- Layer transition moment (selective depth) --- */
+.citadelFrame .boardWrap.citadelLayerShift {
+  animation: citadelLayerShift 520ms ease;
+}
+
+@keyframes citadelLayerShift {
+  0% {
+    filter: brightness(1);
+    transform: scale(1);
+  }
+  35% {
+    filter: brightness(0.88) saturate(0.95);
+    transform: scale(0.992);
+  }
+  100% {
+    filter: brightness(1);
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .citadelFrame .boardWrap.citadelLayerShift {
+    animation: none;
+  }
+}
+
+/* Mobile: soften side walls so board stays readable */
+@media (max-width: 900px) {
+  .citadelFrame .citadelTunnelWall {
+    width: 8%;
+    opacity: 0.55;
+  }
+
+  .citadelFrame .boardScroll::before,
+  .citadelFrame .boardScroll::after {
+    width: 7%;
+    opacity: 0.45;
+  }
+}
