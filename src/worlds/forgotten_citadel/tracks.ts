@@ -12,6 +12,7 @@ export const FORGOTTEN_CITADEL_TRACKS = [
   { id: "fc_t10", name: "Citadel Engine", scenarioJson: "worlds/forgotten_citadel/scenarios/track10.json" },
   { id: "fc_t11", name: "Track4", scenarioJson: "worlds/forgotten_citadel/scenarios/track11.json" },
   { id: "fc_t12", name: "Deep Vault", scenarioJson: "worlds/forgotten_citadel/scenarios/track12.json" },
+  { id: "fc_t13", name: "Twin Currents", scenarioJson: "worlds/forgotten_citadel/scenarios/track13.json" },
 ] as const;
 
 export const FORGOTTEN_CITADEL_THEME = {
