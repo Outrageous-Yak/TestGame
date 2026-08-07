@@ -12,6 +12,7 @@ import {
 } from "./storage";
 import { mergeBundles, newId, seedBundleFromWorlds, hydrateTrackFromJson } from "./catalog";
 import { TrackEditor } from "./editor/TrackEditor";
+import { TrackPlannerErrorBoundary } from "./components/TrackPlannerErrorBoundary";
 import "./trackPlanner.css";
 
 type Screen =
@@ -182,19 +183,26 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
   if (screen === "editor" && editingTrack) {
     return (
       <div className="appRoot tp-root" style={themeVars}>
-        <TrackEditor
-          track={editingTrack}
-          world={bundle.worlds.find((w) => w.worldId === editingTrack.worldId)}
-          scenario={bundle.scenarios.find((s) => s.scenarioId === editingTrack.scenarioId)}
-          onTrackSaved={(t) => {
-            persist(upsertTrack(bundle, t));
-            setEditingTrack(t);
-          }}
+        <TrackPlannerErrorBoundary
           onBack={() => {
             setScreen("home");
             setEditingTrack(null);
           }}
-        />
+        >
+          <TrackEditor
+            track={editingTrack}
+            world={bundle.worlds.find((w) => w.worldId === editingTrack.worldId)}
+            scenario={bundle.scenarios.find((s) => s.scenarioId === editingTrack.scenarioId)}
+            onTrackSaved={(t) => {
+              persist(upsertTrack(bundle, t));
+              setEditingTrack(t);
+            }}
+            onBack={() => {
+              setScreen("home");
+              setEditingTrack(null);
+            }}
+          />
+        </TrackPlannerErrorBoundary>
       </div>
     );
   }

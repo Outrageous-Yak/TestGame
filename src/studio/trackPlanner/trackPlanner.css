@@ -1,5 +1,12 @@
 .tp-root {
-  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  color: var(--text);
+  position: relative;
+  z-index: 1;
 }
 
 .tp-panel {
@@ -183,6 +190,30 @@
   min-width: 36px;
   min-height: 40px;
   position: relative;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.tp-hexFace {
+  pointer-events: none;
+  display: block;
+  margin: 0 auto;
+}
+
+.tp-boardArea {
+  position: relative;
+  z-index: 1;
+  padding: 8px 0 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: visible;
+}
+
+.tp-hexGrid {
+  margin: 0 auto;
 }
 
 .tp-missing {

@@ -1,7 +1,6 @@
 import React, { useMemo } from "react";
 import type { GameState } from "../../../engine/types";
-import { ROW_LENS } from "../../../engine/board";
-import { hexIdAtSlot } from "../../../engine/layout";
+import { ROW_LENS, posId } from "../../../engine/board";
 import { hexGridPlacement, layerCssVar } from "../../../ui/game/helpers";
 import { freshPlaytestState } from "../simulation/runSimulator";
 import type { PlannerTrack, Pos } from "../types";
@@ -67,13 +66,13 @@ export function LayerBoardGrid({
       <div className="tp-layerHeader" style={{ borderColor: layerCssVar(layer) }}>
         Layer {layer}
       </div>
-      <div className="boardScroll">
-        <div className="hexGrid">
+      <div className="tp-boardArea">
+        <div className="hexGrid tp-hexGrid">
           {ROW_LENS.map((cols, row) => (
             <div key={row} className="hexRow" style={{ ["--cols" as string]: cols }}>
               {Array.from({ length: cols }, (_, col) => {
                 const missing = missingSet.has(`${row},${col}`);
-                const hexId = missing ? null : hexIdAtSlot(layer, row, col);
+                const hexId = missing ? null : posId({ layer, row, col });
                 const pos: Pos = { layer, row, col };
                 const selected =
                   selectedSlot?.layer === layer &&
@@ -101,6 +100,7 @@ export function LayerBoardGrid({
                     onClick={() => onSlotClick?.(pos, hexId)}
                     aria-label={`L${layer} R${row} C${col}`}
                   >
+                    {!missing ? <span className="hex tp-hexFace" aria-hidden /> : null}
                     {feat ? (
                       <span className="tp-featBadge">
                         {feat.kind === "portal" ? (feat.hidden ? "P*" : "P") : feat.kind[0].toUpperCase()}

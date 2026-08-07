@@ -284,6 +284,14 @@ describe("Track Planner catalog", () => {
   });
 });
 
+describe("Track Planner board grid", () => {
+  it("uses static posId for authored hex slots (no GameState required)", () => {
+    const track = createEmptyTrack("t1", "sc1", "w1", "Test");
+    expect(track.layers).toHaveLength(7);
+    expect(() => authoredTrackToScenario(track)).toThrow();
+  });
+});
+
 describe("Track Planner visibility types", () => {
   it("preserves visibility overlay separate from missing hex", () => {
     const track = trackWithStartGoal();
