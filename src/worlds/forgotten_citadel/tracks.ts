@@ -13,6 +13,7 @@ export const FORGOTTEN_CITADEL_TRACKS = [
 ] as const;
 
 export const FORGOTTEN_CITADEL_THEME = {
+  presentation: "citadel_frame" as const,
   palette: {
     L1: "#8B7355",
     L2: "#6B8E6B",
