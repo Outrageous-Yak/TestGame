@@ -12,6 +12,7 @@ import {
 } from "./serialization/scenarioBridge";
 import { auditTrack, auditSummary } from "./audit/auditTrack";
 import { canPlaceOnSlot } from "./features/featureOccupancy";
+import { portalDirectionFor, withPortalDestination } from "./features/portalEdit";
 import {
   cloneTrack,
   setRowMovement,
@@ -304,6 +305,44 @@ describe("Track Planner feature occupancy", () => {
     const check = canPlaceOnSlot(track, "villain", pos);
     expect(check.ok).toBe(false);
     if (!check.ok) expect(check.existingId).toBe("v1");
+  });
+});
+
+describe("Track Planner portal edit", () => {
+  it("updates portal destination and direction", () => {
+    const portal = {
+      kind: "portal" as const,
+      id: "p1",
+      portalId: "portal_1",
+      source: { layer: 3, row: 2, col: 1 },
+      direction: "UP" as const,
+      destination: { layer: 4, row: 2, col: 1 },
+    };
+    expect(portalDirectionFor(portal.source, { layer: 5, row: 0, col: 3 })).toBe("UP");
+    expect(portalDirectionFor(portal.source, { layer: 2, row: 0, col: 3 })).toBe("DOWN");
+    const updated = withPortalDestination(portal, { layer: 5, row: 0, col: 3 });
+    expect(updated.destination).toEqual({ layer: 5, row: 0, col: 3 });
+    expect(updated.direction).toBe("UP");
+  });
+
+  it("exports custom portal destination in transitions", () => {
+    const track = trackWithStartGoal();
+    track.features.push({
+      kind: "portal",
+      id: "p1",
+      portalId: "portal_1",
+      source: { layer: 2, row: 3, col: 0 },
+      direction: "UP",
+      destination: { layer: 4, row: 1, col: 2 },
+    });
+    const exported = authoredTrackToScenario(track);
+    expect(exported.transitions).toEqual([
+      {
+        type: "UP",
+        from: { layer: 2, row: 3, col: 0 },
+        to: { layer: 4, row: 1, col: 2 },
+      },
+    ]);
   });
 });
 

@@ -10,6 +10,8 @@ type LayerBoardGridProps = {
   layer: number;
   playState?: GameState | null;
   selectedSlot?: Pos | null;
+  /** Highlight a portal landing hex (e.g. while editing). */
+  portalDestination?: Pos | null;
   solutionOverlay?: Set<string>;
   onSlotClick?: (pos: Pos, hexId: string | null) => void;
   highlightFeatures?: boolean;
@@ -22,6 +24,7 @@ export function LayerBoardGrid({
   layer,
   playState,
   selectedSlot,
+  portalDestination,
   solutionOverlay,
   onSlotClick,
   highlightFeatures = true,
@@ -78,6 +81,10 @@ export function LayerBoardGrid({
                   selectedSlot?.layer === layer &&
                   selectedSlot.row === row &&
                   selectedSlot.col === col;
+                const isPortalDest =
+                  portalDestination?.layer === layer &&
+                  portalDestination.row === row &&
+                  portalDestination.col === col;
                 const feat = featureAt(row, col);
                 const onPath = hexId && solutionOverlay?.has(hexId);
                 const isPlayer = state?.playerHexId === hexId;
@@ -90,6 +97,7 @@ export function LayerBoardGrid({
                       "tp-hexSlot",
                       missing ? "tp-missing" : "",
                       selected ? "tp-selected" : "",
+                      isPortalDest ? "tp-portalDest" : "",
                       onPath ? "tp-solution" : "",
                       isPlayer ? "tp-player" : "",
                     ]
@@ -106,6 +114,7 @@ export function LayerBoardGrid({
                         {feat.kind === "portal" ? (feat.hidden ? "P*" : "P") : feat.kind[0].toUpperCase()}
                       </span>
                     ) : null}
+                    {isPortalDest ? <span className="tp-portalDestBadge">→</span> : null}
                     {onPath ? <span className="tp-pathDot" /> : null}
                   </button>
                 );
