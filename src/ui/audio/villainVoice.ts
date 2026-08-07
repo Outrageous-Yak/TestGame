@@ -5,6 +5,7 @@ import {
   getSoundEffectsVolume,
   isSoundEffectsEnabled,
 } from "./soundEffects";
+import { getGameAudioContext } from "./gameAudioContext";
 
 export const VILLAIN_VOICE_PATHS: Partial<Record<VillainKey, string>> = {
   bad1: "sounds/villains/lollipop-cop.mp3",
@@ -14,28 +15,8 @@ export const VILLAIN_DISPLAY_NAMES: Partial<Record<VillainKey, string>> = {
   bad1: "Lollipop Cop",
 };
 
-let audioContext: AudioContext | null = null;
 const buffers = new Map<string, AudioBuffer>();
 const loading = new Map<string, Promise<AudioBuffer | null>>();
-
-async function getAudioContext(): Promise<AudioContext | null> {
-  if (typeof window === "undefined") return null;
-  if (!audioContext) {
-    const Ctx =
-      window.AudioContext ||
-      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return null;
-    audioContext = new Ctx();
-  }
-  if (audioContext.state === "suspended") {
-    try {
-      await audioContext.resume();
-    } catch {
-      return null;
-    }
-  }
-  return audioContext;
-}
 
 async function loadPath(path: string): Promise<AudioBuffer | null> {
   if (buffers.has(path)) return buffers.get(path)!;
@@ -44,7 +25,7 @@ async function loadPath(path: string): Promise<AudioBuffer | null> {
   if (pending) return pending;
 
   const promise = (async () => {
-    const ctx = await getAudioContext();
+    const ctx = await getGameAudioContext();
     if (!ctx) return null;
 
     const res = await fetch(toPublicUrl(path));
@@ -85,7 +66,7 @@ export async function playVillainVoice(key: VillainKey): Promise<boolean> {
   const path = VILLAIN_VOICE_PATHS[key];
   if (!path) return false;
 
-  const ctx = await getAudioContext();
+  const ctx = await getGameAudioContext();
   if (!ctx) return false;
 
   const buffer = await loadPath(path);

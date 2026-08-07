@@ -7,6 +7,9 @@ export const GOAL_TARGET_PEAK_DB = -12;
 /** Background music sits just below normalized effects. */
 export const BGM_TARGET_PEAK_DB = -17;
 
+/** Goal and red-card evil laugh are slightly louder than other effects. */
+export const PROMINENT_SFX_TARGET_PEAK_DB = -10;
+
 export type BalancedSoundId =
   | "playerMove"
   | "portalLand"
@@ -30,7 +33,10 @@ function linearGainForPeak(filePeakDb: number, targetPeakDb: number): number {
 }
 
 export function normalizedSoundGain(id: BalancedSoundId): number {
-  const target = id === "goalLand" ? GOAL_TARGET_PEAK_DB : SFX_TARGET_PEAK_DB;
+  const target =
+    id === "goalLand" || id === "redCardEvilLaugh"
+      ? PROMINENT_SFX_TARGET_PEAK_DB
+      : SFX_TARGET_PEAK_DB;
   return linearGainForPeak(SOUND_FILE_PEAK_DB[id], target);
 }
 
