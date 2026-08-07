@@ -63,7 +63,7 @@ import {
   selectHexTileArtUrl,
   shouldUseSolidGoldGoal,
 } from "./hexTileVisual";
-import { playGoalLandSound, playPlayerMoveSound, playPortalLandSound, playFailedMoveSound, preloadSoundEffects } from "../audio/soundEffects";
+import { playGoalLandSound, playPlayerMoveSound, playPortalLandSound, playFailedMoveSound, playRedCardEvilLaughSound, preloadSoundEffects } from "../audio/soundEffects";
 import { playVillainVoice, preloadVillainVoices, villainDisplayName } from "../audio/villainVoice";
 import { preloadThunderSound } from "../audio/stormAudio";
 import { ReachSparkle } from "./ReachSparkle";
@@ -555,7 +555,7 @@ export function GameController({
   }, [HEX_TILE_MOVABLE]);
 
   useEffect(() => {
-    void preloadSoundEffects(["playerMove", "portalLand", "goalLand", "failedMove"]);
+    void preloadSoundEffects(["playerMove", "portalLand", "goalLand", "failedMove", "redCardEvilLaugh"]);
     void preloadVillainVoices();
     if (cloudMode === "full_cloud") {
       void preloadThunderSound();
@@ -1003,6 +1003,11 @@ export function GameController({
   const triggerCardFlyout = useCallback(
     (card: CardKey, opts?: { then?: "flip" | "encounter" }) => {
       const then = opts?.then ?? "flip";
+
+      if (card === "cosmic") {
+        playRedCardEvilLaughSound();
+        void playVillainVoice("bad1");
+      }
 
       const afterFly = () => {
         if (then === "encounter") {

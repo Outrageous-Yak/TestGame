@@ -16,6 +16,7 @@ describe("soundEffects", () => {
     expect(SOUND_EFFECT_PATHS.portalLand).toBe("sounds/effects/portal-land.mp3");
     expect(SOUND_EFFECT_PATHS.goalLand).toBe("sounds/effects/goal-land.mp3");
     expect(SOUND_EFFECT_PATHS.failedMove).toBe("sounds/effects/failed-move.mp3");
+    expect(SOUND_EFFECT_PATHS.redCardEvilLaugh).toBe("sounds/effects/red-card-evil-laugh.mp3");
   });
 
   it("tracks enabled state", () => {
