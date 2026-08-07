@@ -10,4 +10,11 @@ All sounds are licensed under the [Pixabay Content License](https://pixabay.com/
 
 The move sound is trimmed to ~1.1s; portal and goal use the full clips (~2.5s and ~3.5s).
 
-To swap a sound, replace the MP3 or update `SOUND_EFFECT_PATHS` in `src/ui/audio/soundEffects.ts`.
+## Villain voice lines
+
+| Villain | File | Notes |
+|---------|------|-------|
+| Lollipop Cop (`bad1`) | `villains/lollipop-cop.mp3` | User-generated TTS (Mureka), static trimmed |
+
+Voice lines play when a villain encounter starts (hex trigger or risk card). Mapped in `src/ui/audio/villainVoice.ts`.
+

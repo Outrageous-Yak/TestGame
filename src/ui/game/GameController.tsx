@@ -64,6 +64,7 @@ import {
   shouldUseSolidGoldGoal,
 } from "./hexTileVisual";
 import { playGoalLandSound, playPlayerMoveSound, playPortalLandSound, playFailedMoveSound, preloadSoundEffects } from "../audio/soundEffects";
+import { playVillainVoice, preloadVillainVoices, villainDisplayName } from "../audio/villainVoice";
 import { preloadThunderSound } from "../audio/stormAudio";
 import { ReachSparkle } from "./ReachSparkle";
 import { startBackgroundMusic, stopBackgroundMusic } from "../audio/backgroundMusic";
@@ -555,6 +556,7 @@ export function GameController({
 
   useEffect(() => {
     void preloadSoundEffects(["playerMove", "portalLand", "goalLand", "failedMove"]);
+    void preloadVillainVoices();
     if (cloudMode === "full_cloud") {
       void preloadThunderSound();
     }
@@ -1007,9 +1009,10 @@ export function GameController({
           const vkr = pickRiskVillain();
           pendingEncounterMoveIdRef.current = null;
           setEncounter({ villainKey: vkr, tries: 0 });
+          void playVillainVoice(vkr);
           setDiceRot(BASE_DICE_VIEW);
           triggerCardFlip("risk", { villainKey: vkr, mode: "riskEncounter" });
-          pushLog("Risk triggered — encounter: " + vkr + " (roll a 6)", "bad");
+          pushLog("Risk triggered — encounter: " + villainDisplayName(vkr) + " (roll a 6)", "bad");
           return;
         }
         triggerCardFlip(card);
@@ -1224,7 +1227,8 @@ export function GameController({
       if (vk) {
         pendingEncounterMoveIdRef.current = hexId;
         setEncounter((prev) => (prev ? { ...prev, villainKey: vk } : { villainKey: vk, tries: 0 }));
-        pushLog("Encounter: " + vk + " — roll a 6 to continue", "bad");
+        void playVillainVoice(vk);
+        pushLog("Encounter: " + villainDisplayName(vk) + " — roll a 6 to continue", "bad");
         return;
       }
 
@@ -1828,7 +1832,7 @@ export function GameController({
                 <div className="riskCardFx" />
               </div>
               <div className="cardFlipFace back">
-                <img src={villainImg(encounter.villainKey)} alt={encounter.villainKey} />
+                <img src={villainImg(encounter.villainKey)} alt={villainDisplayName(encounter.villainKey)} />
               </div>
             </div>
 
@@ -1923,7 +1927,7 @@ export function GameController({
           <div className="encounterGrid">
             <div className="encounterCard riskCard">
               <div className="riskCardFx" />
-              <img className="riskVillainImg" src={villainImg(encounter.villainKey)} alt={encounter.villainKey} />
+              <img className="riskVillainImg" src={villainImg(encounter.villainKey)} alt={villainDisplayName(encounter.villainKey)} />
             </div>
 
             <div className="encounterRight">
