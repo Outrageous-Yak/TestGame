@@ -58,7 +58,13 @@ function normalizeWorldEntry(raw: any): WorldEntry | null {
               const tname = String(t.name ?? tid);
               const tjson = String(t.scenarioJson ?? t.json ?? "");
               if (!tjson) return null;
-              return { id: tid, name: tname, scenarioJson: tjson };
+              const progression = t.progression;
+              return {
+                id: tid,
+                name: tname,
+                scenarioJson: tjson,
+                ...(progression ? { progression } : {}),
+              };
             })
             .filter(Boolean) as Track[])
         : undefined;
@@ -66,6 +72,7 @@ function normalizeWorldEntry(raw: any): WorldEntry | null {
       const cloudMode =
         s.cloudMode === "cloudy" || s.cloudMode === "full_cloud" ? s.cloudMode : undefined;
 
+      const progression = s.progression;
       return {
         id: sid,
         name: sname,
@@ -74,18 +81,21 @@ function normalizeWorldEntry(raw: any): WorldEntry | null {
         theme,
         tracks: tracks && tracks.length ? tracks : undefined,
         cloudMode,
+        ...(progression ? { progression } : {}),
       };
     })
     .filter(Boolean) as ScenarioEntry[];
 
   if (normScenarios.length === 0) return null;
 
+  const progression = w.progression;
   return {
     id,
     name,
     desc: w.desc,
     menu: w.menu ?? {},
     scenarios: normScenarios,
+    ...(progression ? { progression } : {}),
   };
 }
 

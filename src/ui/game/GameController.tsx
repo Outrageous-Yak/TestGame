@@ -11,6 +11,14 @@ import { facingFromMove, hexIdAtSlot, rowShiftLabel, clockwiseOrderFrom } from "
 
 import { resolveTileVisualType, tileArtRelPath } from "../tileArt";
 import { getBestScore, saveBestScore } from "../bestScore";
+import {
+  getNextAvailableTrack,
+  loadProgression,
+  markMechanicsIntroducedByTrack,
+  recordTrackCompletion,
+  saveProgression,
+} from "../../progression";
+import type { WorldEntry } from "../types";
 import type {
   LogEntry,
   ScenarioEntry,
@@ -77,6 +85,8 @@ type GoalAchievedState = {
 };
 
 export type GameControllerProps = {
+  worldId: string;
+  worlds: WorldEntry[];
   scenarioEntry: ScenarioEntry;
   trackEntry: Track | null;
   trackId: string | null;
@@ -88,6 +98,8 @@ export type GameControllerProps = {
 };
 
 export function GameController({
+  worldId,
+  worlds,
   scenarioEntry,
   trackEntry,
   trackId,
@@ -333,6 +345,8 @@ export function GameController({
     setLog((prev) => [e, ...prev].slice(0, 24));
   }, []);
 
+  const completionRecordedRef = useRef(false);
+
   const recordWin = useCallback(
     (moveCount: number) => {
       let best: number | null = bestScore;
@@ -343,13 +357,26 @@ export function GameController({
       } else {
         pushLog("Goal reached!", "ok");
       }
+
+      const resolvedTrackId = trackEntry?.id ?? trackId;
+      if (resolvedTrackId && !completionRecordedRef.current) {
+        completionRecordedRef.current = true;
+        let progress = loadProgression();
+        progress = recordTrackCompletion(progress, worldId, resolvedTrackId);
+        const trackDef = scenarioEntry.tracks?.find((t) => t.id === resolvedTrackId);
+        if (trackDef) {
+          progress = markMechanicsIntroducedByTrack(progress, trackDef);
+        }
+        saveProgression(progress);
+      }
+
       setGoalAchieved({
         moves: moveCount,
         least: optimalAtStart,
         best,
       });
     },
-    [scenarioEntry, trackId, pushLog, optimalAtStart, bestScore]
+    [scenarioEntry, trackId, trackEntry, worldId, pushLog, optimalAtStart, bestScore]
   );
 
   const playMoveOutcomeSound = useCallback(
@@ -369,10 +396,22 @@ export function GameController({
   const nextTrack = useMemo(() => {
     const tracks = scenarioEntry.tracks ?? [];
     if (tracks.length <= 1) return null;
-    const idx = trackId ? tracks.findIndex((t) => t.id === trackId) : 0;
-    if (idx < 0 || idx >= tracks.length - 1) return null;
-    return tracks[idx + 1];
-  }, [scenarioEntry, trackId]);
+    const progress = loadProgression();
+    const resolution = getNextAvailableTrack(
+      progress,
+      worlds,
+      worlds.find((w) => w.id === worldId) ?? {
+        id: worldId,
+        name: worldId,
+        menu: {},
+        scenarios: [scenarioEntry],
+      },
+      scenarioEntry,
+      trackEntry?.id ?? trackId
+    );
+    if (resolution.kind !== "track") return null;
+    return tracks.find((t) => t.id === resolution.trackId) ?? null;
+  }, [scenarioEntry, trackId, trackEntry, worldId, worlds]);
 
   /* =========================
      Reachability (1-step neighbors)
@@ -1075,6 +1114,7 @@ export function GameController({
     const chosenJson = hasTracks ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson : scenarioEntry.scenarioJson;
 
     setGoalAchieved(null);
+    completionRecordedRef.current = false;
 
     const cacheKey = "20260801e";
     const url = chosenJson + (chosenJson.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(cacheKey);

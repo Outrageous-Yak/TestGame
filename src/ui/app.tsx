@@ -88,6 +88,8 @@ export default function App() {
     } as React.CSSProperties;
   }, [scenarioEntry]);
 
+  const devMode = isDevMode();
+
   if (screen === "start") {
     return (
       <StartScreen
@@ -144,6 +146,7 @@ export default function App() {
         trackId={trackId}
         scenarioEntry={scenarioEntry}
         trackEntry={trackEntry}
+        bypassProgressionLocks={devMode}
         onSelectWorld={(w) => {
           setWorldId(w.id);
           const s0 = w.scenarios[0] ?? null;
@@ -183,6 +186,8 @@ export default function App() {
 
   return (
     <GameController
+      worldId={worldId ?? "unknown"}
+      worlds={worlds}
       scenarioEntry={scenarioEntry}
       trackEntry={trackEntry}
       trackId={trackId}

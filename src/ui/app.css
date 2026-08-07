@@ -244,7 +244,7 @@ body{
 
 .trackListHeader{
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px 72px;
+  grid-template-columns: minmax(0, 1fr) 56px 72px 72px;
   gap: 8px;
   align-items: center;
   padding: 10px 12px;
@@ -262,7 +262,7 @@ body{
 
 .trackListRow{
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px 72px;
+  grid-template-columns: minmax(0, 1fr) 56px 72px 72px;
   gap: 8px;
   align-items: center;
   width: 100%;
@@ -287,6 +287,26 @@ body{
 .trackListRow.active{
   background: rgba(120,255,210,.12);
   box-shadow: inset 0 0 0 1px rgba(120,255,210,.28);
+}
+
+.trackListRow.locked{
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.trackListRow.completed .trackListColStatus{
+  color: #7dffb8;
+}
+
+.trackListColStatus{
+  text-align: center;
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.card.locked{
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .trackListColName{
