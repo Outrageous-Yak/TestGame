@@ -1,4 +1,6 @@
-import { FORGOTTEN_CITADEL_THEME, FORGOTTEN_CITADEL_TRACKS } from "./tracks";
+import { FORGOTTEN_CITADEL_THEME, FORGOTTEN_CITADEL_TRACKS, PORTAL_FORK_TRACK } from "./tracks";
+
+const PORTAL_FORK_JSON = "worlds/forgotten_citadel/scenarios/track03.json";
 
 export default {
   id: "forgotten_citadel",
@@ -32,6 +34,32 @@ export default {
       scenarioJson: "worlds/forgotten_citadel/scenarios/track01.json",
       theme: FORGOTTEN_CITADEL_THEME,
       tracks: [...FORGOTTEN_CITADEL_TRACKS],
+    },
+    {
+      id: "citadel_fork",
+      name: "Fork",
+      desc: "Portal Fork — clear visibility.",
+      scenarioJson: PORTAL_FORK_JSON,
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [PORTAL_FORK_TRACK],
+    },
+    {
+      id: "citadel_fork_partly_cloudy",
+      name: "Fork Partly Cloudy",
+      desc: "Portal Fork with mist — nearby paths stay visible.",
+      cloudMode: "cloudy",
+      scenarioJson: PORTAL_FORK_JSON,
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [PORTAL_FORK_TRACK],
+    },
+    {
+      id: "citadel_fork_cloudy",
+      name: "Fork Cloudy",
+      desc: "Portal Fork in dense clouds — only your tile, moves, portals, and goal show.",
+      cloudMode: "full_cloud",
+      scenarioJson: PORTAL_FORK_JSON,
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [PORTAL_FORK_TRACK],
     },
   ],
 } as const;

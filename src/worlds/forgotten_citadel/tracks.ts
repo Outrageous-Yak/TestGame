@@ -12,6 +12,9 @@ export const FORGOTTEN_CITADEL_TRACKS = [
   { id: "fc_t10", name: "Citadel Engine", scenarioJson: "worlds/forgotten_citadel/scenarios/track10.json" },
 ] as const;
 
+/** Portal Fork only — for Fork visibility-variant scenarios. */
+export const PORTAL_FORK_TRACK = FORGOTTEN_CITADEL_TRACKS[2];
+
 export const FORGOTTEN_CITADEL_THEME = {
   palette: {
     L1: "#8B7355",
