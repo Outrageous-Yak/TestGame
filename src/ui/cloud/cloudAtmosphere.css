@@ -45,6 +45,104 @@
   --boardDimBase: 0.26;
 }
 
+.cloudSceneDim--night {
+  --cloudDimStrength: 0.42;
+  --cloudDimEdge: 0.62;
+  background: radial-gradient(
+    ellipse 115% 88% at 50% 42%,
+    rgba(8, 12, 32, 0.2) 0%,
+    rgba(6, 10, 28, 0.55) 58%,
+    rgba(4, 6, 20, 0.72) 100%
+  );
+}
+
+.cloudBoardDim--night {
+  --boardDimTop: 0.22;
+  --boardDimBottom: 0.28;
+  --boardDimBase: 0.38;
+  background:
+    linear-gradient(180deg, rgba(8, 12, 36, 0.35) 0%, transparent 30%),
+    linear-gradient(0deg, rgba(8, 12, 36, 0.4) 0%, transparent 34%),
+    rgba(10, 14, 40, 0.32);
+}
+
+.cloudSceneDim--invisible {
+  --cloudDimStrength: 0.32;
+  --cloudDimEdge: 0.5;
+}
+
+.cloudBoardDim--invisible {
+  --boardDimTop: 0.2;
+  --boardDimBottom: 0.24;
+  --boardDimBase: 0.3;
+}
+
+.cloudSceneDim--memory {
+  --cloudDimStrength: 0.18;
+  --cloudDimEdge: 0.3;
+}
+
+.cloudBoardDim--memory {
+  --boardDimTop: 0.1;
+  --boardDimBottom: 0.12;
+  --boardDimBase: 0.16;
+}
+
+.cloudSceneDim--lantern {
+  --cloudDimStrength: 0.26;
+  --cloudDimEdge: 0.38;
+}
+
+.cloudBoardDim--lantern {
+  --boardDimTop: 0.14;
+  --boardDimBottom: 0.18;
+  --boardDimBase: 0.22;
+}
+
+.cloudSceneDim--crystal_vision {
+  --cloudDimStrength: 0.12;
+  --cloudDimEdge: 0.22;
+  background: radial-gradient(
+    ellipse 115% 88% at 50% 42%,
+    rgba(120, 200, 255, 0.06) 0%,
+    rgba(24, 36, 58, 0.14) 58%,
+    rgba(18, 28, 48, 0.28) 100%
+  );
+}
+
+.cloudBoardDim--crystal_vision {
+  --boardDimTop: 0.08;
+  --boardDimBottom: 0.1;
+  --boardDimBase: 0.14;
+}
+
+.cloudSceneDim--echo {
+  --cloudDimStrength: 0.2;
+  --cloudDimEdge: 0.34;
+}
+
+.cloudBoardDim--echo {
+  --boardDimTop: 0.12;
+  --boardDimBottom: 0.14;
+  --boardDimBase: 0.2;
+}
+
+.appRoot.game.cloudScenarioActive.visibility--memory .hexSlot .cloudCover {
+  opacity: 0.85;
+}
+
+.appRoot.game.cloudScenarioActive.visibility--echo .hexSlot.cloudVis-visible .cloudCover {
+  opacity: 0.35;
+}
+
+.appRoot.game.cloudScenarioActive.visibility--lantern .hexSlot.cloudVis-visible .cloudCover {
+  opacity: 0.25;
+}
+
+.appRoot.game.cloudScenarioActive.visibility--crystal_vision .hexSlot.cloudVis-visible .cloudCover {
+  opacity: 0.15;
+}
+
 /* Gentle scene-wide softening during cloud scenarios */
 .appRoot.game.cloudScenarioActive .gameBg {
   filter: saturate(0.92) contrast(0.94) brightness(0.97);

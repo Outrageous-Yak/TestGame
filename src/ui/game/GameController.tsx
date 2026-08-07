@@ -32,7 +32,14 @@ import type {
 import { PlayerToken } from "../../features/sprite-builder/PlayerToken";
 import type { SavedPixelSprite } from "../../features/sprite-builder/spriteTypes";
 import type { AnimatedSpriteSheet } from "../../features/sprite-builder/animatedSpriteSheets";
-import { CloudCover, MoveOverlay, StormWeather, cloudAtmosphereClass, computeCloudVisibility } from "../cloud";
+import {
+  CloudCover,
+  MoveOverlay,
+  StormWeather,
+  cloudAtmosphereClass,
+  computeBoardVisibility,
+  resolveScenarioVisibilityMode,
+} from "../cloud";
 import {
   REACH_PULSE_INTERVAL_MS,
   shouldShowFullCloudMovePulse,
@@ -146,8 +153,11 @@ export function GameController({
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  const cloudMode = scenarioEntry.cloudMode;
-  const isCloudScenario = cloudMode === "cloudy" || cloudMode === "full_cloud";
+  const visibilityMode = resolveScenarioVisibilityMode(scenarioEntry);
+  const isVisibilityScenario = visibilityMode != null;
+  const [memoryVisitedHexIds, setMemoryVisitedHexIds] = useState<Set<string>>(() => new Set());
+  const [echoHexIds, setEchoHexIds] = useState<Set<string>>(() => new Set());
+  const prevPlayerForEchoRef = useRef<string | null>(null);
 
   const boardRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -505,10 +515,10 @@ export function GameController({
   }, [state, terrainHexIdsOnLayer, startHexId, movesTaken, currentLayer]);
 
   const cloudVisibilityMap = useMemo(() => {
-    if (!isCloudScenario || !cloudMode || !state || !playerId) return null;
+    if (!isVisibilityScenario || !visibilityMode || !state || !playerId) return null;
     if (playerLayer !== currentLayer) return null;
-    return computeCloudVisibility({
-      mode: cloudMode,
+    return computeBoardVisibility({
+      mode: visibilityMode,
       currentHexId: playerId,
       legalMoveHexIds: reachable,
       allTerrainHexIds: terrainHexIdsOnLayer,
@@ -516,10 +526,15 @@ export function GameController({
       goalHexId: goalId,
       portalHexIds: portalHexIdsOnLayer,
       adjacency: (hexId) => new Set(neighborIdsSameLayer(state, hexId)),
+      context: {
+        memoryVisitedHexIds,
+        echoHexIds,
+        lanternRadius: 2,
+      },
     });
   }, [
-    isCloudScenario,
-    cloudMode,
+    isVisibilityScenario,
+    visibilityMode,
     state,
     playerId,
     playerLayer,
@@ -530,13 +545,15 @@ export function GameController({
     missingHexIdsOnLayer,
     goalId,
     portalHexIdsOnLayer,
+    memoryVisitedHexIds,
+    echoHexIds,
   ]);
 
   const [cloudTransitions, setCloudTransitions] = useState<Record<string, "revealing" | "concealing">>({});
   const prevPlayerForCloudRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!isCloudScenario || !playerId) {
+    if (!isVisibilityScenario || !playerId) {
       prevPlayerForCloudRef.current = playerId;
       return;
     }
@@ -548,11 +565,39 @@ export function GameController({
       return () => window.clearTimeout(timer);
     }
     prevPlayerForCloudRef.current = playerId;
-  }, [playerId, isCloudScenario]);
+  }, [playerId, isVisibilityScenario]);
 
   useEffect(() => {
-    if (!isCloudScenario) setCloudTransitions({});
-  }, [scenarioEntry.id, trackId, isCloudScenario]);
+    if (!isVisibilityScenario) setCloudTransitions({});
+  }, [scenarioEntry.id, trackId, isVisibilityScenario]);
+
+  useEffect(() => {
+    if (!isVisibilityScenario || !playerId) return;
+    if (visibilityMode === "memory") {
+      setMemoryVisitedHexIds((prev) => {
+        if (prev.has(playerId)) return prev;
+        const next = new Set(prev);
+        next.add(playerId);
+        return next;
+      });
+    }
+    if (visibilityMode === "echo") {
+      const prev = prevPlayerForEchoRef.current;
+      if (prev && prev !== playerId) {
+        setEchoHexIds((echoPrev) => {
+          const next = new Set(echoPrev);
+          next.add(prev);
+          if (next.size > 6) {
+            const arr = [...next];
+            arr.splice(0, arr.length - 6);
+            return new Set(arr);
+          }
+          return next;
+        });
+      }
+      prevPlayerForEchoRef.current = playerId;
+    }
+  }, [playerId, isVisibilityScenario, visibilityMode]);
 
   /* =========================
      Theme / assets
@@ -596,10 +641,10 @@ export function GameController({
   useEffect(() => {
     void preloadSoundEffects(["playerMove", "portalLand", "goalLand", "failedMove", "redCardEvilLaugh"]);
     void preloadVillainVoices();
-    if (cloudMode === "full_cloud") {
+    if (visibilityMode === "full_cloud") {
       void preloadThunderSound();
     }
-  }, [cloudMode]);
+  }, [visibilityMode]);
 
   useEffect(() => {
     if (!BACKGROUND_MUSIC) return;
@@ -1115,6 +1160,9 @@ export function GameController({
 
     setGoalAchieved(null);
     completionRecordedRef.current = false;
+    setMemoryVisitedHexIds(new Set());
+    setEchoHexIds(new Set());
+    prevPlayerForEchoRef.current = null;
 
     const cacheKey = "20260801e";
     const url = chosenJson + (chosenJson.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(cacheKey);
@@ -1379,7 +1427,14 @@ export function GameController({
   );
   return (
     <div
-      className={["appRoot", "game", isCloudScenario ? "cloudScenarioActive" : ""].filter(Boolean).join(" ")}
+      className={[
+        "appRoot",
+        "game",
+        isVisibilityScenario ? "cloudScenarioActive" : "",
+        visibilityMode ? `visibility--${visibilityMode}` : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       style={themeVars}
     >
       <div
@@ -1388,8 +1443,8 @@ export function GameController({
           backgroundImage: GAME__URL ? "url(" + toPublicUrl(GAME__URL) + ")" : undefined,
         }}
       />
-      {isCloudScenario && cloudMode ? (
-        <div className={cloudAtmosphereClass(cloudMode, "scene")} aria-hidden="true" />
+      {isVisibilityScenario && visibilityMode ? (
+        <div className={cloudAtmosphereClass(visibilityMode, "scene")} aria-hidden="true" />
       ) : null}
 
       <div className="topbar">
@@ -1461,10 +1516,10 @@ export function GameController({
       <div className="gameLayout">
         <div className="playColumn">
           <div className="boardWrap">
-            {isCloudScenario && cloudMode ? (
-              <div className={cloudAtmosphereClass(cloudMode, "board")} aria-hidden="true" />
+            {isVisibilityScenario && visibilityMode ? (
+              <div className={cloudAtmosphereClass(visibilityMode, "board")} aria-hidden="true" />
             ) : null}
-            {cloudMode === "full_cloud" ? (
+            {visibilityMode === "full_cloud" ? (
               <StormWeather scenarioId={scenarioEntry.id} reducedMotion={reducedMotion} />
             ) : null}
             <SideBar side="top" currentLayer={currentLayer} />
@@ -1520,7 +1575,7 @@ export function GameController({
 
                         if (bm.missing) {
                           const missingCv = cloudVisibilityMap?.get(id);
-                          const missingCloudActive = isCloudScenario && missingCv;
+                          const missingCloudActive = isVisibilityScenario && missingCv;
                           const missingCloudVis = missingCv?.visibility;
                           const showMissingCloudCover =
                             missingCloudActive &&
@@ -1530,7 +1585,7 @@ export function GameController({
                           return (
                             <div
                               key={id}
-                              className={["hexSlot", "missingSlotWrap", isCloudScenario ? "cloudScenario" : ""]
+                              className={["hexSlot", "missingSlotWrap", isVisibilityScenario ? "cloudScenario" : ""]
                                 .filter(Boolean)
                                 .join(" ")}
                               style={cellStyle}
@@ -1570,7 +1625,7 @@ export function GameController({
                         const isTrigger = !!findTriggerForHex(id);
 
                         const cv = cloudVisibilityMap?.get(id);
-                        const cloudActive = isCloudScenario && cv;
+                        const cloudActive = isVisibilityScenario && cv;
                         const cloudVis = cv?.visibility;
                         const showCloudCover =
                           cloudActive && (cloudVis === "partial" || cloudVis === "cloud");
@@ -1591,8 +1646,8 @@ export function GameController({
                           (isPortalUp || isPortalDown || showStartPortal);
                         const portalInInner =
                           (isPortalUp || isPortalDown || showStartPortal) && !showPortalOverlay;
-                        const showMovePulseOverlay = shouldShowFullCloudMovePulse(isReachPulse, cloudMode);
-                        const useReachPulse = shouldUseButtonReachPulse(isReachPulse, cloudMode);
+                        const showMovePulseOverlay = shouldShowFullCloudMovePulse(isReachPulse, visibilityMode);
+                        const useReachPulse = shouldUseButtonReachPulse(isReachPulse, visibilityMode);
 
                         const tileVisual = resolveTileVisualType({
                           revealed: !!hex?.revealed,
@@ -1647,7 +1702,13 @@ export function GameController({
                         return (
                           <div
                             key={"v-" + r + "-" + c}
-                            className={["hexSlot", isCloudScenario ? "cloudScenario" : ""].filter(Boolean).join(" ")}
+                            className={[
+                              "hexSlot",
+                              isVisibilityScenario ? "cloudScenario" : "",
+                              cloudVis === "visible" ? "cloudVis-visible" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
                             style={cellStyle}
                           >
                             <button
@@ -1680,7 +1741,7 @@ export function GameController({
                               title={id}
                             >
                               <div className="hexAnchor">
-                                {isCloudScenario ? (
+                                {isVisibilityScenario ? (
                                   <div className="hexTerrainClip">
                                     <div className="hexInner" style={hexInnerStyle}>{hexInnerContent}</div>
                                   </div>
@@ -1695,7 +1756,7 @@ export function GameController({
                             ) : null}
 
                             {cardHere ? (
-                              <div className={["cardLayer", isCloudScenario ? "cardLayerUnderCloud" : ""].filter(Boolean).join(" ")}>
+                              <div className={["cardLayer", isVisibilityScenario ? "cardLayerUnderCloud" : ""].filter(Boolean).join(" ")}>
                                 <div className={"cardBadge hexDeckCard " + cardHere} title={cardHere}>
                                   <div className="deckFx" />
                                 </div>

@@ -72,6 +72,17 @@ function normalizeWorldEntry(raw: any): WorldEntry | null {
       const cloudMode =
         s.cloudMode === "cloudy" || s.cloudMode === "full_cloud" ? s.cloudMode : undefined;
 
+      const extendedVisibility = [
+        "night",
+        "invisible",
+        "memory",
+        "lantern",
+        "crystal_vision",
+        "echo",
+      ] as const;
+      const visibilityMode =
+        extendedVisibility.includes(s.visibilityMode) ? s.visibilityMode : undefined;
+
       const progression = s.progression;
       return {
         id: sid,
@@ -81,6 +92,7 @@ function normalizeWorldEntry(raw: any): WorldEntry | null {
         theme,
         tracks: tracks && tracks.length ? tracks : undefined,
         cloudMode,
+        ...(visibilityMode ? { visibilityMode } : {}),
         ...(progression ? { progression } : {}),
       };
     })

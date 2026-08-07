@@ -51,6 +51,15 @@ export type ScenarioTheme = {
 
 export type CloudMode = "cloudy" | "full_cloud";
 
+/** Extended visibility modes (runtime v1 — Portal Fork test scenarios). */
+export type ExtendedVisibilityMode =
+  | "night"
+  | "invisible"
+  | "memory"
+  | "lantern"
+  | "crystal_vision"
+  | "echo";
+
 export type {
   MechanicId,
   ProgressionMode,
@@ -90,6 +99,7 @@ export type ScenarioEntry = {
   theme: ScenarioTheme;
   tracks?: Track[];
   cloudMode?: CloudMode;
+  visibilityMode?: ExtendedVisibilityMode;
   progression?: ScenarioProgressionMeta;
 };
 
