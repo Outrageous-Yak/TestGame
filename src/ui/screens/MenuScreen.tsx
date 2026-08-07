@@ -1,7 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import type { ScenarioEntry, Track, WorldEntry } from "../types";
 import { getBestScore } from "../bestScore";
 import { loadTrackOptimalMap } from "../trackMenuStats";
+import { isDevMode } from "../../features/puzzle-studio/devMode";
+import {
+  getTrackStatus,
+  loadProgression,
+  type TrackProgressStatus,
+} from "../../progression";
 
 type MenuScreenProps = {
   themeVars: React.CSSProperties;
@@ -25,6 +31,17 @@ function formatScore(n: number | null | undefined): string {
   return String(n);
 }
 
+function trackStatusLabel(status: TrackProgressStatus): string {
+  switch (status) {
+    case "COMPLETED":
+      return "✓";
+    case "LOCKED":
+      return "Locked";
+    default:
+      return "";
+  }
+}
+
 export function MenuScreen({
   themeVars,
   worlds,
@@ -42,6 +59,8 @@ export function MenuScreen({
 }: MenuScreenProps) {
   const [trackOptimals, setTrackOptimals] = useState<Record<string, number | null>>({});
   const [optimalsLoading, setOptimalsLoading] = useState(false);
+  const progressionSave = useMemo(() => loadProgression(), [world?.id, scenarioEntry?.id, trackId]);
+  const bypassLocks = isDevMode();
 
   const tracks = scenarioEntry?.tracks ?? [];
   const showTrackList = tracks.length > 1;
@@ -126,16 +145,37 @@ export function MenuScreen({
                   const active = t.id === trackId;
                   const optimal = trackOptimals[t.id];
                   const best = scenarioEntry ? getBestScore(scenarioEntry.id, t.id) : null;
+                  const status =
+                    world && scenarioEntry
+                      ? getTrackStatus(progressionSave, worlds, world, scenarioEntry, t.id)
+                      : "AVAILABLE";
+                  const locked = status === "LOCKED" && !bypassLocks;
                   return (
                     <button
                       key={t.id}
                       type="button"
                       role="option"
                       aria-selected={active}
-                      className={"trackListRow " + (active ? "active" : "")}
-                      onClick={() => onSelectTrack(t.id)}
+                      aria-disabled={locked}
+                      className={
+                        "trackListRow " +
+                        (active ? "active " : "") +
+                        (locked ? "locked " : "") +
+                        (status === "COMPLETED" ? "completed " : "")
+                      }
+                      onClick={() => {
+                        if (locked) return;
+                        onSelectTrack(t.id);
+                      }}
                     >
-                      <span className="trackListColName">{t.name}</span>
+                      <span className="trackListColName">
+                        {trackStatusLabel(status) ? (
+                          <span className="trackProgressMark" aria-hidden="true">
+                            {trackStatusLabel(status)}{" "}
+                          </span>
+                        ) : null}
+                        {t.name}
+                      </span>
                       <span className="trackListColStat trackListColNum">
                         {optimalsLoading && optimal == null ? "…" : formatScore(optimal)}
                       </span>

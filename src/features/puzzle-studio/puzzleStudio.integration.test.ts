@@ -86,7 +86,7 @@ describe("track browser catalog", () => {
     const prismTracks = catalog.filter((t) => t.worldId === "rainbow_realm");
     const fcTracks = catalog.filter((t) => t.worldId === "forgotten_citadel");
     expect(prismTracks.length).toBeGreaterThanOrEqual(20);
-    expect(fcTracks.length).toBe(30);
+    expect(fcTracks.length).toBe(39);
   });
 
   it("track entries reference distinct scenario JSON paths", () => {

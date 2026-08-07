@@ -51,7 +51,18 @@ export type ScenarioTheme = {
 
 export type CloudMode = "cloudy" | "full_cloud";
 
-export type Track = { id: string; name: string; scenarioJson: string };
+import type {
+  ScenarioProgressionDefinition,
+  TrackProgressionDefinition,
+  WorldProgressionDefinition,
+} from "../progression/types";
+
+export type Track = {
+  id: string;
+  name: string;
+  scenarioJson: string;
+  progression?: TrackProgressionDefinition;
+};
 
 export type ScenarioEntry = {
   id: string;
@@ -61,6 +72,7 @@ export type ScenarioEntry = {
   theme: ScenarioTheme;
   tracks?: Track[];
   cloudMode?: CloudMode;
+  progression?: ScenarioProgressionDefinition;
 };
 
 export type WorldEntry = {
@@ -69,6 +81,7 @@ export type WorldEntry = {
   desc?: string;
   menu: { solidColor?: string };
   scenarios: ScenarioEntry[];
+  progression?: WorldProgressionDefinition;
 };
 
 export type VillainKey = "bad1" | "bad2" | "bad3" | "bad4";

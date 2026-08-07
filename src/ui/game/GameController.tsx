@@ -11,6 +11,14 @@ import { facingFromMove, hexIdAtSlot, rowShiftLabel, clockwiseOrderFrom } from "
 
 import { resolveTileVisualType, tileArtRelPath } from "../tileArt";
 import { getBestScore, saveBestScore } from "../bestScore";
+import worlds from "../../worlds";
+import {
+  loadProgression,
+  logProgressionDebug,
+  recordTrackCompletion,
+  resolveNextAvailableTrack,
+  saveProgression,
+} from "../../progression";
 import type {
   LogEntry,
   ScenarioEntry,
@@ -78,6 +86,7 @@ type GoalAchievedState = {
 };
 
 export type GameControllerProps = {
+  worldId: string;
   scenarioEntry: ScenarioEntry;
   trackEntry: Track | null;
   trackId: string | null;
@@ -89,6 +98,7 @@ export type GameControllerProps = {
 };
 
 export function GameController({
+  worldId,
   scenarioEntry,
   trackEntry,
   trackId,
@@ -107,6 +117,7 @@ export function GameController({
   const startScenarioOptionsRef = useRef<{
     intent?: import("../../engine/layerTransform").TrackRunIntent;
   }>({});
+  const progressionWinRecordedRef = useRef(false);
 
   /* =========================
      Core game state
@@ -344,13 +355,27 @@ export function GameController({
       } else {
         pushLog("Goal reached!", "ok");
       }
+
+      if (worldId && trackId && !progressionWinRecordedRef.current) {
+        progressionWinRecordedRef.current = true;
+        const world = worlds.find((w) => w.id === worldId);
+        if (world) {
+          const save = loadProgression();
+          const updated = recordTrackCompletion(save, worldId, trackId, { incrementCount: true });
+          saveProgression(updated);
+          if (isDevMode()) {
+            logProgressionDebug(updated, worlds, world, scenarioEntry, trackId);
+          }
+        }
+      }
+
       setGoalAchieved({
         moves: moveCount,
         least: optimalAtStart,
         best,
       });
     },
-    [scenarioEntry, trackId, pushLog, optimalAtStart, bestScore]
+    [scenarioEntry, trackId, worldId, pushLog, optimalAtStart, bestScore]
   );
 
   const playMoveOutcomeSound = useCallback(
@@ -369,11 +394,14 @@ export function GameController({
 
   const nextTrack = useMemo(() => {
     const tracks = scenarioEntry.tracks ?? [];
-    if (tracks.length <= 1) return null;
-    const idx = trackId ? tracks.findIndex((t) => t.id === trackId) : 0;
-    if (idx < 0 || idx >= tracks.length - 1) return null;
-    return tracks[idx + 1];
-  }, [scenarioEntry, trackId]);
+    if (tracks.length <= 1 || !trackId) return null;
+    const world = worlds.find((w) => w.id === worldId);
+    if (!world) return null;
+    const save = loadProgression();
+    const resolution = resolveNextAvailableTrack(worlds, world, scenarioEntry, trackId, save);
+    if (resolution.kind !== "TRACK") return null;
+    return tracks.find((t) => t.id === resolution.trackId) ?? null;
+  }, [scenarioEntry, trackId, worldId]);
 
   /* =========================
      Reachability (1-step neighbors)
@@ -1078,6 +1106,7 @@ export function GameController({
     const chosenJson = hasTracks ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson : scenarioEntry.scenarioJson;
 
     setGoalAchieved(null);
+    progressionWinRecordedRef.current = false;
 
     const cacheKey = "20260801e";
     const url = chosenJson + (chosenJson.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(cacheKey);
