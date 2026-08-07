@@ -296,12 +296,32 @@
   ],
   "blocked": [],
   "movement": {
-    "1": "NONE",
+    "1": {
+      "rows": {
+        "0": { "direction": "NONE", "amount": 0 },
+        "1": { "direction": "NONE", "amount": 0 },
+        "2": { "direction": "NONE", "amount": 0 },
+        "3": { "direction": "NONE", "amount": 0 },
+        "4": { "direction": "NONE", "amount": 0 },
+        "5": { "direction": "LEFT", "amount": 2 },
+        "6": { "direction": "NONE", "amount": 0 }
+      }
+    },
     "2": "NONE",
     "3": "NONE",
     "4": "NONE",
     "5": "NONE",
-    "6": "NONE",
+    "6": {
+      "rows": {
+        "0": { "direction": "NONE", "amount": 0 },
+        "1": { "direction": "NONE", "amount": 0 },
+        "2": { "direction": "NONE", "amount": 0 },
+        "3": { "direction": "RIGHT", "amount": 5 },
+        "4": { "direction": "NONE", "amount": 0 },
+        "5": { "direction": "NONE", "amount": 0 },
+        "6": { "direction": "NONE", "amount": 0 }
+      }
+    },
     "7": "NONE"
   },
   "transitions": [
