@@ -13,6 +13,7 @@ import { loadWorlds } from "./worldsLoader";
 import type { Screen, WorldEntry } from "./types";
 import { CharactersScreen } from "../features/sprite-builder/CharactersScreen";
 import { PuzzleStudioScreen, isDevMode, resolveInitialScreen } from "../features/puzzle-studio";
+import { TrackPlannerScreen } from "../studio/trackPlanner";
 import {
   loadActiveSpriteId,
   loadSprites,
@@ -96,6 +97,7 @@ export default function App() {
         onStart={() => setScreen("world")}
         onCharacters={() => setScreen("characters")}
         onPuzzleStudio={() => setScreen("studio")}
+        onTrackPlanner={() => setScreen("trackPlanner")}
         onReset={resetAll}
       />
     );
@@ -114,6 +116,16 @@ export default function App() {
   if (screen === "studio") {
     return (
       <PuzzleStudioScreen
+        themeVars={themeVars}
+        worlds={worlds}
+        onBack={() => setScreen("start")}
+      />
+    );
+  }
+
+  if (screen === "trackPlanner") {
+    return (
+      <TrackPlannerScreen
         themeVars={themeVars}
         worlds={worlds}
         onBack={() => setScreen("start")}

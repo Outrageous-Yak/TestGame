@@ -7,6 +7,7 @@ type StartScreenProps = {
   onStart: () => void;
   onCharacters: () => void;
   onPuzzleStudio?: () => void;
+  onTrackPlanner?: () => void;
   onReset: () => void;
 };
 
@@ -17,6 +18,7 @@ export function StartScreen({
   onStart,
   onCharacters,
   onPuzzleStudio,
+  onTrackPlanner,
   onReset,
 }: StartScreenProps) {
   return (
@@ -33,6 +35,11 @@ export function StartScreen({
             <button className="btn" onClick={onCharacters}>
               Characters
             </button>
+            {onTrackPlanner ? (
+              <button className="btn" onClick={onTrackPlanner}>
+                Track Planner
+              </button>
+            ) : null}
             <button className="btn" onClick={onReset}>
               Reset
             </button>
