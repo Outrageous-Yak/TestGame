@@ -239,6 +239,76 @@
   box-shadow: inset 0 0 0 3px #facc15;
 }
 
+.tp-portalDest {
+  outline: 2px dashed #60a5fa;
+  box-shadow: inset 0 0 0 2px rgba(96, 165, 250, 0.45);
+}
+
+.tp-portalDestBadge {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 700;
+  color: #93c5fd;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+}
+
+.tp-pickingPortalDest .tp-boardArea {
+  cursor: crosshair;
+}
+
+.tp-portalEndpoints {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.tp-coordFieldset {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 8px 0;
+}
+
+.tp-coordFieldset legend {
+  padding: 0 4px;
+  font-size: 0.85rem;
+}
+
+.tp-coordRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tp-coordRow label {
+  flex: 1;
+  min-width: 72px;
+}
+
+.tp-coordRow input {
+  width: 100%;
+  min-height: 36px;
+  margin-top: 4px;
+}
+
+.tp-inspectorActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.tp-jumpLayer {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
 .tp-featBadge {
   position: absolute;
   top: 2px;
