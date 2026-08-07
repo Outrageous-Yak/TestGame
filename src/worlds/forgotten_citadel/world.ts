@@ -10,7 +10,7 @@ export default {
     {
       id: "citadel_path",
       name: "Citadel Path",
-      desc: "Ten original puzzles — vertical routing, portals, and shifting tiers",
+      desc: "Eleven original puzzles — vertical routing, portals, and shifting tiers",
       scenarioJson: "worlds/forgotten_citadel/scenarios/track01.json",
       theme: FORGOTTEN_CITADEL_THEME,
       tracks: [...FORGOTTEN_CITADEL_TRACKS],
