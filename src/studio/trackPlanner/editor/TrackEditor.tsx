@@ -83,7 +83,7 @@ export function TrackEditor({ track: initial, world, scenario, onTrackSaved, onB
 
   const saveDraft = () => {
     const bundle = upsertTrack(loadDraftBundle(), track);
-    saveDraftBundle(bundle);
+    queueMicrotask(() => saveDraftBundle(bundle));
     onTrackSaved(track);
     setDirty(false);
   };

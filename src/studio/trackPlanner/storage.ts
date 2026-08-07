@@ -14,11 +14,20 @@ export function loadDraftBundle(): PlannerDraftBundle {
   }
 }
 
+/** Persist only user-authored content — built-in worlds/scenarios/tracks are re-seeded on load. */
 export function saveDraftBundle(bundle: PlannerDraftBundle): void {
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({ ...bundle, updatedAt: new Date().toISOString() }),
-  );
+  const slim: PlannerDraftBundle = {
+    version: 1,
+    worlds: bundle.worlds.filter((w) => !w.builtIn),
+    scenarios: bundle.scenarios.filter((s) => !s.builtIn),
+    tracks: bundle.tracks.filter((t) => !t.builtIn),
+    updatedAt: new Date().toISOString(),
+  };
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
+  } catch (e) {
+    console.warn("Track Planner draft save failed", e);
+  }
 }
 
 export function emptyBundle(): PlannerDraftBundle {

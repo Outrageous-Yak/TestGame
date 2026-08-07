@@ -5,7 +5,6 @@ import { hexIdAtSlot } from "../../../engine/layout";
 import { hexGridPlacement, layerCssVar } from "../../../ui/game/helpers";
 import { freshPlaytestState } from "../simulation/runSimulator";
 import type { PlannerTrack, Pos } from "../types";
-import { authoredTrackToScenario } from "../serialization/scenarioBridge";
 
 type LayerBoardGridProps = {
   track: PlannerTrack;
@@ -15,6 +14,8 @@ type LayerBoardGridProps = {
   solutionOverlay?: Set<string>;
   onSlotClick?: (pos: Pos, hexId: string | null) => void;
   highlightFeatures?: boolean;
+  /** When false, skip building runtime game state (faster board editing). */
+  showPlayer?: boolean;
 };
 
 export function LayerBoardGrid({
@@ -25,6 +26,7 @@ export function LayerBoardGrid({
   solutionOverlay,
   onSlotClick,
   highlightFeatures = true,
+  showPlayer = false,
 }: LayerBoardGridProps) {
   const layerBoard = track.layers.find((l) => l.layer === layer);
   const missingSet = useMemo(() => {
@@ -51,8 +53,8 @@ export function LayerBoardGrid({
     return null;
   };
 
-  let state = playState;
-  if (!state) {
+  let state = playState ?? null;
+  if (!state && showPlayer) {
     try {
       state = freshPlaytestState(track);
     } catch {

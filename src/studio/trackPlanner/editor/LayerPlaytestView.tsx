@@ -87,6 +87,7 @@ export function LayerPlaytestView({ track, selectedLayer, onSelectLayer }: Layer
         track={track}
         layer={selectedLayer}
         playState={playState}
+        showPlayer
         onSlotClick={handleHex}
       />
     </div>

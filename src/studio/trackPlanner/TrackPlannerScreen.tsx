@@ -2,7 +2,13 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import type { WorldEntry } from "../../ui/types";
 import type { PlannerDraftBundle, PlannerScenario, PlannerTrack, PlannerWorld } from "./types";
 import { createEmptyTrack } from "./types";
-import { loadDraftBundle, saveDraftBundle, upsertScenario, upsertTrack, upsertWorld } from "./storage";
+import {
+  loadDraftBundle,
+  saveDraftBundle,
+  upsertScenario,
+  upsertTrack,
+  upsertWorld,
+} from "./storage";
 import { mergeBundles, newId, seedBundleFromWorlds, hydrateTrackFromJson } from "./catalog";
 import { TrackEditor } from "./editor/TrackEditor";
 import "./trackPlanner.css";
@@ -30,10 +36,11 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
   const [editingTrack, setEditingTrack] = useState<PlannerTrack | null>(null);
   const [expandedWorlds, setExpandedWorlds] = useState<Set<string>>(new Set());
   const [formName, setFormName] = useState("");
+  const [openingTrack, setOpeningTrack] = useState(false);
 
   const persist = useCallback((next: PlannerDraftBundle) => {
     setBundle(next);
-    saveDraftBundle(next);
+    queueMicrotask(() => saveDraftBundle(next));
   }, []);
 
   const selectedWorld = bundle.worlds.find((w) => w.worldId === selectedWorldId);
@@ -50,19 +57,27 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
   );
 
   const openTrack = async (track: PlannerTrack) => {
+    setOpeningTrack(true);
     let t = track;
-    if (track.sourceScenarioJson && track.features.length <= 2) {
+    const needsHydrate = track.sourceScenarioJson && track.features.length === 0;
+    if (needsHydrate) {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 15000);
       try {
         t = await hydrateTrackFromJson(track, async (path) => {
-          const res = await fetch(path);
+          const res = await fetch(path, { signal: controller.signal });
+          if (!res.ok) throw new Error(`Failed to load ${path}`);
           return res.json();
         });
       } catch {
         /* keep stub */
+      } finally {
+        window.clearTimeout(timeout);
       }
     }
     setEditingTrack(t);
     setScreen("editor");
+    setOpeningTrack(false);
   };
 
   const createWorld = () => {
@@ -111,16 +126,18 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
     if (!selectedWorldId || !selectedScenarioId) return;
     const trackId = newId("track");
     const track = createEmptyTrack(trackId, selectedScenarioId, selectedWorldId, formName || "New Track");
-    const sc = bundle.scenarios.find((s) => s.scenarioId === selectedScenarioId);
-    if (sc) {
-      persist(
-        upsertTrack(upsertScenario(bundle, { ...sc, trackOrder: [...sc.trackOrder, trackId] }), track),
-      );
-    } else {
-      persist(upsertTrack(bundle, track));
-    }
     setFormName("");
-    openTrack(track);
+    // Open editor immediately so the UI does not block on localStorage / bundle writes.
+    setEditingTrack(track);
+    setScreen("editor");
+    setBundle((prev) => {
+      const sc = prev.scenarios.find((s) => s.scenarioId === selectedScenarioId);
+      const next = sc
+        ? upsertTrack(upsertScenario(prev, { ...sc, trackOrder: [...sc.trackOrder, trackId] }), track)
+        : upsertTrack(prev, track);
+      queueMicrotask(() => saveDraftBundle(next));
+      return next;
+    });
   };
 
   if (screen === "editor" && editingTrack) {
@@ -166,12 +183,19 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
             <button
               type="button"
               className="btn"
-              disabled={!selectedScenarioId}
-              onClick={() => setScreen("trackNew")}
+              disabled={!selectedScenarioId || openingTrack}
+              onClick={() => {
+                setFormName("");
+                setScreen("trackNew");
+              }}
             >
               Add Track
             </button>
           </div>
+
+          {openingTrack ? (
+            <p className="tp-hint">Loading track…</p>
+          ) : null}
 
           {(screen === "worldNew" || screen === "scenarioNew" || screen === "trackNew") && (
             <div className="tp-form">

@@ -164,6 +164,8 @@
 }
 
 .tp-layerBoard {
+  content-visibility: auto;
+  contain-intrinsic-size: 360px;
   margin-bottom: 8px;
 }
 

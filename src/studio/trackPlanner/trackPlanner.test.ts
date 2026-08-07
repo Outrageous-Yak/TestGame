@@ -21,6 +21,7 @@ import {
   deleteScenario,
   deleteWorld,
   emptyBundle,
+  saveDraftBundle,
   upsertScenario,
   upsertTrack,
   upsertWorld,
@@ -47,6 +48,35 @@ function trackWithStartGoal() {
 }
 
 describe("Track Planner storage", () => {
+  it("persists only user-authored entries, not built-in seed data", () => {
+    const store: Record<string, string> = {};
+    const ls = {
+      setItem: (k: string, v: string) => {
+        store[k] = v;
+      },
+      getItem: (k: string) => store[k] ?? null,
+    };
+    const original = globalThis.localStorage;
+    Object.defineProperty(globalThis, "localStorage", { value: ls, configurable: true });
+
+    saveDraftBundle({
+      version: 1,
+      worlds: [
+        { worldId: "builtin", name: "B", encounterPool: [], villainPool: [], scenarioIds: [], builtIn: true },
+        { worldId: "custom", name: "C", encounterPool: [], villainPool: [], scenarioIds: [] },
+      ],
+      scenarios: [],
+      tracks: [],
+      updatedAt: "",
+    });
+
+    const saved = JSON.parse(store.track_planner_drafts_v1);
+    expect(saved.worlds).toHaveLength(1);
+    expect(saved.worlds[0].worldId).toBe("custom");
+
+    Object.defineProperty(globalThis, "localStorage", { value: original, configurable: true });
+  });
+
   it("rejects duplicate world overwrite via upsert (latest wins)", () => {
     let bundle = emptyBundle();
     bundle = upsertWorld(bundle, {
