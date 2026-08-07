@@ -1,4 +1,6 @@
-import { FORGOTTEN_CITADEL_THEME, FORGOTTEN_CITADEL_TRACKS } from "./tracks";
+import { FORGOTTEN_CITADEL_THEME, FORGOTTEN_CITADEL_TRACKS, PORTAL_FORK_TRACK } from "./tracks";
+
+const PORTAL_FORK_JSON = "worlds/forgotten_citadel/scenarios/track03.json";
 
 export default {
   id: "forgotten_citadel",
@@ -32,6 +34,60 @@ export default {
       scenarioJson: "worlds/forgotten_citadel/scenarios/track01.json",
       theme: FORGOTTEN_CITADEL_THEME,
       tracks: [...FORGOTTEN_CITADEL_TRACKS],
+    },
+    {
+      id: "citadel_fork_memory",
+      name: "Fork Memory",
+      desc: "Portal Fork — visited tiles stay visible in the mist.",
+      visibilityMode: "memory",
+      scenarioJson: PORTAL_FORK_JSON,
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [PORTAL_FORK_TRACK],
+    },
+    {
+      id: "citadel_fork_lantern",
+      name: "Fork Lantern",
+      desc: "Portal Fork — a soft light reveals nearby stone.",
+      visibilityMode: "lantern",
+      scenarioJson: PORTAL_FORK_JSON,
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [PORTAL_FORK_TRACK],
+    },
+    {
+      id: "citadel_fork_echo",
+      name: "Fork Echo",
+      desc: "Portal Fork — ghost traces linger where you stepped.",
+      visibilityMode: "echo",
+      scenarioJson: PORTAL_FORK_JSON,
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [PORTAL_FORK_TRACK],
+    },
+    {
+      id: "citadel_fork_night",
+      name: "Fork Night",
+      desc: "Portal Fork under a dark sky — only your tile and moves show.",
+      visibilityMode: "night",
+      scenarioJson: PORTAL_FORK_JSON,
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [PORTAL_FORK_TRACK],
+    },
+    {
+      id: "citadel_fork_invisible",
+      name: "Fork Invisible",
+      desc: "Portal Fork — only your current tile is visible.",
+      visibilityMode: "invisible",
+      scenarioJson: PORTAL_FORK_JSON,
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [PORTAL_FORK_TRACK],
+    },
+    {
+      id: "citadel_fork_crystal_vision",
+      name: "Fork Crystal Vision",
+      desc: "Portal Fork — goal and portals shine through the haze.",
+      visibilityMode: "crystal_vision",
+      scenarioJson: PORTAL_FORK_JSON,
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [PORTAL_FORK_TRACK],
     },
   ],
 } as const;

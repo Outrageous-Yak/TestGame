@@ -110,7 +110,30 @@ describe("Forgotten Citadel cloud scenario registry", () => {
       "citadel_path",
       "citadel_partly_cloudy",
       "citadel_cloudy",
+      "citadel_fork_memory",
+      "citadel_fork_lantern",
+      "citadel_fork_echo",
+      "citadel_fork_night",
+      "citadel_fork_invisible",
+      "citadel_fork_crystal_vision",
     ]);
+  });
+
+  it("Fork visibility scenarios point at Portal Fork", () => {
+    const forkIds = [
+      "citadel_fork_memory",
+      "citadel_fork_lantern",
+      "citadel_fork_echo",
+      "citadel_fork_night",
+      "citadel_fork_invisible",
+      "citadel_fork_crystal_vision",
+    ];
+    for (const id of forkIds) {
+      const s = citadel?.scenarios.find((sc) => sc.id === id);
+      expect(s?.tracks?.length).toBe(1);
+      expect(s?.tracks?.[0]?.id).toBe("fc_t03");
+      expect(s?.scenarioJson).toContain("track03.json");
+    }
   });
 
   const pairs =

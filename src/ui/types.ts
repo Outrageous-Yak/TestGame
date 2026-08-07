@@ -51,8 +51,46 @@ export type ScenarioTheme = {
 
 export type CloudMode = "cloudy" | "full_cloud";
 
-export type Track = { id: string; name: string; scenarioJson: string };
+/** Extended visibility modes (runtime v1 — Portal Fork test scenarios). */
+export type ExtendedVisibilityMode =
+  | "night"
+  | "invisible"
+  | "memory"
+  | "lantern"
+  | "crystal_vision"
+  | "echo";
 
+export type {
+  MechanicId,
+  ProgressionMode,
+  ProgressionPresentation,
+  ProgressionRequirement,
+  ScenarioProgressionMeta,
+  TrackProgressionMeta,
+  WorldProgressionMeta,
+} from "../progression/types";
+
+import type {
+  ScenarioProgressionMeta,
+  TrackProgressionMeta,
+  WorldProgressionMeta,
+} from "../progression/types";
+
+/**
+ * Registered playable level — points at engine board JSON via `scenarioJson`.
+ * Distinct from engine `Scenario` (board definition in JSON).
+ */
+export type Track = {
+  id: string;
+  name: string;
+  scenarioJson: string;
+  progression?: TrackProgressionMeta;
+};
+
+/**
+ * UI menu scenario variant (theme, cloud mode, track list).
+ * Not the same as engine `Scenario` (board JSON).
+ */
 export type ScenarioEntry = {
   id: string;
   name: string;
@@ -61,6 +99,8 @@ export type ScenarioEntry = {
   theme: ScenarioTheme;
   tracks?: Track[];
   cloudMode?: CloudMode;
+  visibilityMode?: ExtendedVisibilityMode;
+  progression?: ScenarioProgressionMeta;
 };
 
 export type WorldEntry = {
@@ -69,6 +109,7 @@ export type WorldEntry = {
   desc?: string;
   menu: { solidColor?: string };
   scenarios: ScenarioEntry[];
+  progression?: WorldProgressionMeta;
 };
 
 export type VillainKey = "bad1" | "bad2" | "bad3" | "bad4";
