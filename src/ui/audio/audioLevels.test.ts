@@ -14,10 +14,12 @@ describe("audioLevels", () => {
     const move = expectedPlaybackPeakDb("playerMove");
     const portal = expectedPlaybackPeakDb("portalLand");
     const failed = expectedPlaybackPeakDb("failedMove");
+    const evilLaugh = expectedPlaybackPeakDb("redCardEvilLaugh");
 
     expect(move).toBeCloseTo(SFX_TARGET_PEAK_DB, 1);
     expect(portal).toBeCloseTo(SFX_TARGET_PEAK_DB, 1);
     expect(failed).toBeCloseTo(SFX_TARGET_PEAK_DB, 1);
+    expect(evilLaugh).toBeCloseTo(SFX_TARGET_PEAK_DB, 1);
   });
 
   it("makes goal slightly louder than other effects", () => {

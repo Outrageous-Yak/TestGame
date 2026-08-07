@@ -7,7 +7,12 @@ export const GOAL_TARGET_PEAK_DB = -12;
 /** Background music sits just below normalized effects. */
 export const BGM_TARGET_PEAK_DB = -17;
 
-export type BalancedSoundId = "playerMove" | "portalLand" | "goalLand" | "failedMove";
+export type BalancedSoundId =
+  | "playerMove"
+  | "portalLand"
+  | "goalLand"
+  | "failedMove"
+  | "redCardEvilLaugh";
 
 /** Measured file peaks (ffmpeg volumedetect). */
 export const SOUND_FILE_PEAK_DB: Record<BalancedSoundId, number> = {
@@ -15,6 +20,7 @@ export const SOUND_FILE_PEAK_DB: Record<BalancedSoundId, number> = {
   portalLand: -14.5,
   goalLand: -0.9,
   failedMove: -0.4,
+  redCardEvilLaugh: -0.2,
 };
 
 export const BGM_FILE_PEAK_DB = -1.0;

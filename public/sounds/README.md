@@ -16,5 +16,5 @@ The move sound is trimmed to ~1.1s; portal and goal use the full clips (~2.5s an
 |---------|------|-------|
 | Lollipop Cop (`bad1`) | `villains/lollipop-cop.mp3` | User-generated TTS (Mureka), static trimmed |
 
-Voice lines play when a villain encounter starts (hex trigger or risk card). Mapped in `src/ui/audio/villainVoice.ts`.
+Voice lines play when a villain encounter starts (hex trigger or risk card), and Lollipop Cop also plays when a red (cosmic) card is landed on. Mapped in `src/ui/audio/villainVoice.ts`.
 

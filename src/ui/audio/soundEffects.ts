@@ -6,6 +6,7 @@ export const SOUND_EFFECT_PATHS = {
   portalLand: "sounds/effects/portal-land.mp3",
   goalLand: "sounds/effects/goal-land.mp3",
   failedMove: "sounds/effects/failed-move.mp3",
+  redCardEvilLaugh: "sounds/effects/red-card-evil-laugh.mp3",
 } as const;
 
 export type SoundEffectId = keyof typeof SOUND_EFFECT_PATHS;
@@ -152,4 +153,8 @@ export function playGoalLandSound() {
 
 export function playFailedMoveSound() {
   void playSoundEffect("failedMove");
+}
+
+export function playRedCardEvilLaughSound() {
+  void playSoundEffect("redCardEvilLaugh");
 }
