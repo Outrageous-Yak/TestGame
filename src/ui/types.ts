@@ -25,8 +25,6 @@ export type LayerPalette = {
 
 export type ScenarioTheme = {
   palette: LayerPalette;
-  /** Visual presentation mode for in-game UI. */
-  presentation?: "citadel_frame";
   assets: {
     backgroundGame?: string;
     backgroundLayers?: Partial<{

@@ -66,7 +66,6 @@ import {
 import { playGoalLandSound, playPlayerMoveSound, playPortalLandSound, playFailedMoveSound, preloadSoundEffects } from "../audio/soundEffects";
 import { preloadThunderSound } from "../audio/stormAudio";
 import { ReachSparkle } from "./ReachSparkle";
-import "./citadelFrame.css";
 import { startBackgroundMusic, stopBackgroundMusic } from "../audio/backgroundMusic";
 import type { MoveAttemptResult } from "../../engine/moveAttempt";
 
@@ -534,21 +533,6 @@ export function GameController({
   const HEX_TILE_MOVABLE = activeTheme?.assets.hexTileMovable ?? "";
   const SOLID_GOLD_GOAL = activeTheme?.assets.solidGoldGoal ?? false;
   const BACKGROUND_MUSIC = activeTheme?.assets.backgroundMusic ?? "";
-  const citadelFrame = activeTheme?.presentation === "citadel_frame";
-
-  const boardWrapRef = useRef<HTMLDivElement | null>(null);
-  const prevLayerRef = useRef(currentLayer);
-
-  useEffect(() => {
-    if (!citadelFrame) return;
-    if (prevLayerRef.current === currentLayer) return;
-    prevLayerRef.current = currentLayer;
-    const el = boardWrapRef.current;
-    if (!el) return;
-    el.classList.add("citadelLayerShift");
-    const timer = window.setTimeout(() => el.classList.remove("citadelLayerShift"), 520);
-    return () => window.clearTimeout(timer);
-  }, [citadelFrame, currentLayer]);
 
   const themeVars = useMemo(() => {
     const p = palette;
@@ -1346,9 +1330,7 @@ export function GameController({
   );
   return (
     <div
-      className={["appRoot", "game", isCloudScenario ? "cloudScenarioActive" : "", citadelFrame ? "citadelFrame" : ""]
-        .filter(Boolean)
-        .join(" ")}
+      className={["appRoot", "game", isCloudScenario ? "cloudScenarioActive" : ""].filter(Boolean).join(" ")}
       style={themeVars}
     >
       <div
@@ -1429,19 +1411,7 @@ export function GameController({
 
       <div className="gameLayout">
         <div className="playColumn">
-          <div
-            className="boardWrap"
-            ref={boardWrapRef}
-            data-layer-depth={citadelFrame ? currentLayer : undefined}
-          >
-            {citadelFrame ? (
-              <div className="citadelTunnelDecor" aria-hidden="true">
-                <div className="citadelTunnelLight" />
-                <div className="citadelTunnelDepth" />
-                <div className="citadelTunnelWall citadelTunnelWall--left" />
-                <div className="citadelTunnelWall citadelTunnelWall--right" />
-              </div>
-            ) : null}
+          <div className="boardWrap">
             {isCloudScenario && cloudMode ? (
               <div className={cloudAtmosphereClass(cloudMode, "board")} aria-hidden="true" />
             ) : null}
