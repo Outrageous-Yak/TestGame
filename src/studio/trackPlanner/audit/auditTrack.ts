@@ -1,6 +1,7 @@
 import type { PlannerTrack, TrackFeature } from "../types";
 import { validateStructuralCoords } from "../serialization/scenarioBridge";
 import type { PlannerWorld, PlannerScenario } from "../types";
+import { duplicateSlotKeys, featureOccupancyPos, posSlotKey } from "../features/featureOccupancy";
 
 export type AuditLevel = "approved" | "warning" | "error";
 
@@ -46,9 +47,22 @@ export function auditTrack(
       : world?.villainPool ?? [],
   );
 
+  const slotDupes = duplicateSlotKeys(track);
+
   for (const f of track.features) {
     const base = featureAuditItem(f);
-    items.push(base);
+    const slot = featureOccupancyPos(f);
+    const dupeCount = slot ? (slotDupes.get(posSlotKey(slot))?.length ?? 0) : 0;
+    const item: AuditItem =
+      dupeCount > 1
+        ? {
+            ...base,
+            level: "error",
+            message: `Duplicate hex occupancy (${dupeCount} features on this hex)`,
+            notes: base.notes,
+          }
+        : base;
+    items.push(item);
 
     if (f.kind === "card") {
       if (f.cardType === "HIDDEN" && !f.resolvedType) {

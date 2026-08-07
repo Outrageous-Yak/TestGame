@@ -10,6 +10,7 @@ import type {
 import { newId } from "../catalog";
 import type { VillainKey } from "../../../ui/types";
 import { LayerBoardGrid } from "../components/LayerBoardGrid";
+import { canPlaceOnSlot } from "../features/featureOccupancy";
 
 type FeaturesViewProps = {
   track: PlannerTrack;
@@ -41,6 +42,13 @@ export function FeaturesView({
 
   const placeFeature = (pos: Pos) => {
     if (!featureTool) return;
+
+    const slotCheck = canPlaceOnSlot(track, featureTool, pos);
+    if (!slotCheck.ok) {
+      if (slotCheck.existingId) onSelectFeature(slotCheck.existingId);
+      return;
+    }
+
     const next = { ...track, features: [...track.features] };
 
     const removeAt = (kind: TrackFeature["kind"]) => {

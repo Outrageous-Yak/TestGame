@@ -10,7 +10,8 @@ import {
   serializeScenarioExport,
   validateStructuralCoords,
 } from "./serialization/scenarioBridge";
-import { auditTrack } from "./audit/auditTrack";
+import { auditTrack, auditSummary } from "./audit/auditTrack";
+import { canPlaceOnSlot } from "./features/featureOccupancy";
 import {
   cloneTrack,
   setRowMovement,
@@ -189,6 +190,35 @@ describe("Track Planner scenario bridge", () => {
     const errors = validateStructuralCoords(track);
     expect(errors.some((e) => e.includes("on missing hex"))).toBe(true);
   });
+
+  it("exports villains and encounters from authored features", () => {
+    const track = trackWithStartGoal();
+    track.features.push(
+      {
+        kind: "encounter",
+        id: "enc_1",
+        position: { layer: 7, row: 1, col: 1 },
+        mode: "random",
+      },
+      { kind: "villain", id: "v1", position: { layer: 7, row: 2, col: 1 }, mode: "random" },
+      { kind: "villain", id: "v2", position: { layer: 7, row: 2, col: 3 }, mode: "random" },
+    );
+
+    const exported = JSON.parse(serializeScenarioExport(track)) as Scenario & {
+      villains?: { triggers: Array<{ layer: number; row: number; col: number }> };
+      runtimeMovement?: unknown;
+    };
+
+    expect(exported.villains?.triggers).toHaveLength(3);
+    expect(exported.villains?.triggers).toEqual(
+      expect.arrayContaining([
+        { id: "bad1", layer: 7, row: 1, col: 1 },
+        { id: "villain_v1", layer: 7, row: 2, col: 1 },
+        { id: "villain_v2", layer: 7, row: 2, col: 3 },
+      ]),
+    );
+    expect(exported.runtimeMovement).toBeUndefined();
+  });
 });
 
 describe("Track Planner audit", () => {
@@ -234,6 +264,46 @@ describe("Track Planner audit", () => {
     };
     const items = auditTrack(track, world);
     expect(items.some((i) => i.level === "error" && i.message.includes("pool"))).toBe(true);
+  });
+
+  it("flags duplicate features on the same hex as error", () => {
+    const track = trackWithStartGoal();
+    const shared = { layer: 7, row: 2, col: 1 };
+    track.features.push(
+      {
+        kind: "encounter",
+        id: "enc_1",
+        position: { layer: 7, row: 1, col: 1 },
+        mode: "random",
+      },
+      { kind: "villain", id: "v1", position: { ...shared }, mode: "random" },
+      { kind: "villain", id: "v2", position: { ...shared }, mode: "random" },
+      { kind: "villain", id: "v3", position: { ...shared }, mode: "random" },
+      { kind: "villain", id: "v4", position: { ...shared }, mode: "random" },
+      { kind: "villain", id: "v5", position: { layer: 7, row: 2, col: 3 }, mode: "random" },
+    );
+
+    const items = auditTrack(track);
+    const dupes = items.filter((i) => i.message.includes("Duplicate hex occupancy"));
+    expect(dupes).toHaveLength(4);
+    expect(dupes.every((i) => i.level === "error")).toBe(true);
+    expect(auditSummary(items).error).toBeGreaterThanOrEqual(4);
+  });
+});
+
+describe("Track Planner feature occupancy", () => {
+  it("blocks placing a second villain on an occupied hex", () => {
+    const track = trackWithStartGoal();
+    track.features.push({
+      kind: "villain",
+      id: "v1",
+      position: { layer: 7, row: 2, col: 1 },
+      mode: "random",
+    });
+    const pos = { layer: 7, row: 2, col: 1 };
+    const check = canPlaceOnSlot(track, "villain", pos);
+    expect(check.ok).toBe(false);
+    if (!check.ok) expect(check.existingId).toBe("v1");
   });
 });
 

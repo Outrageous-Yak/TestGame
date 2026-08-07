@@ -1,4 +1,5 @@
 import type { Scenario, Pos, Transition } from "../../../engine/types";
+import type { VillainsSpec } from "../../../engine/types";
 import { ROW_LENS } from "../../../engine/board";
 import type { ScenarioMovementDefinition } from "../../../engine/rowMovement/types";
 import { assertScenario } from "../../../engine/scenario";
@@ -40,6 +41,34 @@ function cardToRuntimeTrigger(card: CardFeature): CardTrigger | null {
   };
 }
 
+function buildVillains(track: PlannerTrack): VillainsSpec | undefined {
+  const triggers: VillainsSpec["triggers"] = [];
+
+  for (const f of track.features) {
+    if (f.kind === "villain") {
+      triggers.push({
+        id:
+          f.mode === "specific" && f.villainKey
+            ? f.villainKey
+            : f.villainKey ?? `villain_${f.id}`,
+        layer: f.position.layer,
+        row: f.position.row,
+        col: f.position.col,
+      });
+    } else if (f.kind === "encounter") {
+      triggers.push({
+        id: f.mode === "specific" && f.encounterId ? f.encounterId : "bad1",
+        layer: f.position.layer,
+        row: f.position.row,
+        col: f.position.col,
+      });
+    }
+  }
+
+  if (triggers.length === 0) return undefined;
+  return { requiredRoll: 6, triggers };
+}
+
 export type RuntimeScenarioDocument = Scenario & {
   cardTriggers?: CardTrigger[];
   /** Planner metadata — ignored by game loader. */
@@ -78,6 +107,8 @@ export function authoredTrackToScenario(track: PlannerTrack): RuntimeScenarioDoc
     if (trig) cardTriggers.push(trig);
   }
 
+  const villains = buildVillains(track);
+
   const upLayers = new Set(
     transitions.filter((t) => t.type === "UP").map((t) => t.from.layer),
   );
@@ -96,6 +127,7 @@ export function authoredTrackToScenario(track: PlannerTrack): RuntimeScenarioDoc
     transitions,
     revealOnEnterGuaranteedUp,
     ...(cardTriggers.length ? { cardTriggers } : {}),
+    ...(villains ? { villains } : {}),
     _plannerMeta: {
       visibilityOverlays: track.visibility,
       featureIds: track.features.map((f) => f.id),
@@ -141,7 +173,11 @@ export function validateStructuralCoords(track: PlannerTrack): string[] {
 
 export function serializeScenarioExport(track: PlannerTrack): string {
   const doc = authoredTrackToScenario(track);
-  const { _plannerMeta, ...runtime } = doc;
+  const { _plannerMeta, runtimeMovement, ...runtime } = doc as Scenario & {
+    _plannerMeta?: unknown;
+    runtimeMovement?: unknown;
+  };
   void _plannerMeta;
+  void runtimeMovement;
   return JSON.stringify(runtime, null, 2);
 }
