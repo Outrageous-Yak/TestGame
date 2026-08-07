@@ -21,6 +21,7 @@ permissions:
   pages: write
   id-token: write
   deployments: write
+  actions: write
 
 jobs:
   build:
@@ -28,6 +29,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
+      - name: Clear wedged legacy deploy runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          for run_id in 31124812384 31122319176; do
+            state=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status' 2>/dev/null)
+            if [ "$state" = "queued" ] || [ "$state" = "pending" ] || [ "$state" = "in_progress" ]; then
+              echo "Force-canceling wedged run ${run_id} (was ${state})"
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/force-cancel" 2>/dev/null || true
+              gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" 2>/dev/null || true
+            fi
+          done
+
       - name: Checkout
         uses: actions/checkout@v4
 
