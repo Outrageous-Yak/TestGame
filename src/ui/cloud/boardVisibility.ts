@@ -73,6 +73,38 @@ function lanternVisibleSet(
   return visible;
 }
 
+function buildPlayerOnlyVisibility(
+  args: ComputeBoardVisibilityArgs,
+  concealed: "faded" | "hidden"
+): Map<string, CloudVisualState> {
+  const {
+    currentHexId,
+    legalMoveHexIds,
+    allTerrainHexIds,
+    missingHexIds,
+    goalHexId,
+    portalHexIds,
+  } = args;
+
+  const result = new Map<string, CloudVisualState>();
+  const allHexIds = new Set(allTerrainHexIds);
+  if (missingHexIds) {
+    for (const hexId of missingHexIds) allHexIds.add(hexId);
+  }
+
+  for (const hexId of allHexIds) {
+    const isCurrent = hexId === currentHexId;
+    result.set(hexId, {
+      visibility: isCurrent ? "visible" : concealed,
+      isLegalMove: legalMoveHexIds.has(hexId),
+      hasGoal: goalHexId === hexId,
+      hasPortal: portalHexIds.has(hexId),
+    });
+  }
+
+  return result;
+}
+
 function buildFromVisibleSet(
   visibleSet: ReadonlySet<string>,
   partialFromLegal: boolean,
@@ -156,22 +188,11 @@ export function computeBoardVisibility(
   }
 
   if (mode === "night") {
-    return computeCloudVisibility({
-      mode: "full_cloud",
-      currentHexId: args.currentHexId,
-      legalMoveHexIds: args.legalMoveHexIds,
-      allTerrainHexIds: args.allTerrainHexIds,
-      missingHexIds: args.missingHexIds,
-      goalHexId: args.goalHexId,
-      portalHexIds: args.portalHexIds,
-      adjacency: args.adjacency,
-    });
+    return buildPlayerOnlyVisibility(args, "faded");
   }
 
   if (mode === "invisible") {
-    const visible = new Set<string>();
-    if (currentHexId) visible.add(currentHexId);
-    return buildFromVisibleSet(visible, false, args);
+    return buildPlayerOnlyVisibility(args, "hidden");
   }
 
   if (mode === "memory") {

@@ -13,6 +13,7 @@ export {
   shouldShowFullCloudMovePulse,
   shouldRenderCloudCover,
   shouldCardSitUnderCloud,
+  shouldShowReachHints,
   countActiveMovePulses,
 } from "./cloudBoardLayering";
 export { CloudCover } from "./CloudCover";

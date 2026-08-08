@@ -1,5 +1,5 @@
 export type CloudMode = "cloudy" | "full_cloud";
-export type CloudVisibility = "visible" | "partial" | "cloud";
+export type CloudVisibility = "visible" | "partial" | "cloud" | "faded" | "hidden";
 
 export interface CloudVisualState {
   visibility: CloudVisibility;
