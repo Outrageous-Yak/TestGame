@@ -525,6 +525,125 @@
   cursor: pointer;
 }
 
+.tp-featureToolBtn {
+  min-height: 44px;
+  font-size: 0.85rem;
+}
+
+.tp-featuresView {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tp-featureInventory {
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.tp-featureInventoryList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tp-featureInventoryList .tp-listBtn {
+  width: 100%;
+  text-align: left;
+  min-height: 44px;
+  margin-bottom: 4px;
+}
+
+.tp-featBadge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-right: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.tp-inspectorTitle {
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+.tp-auditHeader {
+  margin-bottom: 16px;
+}
+
+.tp-auditStructural {
+  font-weight: 700;
+  margin: 8px 0;
+}
+
+.tp-auditStructural-green {
+  color: #7dffb2;
+}
+
+.tp-auditStructural-amber {
+  color: #fbbf24;
+}
+
+.tp-auditStructural-red {
+  color: #f87171;
+}
+
+.tp-auditCounts {
+  margin: 4px 0;
+}
+
+.tp-auditSection {
+  margin-bottom: 16px;
+}
+
+.tp-auditCards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tp-auditCard {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.tp-auditCard.tp-audit-green {
+  border-left: 4px solid #7dffb2;
+}
+
+.tp-auditCard.tp-audit-amber {
+  border-left: 4px solid #fbbf24;
+}
+
+.tp-auditCard.tp-audit-red {
+  border-left: 4px solid #f87171;
+}
+
+.tp-auditCardMeta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+  margin: 8px 0;
+  font-size: 0.85rem;
+}
+
+.tp-auditCardMeta dt {
+  font-weight: 600;
+  margin: 0;
+}
+
+.tp-auditCardMeta dd {
+  margin: 0;
+}
+
+.tp-auditJumpBtn {
+  min-height: 44px;
+  width: 100%;
+}
+
 @media (min-width: 900px) {
   .tp-editor {
     padding: 16px 24px;

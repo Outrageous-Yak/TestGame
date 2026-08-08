@@ -238,7 +238,7 @@ describe("Track Planner audit", () => {
       cardType: "HIDDEN",
     });
     const items = auditTrack(track);
-    expect(items.some((i) => i.level === "error" && i.message.includes("resolvedType"))).toBe(true);
+    expect(items.some((i) => i.level === "error" && i.message.includes("hidden result"))).toBe(true);
   });
 
   it("warns on random mystery card", () => {
@@ -250,7 +250,7 @@ describe("Track Planner audit", () => {
       cardType: "RANDOM",
     });
     const items = auditTrack(track);
-    expect(items.some((i) => i.level === "warning" && i.message.includes("Random"))).toBe(true);
+    expect(items.some((i) => i.level === "warning" && i.message.includes("RANDOM"))).toBe(true);
   });
 
   it("rejects foreign-world villain", () => {
