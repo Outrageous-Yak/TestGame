@@ -10,3 +10,11 @@ export function boardDraftKey(worldId: string, trackId: string): string {
 export function catalogEntryKey(worldId: string, scenarioId: string, trackId: string): string {
   return `${worldId}|${scenarioId}|${trackId}`;
 }
+
+/**
+ * Scenario-specific visibility draft identity.
+ * Board/features remain keyed by boardDraftKey; visibility presentation is per ScenarioEntry browse row.
+ */
+export function visibilityDraftKey(worldId: string, scenarioId: string, trackId: string): string {
+  return catalogEntryKey(worldId, scenarioId, trackId);
+}

@@ -51,6 +51,12 @@ export type ScenarioTheme = {
 
 export type CloudMode = "cloudy" | "full_cloud";
 
+/** Runtime visibility tuning parameters (Portal Fork / authored scenarios). */
+export type VisibilityParams = {
+  lanternRadius?: number;
+  memoryRevealSec?: number;
+};
+
 /** Extended visibility modes (runtime v1 — Portal Fork test scenarios). */
 export type ExtendedVisibilityMode =
   | "night"
@@ -100,6 +106,7 @@ export type ScenarioEntry = {
   tracks?: Track[];
   cloudMode?: CloudMode;
   visibilityMode?: ExtendedVisibilityMode;
+  visibilityParams?: VisibilityParams;
   progression?: ScenarioProgressionMeta;
 };
 

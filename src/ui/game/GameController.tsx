@@ -534,7 +534,7 @@ export function GameController({
       context: {
         memoryVisitedHexIds,
         echoHexIds,
-        lanternRadius: 2,
+        lanternRadius: scenarioEntry.visibilityParams?.lanternRadius ?? 2,
       },
     });
   }, [

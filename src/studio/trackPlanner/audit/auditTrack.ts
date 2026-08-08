@@ -8,6 +8,8 @@ import {
   HIDDEN_CARD_RUNTIME,
   HIDDEN_PORTAL_RUNTIME,
 } from "../features/runtimeSupport";
+import { validateVisibilityOverlay } from "../visibility/visibilityValidation";
+import { visibilityStateLabel } from "../visibility/visibilityRuntimeMapping";
 import { featureConfigLabel, featureListLabel, posLabel } from "../features/featureLabels";
 
 /** GREEN = structurally valid, AMBER = warning, RED = must fix */
@@ -22,7 +24,8 @@ export type AuditCategory =
   | "portals"
   | "cards"
   | "encounters"
-  | "runtime";
+  | "runtime"
+  | "visibility";
 
 export interface AuditItem {
   featureId: string;
@@ -123,7 +126,85 @@ export function auditTrack(
     items.push(...auditFeature(track, f, slotDupes, allowedVillains, allowedEncounters));
   }
 
+  items.push(...auditVisibility(track));
+
   return items;
+}
+
+function auditVisibility(track: PlannerTrack): AuditItem[] {
+  const items: AuditItem[] = [];
+  const overlays = track.visibility.length ? track.visibility : [];
+
+  if (!overlays.length) {
+    items.push(
+      mk({
+        featureId: "visibility_default",
+        featureLabel: "Visibility",
+        layer: 0,
+        position: "—",
+        configuration: "REGULAR",
+        level: "approved",
+        category: "visibility",
+        message: "Regular visibility — no special overlay",
+        notes: "",
+      }),
+    );
+    return items;
+  }
+
+  overlays.forEach((overlay, index) => {
+    const checks = validateVisibilityOverlay(track, overlay, index, overlays.length);
+    const primaryLevel: AuditLevel =
+      checks.some((c) => c.severity === "red")
+        ? "error"
+        : checks.some((c) => c.severity === "amber")
+          ? "warning"
+          : "approved";
+
+    items.push(
+      mk({
+        featureId: overlay.id,
+        featureLabel: `Visibility — ${visibilityStateLabel(overlay.state)}`,
+        layer: 0,
+        position: overlay.coverage === "CUSTOM" ? `${overlay.positions.length} mask hexes` : "Full board",
+        configuration: overlaySummaryForAudit(overlay),
+        level: primaryLevel,
+        category: "visibility",
+        message:
+          checks.find((c) => c.severity === "red")?.message ??
+          checks.find((c) => c.severity === "amber")?.message ??
+          "Visibility configuration structurally valid",
+        notes: checks.map((c) => c.notes).filter(Boolean).join("; "),
+      }),
+    );
+
+    for (const check of checks) {
+      if (check.severity === "green") continue;
+      const level: AuditLevel = check.severity === "red" ? "error" : "warning";
+      items.push(
+        mk({
+          featureId: `${overlay.id}_${check.message.slice(0, 12)}`,
+          featureLabel: visibilityStateLabel(overlay.state),
+          layer: 0,
+          position: "—",
+          configuration: overlaySummaryForAudit(overlay),
+          level,
+          category: check.severity === "red" ? "visibility" : "runtime",
+          message: check.message,
+          notes: check.notes ?? "",
+        }),
+      );
+    }
+  });
+
+  return items;
+}
+
+function overlaySummaryForAudit(overlay: import("../types").VisibilityOverlay): string {
+  const parts = [overlay.coverage];
+  if (overlay.lanternRadius != null) parts.push(`radius ${overlay.lanternRadius}`);
+  if (overlay.memoryRevealSec != null) parts.push(`${overlay.memoryRevealSec}s`);
+  return parts.join(" · ");
 }
 
 function auditFeature(
