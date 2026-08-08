@@ -1,36 +1,23 @@
 import type { PlannerTrack, Pos, TrackFeature } from "../types";
+import { canPlaceFeature } from "./featureCompatibility";
+import {
+  findFeatureAt,
+  posSlotKey,
+  featureOccupancyPos,
+  SINGLE_SLOT_KINDS,
+} from "./featureOccupancyCore";
 
-export function featureOccupancyPos(f: TrackFeature): Pos | null {
-  if (f.kind === "portal") return f.source;
-  if ("position" in f) return f.position;
-  return null;
-}
-
-export function posSlotKey(p: Pos): string {
-  return `L${p.layer}-R${p.row}-C${p.col}`;
-}
-
-export function findFeatureAt(track: PlannerTrack, pos: Pos): TrackFeature | undefined {
-  return track.features.find((f) => {
-    const p = featureOccupancyPos(f);
-    return p && posSlotKey(p) === posSlotKey(pos);
-  });
-}
-
-/** Features that cannot share a hex with another occupant. */
-export const SINGLE_SLOT_KINDS = new Set<TrackFeature["kind"]>([
-  "start",
-  "goal",
-  "card",
-  "encounter",
-  "villain",
-]);
+export { findFeatureAt, posSlotKey, featureOccupancyPos, SINGLE_SLOT_KINDS };
 
 export function canPlaceOnSlot(
   track: PlannerTrack,
   kind: TrackFeature["kind"],
   pos: Pos,
 ): { ok: true } | { ok: false; reason: string; existingId?: string } {
+  const placementKind = kind === "portal" ? "portal_up" : kind;
+  const result = canPlaceFeature(track, placementKind as Parameters<typeof canPlaceFeature>[1], pos);
+  if (!result.ok) return result;
+
   if (kind === "portal") return { ok: true };
   const existing = findFeatureAt(track, pos);
   if (!existing) return { ok: true };

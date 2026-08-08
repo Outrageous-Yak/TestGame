@@ -1,9 +1,28 @@
 import type { PlannerTrack, TrackFeature } from "../types";
+import { ROW_LENS, posId } from "../../../engine/board";
 import { validateStructuralCoords } from "../serialization/scenarioBridge";
 import type { PlannerWorld, PlannerScenario } from "../types";
 import { duplicateSlotKeys, featureOccupancyPos, posSlotKey } from "../features/featureOccupancy";
+import {
+  CARD_RUNTIME_SUPPORT,
+  HIDDEN_CARD_RUNTIME,
+  HIDDEN_PORTAL_RUNTIME,
+} from "../features/runtimeSupport";
+import { featureConfigLabel, featureListLabel, posLabel } from "../features/featureLabels";
 
+/** GREEN = structurally valid, AMBER = warning, RED = must fix */
+export type AuditSeverity = "green" | "amber" | "red";
+
+/** Row level — maps to severity for legacy consumers */
 export type AuditLevel = "approved" | "warning" | "error";
+
+export type AuditCategory =
+  | "board"
+  | "start_goal"
+  | "portals"
+  | "cards"
+  | "encounters"
+  | "runtime";
 
 export interface AuditItem {
   featureId: string;
@@ -12,12 +31,36 @@ export interface AuditItem {
   position: string;
   configuration: string;
   level: AuditLevel;
+  severity: AuditSeverity;
+  category: AuditCategory;
   message: string;
   notes: string;
 }
 
-function posLabel(p: { layer: number; row: number; col: number }): string {
-  return `L${p.layer} R${p.row} C${p.col}`;
+export type TrackStructuralStatus = "green" | "amber" | "red";
+
+function levelToSeverity(level: AuditLevel): AuditSeverity {
+  if (level === "approved") return "green";
+  if (level === "warning") return "amber";
+  return "red";
+}
+
+function isMissing(track: PlannerTrack, p: { layer: number; row: number; col: number }): boolean {
+  const layer = track.layers.find((l) => l.layer === p.layer);
+  if (!layer) return true;
+  return layer.missing.some((m) => m.row === p.row && m.col === p.col);
+}
+
+function inBounds(p: { layer: number; row: number; col: number }): boolean {
+  if (p.layer < 1 || p.layer > 7) return false;
+  if (p.row < 0 || p.row >= ROW_LENS.length) return false;
+  return p.col >= 0 && p.col < ROW_LENS[p.row];
+}
+
+function mk(
+  partial: Omit<AuditItem, "severity" | "level"> & { level: AuditLevel },
+): AuditItem {
+  return { ...partial, severity: levelToSeverity(partial.level) };
 }
 
 export function auditTrack(
@@ -27,182 +70,359 @@ export function auditTrack(
 ): AuditItem[] {
   const items: AuditItem[] = [];
   const structural = validateStructuralCoords(track);
-
-  for (const err of structural) {
-    items.push({
-      featureId: "structure",
-      featureLabel: "Structure",
-      layer: 0,
-      position: "—",
-      configuration: err,
-      level: "error",
-      message: err,
-      notes: "",
-    });
-  }
-
   const allowedVillains = new Set(
-    scenario?.allowedVillains?.length
-      ? scenario.allowedVillains
-      : world?.villainPool ?? [],
+    scenario?.allowedVillains?.length ? scenario.allowedVillains : world?.villainPool ?? [],
   );
-
+  const allowedEncounters = new Set(
+    scenario?.allowedEncounters?.length ? scenario.allowedEncounters : world?.encounterPool ?? [],
+  );
   const slotDupes = duplicateSlotKeys(track);
 
-  for (const f of track.features) {
-    const base = featureAuditItem(f);
-    const slot = featureOccupancyPos(f);
-    const dupeCount = slot ? (slotDupes.get(posSlotKey(slot))?.length ?? 0) : 0;
-    const item: AuditItem =
-      dupeCount > 1
-        ? {
-            ...base,
-            level: "error",
-            message: `Duplicate hex occupancy (${dupeCount} features on this hex)`,
-            notes: base.notes,
-          }
-        : base;
-    items.push(item);
+  const starts = track.features.filter((f) => f.kind === "start");
+  const goals = track.features.filter((f) => f.kind === "goal");
 
-    if (f.kind === "card") {
-      if (f.cardType === "HIDDEN" && !f.resolvedType) {
-        items.push({
-          ...base,
+  for (const err of structural) {
+    const category: AuditCategory =
+      err.includes("Start") || err.includes("Goal") ? "start_goal" : "board";
+    items.push(
+      mk({
+        featureId: "structure",
+        featureLabel: "Structure",
+        layer: 0,
+        position: "—",
+        configuration: err,
+        level: "error",
+        category,
+        message: err,
+        notes: "",
+      }),
+    );
+  }
+
+  if (starts.length === 1 && goals.length === 1) {
+    const s = starts[0].position;
+    const g = goals[0].position;
+    if (posId(s) === posId(g)) {
+      items.push(
+        mk({
+          featureId: "start_goal_same",
+          featureLabel: "Start / Goal",
+          layer: s.layer,
+          position: posLabel(s),
+          configuration: "Same hex",
           level: "error",
-          message: "Hidden card missing resolvedType",
-          notes: "Assign underlying RED/BLUE/GREEN/BLACK",
-        });
-      }
-      if (f.cardType === "RANDOM") {
-        items.push({
-          ...base,
-          level: "warning",
-          message: "Random mystery card — runtime resolves at play time",
-          notes: "Solver treats as non-deterministic",
-        });
-      }
-      if (f.cardType === "BLACK") {
-        items.push({
-          ...base,
-          level: "warning",
-          message: "BLACK card runtime effect not fully implemented",
+          category: "start_goal",
+          message: "Start and Goal occupy the same hex",
           notes: "",
-        });
-      }
+        }),
+      );
     }
+  }
 
-    if (f.kind === "portal" && f.hidden) {
-      items.push({
-        ...base,
-        level: "approved",
-        message: "Hidden portal — visible in editor, concealed in play",
-        notes: "HIDDEN",
-      });
-    }
+  for (const f of track.features) {
+    items.push(...auditFeature(track, f, slotDupes, allowedVillains, allowedEncounters));
+  }
 
-    if (f.kind === "villain" && f.mode === "specific" && f.villainKey && !allowedVillains.has(f.villainKey)) {
-      items.push({
+  return items;
+}
+
+function auditFeature(
+  track: PlannerTrack,
+  f: TrackFeature,
+  slotDupes: Map<string, TrackFeature[]>,
+  allowedVillains: Set<string>,
+  allowedEncounters: Set<string>,
+): AuditItem[] {
+  const items: AuditItem[] = [];
+  const base = featureAuditItem(f);
+  const slot = featureOccupancyPos(f);
+  const dupeCount = slot ? (slotDupes.get(posSlotKey(slot))?.length ?? 0) : 0;
+
+  if (dupeCount > 1) {
+    items.push(
+      mk({
         ...base,
         level: "error",
-        message: `Villain ${f.villainKey} not in scenario/world pool`,
-        notes: "",
-      });
+        message: `Duplicate hex occupancy (${dupeCount} features on this hex)`,
+        notes: base.notes,
+      }),
+    );
+  } else {
+    items.push(base);
+  }
+
+  if (slot && isMissing(track, slot)) {
+    items.push(
+      mk({
+        ...base,
+        level: "error",
+        category: base.category,
+        message: `${base.featureLabel} is on a missing hex`,
+        notes: "Restore hex in Board view or move feature",
+      }),
+    );
+  }
+
+  if (f.kind === "portal") {
+    items.push(...auditPortal(track, f, base));
+  }
+
+  if (f.kind === "card") {
+    items.push(...auditCard(f, base, allowedVillains, allowedEncounters));
+  }
+
+  if (f.kind === "villain") {
+    if (f.mode === "specific" && f.villainKey && !allowedVillains.has(f.villainKey)) {
+      items.push(
+        mk({
+          ...base,
+          level: "error",
+          category: "encounters",
+          message: `Villain ${f.villainKey} not in scenario/world pool`,
+          notes: "",
+        }),
+      );
+    }
+  }
+
+  if (f.kind === "encounter") {
+    if (f.mode === "specific" && f.encounterId && !allowedEncounters.has(f.encounterId)) {
+      items.push(
+        mk({
+          ...base,
+          level: "error",
+          category: "encounters",
+          message: `Encounter ${f.encounterId} not in scenario/world pool`,
+          notes: "",
+        }),
+      );
     }
   }
 
   return items;
 }
 
-function featureAuditItem(f: TrackFeature): AuditItem {
-  switch (f.kind) {
-    case "start":
-      return {
-        featureId: f.id,
-        featureLabel: "Start",
-        layer: f.position.layer,
-        position: posLabel(f.position),
-        configuration: "Player spawn",
-        level: "approved",
-        message: "Valid",
-        notes: "",
-      };
-    case "goal":
-      return {
-        featureId: f.id,
-        featureLabel: "Goal",
-        layer: f.position.layer,
-        position: posLabel(f.position),
-        configuration: "Win condition",
-        level: "approved",
-        message: "Valid",
-        notes: "",
-      };
-    case "portal":
-      return {
-        featureId: f.id,
-        featureLabel: `Portal ${f.portalId}`,
-        layer: f.source.layer,
-        position: posLabel(f.source),
-        configuration: `${f.direction} → ${posLabel(f.destination)}`,
-        level: "approved",
-        message: "Valid",
-        notes: f.hidden ? "HIDDEN" : "",
-      };
-    case "card":
-      return {
-        featureId: f.id,
-        featureLabel: `${f.cardType} Card`,
-        layer: f.position.layer,
-        position: posLabel(f.position),
-        configuration:
-          f.cardType === "HIDDEN"
-            ? `Underlying: ${f.resolvedType ?? "?"}`
-            : f.cardType,
-        level: "approved",
-        message: "Valid",
-        notes: f.hidden ? "HIDDEN" : "",
-      };
-    case "encounter":
-      return {
-        featureId: f.id,
-        featureLabel: "Encounter",
-        layer: f.position.layer,
-        position: posLabel(f.position),
-        configuration: f.mode === "random" ? "Random from pool" : f.encounterId ?? "—",
-        level: "approved",
-        message: "Valid",
-        notes: "",
-      };
-    case "villain":
-      return {
-        featureId: f.id,
-        featureLabel: "Villain",
-        layer: f.position.layer,
-        position: posLabel(f.position),
-        configuration:
-          f.mode === "random" ? "Random villain" : f.villainKey ?? "—",
-        level: "approved",
-        message: "Valid",
-        notes: "",
-      };
-    default:
-      return {
-        featureId: "unknown",
-        featureLabel: "Unknown",
-        layer: 0,
-        position: "—",
-        configuration: "",
+function auditPortal(
+  track: PlannerTrack,
+  f: Extract<TrackFeature, { kind: "portal" }>,
+  base: AuditItem,
+): AuditItem[] {
+  const items: AuditItem[] = [];
+  const dest = f.destination;
+  const src = f.source;
+
+  if (!inBounds(dest)) {
+    items.push(
+      mk({
+        ...base,
         level: "error",
-        message: "Unknown feature",
-        notes: "",
-      };
+        category: "portals",
+        message: "Portal destination out of bounds",
+        notes: posLabel(dest),
+      }),
+    );
+  } else if (isMissing(track, dest)) {
+    items.push(
+      mk({
+        ...base,
+        level: "error",
+        category: "portals",
+        message: "Portal destination is on a missing hex",
+        notes: posLabel(dest),
+      }),
+    );
   }
+
+  if (posId(src) === posId(dest)) {
+    items.push(
+      mk({
+        ...base,
+        level: "warning",
+        category: "portals",
+        message: "Portal source and destination are the same hex",
+        notes: "",
+      }),
+    );
+  }
+
+  if (f.direction === "UP" && dest.layer <= src.layer) {
+    items.push(
+      mk({
+        ...base,
+        level: "warning",
+        category: "portals",
+        message: "UP portal destination layer should be above source",
+        notes: `${posLabel(src)} → ${posLabel(dest)}`,
+      }),
+    );
+  }
+
+  if (f.direction === "DOWN" && dest.layer >= src.layer) {
+    items.push(
+      mk({
+        ...base,
+        level: "warning",
+        category: "portals",
+        message: "DOWN portal destination layer should be below source",
+        notes: `${posLabel(src)} → ${posLabel(dest)}`,
+      }),
+    );
+  }
+
+  if (f.hidden) {
+    items.push(
+      mk({
+        ...base,
+        level: HIDDEN_PORTAL_RUNTIME.runtime ? "approved" : "warning",
+        category: "runtime",
+        message: HIDDEN_PORTAL_RUNTIME.runtime
+          ? "Hidden portal — concealed in play"
+          : "Hidden portal — authoring supported, runtime deferred",
+        notes: "HIDDEN",
+      }),
+    );
+  }
+
+  return items;
+}
+
+function auditCard(
+  f: Extract<TrackFeature, { kind: "card" }>,
+  base: AuditItem,
+  allowedVillains: Set<string>,
+  allowedEncounters: Set<string>,
+): AuditItem[] {
+  const items: AuditItem[] = [];
+  const support = CARD_RUNTIME_SUPPORT[f.cardType];
+
+  if (f.cardType === "HIDDEN" && !f.resolvedType) {
+    items.push(
+      mk({
+        ...base,
+        level: "error",
+        category: "cards",
+        message: "Predetermined ? card missing hidden result",
+        notes: "Choose RED/BLUE/GREEN/BLACK",
+      }),
+    );
+  }
+
+  if (f.cardType === "RANDOM") {
+    items.push(
+      mk({
+        ...base,
+        level: support.runtime ? "approved" : "warning",
+        category: "runtime",
+        message: support.runtime
+          ? "? RANDOM resolves at play time"
+          : "? RANDOM — authoring supported, runtime resolution deferred",
+        notes: "RANDOM",
+      }),
+    );
+  }
+
+  if (f.cardType === "RED") {
+    if (f.contentMode === "specific") {
+      if (f.villainKey && !allowedVillains.has(f.villainKey)) {
+        items.push(
+          mk({
+            ...base,
+            level: "error",
+            category: "encounters",
+            message: `Red card villain ${f.villainKey} not in pool`,
+            notes: "",
+          }),
+        );
+      }
+      if (f.encounterId && !allowedEncounters.has(f.encounterId)) {
+        items.push(
+          mk({
+            ...base,
+            level: "error",
+            category: "encounters",
+            message: `Red card encounter ${f.encounterId} not in pool`,
+            notes: "",
+          }),
+        );
+      }
+    }
+  }
+
+  if (f.cardType === "BLUE" || f.cardType === "GREEN" || f.cardType === "BLACK") {
+    if (!support.runtime) {
+      items.push(
+        mk({
+          ...base,
+          level: "warning",
+          category: "runtime",
+          message: `${f.cardType} card — metadata only, no gameplay effect yet`,
+          notes: support.note ?? "",
+        }),
+      );
+    }
+  }
+
+  if (f.hidden) {
+    items.push(
+      mk({
+        ...base,
+        level: HIDDEN_CARD_RUNTIME.runtime ? "approved" : "warning",
+        category: "runtime",
+        message: HIDDEN_CARD_RUNTIME.runtime
+          ? "Hidden card metadata"
+          : "Hidden card — authoring supported, runtime concealment deferred",
+        notes: "HIDDEN",
+      }),
+    );
+  }
+
+  return items;
+}
+
+function featureAuditItem(f: TrackFeature): AuditItem {
+  const pos =
+    f.kind === "portal"
+      ? f.source
+      : "position" in f
+        ? f.position
+        : { layer: 0, row: 0, col: 0 };
+
+  const category: AuditCategory =
+    f.kind === "start" || f.kind === "goal"
+      ? "start_goal"
+      : f.kind === "portal"
+        ? "portals"
+        : f.kind === "card"
+          ? "cards"
+          : f.kind === "encounter" || f.kind === "villain"
+            ? "encounters"
+            : "board";
+
+  return mk({
+    featureId: f.id,
+    featureLabel: featureListLabel(f),
+    layer: pos.layer,
+    position: posLabel(pos),
+    configuration: featureConfigLabel(f),
+    level: "approved",
+    category,
+    message: "Valid",
+    notes:
+      f.kind === "card" && f.hidden
+        ? "HIDDEN"
+        : f.kind === "portal" && f.hidden
+          ? "HIDDEN"
+          : "",
+  });
 }
 
 export function auditSummary(items: AuditItem[]): {
   approved: number;
   warning: number;
   error: number;
+  green: number;
+  amber: number;
+  red: number;
 } {
   let approved = 0;
   let warning = 0;
@@ -212,5 +432,11 @@ export function auditSummary(items: AuditItem[]): {
     else if (i.level === "warning") warning += 1;
     else error += 1;
   }
-  return { approved, warning, error };
+  return { approved, warning, error, green: approved, amber: warning, red: error };
+}
+
+export function trackStructuralStatus(items: AuditItem[]): TrackStructuralStatus {
+  if (items.some((i) => i.severity === "red")) return "red";
+  if (items.some((i) => i.severity === "amber")) return "amber";
+  return "green";
 }

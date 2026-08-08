@@ -197,13 +197,27 @@ export interface PlannerSelection {
   trackId: PlannerTrackId | null;
 }
 
+export type FeatureTool =
+  | "select"
+  | "remove"
+  | "start"
+  | "goal"
+  | "portal_up"
+  | "portal_down"
+  | "card_red"
+  | "card_blue"
+  | "card_green"
+  | "card_black"
+  | "card_random"
+  | "card_predetermined";
+
 export interface EditorSelection {
   view: EditorView;
   layer: number;
   selectedSlot: Pos | null;
   selectedFeatureId: FeatureId | null;
   boardTool: "select" | "remove" | "restore";
-  featureTool: TrackFeature["kind"] | null;
+  featureTool: FeatureTool | null;
   visibilityTool: VisibilityStateType;
 }
 

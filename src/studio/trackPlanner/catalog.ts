@@ -98,33 +98,26 @@ export async function hydrateTrackFromJson(
 export function scenarioJsonToTrack(base: PlannerTrack, raw: unknown): PlannerTrack {
   const s = raw as Scenario;
   assertScenario(s);
-  const missingByLayer = new Map<number, Set<string>>();
-  for (const p of s.missing ?? []) {
-    const set = missingByLayer.get(p.layer) ?? new Set();
-    set.add(posId(p));
-    missingByLayer.set(p.layer, set);
+
+  const meta = (raw as { _plannerMeta?: { authoredFeatures?: TrackFeature[]; progression?: PlannerTrack["progression"] } })
+    ._plannerMeta;
+  if (meta?.authoredFeatures?.length) {
+    const missingByLayer = buildMissingLayers(s);
+    const movement = normalizeScenarioMovement((s.movement ?? {}) as ScenarioMovementDefinition);
+    const layers = buildLayersFromScenario(missingByLayer, movement);
+    return {
+      ...base,
+      name: s.name || base.name,
+      layers,
+      features: meta.authoredFeatures.map((f) => ({ ...f })),
+      sourceScenarioJson: base.sourceScenarioJson,
+      progression: meta.progression ?? base.progression,
+    };
   }
 
+  const missingByLayer = buildMissingLayers(s);
   const movement = normalizeScenarioMovement((s.movement ?? {}) as ScenarioMovementDefinition);
-  const layers: LayerBoardAuthored[] = [];
-  for (let layer = 1; layer <= 7; layer++) {
-    const lb = emptyLayerBoard(layer);
-    const miss = missingByLayer.get(layer);
-    if (miss) {
-      for (const id of miss) {
-        const m = /^L(\d+)-R(\d+)-C(\d+)$/.exec(id);
-        if (m) lb.missing.push({ layer: +m[1], row: +m[2], col: +m[3] });
-      }
-    }
-    const lm = movement[layer as 1 | 2 | 3 | 4 | 5 | 6 | 7];
-    if (lm) {
-      for (let r = 0; r < ROW_LENS.length; r++) {
-        const inst = lm.rows[r as 0 | 1 | 2 | 3 | 4 | 5 | 6];
-        lb.rowMovement[String(r)] = { direction: inst.direction, amount: inst.amount };
-      }
-    }
-    layers.push(lb);
-  }
+  const layers = buildLayersFromScenario(missingByLayer, movement);
 
   const features: TrackFeature[] = [
     { kind: "start", id: "start_1", position: { ...s.start } },
@@ -178,6 +171,42 @@ export function scenarioJsonToTrack(base: PlannerTrack, raw: unknown): PlannerTr
       base.progression ??
       (raw as { _plannerMeta?: { progression?: PlannerTrack["progression"] } })._plannerMeta?.progression,
   };
+}
+
+function buildMissingLayers(s: Scenario): Map<number, Set<string>> {
+  const missingByLayer = new Map<number, Set<string>>();
+  for (const p of s.missing ?? []) {
+    const set = missingByLayer.get(p.layer) ?? new Set();
+    set.add(posId(p));
+    missingByLayer.set(p.layer, set);
+  }
+  return missingByLayer;
+}
+
+function buildLayersFromScenario(
+  missingByLayer: Map<number, Set<string>>,
+  movement: ReturnType<typeof normalizeScenarioMovement>,
+): LayerBoardAuthored[] {
+  const layers: LayerBoardAuthored[] = [];
+  for (let layer = 1; layer <= 7; layer++) {
+    const lb = emptyLayerBoard(layer);
+    const miss = missingByLayer.get(layer);
+    if (miss) {
+      for (const id of miss) {
+        const m = /^L(\d+)-R(\d+)-C(\d+)$/.exec(id);
+        if (m) lb.missing.push({ layer: +m[1], row: +m[2], col: +m[3] });
+      }
+    }
+    const lm = movement[layer as 1 | 2 | 3 | 4 | 5 | 6 | 7];
+    if (lm) {
+      for (let r = 0; r < ROW_LENS.length; r++) {
+        const inst = lm.rows[r as 0 | 1 | 2 | 3 | 4 | 5 | 6];
+        lb.rowMovement[String(r)] = { direction: inst.direction, amount: inst.amount };
+      }
+    }
+    layers.push(lb);
+  }
+  return layers;
 }
 
 function overlayDraftOntoCatalogEntry(production: PlannerTrack, draft: PlannerTrack): PlannerTrack {

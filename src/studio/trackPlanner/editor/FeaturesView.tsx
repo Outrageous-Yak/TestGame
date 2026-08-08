@@ -1,46 +1,57 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import type {
+  CardColor,
+  FeatureTool,
   PlannerScenario,
   PlannerTrack,
   PlannerWorld,
-  Pos,
-  TrackFeature,
-  CardColor,
   PortalFeature,
+  Pos,
 } from "../types";
-import { newId } from "../catalog";
 import type { VillainKey } from "../../../ui/types";
 import { ROW_LENS } from "../../../engine/board";
 import { LayerBoardGrid } from "../components/LayerBoardGrid";
-import { canPlaceOnSlot } from "../features/featureOccupancy";
+import { canPlaceFeature } from "../features/featureCompatibility";
+import {
+  createFeatureAt,
+  removeFeatureById,
+  removeFeaturesAt,
+  updateFeatureInTrack,
+} from "../features/featurePlacement";
+import { featureConfigLabel, featureListLabel, posLabel } from "../features/featureLabels";
 import { withPortalDestination } from "../features/portalEdit";
+import { featureOccupancyPos } from "../features/featureOccupancy";
+import { CARD_RUNTIME_SUPPORT } from "../features/runtimeSupport";
 
 type FeaturesViewProps = {
   track: PlannerTrack;
   world?: PlannerWorld;
   scenario?: PlannerScenario;
   selectedLayer: number;
-  featureTool: TrackFeature["kind"] | null;
+  featureTool: FeatureTool | null;
   selectedFeatureId: string | null;
   onTrackChange: (track: PlannerTrack) => void;
   onSelectFeature: (id: string | null) => void;
   onSelectLayer: (layer: number) => void;
 };
 
-function posLabel(p: Pos): string {
-  return `L${p.layer} R${p.row} C${p.col}`;
-}
-
-function featureAt(track: PlannerTrack, pos: Pos): TrackFeature | undefined {
-  return track.features.find((f) => {
-    const p =
-      f.kind === "portal"
-        ? f.source
-        : "position" in f
-          ? f.position
-          : null;
-    return p && posLabel(p) === posLabel(pos);
-  });
+function cardTypeFromTool(tool: FeatureTool): CardColor | null {
+  switch (tool) {
+    case "card_red":
+      return "RED";
+    case "card_blue":
+      return "BLUE";
+    case "card_green":
+      return "GREEN";
+    case "card_black":
+      return "BLACK";
+    case "card_random":
+      return "RANDOM";
+    case "card_predetermined":
+      return "HIDDEN";
+    default:
+      return null;
+  }
 }
 
 function inBounds(p: Pos): boolean {
@@ -63,79 +74,58 @@ export function FeaturesView({
   const [pickingPortalDest, setPickingPortalDest] = useState(false);
   const selected = track.features.find((f) => f.id === selectedFeatureId) ?? null;
   const selectedPortal = selected?.kind === "portal" ? selected : null;
+
   const villainPool = scenario?.allowedVillains?.length
     ? scenario.allowedVillains
     : world?.villainPool ?? [];
+  const encounterPool = scenario?.allowedEncounters?.length
+    ? scenario.allowedEncounters
+    : world?.encounterPool ?? [];
 
   useEffect(() => {
     if (!selectedPortal) setPickingPortalDest(false);
   }, [selectedPortal?.id]);
 
-  const placeFeature = (pos: Pos) => {
-    if (!featureTool) return;
+  const sortedInventory = useMemo(
+    () =>
+      [...track.features].sort((a, b) => {
+        const pa = featureOccupancyPos(a);
+        const pb = featureOccupancyPos(b);
+        if (!pa || !pb) return 0;
+        if (pa.layer !== pb.layer) return pb.layer - pa.layer;
+        if (pa.row !== pb.row) return pa.row - pb.row;
+        return pa.col - pb.col;
+      }),
+    [track.features],
+  );
 
-    const slotCheck = canPlaceOnSlot(track, featureTool, pos);
-    if (!slotCheck.ok) {
-      if (slotCheck.existingId) onSelectFeature(slotCheck.existingId);
+  const applyPlacement = (tool: FeatureTool, pos: Pos) => {
+    const cardType = cardTypeFromTool(tool);
+    let kind: "start" | "goal" | "portal_up" | "portal_down" | "card";
+    if (tool === "portal_up") kind = "portal_up";
+    else if (tool === "portal_down") kind = "portal_down";
+    else if (tool === "start") kind = "start";
+    else if (tool === "goal") kind = "goal";
+    else if (cardType) kind = "card";
+    else return;
+
+    const check = canPlaceFeature(track, kind, pos);
+    if (!check.ok) {
+      if (check.existingId) onSelectFeature(check.existingId);
       return;
     }
 
-    const next = { ...track, features: [...track.features] };
-
-    const removeAt = (kind: TrackFeature["kind"]) => {
-      if (kind === "start" || kind === "goal") {
-        next.features = next.features.filter((f) => f.kind !== kind);
-      }
-    };
-
-    if (featureTool === "start") {
-      removeAt("start");
-      next.features.push({ kind: "start", id: newId("start"), position: { ...pos } });
-    } else if (featureTool === "goal") {
-      removeAt("goal");
-      next.features.push({ kind: "goal", id: newId("goal"), position: { ...pos } });
-    } else if (featureTool === "portal") {
-      next.features.push({
-        kind: "portal",
-        id: newId("portal"),
-        portalId: `portal_${next.features.filter((f) => f.kind === "portal").length + 1}`,
-        source: { ...pos },
-        direction: "UP",
-        destination: { layer: Math.min(7, pos.layer + 1), row: pos.row, col: pos.col },
-        hidden: false,
-      });
-    } else if (featureTool === "card") {
-      next.features.push({
-        kind: "card",
-        id: newId("card"),
-        position: { ...pos },
-        cardType: "RED",
-        contentMode: "specific",
-      });
-    } else if (featureTool === "encounter") {
-      next.features.push({
-        kind: "encounter",
-        id: newId("encounter"),
-        position: { ...pos },
-        mode: "random",
-      });
-    } else if (featureTool === "villain") {
-      next.features.push({
-        kind: "villain",
-        id: newId("villain"),
-        position: { ...pos },
-        mode: "random",
-        villainKey: villainPool[0],
-      });
-    }
-    onTrackChange(next);
-  };
-
-  const updateFeature = (id: string, patch: Partial<TrackFeature>) => {
-    onTrackChange({
-      ...track,
-      features: track.features.map((f) => (f.id === id ? { ...f, ...patch } as TrackFeature : f)),
+    const next = createFeatureAt(track, kind, pos, {
+      cardType: cardType ?? undefined,
+      villainPool,
+      encounterPool,
     });
+    onTrackChange(next);
+    const placed = next.features.find((f) => {
+      const p = featureOccupancyPos(f);
+      return p && posLabel(p) === posLabel(pos);
+    });
+    if (placed) onSelectFeature(placed.id);
   };
 
   const setPortalDestination = (portal: PortalFeature, dest: Pos) => {
@@ -148,42 +138,48 @@ export function FeaturesView({
     });
   };
 
-  const removeFeature = (id: string) => {
-    onTrackChange({ ...track, features: track.features.filter((f) => f.id !== id) });
-    onSelectFeature(null);
-    setPickingPortalDest(false);
-  };
-
   const handleSlotClick = (pos: Pos) => {
     onSelectLayer(pos.layer);
 
     if (pickingPortalDest && selectedPortal) {
       setPortalDestination(selectedPortal, pos);
+      setPickingPortalDest(false);
       return;
     }
 
-    if (featureTool) {
-      placeFeature(pos);
+    if (featureTool === "remove") {
+      const hit = track.features.find((f) => {
+        const p = featureOccupancyPos(f);
+        return p && posLabel(p) === posLabel(pos);
+      });
+      if (hit) {
+        onTrackChange(removeFeatureById(track, hit.id));
+        onSelectFeature(null);
+      } else {
+        onTrackChange(removeFeaturesAt(track, pos));
+      }
       return;
     }
 
-    const hit = featureAt(track, pos);
+    if (featureTool && featureTool !== "select") {
+      applyPlacement(featureTool, pos);
+      return;
+    }
+
+    const hit = track.features.find((f) => {
+      const p = featureOccupancyPos(f);
+      return p && posLabel(p) === posLabel(pos);
+    });
     if (hit) onSelectFeature(hit.id);
   };
 
-  const layerFeatures = useMemo(
-    () =>
-      track.features.filter((f) => {
-        const p =
-          f.kind === "portal"
-            ? f.source
-            : "position" in f
-              ? f.position
-              : null;
-        return p?.layer === selectedLayer;
-      }),
-    [track.features, selectedLayer],
-  );
+  const jumpToFeature = (id: string) => {
+    const f = track.features.find((x) => x.id === id);
+    if (!f) return;
+    const p = featureOccupancyPos(f);
+    if (p) onSelectLayer(p.layer);
+    onSelectFeature(id);
+  };
 
   const portalDestOnLayer =
     selectedPortal && selectedPortal.destination.layer === selectedLayer
@@ -192,10 +188,36 @@ export function FeaturesView({
 
   return (
     <div className={`tp-featuresView${pickingPortalDest ? " tp-pickingPortalDest" : ""}`}>
-      <div className="tp-featuresList">
-        <h3>Layer {selectedLayer} features</h3>
+      <aside className="tp-featureInventory">
+        <h3>Track features ({track.features.length})</h3>
+        <ul className="tp-featureInventoryList">
+          {sortedInventory.map((f) => {
+            const p = featureOccupancyPos(f);
+            return (
+              <li key={f.id}>
+                <button
+                  type="button"
+                  className={`btn tp-listBtn${selectedFeatureId === f.id ? " active" : ""}`}
+                  onClick={() => jumpToFeature(f.id)}
+                >
+                  <span className="tp-featBadge">{featureListLabel(f)}</span>
+                  {p ? posLabel(p) : "—"} — {featureConfigLabel(f)}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </aside>
+
+      {pickingPortalDest ? (
+        <p className="tp-selectionHint">
+          Tap a hex to set portal destination for <strong>{selectedPortal?.portalId}</strong>.
+        </p>
+      ) : null}
+
+      <div className="tp-featuresBoardWrap">
         <label className="tp-jumpLayer">
-          View layer
+          Layer
           <select
             className="tp-select"
             value={selectedLayer}
@@ -208,51 +230,41 @@ export function FeaturesView({
             ))}
           </select>
         </label>
-        <ul>
-          {layerFeatures.map((f) => (
-            <li key={f.id}>
-              <button type="button" className="btn tp-listBtn" onClick={() => onSelectFeature(f.id)}>
-                {f.kind} — {f.id}
-              </button>
-            </li>
-          ))}
-        </ul>
+
+        <LayerBoardGrid
+          track={track}
+          layer={selectedLayer}
+          selectedSlot={selectedPortal?.source.layer === selectedLayer ? selectedPortal.source : null}
+          portalDestination={portalDestOnLayer}
+          onSlotClick={(pos) => handleSlotClick(pos)}
+        />
       </div>
-
-      {pickingPortalDest ? (
-        <p className="tp-selectionHint">
-          Click a hex to set where <strong>{selectedPortal?.portalId}</strong> lands. Switch layers above
-          to pick a destination on another floor.
-        </p>
-      ) : null}
-
-      <LayerBoardGrid
-        track={track}
-        layer={selectedLayer}
-        selectedSlot={selectedPortal?.source.layer === selectedLayer ? selectedPortal.source : null}
-        portalDestination={portalDestOnLayer}
-        onSlotClick={(pos) => handleSlotClick(pos)}
-      />
 
       {selected ? (
         <div className="tp-inspector">
-          <h3>Edit {selected.kind}</h3>
+          <h3>{featureListLabel(selected)}</h3>
+          <p className="tp-hint">
+            {featureOccupancyPos(selected) ? posLabel(featureOccupancyPos(selected)!) : "—"}
+          </p>
+
           {selected.kind === "portal" ? (
             <>
               <div className="tp-portalEndpoints">
                 <div>
-                  <strong>From</strong> {posLabel(selected.source)}
+                  <strong>FROM</strong> {posLabel(selected.source)}
                 </div>
                 <div>
-                  <strong>To</strong> {posLabel(selected.destination)}
+                  <strong>TO</strong> {posLabel(selected.destination)}
                 </div>
               </div>
               <label>
-                Hidden
+                Hidden (authoring)
                 <input
                   type="checkbox"
                   checked={!!selected.hidden}
-                  onChange={(e) => updateFeature(selected.id, { hidden: e.target.checked })}
+                  onChange={(e) =>
+                    onTrackChange(updateFeatureInTrack(track, selected.id, { hidden: e.target.checked }))
+                  }
                 />
               </label>
               <label>
@@ -270,8 +282,8 @@ export function FeaturesView({
                     });
                   }}
                 >
-                  <option value="UP">UP</option>
-                  <option value="DOWN">DOWN</option>
+                  <option value="UP">Portal UP</option>
+                  <option value="DOWN">Portal DOWN</option>
                 </select>
               </label>
               <fieldset className="tp-coordFieldset">
@@ -287,10 +299,7 @@ export function FeaturesView({
                       onChange={(e) => {
                         const layer = Number(e.target.value);
                         if (!Number.isFinite(layer)) return;
-                        setPortalDestination(selected, {
-                          ...selected.destination,
-                          layer,
-                        });
+                        setPortalDestination(selected, { ...selected.destination, layer });
                       }}
                     />
                   </label>
@@ -305,11 +314,7 @@ export function FeaturesView({
                         const row = Number(e.target.value);
                         if (!Number.isFinite(row)) return;
                         const col = Math.min(selected.destination.col, ROW_LENS[row] - 1);
-                        setPortalDestination(selected, {
-                          ...selected.destination,
-                          row,
-                          col,
-                        });
+                        setPortalDestination(selected, { ...selected.destination, row, col });
                       }}
                     />
                   </label>
@@ -323,10 +328,7 @@ export function FeaturesView({
                       onChange={(e) => {
                         const col = Number(e.target.value);
                         if (!Number.isFinite(col)) return;
-                        setPortalDestination(selected, {
-                          ...selected.destination,
-                          col,
-                        });
+                        setPortalDestination(selected, { ...selected.destination, col });
                       }}
                     />
                   </label>
@@ -338,106 +340,123 @@ export function FeaturesView({
                   className={`btn${pickingPortalDest ? " active" : ""}`}
                   onClick={() => setPickingPortalDest((v) => !v)}
                 >
-                  {pickingPortalDest ? "Done picking" : "Pick on board"}
-                </button>
-                <button
-                  type="button"
-                  className="btn tp-miniBtn"
-                  onClick={() => {
-                    onSelectLayer(selected.destination.layer);
-                    setPickingPortalDest(false);
-                  }}
-                >
-                  Go to destination layer
+                  {pickingPortalDest ? "Done picking" : "Pick destination on board"}
                 </button>
               </div>
             </>
           ) : null}
+
           {selected.kind === "card" ? (
             <>
-              <label>
-                Type
-                <select
-                  value={selected.cardType}
-                  onChange={(e) =>
-                    updateFeature(selected.id, { cardType: e.target.value as CardColor })
-                  }
-                >
-                  {(["RED", "BLUE", "GREEN", "BLACK", "RANDOM", "HIDDEN"] as CardColor[]).map(
-                    (c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ),
-                  )}
-                </select>
-              </label>
-              {selected.cardType === "HIDDEN" ? (
-                <label>
-                  Resolved
-                  <select
-                    value={selected.resolvedType ?? "RED"}
-                    onChange={(e) =>
-                      updateFeature(selected.id, {
-                        resolvedType: e.target.value as Exclude<CardColor, "RANDOM" | "HIDDEN">,
-                      })
-                    }
-                  >
-                    <option value="RED">RED</option>
-                    <option value="BLUE">BLUE</option>
-                    <option value="GREEN">GREEN</option>
-                    <option value="BLACK">BLACK</option>
-                  </select>
-                </label>
+              {selected.cardType === "RED" ? (
+                <>
+                  <p className="tp-inspectorTitle">RED — Encounter</p>
+                  <label>
+                    Resolution
+                    <select
+                      value={selected.contentMode ?? "random"}
+                      onChange={(e) =>
+                        onTrackChange(
+                          updateFeatureInTrack(track, selected.id, {
+                            contentMode: e.target.value as "random" | "specific",
+                          }),
+                        )
+                      }
+                    >
+                      <option value="random">Random from pool</option>
+                      <option value="specific">Specific</option>
+                    </select>
+                  </label>
+                  {(selected.contentMode ?? "random") === "specific" ? (
+                    <label>
+                      Villain
+                      <select
+                        value={selected.villainKey ?? villainPool[0]}
+                        onChange={(e) =>
+                          onTrackChange(
+                            updateFeatureInTrack(track, selected.id, {
+                              villainKey: e.target.value as VillainKey,
+                              contentMode: "specific",
+                            }),
+                          )
+                        }
+                      >
+                        {villainPool.map((v) => (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
+                </>
               ) : null}
+
+              {selected.cardType === "RANDOM" ? (
+                <p className="tp-hint">
+                  ? RANDOM — resolves to RED/BLUE/GREEN/BLACK at play time.
+                  {!CARD_RUNTIME_SUPPORT.RANDOM.runtime ? " Runtime support pending." : ""}
+                </p>
+              ) : null}
+
+              {selected.cardType === "HIDDEN" ? (
+                <>
+                  <p className="tp-inspectorTitle">? PREDETERMINED</p>
+                  <label>
+                    Hidden result
+                    <select
+                      value={selected.resolvedType ?? "RED"}
+                      onChange={(e) =>
+                        onTrackChange(
+                          updateFeatureInTrack(track, selected.id, {
+                            resolvedType: e.target.value as Exclude<CardColor, "RANDOM" | "HIDDEN">,
+                          }),
+                        )
+                      }
+                    >
+                      <option value="RED">RED</option>
+                      <option value="BLUE">BLUE</option>
+                      <option value="GREEN">GREEN</option>
+                      <option value="BLACK">BLACK</option>
+                    </select>
+                  </label>
+                </>
+              ) : null}
+
+              {(selected.cardType === "BLUE" ||
+                selected.cardType === "GREEN" ||
+                selected.cardType === "BLACK") && (
+                <p className="tp-hint">
+                  {selected.cardType} — placement metadata only. No gameplay effect defined yet.
+                </p>
+              )}
+
               <label>
-                Hidden
+                Hidden (authoring)
                 <input
                   type="checkbox"
                   checked={!!selected.hidden}
-                  onChange={(e) => updateFeature(selected.id, { hidden: e.target.checked })}
+                  onChange={(e) =>
+                    onTrackChange(updateFeatureInTrack(track, selected.id, { hidden: e.target.checked }))
+                  }
                 />
               </label>
             </>
           ) : null}
-          {selected.kind === "villain" ? (
-            <>
-              <label>
-                Mode
-                <select
-                  value={selected.mode}
-                  onChange={(e) =>
-                    updateFeature(selected.id, {
-                      mode: e.target.value as "specific" | "random",
-                    })
-                  }
-                >
-                  <option value="specific">Specific</option>
-                  <option value="random">Random</option>
-                </select>
-              </label>
-              {selected.mode === "specific" ? (
-                <select
-                  value={selected.villainKey ?? villainPool[0]}
-                  onChange={(e) =>
-                    updateFeature(selected.id, { villainKey: e.target.value as VillainKey })
-                  }
-                >
-                  {villainPool.map((v) => (
-                    <option key={v} value={v}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
-              ) : null}
-            </>
-          ) : null}
-          <button type="button" className="btn" onClick={() => removeFeature(selected.id)}>
+
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              onTrackChange(removeFeatureById(track, selected.id));
+              onSelectFeature(null);
+            }}
+          >
             Remove feature
           </button>
         </div>
       ) : (
-        <p className="tp-hint">Select a feature type in the toolbar, then tap a hex.</p>
+        <p className="tp-hint">Choose a tool, then tap a logical hex. Features attach to L/R/C coordinates.</p>
       )}
     </div>
   );

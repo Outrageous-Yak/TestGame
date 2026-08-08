@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useState } from "react";
 import type {
   EditorSelection,
   EditorView,
+  FeatureTool,
   PlannerScenario,
   PlannerTrack,
   PlannerWorld,
-  TrackFeature,
 } from "../types";
 import { UndoStack, cloneTrack } from "../state/authoringState";
 import { saveDraftBundle, loadDraftBundle, upsertTrack, deleteBoardDraft } from "../storage";
@@ -25,6 +25,21 @@ const VIEWS: { id: EditorView; label: string }[] = [
   { id: "audit", label: "Audit" },
   { id: "layerPlaytest", label: "Layer Playtest" },
   { id: "simulator", label: "Simulator" },
+];
+
+const FEATURE_TOOLS: { id: FeatureTool; label: string }[] = [
+  { id: "select", label: "Select" },
+  { id: "remove", label: "Remove feature" },
+  { id: "start", label: "Start" },
+  { id: "goal", label: "Goal" },
+  { id: "portal_up", label: "Portal UP" },
+  { id: "portal_down", label: "Portal DOWN" },
+  { id: "card_red", label: "Red" },
+  { id: "card_blue", label: "Blue" },
+  { id: "card_green", label: "Green" },
+  { id: "card_black", label: "Black" },
+  { id: "card_random", label: "? Random" },
+  { id: "card_predetermined", label: "? Fixed" },
 ];
 
 type TrackEditorProps = {
@@ -247,23 +262,21 @@ export function TrackEditor({ track: initial, world, scenario, onTrackSaved, onB
 
       {selection.view === "features" ? (
         <div className="tp-subToolbar tp-featureTools">
-          {(["start", "goal", "portal", "card", "encounter", "villain"] as TrackFeature["kind"][]).map(
-            (k) => (
-              <button
-                key={k}
-                type="button"
-                className={`btn${selection.featureTool === k ? " active" : ""}`}
-                onClick={() =>
-                  setSelection((s) => ({
-                    ...s,
-                    featureTool: s.featureTool === k ? null : k,
-                  }))
-                }
-              >
-                {k}
-              </button>
-            ),
-          )}
+          {FEATURE_TOOLS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className={`btn tp-featureToolBtn${selection.featureTool === t.id ? " active" : ""}`}
+              onClick={() =>
+                setSelection((s) => ({
+                  ...s,
+                  featureTool: s.featureTool === t.id ? null : t.id,
+                }))
+              }
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
       ) : null}
 

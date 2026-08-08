@@ -76,6 +76,8 @@ export type RuntimeScenarioDocument = Scenario & {
     visibilityOverlays: PlannerTrack["visibility"];
     featureIds: string[];
     progression?: PlannerTrack["progression"];
+    /** Full planner features for round-trip (preserves RANDOM/HIDDEN metadata). */
+    authoredFeatures?: TrackFeature[];
   };
 };
 
@@ -132,6 +134,7 @@ export function authoredTrackToScenario(track: PlannerTrack): RuntimeScenarioDoc
     _plannerMeta: {
       visibilityOverlays: track.visibility,
       featureIds: track.features.map((f) => f.id),
+      authoredFeatures: track.features.map((f) => ({ ...f })),
       ...(track.progression ? { progression: track.progression } : {}),
     },
   };
@@ -175,11 +178,10 @@ export function validateStructuralCoords(track: PlannerTrack): string[] {
 
 export function serializeScenarioExport(track: PlannerTrack): string {
   const doc = authoredTrackToScenario(track);
-  const { _plannerMeta, runtimeMovement, ...runtime } = doc as Scenario & {
+  const { runtimeMovement, ...runtime } = doc as Scenario & {
     _plannerMeta?: unknown;
     runtimeMovement?: unknown;
   };
-  void _plannerMeta;
   void runtimeMovement;
   return JSON.stringify(runtime, null, 2);
 }
