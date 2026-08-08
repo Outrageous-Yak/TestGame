@@ -38,7 +38,7 @@ export default {
     {
       id: "citadel_fork_memory",
       name: "Fork Memory",
-      desc: "Portal Fork — visited tiles stay visible in the mist.",
+      desc: "Visited tiles stay visible",
       visibilityMode: "memory",
       scenarioJson: PORTAL_FORK_JSON,
       theme: FORGOTTEN_CITADEL_THEME,
@@ -47,7 +47,7 @@ export default {
     {
       id: "citadel_fork_lantern",
       name: "Fork Lantern",
-      desc: "Portal Fork — a soft light reveals nearby stone.",
+      desc: "Soft light radius around you",
       visibilityMode: "lantern",
       scenarioJson: PORTAL_FORK_JSON,
       theme: FORGOTTEN_CITADEL_THEME,
@@ -56,7 +56,7 @@ export default {
     {
       id: "citadel_fork_echo",
       name: "Fork Echo",
-      desc: "Portal Fork — ghost traces linger where you stepped.",
+      desc: "Ghost traces where you recently stepped",
       visibilityMode: "echo",
       scenarioJson: PORTAL_FORK_JSON,
       theme: FORGOTTEN_CITADEL_THEME,
@@ -65,7 +65,7 @@ export default {
     {
       id: "citadel_fork_night",
       name: "Fork Night",
-      desc: "Portal Fork under a dark sky — only your tile and moves show.",
+      desc: "Dark sky; only your tile + legal moves show",
       visibilityMode: "night",
       scenarioJson: PORTAL_FORK_JSON,
       theme: FORGOTTEN_CITADEL_THEME,
@@ -74,7 +74,7 @@ export default {
     {
       id: "citadel_fork_invisible",
       name: "Fork Invisible",
-      desc: "Portal Fork — only your current tile is visible.",
+      desc: "Only your current tile is visible",
       visibilityMode: "invisible",
       scenarioJson: PORTAL_FORK_JSON,
       theme: FORGOTTEN_CITADEL_THEME,
@@ -83,7 +83,7 @@ export default {
     {
       id: "citadel_fork_crystal_vision",
       name: "Fork Crystal Vision",
-      desc: "Portal Fork — goal and portals shine through the haze.",
+      desc: "Misty board, but goal & portals stay visible",
       visibilityMode: "crystal_vision",
       scenarioJson: PORTAL_FORK_JSON,
       theme: FORGOTTEN_CITADEL_THEME,
