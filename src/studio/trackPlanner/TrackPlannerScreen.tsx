@@ -10,7 +10,7 @@ import {
   upsertTrack,
   upsertWorld,
 } from "./storage";
-import { mergeBundles, newId, seedBundleFromWorlds, hydrateTrackFromJson } from "./catalog";
+import { buildPlannerCatalog, catalogLabel, newId, seedBundleFromWorlds, hydrateTrackFromJson, resolveBoardDraft } from "./catalog";
 import { TrackEditor } from "./editor/TrackEditor";
 import { TrackPlannerErrorBoundary } from "./components/TrackPlannerErrorBoundary";
 import "./trackPlanner.css";
@@ -44,7 +44,7 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
     let cancelled = false;
     const timer = window.setTimeout(() => {
       if (cancelled) return;
-      setBundle(mergeBundles(seedBundleFromWorlds(worlds), loadDraftBundle()));
+      setBundle(buildPlannerCatalog(seedBundleFromWorlds(worlds), loadDraftBundle()));
       setCatalogReady(true);
     }, 0);
     return () => {
@@ -75,9 +75,19 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
     setOpeningTrack(true);
     setFormError(null);
     let t = track;
+    const draftOverlay = resolveBoardDraft(track, loadDraftBundle());
+    if (draftOverlay?.layers.length) {
+      t = {
+        ...draftOverlay,
+        scenarioId: track.scenarioId,
+        sourceScenarioJson: track.sourceScenarioJson ?? draftOverlay.sourceScenarioJson,
+        progression: draftOverlay.progression ?? track.progression,
+        catalogStatus: "modified_draft",
+      };
+    }
     const needsHydrate =
-      !!track.sourceScenarioJson &&
-      (track.layers.length === 0 || track.features.length === 0);
+      !!t.sourceScenarioJson &&
+      (t.layers.length === 0 || t.features.length === 0);
     if (needsHydrate) {
       const controller = new AbortController();
       const timeout = window.setTimeout(() => controller.abort(), 15000);
@@ -194,7 +204,9 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
             world={bundle.worlds.find((w) => w.worldId === editingTrack.worldId)}
             scenario={bundle.scenarios.find((s) => s.scenarioId === editingTrack.scenarioId)}
             onTrackSaved={(t) => {
-              persist(upsertTrack(bundle, t));
+              const drafts = upsertTrack(loadDraftBundle(), t);
+              saveDraftBundle(drafts);
+              setBundle(buildPlannerCatalog(seedBundleFromWorlds(worlds), drafts));
               setEditingTrack(t);
             }}
             onBack={() => {
@@ -350,7 +362,8 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
                                     onClick={() => openTrack(tr)}
                                   >
                                     {tr.name}
-                                    {tr.builtIn ? " · built-in" : ""}
+                                    <span className="tp-trackBadge">{catalogLabel(tr.catalogStatus)}</span>
+                                    {tr.builtIn ? " · shipped" : ""}
                                   </button>
                                 </li>
                               ))}

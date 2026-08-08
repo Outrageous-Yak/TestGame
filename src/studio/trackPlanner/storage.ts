@@ -1,4 +1,5 @@
 import type { PlannerDraftBundle, PlannerScenario, PlannerTrack, PlannerWorld } from "./types";
+import { boardDraftKey } from "./catalogKeys";
 
 const STORAGE_KEY = "track_planner_drafts_v1";
 
@@ -14,7 +15,7 @@ export function loadDraftBundle(): PlannerDraftBundle {
   }
 }
 
-/** Persist only user-authored content — built-in worlds/scenarios/tracks are re-seeded on load. */
+/** Persist user-authored worlds/scenarios and board drafts (never built-in production stubs). */
 export function saveDraftBundle(bundle: PlannerDraftBundle): void {
   const slim: PlannerDraftBundle = {
     version: 1,
@@ -41,18 +42,33 @@ export function emptyBundle(): PlannerDraftBundle {
 }
 
 export function upsertWorld(bundle: PlannerDraftBundle, world: PlannerWorld): PlannerDraftBundle {
-  const worlds = bundle.worlds.filter((w) => w.worldId !== world.worldId).concat(world);
+  const worlds = bundle.worlds.filter((w) => w.worldId !== world.worldId).concat({ ...world, builtIn: undefined });
   return { ...bundle, worlds };
 }
 
 export function upsertScenario(bundle: PlannerDraftBundle, scenario: PlannerScenario): PlannerDraftBundle {
-  const scenarios = bundle.scenarios.filter((s) => s.scenarioId !== scenario.scenarioId).concat(scenario);
+  const scenarios = bundle.scenarios
+    .filter((s) => s.scenarioId !== scenario.scenarioId)
+    .concat({ ...scenario, builtIn: undefined });
   return { ...bundle, scenarios };
 }
 
+/** Upsert a board draft keyed by world + registered track id (shared across scenario variants). */
 export function upsertTrack(bundle: PlannerDraftBundle, track: PlannerTrack): PlannerDraftBundle {
-  const tracks = bundle.tracks.filter((t) => t.trackId !== track.trackId).concat(track);
+  const key = boardDraftKey(track.worldId, track.trackId);
+  const toStore: PlannerTrack = { ...track, builtIn: undefined, catalogStatus: undefined };
+  const tracks = bundle.tracks
+    .filter((t) => boardDraftKey(t.worldId, t.trackId) !== key)
+    .concat(toStore);
   return { ...bundle, tracks };
+}
+
+export function deleteBoardDraft(bundle: PlannerDraftBundle, worldId: string, trackId: string): PlannerDraftBundle {
+  const key = boardDraftKey(worldId, trackId);
+  return {
+    ...bundle,
+    tracks: bundle.tracks.filter((t) => boardDraftKey(t.worldId, t.trackId) !== key),
+  };
 }
 
 export function deleteWorld(bundle: PlannerDraftBundle, worldId: string): PlannerDraftBundle {
@@ -61,7 +77,7 @@ export function deleteWorld(bundle: PlannerDraftBundle, worldId: string): Planne
     ...bundle,
     worlds: bundle.worlds.filter((w) => w.worldId !== worldId),
     scenarios: bundle.scenarios.filter((s) => s.worldId !== worldId),
-    tracks: bundle.tracks.filter((t) => !scenarioIds.has(t.scenarioId)),
+    tracks: bundle.tracks.filter((t) => t.worldId !== worldId && !scenarioIds.has(t.scenarioId)),
   };
 }
 
@@ -73,6 +89,9 @@ export function deleteScenario(bundle: PlannerDraftBundle, scenarioId: string): 
   };
 }
 
+/** @deprecated Prefer deleteBoardDraft */
 export function deleteTrack(bundle: PlannerDraftBundle, trackId: string): PlannerDraftBundle {
   return { ...bundle, tracks: bundle.tracks.filter((t) => t.trackId !== trackId) };
 }
+
+export { STORAGE_KEY as TRACK_PLANNER_STORAGE_KEY };

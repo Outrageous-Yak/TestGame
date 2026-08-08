@@ -443,6 +443,88 @@
   color: #ef4444;
 }
 
+.tp-trackBadge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.tp-boardScroll {
+  overflow-y: auto;
+  max-height: min(70vh, 900px);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.tp-layerJump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tp-layerJumpBtn {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.tp-boardToolbar {
+  position: sticky;
+  top: env(safe-area-inset-top, 0);
+  z-index: 2;
+  background: rgba(13, 21, 32, 0.92);
+  padding: 8px 0;
+}
+
+.tp-previewBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.tp-boardStatusBar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.tp-boardValid {
+  color: #7dffb2;
+}
+
+.tp-boardInvalid {
+  color: #f87171;
+}
+
+.tp-boardWarn {
+  color: #fbbf24;
+}
+
+.tp-validationList {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  font-size: 0.85rem;
+  color: #f87171;
+}
+
+.tp-missingGhost {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 2px dashed rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tp-hexSlot.tp-missing {
+  cursor: pointer;
+}
+
 @media (min-width: 900px) {
   .tp-editor {
     padding: 16px 24px;

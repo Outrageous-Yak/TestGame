@@ -13,10 +13,12 @@ import type {
   LayerBoardAuthored,
   PortalFeature,
   CardFeature,
+  TrackCatalogStatus,
 } from "./types";
 import { CARD_COLOR_TO_RUNTIME, createEmptyTrack, emptyLayerBoard } from "./types";
 import { parseCardTriggersFromScenario, parseVillainsFromScenario } from "../../ui/game/helpers";
 import type { CardKey } from "../../ui/types";
+import { boardDraftKey, catalogEntryKey } from "./catalogKeys";
 
 const RUNTIME_TO_CARD: Record<CardKey, CardFeature["cardType"]> = {
   cosmic: "RED",
@@ -54,12 +56,13 @@ export function seedBundleFromWorlds(worlds: WorldEntry[]): PlannerDraftBundle {
           scenarioId: sc.id,
           worldId: w.id,
           name: tr.name,
-          /** Layers loaded on demand from sourceScenarioJson — keeps catalog lightweight. */
           layers: [],
           features: [],
           visibility: [{ id: "vis_default", state: "REGULAR", coverage: "FULL_BOARD", positions: [] }],
           builtIn: true,
           sourceScenarioJson: tr.scenarioJson,
+          progression: tr.progression,
+          catalogStatus: "production",
         });
       }
     }
@@ -171,31 +174,121 @@ export function scenarioJsonToTrack(base: PlannerTrack, raw: unknown): PlannerTr
     layers,
     features,
     sourceScenarioJson: base.sourceScenarioJson,
+    progression:
+      base.progression ??
+      (raw as { _plannerMeta?: { progression?: PlannerTrack["progression"] } })._plannerMeta?.progression,
   };
 }
 
-export function mergeBundles(builtIn: PlannerDraftBundle, drafts: PlannerDraftBundle): PlannerDraftBundle {
-  const worldMap = new Map<string, PlannerWorld>();
-  for (const w of builtIn.worlds) worldMap.set(w.worldId, w);
-  for (const w of drafts.worlds) worldMap.set(w.worldId, w);
+function overlayDraftOntoCatalogEntry(production: PlannerTrack, draft: PlannerTrack): PlannerTrack {
+  return {
+    ...draft,
+    scenarioId: production.scenarioId,
+    name: draft.name || production.name,
+    sourceScenarioJson: production.sourceScenarioJson ?? draft.sourceScenarioJson,
+    progression: draft.progression ?? production.progression,
+    builtIn: false,
+    catalogStatus: "modified_draft",
+  };
+}
 
-  const scenarioMap = new Map<string, PlannerScenario>();
-  for (const s of builtIn.scenarios) scenarioMap.set(s.scenarioId, s);
-  for (const s of drafts.scenarios) scenarioMap.set(s.scenarioId, s);
+function catalogStatusForTrack(track: PlannerTrack, hasBoardDraft: boolean): TrackCatalogStatus {
+  if (hasBoardDraft && track.sourceScenarioJson) return "modified_draft";
+  if (!track.builtIn && track.sourceScenarioJson) return "modified_draft";
+  if (!track.builtIn) return "new_draft";
+  return "production";
+}
 
-  const trackMap = new Map<string, PlannerTrack>();
-  for (const t of builtIn.tracks) trackMap.set(t.trackId, t);
-  for (const t of drafts.tracks) trackMap.set(t.trackId, t);
+/**
+ * Merge production registry with local board drafts.
+ * Production browse entries are preserved per (world, scenario, track).
+ * Board drafts overlay by (world, track) — shared across visibility variants.
+ */
+export function buildPlannerCatalog(
+  builtIn: PlannerDraftBundle,
+  drafts: PlannerDraftBundle,
+): PlannerDraftBundle {
+  const draftWorldMap = new Map(drafts.worlds.map((w) => [w.worldId, w]));
+  const draftScenarioMap = new Map(drafts.scenarios.map((s) => [s.scenarioId, s]));
+  const draftByBoardKey = new Map<string, PlannerTrack>();
+  for (const t of drafts.tracks) {
+    draftByBoardKey.set(boardDraftKey(t.worldId, t.trackId), t);
+  }
+
+  const worlds: PlannerWorld[] = builtIn.worlds.map((w) => draftWorldMap.get(w.worldId) ?? w);
+  for (const w of drafts.worlds) {
+    if (!worlds.some((x) => x.worldId === w.worldId)) worlds.push(w);
+  }
+
+  const scenarios: PlannerScenario[] = builtIn.scenarios.map((s) => draftScenarioMap.get(s.scenarioId) ?? s);
+  for (const s of drafts.scenarios) {
+    if (!scenarios.some((x) => x.scenarioId === s.scenarioId)) scenarios.push(s);
+  }
+
+  const catalogTrackKeys = new Set<string>();
+  const tracks: PlannerTrack[] = [];
+
+  for (const prod of builtIn.tracks) {
+    const entryKey = catalogEntryKey(prod.worldId, prod.scenarioId, prod.trackId);
+    catalogTrackKeys.add(entryKey);
+    const overlay = draftByBoardKey.get(boardDraftKey(prod.worldId, prod.trackId));
+    if (overlay) {
+      tracks.push(overlayDraftOntoCatalogEntry(prod, overlay));
+    } else {
+      tracks.push({ ...prod, catalogStatus: "production" });
+    }
+  }
+
+  for (const draft of drafts.tracks) {
+    const matchesBuiltIn = builtIn.tracks.some(
+      (p) => p.worldId === draft.worldId && p.trackId === draft.trackId,
+    );
+    if (matchesBuiltIn) continue;
+
+    const entryKey = catalogEntryKey(draft.worldId, draft.scenarioId, draft.trackId);
+    if (catalogTrackKeys.has(entryKey)) continue;
+    catalogTrackKeys.add(entryKey);
+    tracks.push({
+      ...draft,
+      catalogStatus: catalogStatusForTrack(draft, true),
+    });
+  }
 
   return {
     version: 1,
-    worlds: [...worldMap.values()],
-    scenarios: [...scenarioMap.values()],
-    tracks: [...trackMap.values()],
-    updatedAt: drafts.updatedAt,
+    worlds,
+    scenarios,
+    tracks,
+    updatedAt: drafts.updatedAt || builtIn.updatedAt,
   };
+}
+
+/** @deprecated Use buildPlannerCatalog */
+export function mergeBundles(builtIn: PlannerDraftBundle, drafts: PlannerDraftBundle): PlannerDraftBundle {
+  return buildPlannerCatalog(builtIn, drafts);
+}
+
+export function resolveBoardDraft(
+  catalogEntry: PlannerTrack,
+  drafts: PlannerDraftBundle,
+): PlannerTrack | null {
+  return (
+    drafts.tracks.find((t) => boardDraftKey(t.worldId, t.trackId) === boardDraftKey(catalogEntry.worldId, catalogEntry.trackId)) ??
+    null
+  );
 }
 
 export function newId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+export function catalogLabel(status: TrackCatalogStatus | undefined): string {
+  switch (status) {
+    case "modified_draft":
+      return "Modified Draft";
+    case "new_draft":
+      return "New Draft";
+    default:
+      return "Production";
+  }
 }

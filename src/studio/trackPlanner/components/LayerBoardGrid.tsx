@@ -17,6 +17,9 @@ type LayerBoardGridProps = {
   highlightFeatures?: boolean;
   /** When false, skip building runtime game state (faster board editing). */
   showPlayer?: boolean;
+  /** Allow clicking missing-slot positions (restore tool). */
+  allowMissingClick?: boolean;
+  layerRef?: (el: HTMLDivElement | null) => void;
 };
 
 export function LayerBoardGrid({
@@ -29,6 +32,8 @@ export function LayerBoardGrid({
   onSlotClick,
   highlightFeatures = true,
   showPlayer = false,
+  allowMissingClick = false,
+  layerRef,
 }: LayerBoardGridProps) {
   const layerBoard = track.layers.find((l) => l.layer === layer);
   const missingSet = useMemo(() => {
@@ -65,7 +70,7 @@ export function LayerBoardGrid({
   }
 
   return (
-    <div className="tp-layerBoard">
+    <div className="tp-layerBoard" ref={layerRef}>
       <div className="tp-layerHeader" style={{ borderColor: layerCssVar(layer) }}>
         Layer {layer}
       </div>
@@ -104,10 +109,11 @@ export function LayerBoardGrid({
                       .filter(Boolean)
                       .join(" ")}
                     style={hexGridPlacement(row, col)}
-                    disabled={missing && !onSlotClick}
+                    disabled={missing && !allowMissingClick && !onSlotClick}
                     onClick={() => onSlotClick?.(pos, hexId)}
-                    aria-label={`L${layer} R${row} C${col}`}
+                    aria-label={missing ? `Missing L${layer} R${row} C${col}` : `L${layer} R${row} C${col}`}
                   >
+                    {missing ? <span className="tp-missingGhost" aria-hidden /> : null}
                     {!missing ? <span className="hex tp-hexFace" aria-hidden /> : null}
                     {feat ? (
                       <span className="tp-featBadge">
@@ -129,12 +135,23 @@ export function LayerBoardGrid({
 
 export function AllLayersBoard({
   track,
+  layerRefs,
+  allowMissingClick,
   ...rest
-}: Omit<LayerBoardGridProps, "layer">) {
+}: Omit<LayerBoardGridProps, "layer"> & {
+  layerRefs?: React.MutableRefObject<Record<number, HTMLDivElement | null>>;
+}) {
   return (
     <div className="tp-allLayers">
       {[7, 6, 5, 4, 3, 2, 1].map((layer) => (
-        <LayerBoardGrid key={layer} track={track} layer={layer} {...rest} />
+        <LayerBoardGrid
+          key={layer}
+          track={track}
+          layer={layer}
+          allowMissingClick={allowMissingClick}
+          layerRef={layerRefs ? (el) => { layerRefs.current[layer] = el; } : undefined}
+          {...rest}
+        />
       ))}
     </div>
   );

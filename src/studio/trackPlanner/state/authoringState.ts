@@ -30,11 +30,20 @@ export function setRowMovement(
 ): PlannerTrack {
   const next = cloneTrack(track);
   const lb = next.layers.find((l) => l.layer === layer) ?? emptyLayerBoard(layer);
-  lb.rowMovement[String(row)] = { ...inst };
+  const normalized = normalizeRowMovement(inst);
+  lb.rowMovement[String(row)] = normalized;
   const idx = next.layers.findIndex((l) => l.layer === layer);
   if (idx >= 0) next.layers[idx] = lb;
   else next.layers.push(lb);
   return next;
+}
+
+export function normalizeRowMovement(inst: RowMovementAuthored): RowMovementAuthored {
+  if (inst.direction === "NONE") {
+    return { direction: "NONE", amount: 0 };
+  }
+  const amount = inst.amount > 0 ? inst.amount : 1;
+  return { direction: inst.direction, amount };
 }
 
 export class UndoStack {

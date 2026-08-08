@@ -149,6 +149,8 @@ export interface VisibilityOverlay {
   memoryRevealSec?: number;
 }
 
+export type TrackCatalogStatus = "production" | "new_draft" | "modified_draft";
+
 export interface PlannerTrack {
   trackId: PlannerTrackId;
   scenarioId: PlannerScenarioId;
@@ -166,6 +168,10 @@ export interface PlannerTrack {
   builtIn?: boolean;
   /** Path to source scenario JSON when imported from game. */
   sourceScenarioJson?: string;
+  /** Derived UI label — not persisted. */
+  catalogStatus?: TrackCatalogStatus;
+  /** Optional progression metadata preserved across board edits (Step 2). */
+  progression?: import("../../progression/types").TrackProgressionDefinition;
 }
 
 export interface PlannerDraftBundle {

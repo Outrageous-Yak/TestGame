@@ -8,9 +8,9 @@ import type {
   TrackFeature,
 } from "../types";
 import { UndoStack, cloneTrack } from "../state/authoringState";
-import { saveDraftBundle, loadDraftBundle, upsertTrack } from "../storage";
+import { saveDraftBundle, loadDraftBundle, upsertTrack, deleteBoardDraft } from "../storage";
+import { hydrateTrackFromJson, scenarioJsonToTrack } from "../catalog";
 import { serializeScenarioExport } from "../serialization/scenarioBridge";
-import { scenarioJsonToTrack } from "../catalog";
 import { BoardView } from "./BoardView";
 import { FeaturesView } from "./FeaturesView";
 import { VisibilityView } from "./VisibilityView";
@@ -81,10 +81,39 @@ export function TrackEditor({ track: initial, world, scenario, onTrackSaved, onB
   };
 
   const saveDraft = () => {
-    const bundle = upsertTrack(loadDraftBundle(), track);
+    const toSave = { ...track, builtIn: undefined, catalogStatus: undefined };
+    const bundle = upsertTrack(loadDraftBundle(), toSave);
     queueMicrotask(() => saveDraftBundle(bundle));
-    onTrackSaved(track);
+    onTrackSaved(toSave);
     setDirty(false);
+  };
+
+  const deleteDraft = () => {
+    if (!window.confirm("Delete local draft for this track? Production content is not affected.")) return;
+    const bundle = deleteBoardDraft(loadDraftBundle(), track.worldId, track.trackId);
+    saveDraftBundle(bundle);
+    setDirty(false);
+    onBack();
+  };
+
+  const resetToProduction = async () => {
+    if (!track.sourceScenarioJson) return;
+    if (!window.confirm("Discard local draft and reload production board JSON?")) return;
+    saveDraftBundle(deleteBoardDraft(loadDraftBundle(), track.worldId, track.trackId));
+    try {
+      const base = { ...track, layers: [], features: [], builtIn: true };
+      const fresh = await hydrateTrackFromJson(base, async (path) => {
+        const res = await fetch(path);
+        if (!res.ok) throw new Error(path);
+        return res.json();
+      });
+      undo.reset(fresh);
+      setTrack(cloneTrack(fresh));
+      setDirty(false);
+      onTrackSaved(fresh);
+    } catch {
+      window.alert("Could not reload production track.");
+    }
   };
 
   const exportJson = () => {
@@ -146,6 +175,14 @@ export function TrackEditor({ track: initial, world, scenario, onTrackSaved, onB
           </button>
           <button type="button" className="btn" onClick={saveDraft}>
             Save draft
+          </button>
+          {track.sourceScenarioJson ? (
+            <button type="button" className="btn" onClick={() => void resetToProduction()}>
+              Reset to production
+            </button>
+          ) : null}
+          <button type="button" className="btn" onClick={deleteDraft}>
+            Delete draft
           </button>
           <button type="button" className="btn primary" onClick={exportJson}>
             Export JSON

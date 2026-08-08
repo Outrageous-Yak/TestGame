@@ -28,7 +28,13 @@ import {
   upsertTrack,
   upsertWorld,
 } from "./storage";
-import { scenarioJsonToTrack, seedBundleFromWorlds } from "./catalog";
+import { scenarioJsonToTrack, seedBundleFromWorlds, buildPlannerCatalog } from "./catalog";
+import { boardDraftKey } from "./catalogKeys";
+import { validateBoard } from "./boardValidation";
+import { buildMovementPreviewState } from "./boardMovementPreview";
+import { deleteBoardDraft, upsertTrack } from "./storage";
+import { createDefaultProgression, PROGRESSION_STORAGE_KEY } from "../../progression/storage";
+import { bestScoreKey } from "../../ui/bestScore";
 import { createEmptyTrack } from "./types";
 import { runSimulator } from "./simulation/runSimulator";
 import { loadWorlds } from "../../ui/worldsLoader";
@@ -412,5 +418,134 @@ describe("Track Planner visibility types", () => {
     expect(track.visibility[0].state).toBe("INVISIBLE");
     const scenario = authoredTrackToScenario(track);
     expect(scenario.missing).toHaveLength(1);
+  });
+});
+
+describe("Step 3 catalog merge", () => {
+  it("preserves all production browse entries (no trackId collapse)", () => {
+    const worlds = loadWorlds();
+    const builtIn = seedBundleFromWorlds(worlds);
+    const catalog = buildPlannerCatalog(builtIn, emptyBundle());
+    expect(catalog.tracks.length).toBe(builtIn.tracks.length);
+    expect(catalog.tracks.length).toBeGreaterThan(100);
+  });
+
+  it("overlays board draft across cloud scenario variants", () => {
+    const worlds = loadWorlds();
+    const builtIn = seedBundleFromWorlds(worlds);
+    const draftTrack = createEmptyTrack("t1", "prism_path", "rainbow_realm", "Edited");
+    draftTrack.layers[0].missing.push({ layer: 1, row: 0, col: 0 });
+    draftTrack.features = trackWithStartGoal().features;
+    let drafts = emptyBundle();
+    drafts = upsertTrack(drafts, draftTrack);
+    const catalog = buildPlannerCatalog(builtIn, drafts);
+    const clear = catalog.tracks.find((t) => t.trackId === "t1" && t.scenarioId === "prism_path");
+    const cloudy = catalog.tracks.find((t) => t.trackId === "t1" && t.scenarioId === "cloudy");
+    expect(clear?.catalogStatus).toBe("modified_draft");
+    expect(cloudy?.catalogStatus).toBe("modified_draft");
+    expect(clear?.layers[0].missing).toHaveLength(1);
+    expect(cloudy?.layers[0].missing).toHaveLength(1);
+  });
+
+  it("keeps t5 and t6 drafts independent despite shared JSON", () => {
+    let drafts = emptyBundle();
+    const t5 = createEmptyTrack("t5", "prism_path", "rainbow_realm", "Five");
+    t5.features = trackWithStartGoal().features;
+    t5.layers[0].missing.push({ layer: 1, row: 1, col: 1 });
+    drafts = upsertTrack(drafts, t5);
+    const catalog = buildPlannerCatalog(seedBundleFromWorlds(loadWorlds()), drafts);
+    const five = catalog.tracks.find((t) => t.trackId === "t5" && t.scenarioId === "prism_path");
+    const six = catalog.tracks.find((t) => t.trackId === "t6" && t.scenarioId === "prism_path");
+    expect(five?.layers[0]?.missing).toHaveLength(1);
+    expect(six?.layers[0]?.missing ?? []).toHaveLength(0);
+  });
+});
+
+describe("Step 3 board validation and preview", () => {
+  it("validates default empty track structure", () => {
+    const track = createEmptyTrack("t1", "sc1", "w1", "New");
+    const v = validateBoard(track);
+    expect(v.errors.some((e) => e.includes("Start"))).toBe(true);
+    expect(track.layers).toHaveLength(7);
+  });
+
+  it("preview uses engine row movement without mutating authored track", () => {
+    const track = trackWithStartGoal();
+    setRowMovement(track, 2, 1, { direction: "RIGHT", amount: 1 });
+    const before = cloneTrack(track);
+    const state = buildMovementPreviewState(track, 1);
+    expect(state).not.toBeNull();
+    expect(track).toEqual(before);
+  });
+
+  it("preview works without Start/Goal features via placeholder anchors", () => {
+    const track = createEmptyTrack("t_new", "sc1", "w1", "New");
+    setRowMovement(track, 2, 1, { direction: "RIGHT", amount: 1 });
+    expect(track.features.some((f) => f.kind === "start")).toBe(false);
+    expect(buildMovementPreviewState(track, 1)).not.toBeNull();
+  });
+
+  it("preview supports layer 1 row movement per current engine rules", () => {
+    const track = createEmptyTrack("t_l1", "sc1", "w1", "L1 move");
+    setRowMovement(track, 1, 5, { direction: "LEFT", amount: 2 });
+    expect(buildMovementPreviewState(track, 1)).not.toBeNull();
+  });
+
+  it("normalizeRowMovement sets NONE amount to 0", () => {
+    const track = trackWithStartGoal();
+    const next = setRowMovement(track, 3, 2, { direction: "NONE", amount: 5 });
+    expect(next.layers[2].rowMovement["2"]).toEqual({ direction: "NONE", amount: 0 });
+  });
+});
+
+describe("Step 3 storage isolation", () => {
+  it("save draft does not touch progression or best score keys", () => {
+    const store: Record<string, string> = {
+      [PROGRESSION_STORAGE_KEY]: JSON.stringify(createDefaultProgression()),
+      [bestScoreKey("prism_path", "t1")]: "5",
+    };
+    const ls = {
+      setItem: (k: string, v: string) => {
+        store[k] = v;
+      },
+      getItem: (k: string) => store[k] ?? null,
+      removeItem: (k: string) => {
+        delete store[k];
+      },
+    };
+    const original = globalThis.localStorage;
+    Object.defineProperty(globalThis, "localStorage", { value: ls, configurable: true });
+
+    const track = trackWithStartGoal();
+    track.trackId = "t1";
+    track.worldId = "rainbow_realm";
+    track.scenarioId = "prism_path";
+    saveDraftBundle(upsertTrack(emptyBundle(), track));
+
+    expect(store[PROGRESSION_STORAGE_KEY]).toContain("completedTracks");
+    expect(store[bestScoreKey("prism_path", "t1")]).toBe("5");
+    Object.defineProperty(globalThis, "localStorage", { value: original, configurable: true });
+  });
+
+  it("deleteBoardDraft removes by world+track key", () => {
+    let drafts = emptyBundle();
+    drafts = upsertTrack(drafts, createEmptyTrack("t5", "a", "rainbow_realm", "A"));
+    drafts = upsertTrack(drafts, createEmptyTrack("t6", "a", "rainbow_realm", "B"));
+    drafts = deleteBoardDraft(drafts, "rainbow_realm", "t5");
+    expect(drafts.tracks.map((t) => t.trackId)).toEqual(["t6"]);
+    expect(boardDraftKey("rainbow_realm", "t5")).not.toBe(boardDraftKey("rainbow_realm", "t6"));
+  });
+});
+
+describe("Step 3 progression metadata preservation", () => {
+  it("preserves progression on board-only edit", () => {
+    const track = trackWithStartGoal();
+    track.progression = {
+      requires: [{ type: "TRACK_COMPLETE", worldId: "w1", trackId: "t0" }],
+      introduces: ["portals"],
+    };
+    const edited = toggleMissingHex(track, { layer: 1, row: 0, col: 0 }, true);
+    expect(edited.progression).toEqual(track.progression);
+    expect(edited.features).toHaveLength(track.features.length);
   });
 });

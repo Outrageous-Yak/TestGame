@@ -75,6 +75,7 @@ export type RuntimeScenarioDocument = Scenario & {
   _plannerMeta?: {
     visibilityOverlays: PlannerTrack["visibility"];
     featureIds: string[];
+    progression?: PlannerTrack["progression"];
   };
 };
 
@@ -131,6 +132,7 @@ export function authoredTrackToScenario(track: PlannerTrack): RuntimeScenarioDoc
     _plannerMeta: {
       visibilityOverlays: track.visibility,
       featureIds: track.features.map((f) => f.id),
+      ...(track.progression ? { progression: track.progression } : {}),
     },
   };
 
