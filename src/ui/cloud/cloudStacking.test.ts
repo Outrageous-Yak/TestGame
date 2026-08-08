@@ -68,12 +68,19 @@ describe("cloudBoardLayering — cloud cover visibility", () => {
     expect(shouldRenderCloudCover("cloud")).toBe(true);
     expect(shouldRenderCloudCover("faded")).toBe(false);
     expect(shouldRenderCloudCover("hidden")).toBe(false);
+    expect(shouldRenderCloudCover("ember")).toBe(false);
+    expect(shouldRenderCloudCover("echo")).toBe(false);
+    expect(shouldRenderCloudCover("beacon")).toBe(false);
   });
 
   it("night and invisible suppress reach hints", () => {
     expect(shouldShowReachHints("night")).toBe(false);
     expect(shouldShowReachHints("invisible")).toBe(false);
-    expect(shouldShowReachHints("memory")).toBe(true);
+    expect(shouldShowReachHints("memory")).toBe(false);
+    expect(shouldShowReachHints("lantern")).toBe(false);
+    expect(shouldShowReachHints("echo")).toBe(false);
+    expect(shouldShowReachHints("crystal_vision")).toBe(false);
+    expect(shouldShowReachHints("cloudy")).toBe(true);
   });
 
   it("night and invisible do not show full-cloud move pulses", () => {
