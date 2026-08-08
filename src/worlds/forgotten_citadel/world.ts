@@ -65,7 +65,7 @@ export default {
     {
       id: "citadel_fork_night",
       name: "Fork Night",
-      desc: "Dark sky; only your tile + legal moves show",
+      desc: "Every hex faded; only your current tile stays lit",
       visibilityMode: "night",
       scenarioJson: PORTAL_FORK_JSON,
       theme: FORGOTTEN_CITADEL_THEME,

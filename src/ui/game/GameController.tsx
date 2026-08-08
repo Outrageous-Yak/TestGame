@@ -43,7 +43,10 @@ import {
 import {
   REACH_PULSE_INTERVAL_MS,
   shouldShowFullCloudMovePulse,
+  shouldShowReachHints,
   shouldUseButtonReachPulse,
+  shouldRenderCloudCover,
+  shouldCardSitUnderCloud,
 } from "../cloud/cloudBoardLayering";
 import type { ScenarioDocument, TrackTransformSelection } from "../../engine/layerTransform/types";
 import {
@@ -1582,8 +1585,7 @@ export function GameController({
                           const missingCloudActive = isVisibilityScenario && missingCv;
                           const missingCloudVis = missingCv?.visibility;
                           const showMissingCloudCover =
-                            missingCloudActive &&
-                            (missingCloudVis === "partial" || missingCloudVis === "cloud");
+                            missingCloudActive && shouldRenderCloudCover(missingCloudVis);
                           const missingCloudDensity = missingCloudVis === "partial" ? "partial" : "full";
 
                           return (
@@ -1622,7 +1624,12 @@ export function GameController({
                         const showStartPortal = isStart && movesTaken === 0;
 
                         const cardHere = findCardTriggerAt(id);
-                        const isReach = playerLayer === currentLayer && !isPlayer && reachable.has(id);
+                        const reachHintsEnabled = shouldShowReachHints(visibilityMode);
+                        const isReach =
+                          reachHintsEnabled &&
+                          playerLayer === currentLayer &&
+                          !isPlayer &&
+                          reachable.has(id);
                         const isReachPulse = isReach && reachPulseId === id;
                         const isReachPulseCard = isReachPulse && !!cardHere;
                         const isGoal = goalId === id;
@@ -1631,14 +1638,18 @@ export function GameController({
                         const cv = cloudVisibilityMap?.get(id);
                         const cloudActive = isVisibilityScenario && cv;
                         const cloudVis = cv?.visibility;
-                        const showCloudCover =
-                          cloudActive && (cloudVis === "partial" || cloudVis === "cloud");
+                        const showCloudCover = cloudActive && shouldRenderCloudCover(cloudVis);
                         const cloudDensity = cloudVis === "partial" ? "partial" : "full";
                         const hideSpecialTileArt =
                           cloudActive &&
                           cloudVis !== "visible" &&
                           (isGoal || isPortalUp || isPortalDown || showStartPortal);
-                        const showGoalOverlay = cloudActive && cv?.hasGoal && cloudVis !== "visible";
+                        const showGoalOverlay =
+                          cloudActive &&
+                          cv?.hasGoal &&
+                          cloudVis !== "visible" &&
+                          cloudVis !== "faded" &&
+                          cloudVis !== "hidden";
                         const useSolidGoldGoal = shouldUseSolidGoldGoal(
                           SOLID_GOLD_GOAL,
                           isGoal,
@@ -1647,6 +1658,8 @@ export function GameController({
                         const showPortalOverlay =
                           cloudActive &&
                           cloudVis !== "visible" &&
+                          cloudVis !== "faded" &&
+                          cloudVis !== "hidden" &&
                           (isPortalUp || isPortalDown || showStartPortal);
                         const portalInInner =
                           (isPortalUp || isPortalDown || showStartPortal) && !showPortalOverlay;
@@ -1710,6 +1723,8 @@ export function GameController({
                               "hexSlot",
                               isVisibilityScenario ? "cloudScenario" : "",
                               cloudVis === "visible" ? "cloudVis-visible" : "",
+                              cloudVis === "faded" ? "cloudVis-faded" : "",
+                              cloudVis === "hidden" ? "cloudVis-hidden" : "",
                             ]
                               .filter(Boolean)
                               .join(" ")}
@@ -1760,7 +1775,14 @@ export function GameController({
                             ) : null}
 
                             {cardHere ? (
-                              <div className={["cardLayer", isVisibilityScenario ? "cardLayerUnderCloud" : ""].filter(Boolean).join(" ")}>
+                              <div
+                                className={[
+                                  "cardLayer",
+                                  shouldCardSitUnderCloud(isVisibilityScenario, cloudVis) ? "cardLayerUnderCloud" : "",
+                                ]
+                                  .filter(Boolean)
+                                  .join(" ")}
+                              >
                                 <div className={"cardBadge hexDeckCard " + cardHere} title={cardHere}>
                                   <div className="deckFx" />
                                 </div>

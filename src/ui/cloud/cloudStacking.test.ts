@@ -6,6 +6,7 @@ import {
   shouldCardSitUnderCloud,
   shouldRenderCloudCover,
   shouldShowFullCloudMovePulse,
+  shouldShowReachHints,
   shouldUseButtonReachPulse,
   countActiveMovePulses,
 } from "./cloudBoardLayering";
@@ -65,6 +66,26 @@ describe("cloudBoardLayering — cloud cover visibility", () => {
     expect(shouldRenderCloudCover("visible")).toBe(false);
     expect(shouldRenderCloudCover("partial")).toBe(true);
     expect(shouldRenderCloudCover("cloud")).toBe(true);
+    expect(shouldRenderCloudCover("faded")).toBe(false);
+    expect(shouldRenderCloudCover("hidden")).toBe(false);
+  });
+
+  it("night and invisible suppress reach hints", () => {
+    expect(shouldShowReachHints("night")).toBe(false);
+    expect(shouldShowReachHints("invisible")).toBe(false);
+    expect(shouldShowReachHints("memory")).toBe(true);
+  });
+
+  it("night and invisible do not show full-cloud move pulses", () => {
+    expect(shouldShowFullCloudMovePulse(true, "night")).toBe(false);
+    expect(shouldShowFullCloudMovePulse(true, "invisible")).toBe(false);
+    expect(shouldShowFullCloudMovePulse(true, "full_cloud")).toBe(true);
+  });
+
+  it("night and invisible do not use button reach pulse", () => {
+    expect(shouldUseButtonReachPulse(true, "night")).toBe(false);
+    expect(shouldUseButtonReachPulse(true, "invisible")).toBe(false);
+    expect(shouldUseButtonReachPulse(true, "cloudy")).toBe(true);
   });
 });
 

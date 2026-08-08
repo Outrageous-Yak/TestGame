@@ -46,35 +46,45 @@
 }
 
 .cloudSceneDim--night {
-  --cloudDimStrength: 0.42;
-  --cloudDimEdge: 0.62;
+  --cloudDimStrength: 0.55;
+  --cloudDimEdge: 0.82;
   background: radial-gradient(
     ellipse 115% 88% at 50% 42%,
-    rgba(8, 12, 32, 0.2) 0%,
-    rgba(6, 10, 28, 0.55) 58%,
-    rgba(4, 6, 20, 0.72) 100%
+    rgba(4, 6, 18, 0.45) 0%,
+    rgba(2, 4, 12, 0.78) 58%,
+    rgba(0, 0, 0, 0.92) 100%
   );
 }
 
 .cloudBoardDim--night {
-  --boardDimTop: 0.22;
-  --boardDimBottom: 0.28;
-  --boardDimBase: 0.38;
+  --boardDimTop: 0.38;
+  --boardDimBottom: 0.45;
+  --boardDimBase: 0.62;
   background:
-    linear-gradient(180deg, rgba(8, 12, 36, 0.35) 0%, transparent 30%),
-    linear-gradient(0deg, rgba(8, 12, 36, 0.4) 0%, transparent 34%),
-    rgba(10, 14, 40, 0.32);
+    linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, transparent 30%),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.6) 0%, transparent 34%),
+    rgba(0, 0, 0, 0.5);
 }
 
 .cloudSceneDim--invisible {
-  --cloudDimStrength: 0.32;
-  --cloudDimEdge: 0.5;
+  --cloudDimStrength: 0.72;
+  --cloudDimEdge: 0.9;
+  background: radial-gradient(
+    ellipse 115% 88% at 50% 42%,
+    rgba(0, 0, 0, 0.55) 0%,
+    rgba(0, 0, 0, 0.82) 58%,
+    rgba(0, 0, 0, 0.96) 100%
+  );
 }
 
 .cloudBoardDim--invisible {
-  --boardDimTop: 0.2;
-  --boardDimBottom: 0.24;
-  --boardDimBase: 0.3;
+  --boardDimTop: 0.45;
+  --boardDimBottom: 0.5;
+  --boardDimBase: 0.72;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.65) 0%, transparent 30%),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.7) 0%, transparent 34%),
+    rgba(0, 0, 0, 0.68);
 }
 
 .cloudSceneDim--memory {
@@ -143,11 +153,62 @@
   opacity: 0.15;
 }
 
+/* Fork Night — dim silhouettes; only the current hex stays fully lit */
+.appRoot.game.cloudScenarioActive.visibility--night .gameBg,
+.appRoot.game.cloudScenarioActive.visibility--night .boardLayerBg {
+  filter: brightness(0.35) saturate(0.4);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--night .hexSlot.cloudVis-faded .hexInner {
+  opacity: 0.2;
+  filter: saturate(0.25) brightness(0.4);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--night .hexSlot.cloudVis-faded .hex {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--night .hexSlot.cloudVis-visible .hexInner {
+  opacity: 1;
+  filter: none;
+}
+
+/* Fork Invisible — void except the current hex */
+.appRoot.game.cloudScenarioActive.visibility--invisible .gameBg,
+.appRoot.game.cloudScenarioActive.visibility--invisible .boardLayerBg {
+  filter: brightness(0.12) saturate(0);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--invisible .hexSlot.cloudVis-hidden .hexTerrainClip,
+.appRoot.game.cloudScenarioActive.visibility--invisible .hexSlot.cloudVis-hidden .hexInner,
+.appRoot.game.cloudScenarioActive.visibility--invisible .hexSlot.cloudVis-hidden .hexMarks,
+.appRoot.game.cloudScenarioActive.visibility--invisible .hexSlot.cloudVis-hidden .portalFx {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.appRoot.game.cloudScenarioActive.visibility--invisible .hexSlot.cloudVis-hidden > .cardLayer,
+.appRoot.game.cloudScenarioActive.visibility--invisible .hexSlot.cloudVis-hidden > .reachSparkle,
+.appRoot.game.cloudScenarioActive.visibility--invisible .hexSlot.cloudVis-hidden > .hexOverlayAnchor {
+  display: none;
+}
+
+.appRoot.game.cloudScenarioActive.visibility--invisible .hexSlot.cloudVis-hidden .hex {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.appRoot.game.cloudScenarioActive.visibility--invisible .hexSlot.cloudVis-visible .hexInner {
+  opacity: 1;
+  visibility: visible;
+}
+
 /* Gentle scene-wide softening during cloud scenarios */
-.appRoot.game.cloudScenarioActive .gameBg {
+.appRoot.game.cloudScenarioActive:not(.visibility--night):not(.visibility--invisible) .gameBg {
   filter: saturate(0.92) contrast(0.94) brightness(0.97);
 }
 
-.appRoot.game.cloudScenarioActive .boardLayerBg {
+.appRoot.game.cloudScenarioActive:not(.visibility--night):not(.visibility--invisible) .boardLayerBg {
   opacity: 0.92;
 }

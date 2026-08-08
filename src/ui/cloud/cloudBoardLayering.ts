@@ -5,12 +5,17 @@ import type { CloudVisibility } from "./computeCloudVisibility";
 export const REACH_PULSE_INTERVAL_MS = 850;
 
 function usesFullCloudStylePulse(mode?: CloudMode | string): boolean {
-  return mode === "full_cloud" || mode === "night" || mode === "invisible";
+  return mode === "full_cloud";
+}
+
+/** Night and invisible hide legal-move hints — only the current tile is lit. */
+export function shouldShowReachHints(visibilityMode?: CloudMode | string): boolean {
+  return visibilityMode !== "night" && visibilityMode !== "invisible";
 }
 
 /** Button `.reachPulse` — Cloudy and non-cloud; not Full Cloud-style modes. */
 export function shouldUseButtonReachPulse(isReachPulse: boolean, visibilityMode?: CloudMode | string): boolean {
-  return isReachPulse && !usesFullCloudStylePulse(visibilityMode);
+  return isReachPulse && shouldShowReachHints(visibilityMode) && !usesFullCloudStylePulse(visibilityMode);
 }
 
 /** Full Cloud hex-shaped pulse overlay — one active legal hex at a time. */
@@ -18,7 +23,7 @@ export function shouldShowFullCloudMovePulse(
   isReachPulse: boolean,
   visibilityMode?: CloudMode | string
 ): boolean {
-  return isReachPulse && usesFullCloudStylePulse(visibilityMode);
+  return isReachPulse && shouldShowReachHints(visibilityMode) && usesFullCloudStylePulse(visibilityMode);
 }
 
 export function shouldRenderCloudCover(visibility?: CloudVisibility): boolean {

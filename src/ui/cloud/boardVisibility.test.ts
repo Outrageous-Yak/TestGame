@@ -16,7 +16,23 @@ describe("computeBoardVisibility", () => {
       adjacency,
     });
     expect(map.get("L1-R0-C0")?.visibility).toBe("visible");
-    expect(map.get("L1-R0-C1")?.visibility).toBe("cloud");
+    expect(map.get("L1-R0-C1")?.visibility).toBe("hidden");
+    expect(map.get("L1-R1-C0")?.visibility).toBe("hidden");
+  });
+
+  it("night mode fades all but current hex", () => {
+    const map = computeBoardVisibility({
+      mode: "night",
+      currentHexId: "L1-R0-C0",
+      legalMoveHexIds: new Set(["L1-R0-C1"]),
+      allTerrainHexIds: terrain,
+      goalHexId: "L1-R1-C0",
+      portalHexIds: new Set(["L1-R0-C1"]),
+      adjacency,
+    });
+    expect(map.get("L1-R0-C0")?.visibility).toBe("visible");
+    expect(map.get("L1-R0-C1")?.visibility).toBe("faded");
+    expect(map.get("L1-R1-C0")?.visibility).toBe("faded");
   });
 
   it("memory mode reveals visited hexes", () => {
