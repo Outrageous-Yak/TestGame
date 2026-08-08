@@ -1,0 +1,218 @@
+/* Fork visibility modes — cloud-free effect styling */
+
+/* Shared void background for fork effect modes */
+.appRoot.game.cloudScenarioActive.visibility--memory .gameBg,
+.appRoot.game.cloudScenarioActive.visibility--lantern .gameBg,
+.appRoot.game.cloudScenarioActive.visibility--echo .gameBg,
+.appRoot.game.cloudScenarioActive.visibility--crystal_vision .gameBg {
+  filter: brightness(0.15) saturate(0.2);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--memory .boardLayerBg,
+.appRoot.game.cloudScenarioActive.visibility--lantern .boardLayerBg,
+.appRoot.game.cloudScenarioActive.visibility--echo .boardLayerBg {
+  opacity: 0.35;
+}
+
+/* ── Fork Memory — ember trail cartography ── */
+.appRoot.game.cloudScenarioActive.visibility--memory .hexSlot.cloudVis-hidden .hexTerrainClip,
+.appRoot.game.cloudScenarioActive.visibility--memory .hexSlot.cloudVis-hidden .hexInner,
+.appRoot.game.cloudScenarioActive.visibility--memory .hexSlot.cloudVis-hidden .hexMarks,
+.appRoot.game.cloudScenarioActive.visibility--memory .hexSlot.cloudVis-hidden .portalFx {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.appRoot.game.cloudScenarioActive.visibility--memory .hexSlot.cloudVis-hidden .hex {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.appRoot.game.cloudScenarioActive.visibility--memory .hexSlot.cloudVis-ember .hexInner {
+  opacity: 0.92;
+  filter: saturate(1.15) brightness(1.05) sepia(0.35);
+  box-shadow:
+    inset 0 0 18px rgba(255, 140, 50, 0.35),
+    0 0 12px rgba(255, 100, 30, 0.25);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--memory .hexSlot.cloudVis-ember .hex {
+  border-color: rgba(255, 160, 70, 0.55);
+  box-shadow: 0 0 10px rgba(255, 120, 40, 0.2);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--memory .hexSlot.cloudVis-visible .hexInner {
+  opacity: 1;
+  filter: saturate(1.2) brightness(1.1) sepia(0.2);
+  box-shadow:
+    inset 0 0 22px rgba(255, 180, 80, 0.45),
+    0 0 16px rgba(255, 140, 50, 0.35);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--memory .hexSlot.cloudVis-partial .hexTerrainClip,
+.appRoot.game.cloudScenarioActive.visibility--memory .hexSlot.cloudVis-partial .hexInner {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.appRoot.game.cloudScenarioActive.visibility--memory .hexSlot.cloudVis-partial .hex {
+  border-color: rgba(255, 215, 100, 0.75);
+  box-shadow:
+    0 0 14px rgba(255, 200, 80, 0.45),
+    inset 0 0 8px rgba(255, 215, 100, 0.2);
+  background: rgba(20, 12, 4, 0.6);
+}
+
+/* ── Fork Lantern — candle radius ── */
+.appRoot.game.cloudScenarioActive.visibility--lantern .hexSlot.cloudVis-hidden .hexTerrainClip,
+.appRoot.game.cloudScenarioActive.visibility--lantern .hexSlot.cloudVis-hidden .hexInner,
+.appRoot.game.cloudScenarioActive.visibility--lantern .hexSlot.cloudVis-hidden .hexMarks,
+.appRoot.game.cloudScenarioActive.visibility--lantern .hexSlot.cloudVis-hidden .portalFx {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.appRoot.game.cloudScenarioActive.visibility--lantern .hexSlot.cloudVis-hidden .hex {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.appRoot.game.cloudScenarioActive.visibility--lantern .hexSlot.cloudVis-visible .hexInner {
+  opacity: 1;
+  filter: brightness(1.15) saturate(1.05);
+  box-shadow:
+    inset 0 0 24px rgba(255, 220, 140, 0.35),
+    0 0 18px rgba(255, 200, 100, 0.3);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--lantern .hexSlot.cloudVis-faded .hexInner {
+  opacity: 0.28;
+  filter: saturate(0.2) brightness(0.45);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--lantern .hexSlot.cloudVis-faded .hex {
+  border-color: rgba(255, 220, 160, 0.15);
+}
+
+/* ── Fork Echo — ghost footprints ── */
+.appRoot.game.cloudScenarioActive.visibility--echo .gameBg,
+.appRoot.game.cloudScenarioActive.visibility--echo .boardLayerBg {
+  filter: brightness(0.08) saturate(0);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--echo .hexSlot.cloudVis-hidden .hexTerrainClip,
+.appRoot.game.cloudScenarioActive.visibility--echo .hexSlot.cloudVis-hidden .hexInner,
+.appRoot.game.cloudScenarioActive.visibility--echo .hexSlot.cloudVis-hidden .hexMarks,
+.appRoot.game.cloudScenarioActive.visibility--echo .hexSlot.cloudVis-hidden .portalFx {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.appRoot.game.cloudScenarioActive.visibility--echo .hexSlot.cloudVis-hidden .hex {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.appRoot.game.cloudScenarioActive.visibility--echo .hexSlot.cloudVis-visible .hexInner {
+  opacity: 1;
+  filter: none;
+  box-shadow: 0 0 20px rgba(180, 220, 255, 0.35);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--echo .hexSlot.cloudVis-echo .hexInner {
+  opacity: 0.38;
+  filter: saturate(0.35) brightness(0.7) hue-rotate(180deg);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--echo .hexSlot.cloudVis-echo .hex {
+  border-color: rgba(160, 200, 255, 0.35);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--echo .hexSlot.cloudVis-echo::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  width: 42%;
+  height: 28%;
+  transform: translate(-50%, -50%);
+  border-radius: 50% 50% 40% 40%;
+  background: radial-gradient(ellipse, rgba(140, 190, 255, 0.35) 0%, transparent 72%);
+  pointer-events: none;
+  z-index: 12;
+  animation: forkEchoFade 4s ease-out forwards;
+}
+
+@keyframes forkEchoFade {
+  0% { opacity: 0.85; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0.25; transform: translate(-50%, -50%) scale(0.85); }
+}
+
+/* ── Fork Crystal Vision — starfield + beacons ── */
+.appRoot.game.cloudScenarioActive.visibility--crystal_vision .gameBg {
+  background-color: #02040c;
+  filter: brightness(0.25);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--crystal_vision .boardLayerBg {
+  opacity: 0.2;
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 80% 40%, rgba(255, 255, 255, 0.35), transparent),
+    radial-gradient(1px 1px at 40% 70%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1px 1px at 65% 15%, rgba(255, 255, 255, 0.3), transparent);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--crystal_vision .hexSlot.cloudVis-hidden .hexTerrainClip,
+.appRoot.game.cloudScenarioActive.visibility--crystal_vision .hexSlot.cloudVis-hidden .hexInner,
+.appRoot.game.cloudScenarioActive.visibility--crystal_vision .hexSlot.cloudVis-hidden .hexMarks,
+.appRoot.game.cloudScenarioActive.visibility--crystal_vision .hexSlot.cloudVis-hidden .portalFx {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.appRoot.game.cloudScenarioActive.visibility--crystal_vision .hexSlot.cloudVis-hidden .hex {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.appRoot.game.cloudScenarioActive.visibility--crystal_vision .hexSlot.cloudVis-visible .hexInner {
+  opacity: 0.95;
+  filter: brightness(1.05);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--crystal_vision .hexSlot.cloudVis-faded .hexInner {
+  opacity: 0.22;
+  filter: saturate(0.3) brightness(0.55);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--crystal_vision .hexSlot.cloudVis-beacon .hexInner {
+  opacity: 1;
+  filter: brightness(1.2) saturate(1.3);
+  box-shadow:
+    0 0 22px rgba(120, 200, 255, 0.55),
+    inset 0 0 16px rgba(180, 230, 255, 0.25);
+}
+
+.appRoot.game.cloudScenarioActive.visibility--crystal_vision .hexSlot.cloudVis-beacon.goalBeacon .hexInner {
+  box-shadow:
+    0 0 28px rgba(255, 210, 80, 0.7),
+    inset 0 0 18px rgba(255, 230, 120, 0.35);
+  animation: crystalBeaconPulse 2.4s ease-in-out infinite;
+}
+
+.appRoot.game.cloudScenarioActive.visibility--crystal_vision .hexSlot.cloudVis-beacon.portalBeacon .hexInner {
+  box-shadow:
+    0 0 24px rgba(140, 120, 255, 0.65),
+    inset 0 0 14px rgba(180, 160, 255, 0.3);
+  animation: crystalBeaconPulse 2.8s ease-in-out infinite;
+}
+
+@keyframes crystalBeaconPulse {
+  0%, 100% { filter: brightness(1.15) saturate(1.25); }
+  50% { filter: brightness(1.35) saturate(1.45); }
+}

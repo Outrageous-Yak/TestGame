@@ -8,9 +8,16 @@ function usesFullCloudStylePulse(mode?: CloudMode | string): boolean {
   return mode === "full_cloud";
 }
 
-/** Night and invisible hide legal-move hints — only the current tile is lit. */
+/** Fork effect modes hide standard reach pulses — hints come from mode styling. */
 export function shouldShowReachHints(visibilityMode?: CloudMode | string): boolean {
-  return visibilityMode !== "night" && visibilityMode !== "invisible";
+  return (
+    visibilityMode !== "night" &&
+    visibilityMode !== "invisible" &&
+    visibilityMode !== "memory" &&
+    visibilityMode !== "lantern" &&
+    visibilityMode !== "echo" &&
+    visibilityMode !== "crystal_vision"
+  );
 }
 
 /** Button `.reachPulse` — Cloudy and non-cloud; not Full Cloud-style modes. */

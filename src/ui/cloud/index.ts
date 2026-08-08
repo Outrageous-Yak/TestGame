@@ -5,6 +5,7 @@ export {
   visibilityAtmosphereMode,
   type BoardVisibilityMode,
   type BoardVisibilityContext,
+  usesForkEffectAtmosphere,
 } from "./boardVisibility";
 export { deriveCloudSeed, hashCloudSeed, cloudSeedClassName, CLOUD_TEMPLATE_COUNT, PARTIAL_PATTERN_COUNT } from "./cloudSeed";
 export {

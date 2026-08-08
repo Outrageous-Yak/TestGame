@@ -39,6 +39,7 @@ import {
   cloudAtmosphereClass,
   computeBoardVisibility,
   resolveScenarioVisibilityMode,
+  usesForkEffectAtmosphere,
 } from "../cloud";
 import {
   REACH_PULSE_INTERVAL_MS,
@@ -1450,7 +1451,7 @@ export function GameController({
           backgroundImage: GAME__URL ? "url(" + toPublicUrl(GAME__URL) + ")" : undefined,
         }}
       />
-      {isVisibilityScenario && visibilityMode ? (
+      {isVisibilityScenario && visibilityMode && !usesForkEffectAtmosphere(visibilityMode) ? (
         <div className={cloudAtmosphereClass(visibilityMode, "scene")} aria-hidden="true" />
       ) : null}
 
@@ -1523,7 +1524,7 @@ export function GameController({
       <div className="gameLayout">
         <div className="playColumn">
           <div className="boardWrap">
-            {isVisibilityScenario && visibilityMode ? (
+            {isVisibilityScenario && visibilityMode && !usesForkEffectAtmosphere(visibilityMode) ? (
               <div className={cloudAtmosphereClass(visibilityMode, "board")} aria-hidden="true" />
             ) : null}
             {visibilityMode === "full_cloud" ? (
@@ -1640,15 +1641,21 @@ export function GameController({
                         const cloudVis = cv?.visibility;
                         const showCloudCover = cloudActive && shouldRenderCloudCover(cloudVis);
                         const cloudDensity = cloudVis === "partial" ? "partial" : "full";
+                        const forkTileRevealed =
+                          cloudVis === "visible" ||
+                          cloudVis === "ember" ||
+                          cloudVis === "beacon" ||
+                          cloudVis === "faded" ||
+                          cloudVis === "echo";
                         const hideSpecialTileArt =
                           cloudActive &&
-                          cloudVis !== "visible" &&
+                          !forkTileRevealed &&
                           (isGoal || isPortalUp || isPortalDown || showStartPortal);
                         const showGoalOverlay =
                           cloudActive &&
                           cv?.hasGoal &&
-                          cloudVis !== "visible" &&
-                          cloudVis !== "faded" &&
+                          !forkTileRevealed &&
+                          cloudVis !== "partial" &&
                           cloudVis !== "hidden";
                         const useSolidGoldGoal = shouldUseSolidGoldGoal(
                           SOLID_GOLD_GOAL,
@@ -1657,8 +1664,8 @@ export function GameController({
                         );
                         const showPortalOverlay =
                           cloudActive &&
-                          cloudVis !== "visible" &&
-                          cloudVis !== "faded" &&
+                          !forkTileRevealed &&
+                          cloudVis !== "partial" &&
                           cloudVis !== "hidden" &&
                           (isPortalUp || isPortalDown || showStartPortal);
                         const portalInInner =
@@ -1725,6 +1732,14 @@ export function GameController({
                               cloudVis === "visible" ? "cloudVis-visible" : "",
                               cloudVis === "faded" ? "cloudVis-faded" : "",
                               cloudVis === "hidden" ? "cloudVis-hidden" : "",
+                              cloudVis === "ember" ? "cloudVis-ember" : "",
+                              cloudVis === "echo" ? "cloudVis-echo" : "",
+                              cloudVis === "beacon" ? "cloudVis-beacon" : "",
+                              cloudVis === "partial" ? "cloudVis-partial" : "",
+                              cloudVis === "beacon" && isGoal ? "goalBeacon" : "",
+                              cloudVis === "beacon" && (isPortalUp || isPortalDown || showStartPortal)
+                                ? "portalBeacon"
+                                : "",
                             ]
                               .filter(Boolean)
                               .join(" ")}

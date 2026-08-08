@@ -38,7 +38,7 @@ export default {
     {
       id: "citadel_fork_memory",
       name: "Fork Memory",
-      desc: "Visited tiles stay visible",
+      desc: "Ember trail — visited tiles glow; legal moves at the edge show a gold hint",
       visibilityMode: "memory",
       scenarioJson: PORTAL_FORK_JSON,
       theme: FORGOTTEN_CITADEL_THEME,
@@ -47,7 +47,7 @@ export default {
     {
       id: "citadel_fork_lantern",
       name: "Fork Lantern",
-      desc: "Soft light radius around you",
+      desc: "Candle light — bright pool around you, silhouettes at the edge, void beyond",
       visibilityMode: "lantern",
       scenarioJson: PORTAL_FORK_JSON,
       theme: FORGOTTEN_CITADEL_THEME,
@@ -56,7 +56,7 @@ export default {
     {
       id: "citadel_fork_echo",
       name: "Fork Echo",
-      desc: "Ghost traces where you recently stepped",
+      desc: "Ghost footprints — your recent steps linger as faint echoes",
       visibilityMode: "echo",
       scenarioJson: PORTAL_FORK_JSON,
       theme: FORGOTTEN_CITADEL_THEME,
@@ -83,7 +83,7 @@ export default {
     {
       id: "citadel_fork_crystal_vision",
       name: "Fork Crystal Vision",
-      desc: "Misty board, but goal & portals stay visible",
+      desc: "Starfield void — goal and portals shine; terrain on sight-lines to beacons",
       visibilityMode: "crystal_vision",
       scenarioJson: PORTAL_FORK_JSON,
       theme: FORGOTTEN_CITADEL_THEME,

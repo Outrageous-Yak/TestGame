@@ -138,19 +138,7 @@
 }
 
 .appRoot.game.cloudScenarioActive.visibility--memory .hexSlot .cloudCover {
-  opacity: 0.85;
-}
-
-.appRoot.game.cloudScenarioActive.visibility--echo .hexSlot.cloudVis-visible .cloudCover {
-  opacity: 0.35;
-}
-
-.appRoot.game.cloudScenarioActive.visibility--lantern .hexSlot.cloudVis-visible .cloudCover {
-  opacity: 0.25;
-}
-
-.appRoot.game.cloudScenarioActive.visibility--crystal_vision .hexSlot.cloudVis-visible .cloudCover {
-  opacity: 0.15;
+  display: none;
 }
 
 /* Fork Night — dim silhouettes; only the current hex stays fully lit */
@@ -205,10 +193,10 @@
 }
 
 /* Gentle scene-wide softening during cloud scenarios */
-.appRoot.game.cloudScenarioActive:not(.visibility--night):not(.visibility--invisible) .gameBg {
+.appRoot.game.cloudScenarioActive:not(.visibility--night):not(.visibility--invisible):not(.visibility--memory):not(.visibility--lantern):not(.visibility--echo):not(.visibility--crystal_vision) .gameBg {
   filter: saturate(0.92) contrast(0.94) brightness(0.97);
 }
 
-.appRoot.game.cloudScenarioActive:not(.visibility--night):not(.visibility--invisible) .boardLayerBg {
+.appRoot.game.cloudScenarioActive:not(.visibility--night):not(.visibility--invisible):not(.visibility--memory):not(.visibility--lantern):not(.visibility--echo):not(.visibility--crystal_vision) .boardLayerBg {
   opacity: 0.92;
 }
