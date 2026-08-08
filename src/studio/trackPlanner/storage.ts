@@ -22,6 +22,9 @@ export function saveDraftBundle(bundle: PlannerDraftBundle): void {
     worlds: bundle.worlds.filter((w) => !w.builtIn),
     scenarios: bundle.scenarios.filter((s) => !s.builtIn),
     tracks: bundle.tracks.filter((t) => !t.builtIn),
+    ...(bundle.visibilityDrafts && Object.keys(bundle.visibilityDrafts).length
+      ? { visibilityDrafts: bundle.visibilityDrafts }
+      : {}),
     updatedAt: new Date().toISOString(),
   };
   try {

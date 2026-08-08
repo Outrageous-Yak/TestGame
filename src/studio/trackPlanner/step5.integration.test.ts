@@ -20,6 +20,7 @@ import {
   saveDraftBundle,
   upsertTrack,
   upsertVisibilityDraft,
+  TRACK_PLANNER_STORAGE_KEY,
 } from "./storage";
 import { visibilityDraftKey } from "./catalogKeys";
 import { PROGRESSION_STORAGE_KEY } from "../../progression/storage";
@@ -235,6 +236,29 @@ describe("Step 5 visibility draft isolation", () => {
     expect(visibilityDraftKey(cloudy.worldId, cloudy.scenarioId, cloudy.trackId)).not.toBe(
       visibilityDraftKey(clear.worldId, clear.scenarioId, clear.trackId),
     );
+  });
+
+  it("persists visibilityDrafts through saveDraftBundle", () => {
+    const store: Record<string, string> = {};
+    const ls = {
+      setItem: (k: string, v: string) => {
+        store[k] = v;
+      },
+      getItem: (k: string) => store[k] ?? null,
+      removeItem: (k: string) => {
+        delete store[k];
+      },
+    };
+    const original = globalThis.localStorage;
+    Object.defineProperty(globalThis, "localStorage", { value: ls, configurable: true });
+
+    const mask = [{ id: "v1", state: "NIGHT" as const, coverage: "CUSTOM" as const, positions: [{ layer: 1, row: 0, col: 0 }] }];
+    let drafts = upsertVisibilityDraft(emptyBundle(), "rainbow_realm", "cloudy", "t1", mask);
+    saveDraftBundle(drafts);
+    const reloaded = JSON.parse(store[TRACK_PLANNER_STORAGE_KEY]);
+    expect(reloaded.visibilityDrafts["rainbow_realm|cloudy|t1"][0].positions).toHaveLength(1);
+
+    Object.defineProperty(globalThis, "localStorage", { value: original, configurable: true });
   });
 
   it("visibility save does not touch progression or best scores", () => {
