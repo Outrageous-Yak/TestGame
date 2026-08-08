@@ -1,320 +1,368 @@
 import type { ScenarioEntry, Track, WorldEntry } from "../ui/types";
-import { progressionTrackKey } from "./progressionTrackKey";
+import { progressionTrackKey } from "./keys";
 import type {
   NextTrackResolution,
-  ProgressionContext,
   ProgressionMode,
   ProgressionRequirement,
   ProgressionSaveV1,
   TrackProgressStatus,
 } from "./types";
 
-export function getWorldProgressionMode(world: WorldEntry): ProgressionMode {
-  return world.progression?.progressionMode ?? "OPEN";
+export function resolveWorldProgressionMode(world: WorldEntry): ProgressionMode {
+  return world.progression?.mode ?? "OPEN";
 }
 
-export function getScenarioProgressionMode(world: WorldEntry, scenario: ScenarioEntry): ProgressionMode {
-  return scenario.progression?.progressionMode ?? world.progression?.progressionMode ?? "OPEN";
-}
-
-export function getOrderedWorlds(worlds: WorldEntry[]): WorldEntry[] {
-  return [...worlds].sort((a, b) => {
-    const ao = a.progression?.order ?? worlds.indexOf(a);
-    const bo = b.progression?.order ?? worlds.indexOf(b);
-    return ao - bo;
-  });
-}
-
-export function getOrderedScenarios(world: WorldEntry): ScenarioEntry[] {
-  const scenarios = world.scenarios;
-  return [...scenarios].sort((a, b) => {
-    const ao = a.progression?.order ?? scenarios.indexOf(a);
-    const bo = b.progression?.order ?? scenarios.indexOf(b);
-    return ao - bo;
-  });
-}
-
-export function getOrderedTracks(scenario: ScenarioEntry): Track[] {
-  const tracks = scenario.tracks ?? [];
-  return [...tracks].sort((a, b) => {
-    const ao = a.progression?.order ?? tracks.indexOf(a);
-    const bo = b.progression?.order ?? tracks.indexOf(b);
-    return ao - bo;
-  });
-}
-
-export function getRequiredTracks(scenario: ScenarioEntry): Track[] {
-  return getOrderedTracks(scenario).filter((t) => !t.progression?.optional);
+export function resolveScenarioProgressionMode(
+  world: WorldEntry,
+  scenario: ScenarioEntry
+): ProgressionMode {
+  return scenario.progression?.mode ?? resolveWorldProgressionMode(world);
 }
 
 export function isTrackCompleted(
-  save: ProgressionSaveV1,
+  progress: ProgressionSaveV1,
   worldId: string,
-  trackId: string,
+  trackId: string
 ): boolean {
-  return save.completedTracks[progressionTrackKey(worldId, trackId)]?.completed === true;
+  const key = progressionTrackKey(worldId, trackId);
+  return !!progress.completedTracks[key];
 }
 
-export function isRequirementMet(
-  save: ProgressionSaveV1,
+export function requirementsMet(
+  progress: ProgressionSaveV1,
   worlds: WorldEntry[],
-  req: ProgressionRequirement,
+  requires: ProgressionRequirement[] | undefined
+): boolean {
+  if (!requires || requires.length === 0) return true;
+  return requires.every((req) => requirementMet(progress, worlds, req));
+}
+
+function requirementMet(
+  progress: ProgressionSaveV1,
+  worlds: WorldEntry[],
+  req: ProgressionRequirement
 ): boolean {
   switch (req.type) {
     case "TRACK_COMPLETE":
-      return isTrackCompleted(save, req.worldId, req.trackId);
-    case "SCENARIO_COMPLETE": {
-      const world = worlds.find((w) => w.id === req.worldId);
-      if (!world) return false;
-      const scenario = world.scenarios.find((s) => s.id === req.scenarioId);
-      if (!scenario) return false;
-      return isScenarioCompleted(save, world, scenario);
-    }
-    case "WORLD_COMPLETE": {
-      const world = worlds.find((w) => w.id === req.worldId);
-      if (!world) return false;
-      return isWorldCompleted(save, world);
-    }
+      return isTrackCompleted(progress, req.worldId, req.trackId);
+    case "SCENARIO_COMPLETE":
+      return isScenarioCompleted(progress, worlds, req.worldId, req.scenarioId);
+    case "WORLD_COMPLETE":
+      return isWorldCompleted(progress, worlds, req.worldId);
     default:
-      return false;
+      return true;
   }
 }
 
-function areExplicitRequirementsMet(
-  save: ProgressionSaveV1,
-  worlds: WorldEntry[],
-  track: Track,
-): boolean {
-  const reqs = track.progression?.requires ?? [];
-  return reqs.every((r) => isRequirementMet(save, worlds, r));
+function orderedTracks(scenario: ScenarioEntry): Track[] {
+  const tracks = scenario.tracks ?? [];
+  return [...tracks].sort((a, b) => {
+    const ao = a.progression?.order;
+    const bo = b.progression?.order;
+    if (ao != null && bo != null && ao !== bo) return ao - bo;
+    if (ao != null && bo == null) return -1;
+    if (ao == null && bo != null) return 1;
+    return 0;
+  });
 }
 
-function isPreviousSequentialTrackCompleted(
-  save: ProgressionSaveV1,
-  world: WorldEntry,
-  scenario: ScenarioEntry,
-  track: Track,
-  orderedTracks: Track[],
-): boolean {
-  const idx = orderedTracks.findIndex((t) => t.id === track.id);
-  if (idx <= 0) return true;
-  const prev = orderedTracks[idx - 1];
-  return isTrackCompleted(save, world.id, prev.id);
-}
-
-export function isTrackUnlocked(
-  save: ProgressionSaveV1,
-  worlds: WorldEntry[],
-  world: WorldEntry,
-  scenario: ScenarioEntry,
-  trackId: string,
-): boolean {
-  const orderedTracks = getOrderedTracks(scenario);
-  const track = orderedTracks.find((t) => t.id === trackId);
-  if (!track) return false;
-
-  if (!isScenarioUnlocked(save, worlds, world, scenario)) return false;
-
-  if (!areExplicitRequirementsMet(save, worlds, track)) return false;
-
-  const mode = getScenarioProgressionMode(world, scenario);
-  if (mode === "OPEN") return true;
-
-  if (!isPreviousSequentialTrackCompleted(save, world, scenario, track, orderedTracks)) {
-    return false;
-  }
-  return true;
+function requiredTracks(scenario: ScenarioEntry): Track[] {
+  return orderedTracks(scenario).filter((t) => !t.progression?.optional);
 }
 
 export function getTrackStatus(
-  save: ProgressionSaveV1,
+  progress: ProgressionSaveV1,
   worlds: WorldEntry[],
   world: WorldEntry,
   scenario: ScenarioEntry,
-  trackId: string,
+  track: Track,
+  trackIndexInScenario: number,
+  options?: { bypassLocks?: boolean }
 ): TrackProgressStatus {
-  if (isTrackCompleted(save, world.id, trackId)) return "COMPLETED";
-  if (isTrackUnlocked(save, worlds, world, scenario, trackId)) return "AVAILABLE";
-  return "LOCKED";
-}
-
-export function isScenarioCompleted(
-  save: ProgressionSaveV1,
-  world: WorldEntry,
-  scenario: ScenarioEntry,
-): boolean {
-  const requiredTrackIds = scenario.progression?.requiredTrackIds;
-  if (requiredTrackIds?.length) {
-    return requiredTrackIds.every((id) => isTrackCompleted(save, world.id, id));
+  if (isTrackCompleted(progress, world.id, track.id)) {
+    return "COMPLETED";
   }
 
-  const required = getRequiredTracks(scenario);
-  if (required.length === 0) {
-    const tracks = getOrderedTracks(scenario);
-    if (tracks.length === 0) return false;
-    return tracks.every((t) => isTrackCompleted(save, world.id, t.id));
-  }
-  return required.every((t) => isTrackCompleted(save, world.id, t.id));
-}
+  if (options?.bypassLocks) return "AVAILABLE";
 
-export function isScenarioUnlocked(
-  save: ProgressionSaveV1,
-  worlds: WorldEntry[],
-  world: WorldEntry,
-  scenario: ScenarioEntry,
-): boolean {
-  if (!isWorldUnlocked(save, worlds, world)) return false;
+  const mode = resolveScenarioProgressionMode(world, scenario);
 
-  const worldMode = getWorldProgressionMode(world);
-  const scenarioMode = getScenarioProgressionMode(world, scenario);
-
-  const scenarioReqs = scenario.progression?.requiresScenarioIds ?? [];
-  for (const sid of scenarioReqs) {
-    const reqScenario = world.scenarios.find((s) => s.id === sid);
-    if (reqScenario && !isScenarioCompleted(save, world, reqScenario)) return false;
+  if (!requirementsMet(progress, worlds, track.progression?.requires)) {
+    return "LOCKED";
   }
 
-  if (worldMode === "OPEN" && scenarioMode === "OPEN") return true;
+  if (!requirementsMet(progress, worlds, scenario.progression?.requires)) {
+    return "LOCKED";
+  }
 
-  if (scenarioMode === "SEQUENTIAL") {
-    const ordered = getOrderedScenarios(world);
-    const idx = ordered.findIndex((s) => s.id === scenario.id);
-    if (idx <= 0) return true;
-    for (let i = 0; i < idx; i++) {
-      if (!isScenarioCompleted(save, world, ordered[i])) return false;
+  if (!isWorldUnlocked(progress, worlds, world)) {
+    return "LOCKED";
+  }
+
+  if (mode === "OPEN") {
+    return "AVAILABLE";
+  }
+
+  // SEQUENTIAL: first track available; each next requires previous required track complete
+  const tracks = orderedTracks(scenario);
+  const idx = tracks.findIndex((t) => t.id === track.id);
+  if (idx < 0) return "LOCKED";
+
+  if (idx === 0) return "AVAILABLE";
+
+  for (let i = 0; i < idx; i++) {
+    const prev = tracks[i];
+    if (prev.progression?.optional) continue;
+    if (!isTrackCompleted(progress, world.id, prev.id)) {
+      return "LOCKED";
     }
   }
 
-  return true;
+  return "AVAILABLE";
 }
 
-export function isWorldCompleted(save: ProgressionSaveV1, world: WorldEntry): boolean {
-  const requiredScenarioIds = world.progression?.requiredScenarioIds;
-  if (requiredScenarioIds?.length) {
-    return requiredScenarioIds.every((sid) => {
-      const scenario = world.scenarios.find((s) => s.id === sid);
-      return scenario ? isScenarioCompleted(save, world, scenario) : true;
-    });
-  }
-
-  const scenarios = getOrderedScenarios(world);
-  const required = scenarios.filter((s) => !s.progression?.optional);
-  const target = required.length > 0 ? required : scenarios;
-  if (target.length === 0) return false;
-  return target.every((s) => isScenarioCompleted(save, world, s));
-}
-
-export function isWorldUnlocked(
-  save: ProgressionSaveV1,
+export function isTrackUnlocked(
+  progress: ProgressionSaveV1,
   worlds: WorldEntry[],
   world: WorldEntry,
+  scenario: ScenarioEntry,
+  track: Track,
+  trackIndexInScenario: number,
+  options?: { bypassLocks?: boolean }
 ): boolean {
-  const mode = getWorldProgressionMode(world);
-  const reqs = world.progression?.requiresWorldIds ?? [];
-  for (const wid of reqs) {
-    const reqWorld = worlds.find((w) => w.id === wid);
-    if (reqWorld && !isWorldCompleted(save, reqWorld)) return false;
-  }
-
-  if (mode === "OPEN") return true;
-
-  const ordered = getOrderedWorlds(worlds);
-  const idx = ordered.findIndex((w) => w.id === world.id);
-  if (idx <= 0) return true;
-  for (let i = 0; i < idx; i++) {
-    if (!isWorldCompleted(save, ordered[i])) return false;
-  }
-  return true;
+  return (
+    getTrackStatus(progress, worlds, world, scenario, track, trackIndexInScenario, options) !==
+    "LOCKED"
+  );
 }
 
 export function recordTrackCompletion(
-  save: ProgressionSaveV1,
+  progress: ProgressionSaveV1,
   worldId: string,
-  trackId: string,
-  options?: { incrementCount?: boolean },
+  trackId: string
 ): ProgressionSaveV1 {
   const key = progressionTrackKey(worldId, trackId);
-  const existing = save.completedTracks[key];
-  if (existing?.completed) {
-    if (!options?.incrementCount) return save;
+  const existing = progress.completedTracks[key];
+  const now = new Date().toISOString();
+
+  if (existing) {
     return {
-      ...save,
+      ...progress,
       completedTracks: {
-        ...save.completedTracks,
+        ...progress.completedTracks,
         [key]: {
           ...existing,
-          completionCount: (existing.completionCount ?? 1) + 1,
+          completionCount: existing.completionCount + 1,
         },
       },
     };
   }
 
   return {
-    ...save,
+    ...progress,
     completedTracks: {
-      ...save.completedTracks,
+      ...progress.completedTracks,
       [key]: {
-        completed: true,
         completionCount: 1,
-        firstCompletedAt: new Date().toISOString(),
+        firstCompletedAt: now,
       },
     },
   };
 }
 
-export function resolveNextAvailableTrack(
+export function isScenarioCompleted(
+  progress: ProgressionSaveV1,
+  worlds: WorldEntry[],
+  worldId: string,
+  scenarioId: string
+): boolean {
+  const world = worlds.find((w) => w.id === worldId);
+  if (!world) return false;
+  const scenario = world.scenarios.find((s) => s.id === scenarioId);
+  if (!scenario) return false;
+
+  const tracks = requiredTracks(scenario);
+  if (tracks.length === 0) return true;
+
+  return tracks.every((t) => isTrackCompleted(progress, worldId, t.id));
+}
+
+export function isScenarioUnlocked(
+  progress: ProgressionSaveV1,
   worlds: WorldEntry[],
   world: WorldEntry,
   scenario: ScenarioEntry,
-  currentTrackId: string,
-  save: ProgressionSaveV1,
+  options?: { bypassLocks?: boolean }
+): boolean {
+  if (options?.bypassLocks) return true;
+
+  if (!isWorldUnlocked(progress, worlds, world)) return false;
+
+  if (!requirementsMet(progress, worlds, scenario.progression?.requires)) {
+    return false;
+  }
+
+  const mode = resolveScenarioProgressionMode(world, scenario);
+  if (mode === "OPEN") return true;
+
+  const scenarios = [...world.scenarios].sort((a, b) => {
+    const ao = a.progression?.order;
+    const bo = b.progression?.order;
+    if (ao != null && bo != null && ao !== bo) return ao - bo;
+    return 0;
+  });
+
+  const idx = scenarios.findIndex((s) => s.id === scenario.id);
+  if (idx <= 0) return true;
+
+  for (let i = 0; i < idx; i++) {
+    const prev = scenarios[i];
+    if (!isScenarioCompleted(progress, worlds, world.id, prev.id)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export function isWorldCompleted(
+  progress: ProgressionSaveV1,
+  worlds: WorldEntry[],
+  worldId: string
+): boolean {
+  const world = worlds.find((w) => w.id === worldId);
+  if (!world) return false;
+
+  const scenarios = world.scenarios.filter((s) => resolveScenarioProgressionMode(world, s) !== "OPEN");
+  const toCheck = scenarios.length > 0 ? scenarios : world.scenarios;
+
+  return toCheck.every((s) => isScenarioCompleted(progress, worlds, worldId, s.id));
+}
+
+export function isWorldUnlocked(
+  progress: ProgressionSaveV1,
+  worlds: WorldEntry[],
+  world: WorldEntry,
+  options?: { bypassLocks?: boolean }
+): boolean {
+  if (options?.bypassLocks) return true;
+
+  const requires = world.progression?.requiresWorldIds;
+  if (!requires || requires.length === 0) return true;
+
+  return requires.every((wid) => isWorldCompleted(progress, worlds, wid));
+}
+
+export function getNextAvailableTrack(
+  progress: ProgressionSaveV1,
+  worlds: WorldEntry[],
+  world: WorldEntry,
+  scenario: ScenarioEntry,
+  currentTrackId: string | null,
+  options?: { bypassLocks?: boolean }
 ): NextTrackResolution {
-  const ordered = getOrderedTracks(scenario);
-  const idx = ordered.findIndex((t) => t.id === currentTrackId);
-  if (idx < 0) return { kind: "NONE" };
-
-  for (let i = idx + 1; i < ordered.length; i++) {
-    const status = getTrackStatus(save, worlds, world, scenario, ordered[i].id);
-    if (status !== "LOCKED") return { kind: "TRACK", trackId: ordered[i].id };
+  const tracks = orderedTracks(scenario);
+  if (tracks.length === 0) {
+    return { kind: "none" };
   }
 
-  if (isScenarioCompleted(save, world, scenario)) {
-    if (isWorldCompleted(save, world)) return { kind: "WORLD_COMPLETE" };
-    return { kind: "SCENARIO_COMPLETE" };
+  const startIdx =
+    currentTrackId != null ? tracks.findIndex((t) => t.id === currentTrackId) : -1;
+
+  for (let i = startIdx + 1; i < tracks.length; i++) {
+    const t = tracks[i];
+    const status = getTrackStatus(progress, worlds, world, scenario, t, i, options);
+    if (status !== "LOCKED") {
+      return {
+        kind: "track",
+        worldId: world.id,
+        scenarioId: scenario.id,
+        trackId: t.id,
+        trackName: t.name,
+      };
+    }
   }
-  return { kind: "NONE" };
+
+  if (isScenarioCompleted(progress, worlds, world.id, scenario.id)) {
+    if (isWorldCompleted(progress, worlds, world.id)) {
+      return { kind: "world_complete", worldId: world.id };
+    }
+    return { kind: "scenario_complete", worldId: world.id, scenarioId: scenario.id };
+  }
+
+  return { kind: "none" };
 }
 
 export function getContinueTarget(
-  worlds: WorldEntry[],
-  save: ProgressionSaveV1,
-): ProgressionContext | null {
-  for (const world of getOrderedWorlds(worlds)) {
-    if (!isWorldUnlocked(save, worlds, world)) continue;
-    for (const scenario of getOrderedScenarios(world)) {
-      if (!isScenarioUnlocked(save, worlds, world, scenario)) continue;
-      for (const track of getOrderedTracks(scenario)) {
-        const status = getTrackStatus(save, worlds, world, scenario, track.id);
+  progress: ProgressionSaveV1,
+  worlds: WorldEntry[]
+): NextTrackResolution {
+  const sortedWorlds = [...worlds].sort((a, b) => {
+    const ao = a.progression?.order;
+    const bo = b.progression?.order;
+    if (ao != null && bo != null && ao !== bo) return ao - bo;
+    return a.name.localeCompare(b.name);
+  });
+
+  for (const world of sortedWorlds) {
+    if (!isWorldUnlocked(progress, worlds, world)) continue;
+
+    const scenarios = [...world.scenarios].sort((a, b) => {
+      const ao = a.progression?.order;
+      const bo = b.progression?.order;
+      if (ao != null && bo != null && ao !== bo) return ao - bo;
+      return 0;
+    });
+
+    for (const scenario of scenarios) {
+      if (!isScenarioUnlocked(progress, worlds, world, scenario)) continue;
+
+      const tracks = orderedTracks(scenario);
+      for (let i = 0; i < tracks.length; i++) {
+        const t = tracks[i];
+        const status = getTrackStatus(progress, worlds, world, scenario, t, i);
         if (status === "AVAILABLE") {
-          return { worldId: world.id, scenarioId: scenario.id, trackId: track.id };
+          return {
+            kind: "track",
+            worldId: world.id,
+            scenarioId: scenario.id,
+            trackId: t.id,
+            trackName: t.name,
+          };
         }
       }
     }
   }
-  return null;
+
+  return { kind: "none" };
 }
 
-export function logProgressionDebug(
-  save: ProgressionSaveV1,
-  worlds: WorldEntry[],
-  world: WorldEntry,
-  scenario: ScenarioEntry,
-  trackId: string,
-): void {
-  if (typeof console === "undefined") return;
-  const status = getTrackStatus(save, worlds, world, scenario, trackId);
-  const completed = isTrackCompleted(save, world.id, trackId);
-  console.info(
-    `[progression] World: ${world.id} Scenario: ${scenario.id} Track: ${trackId} Completed: ${completed ? "yes" : "no"} Status: ${status}`,
-  );
+export function hasSeenMechanic(progress: ProgressionSaveV1, mechanicId: string): boolean {
+  return progress.seenMechanicIntroductions.includes(mechanicId);
+}
+
+export function markMechanicSeen(
+  progress: ProgressionSaveV1,
+  mechanicId: string
+): ProgressionSaveV1 {
+  if (progress.seenMechanicIntroductions.includes(mechanicId)) {
+    return progress;
+  }
+  return {
+    ...progress,
+    seenMechanicIntroductions: [...progress.seenMechanicIntroductions, mechanicId],
+  };
+}
+
+export function markMechanicsIntroducedByTrack(
+  progress: ProgressionSaveV1,
+  track: Track
+): ProgressionSaveV1 {
+  const ids = track.progression?.introduces;
+  if (!ids || ids.length === 0) return progress;
+  let next = progress;
+  for (const id of ids) {
+    next = markMechanicSeen(next, id);
+  }
+  return next;
 }

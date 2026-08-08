@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./app.css";
 import "./cloud/cloudCover.css";
 import "./cloud/cloudAtmosphere.css";
+import "./cloud/forkVisibility.css";
 import "./cloud/stormWeather.css";
 import "./game/reachSparkle.css";
 import { StartScreen } from "./screens/StartScreen";
@@ -14,7 +15,6 @@ import type { Screen, WorldEntry } from "./types";
 import { CharactersScreen } from "../features/sprite-builder/CharactersScreen";
 import { PuzzleStudioScreen, isDevMode, resolveInitialScreen } from "../features/puzzle-studio";
 import { TrackPlannerScreen } from "../studio/trackPlanner";
-import { getTrackStatus, loadProgression } from "../progression";
 import {
   loadActiveSpriteId,
   loadSprites,
@@ -89,6 +89,8 @@ export default function App() {
     } as React.CSSProperties;
   }, [scenarioEntry]);
 
+  const devMode = isDevMode();
+
   if (screen === "start") {
     return (
       <StartScreen
@@ -145,6 +147,7 @@ export default function App() {
         trackId={trackId}
         scenarioEntry={scenarioEntry}
         trackEntry={trackEntry}
+        bypassProgressionLocks={devMode}
         onSelectWorld={(w) => {
           setWorldId(w.id);
           const s0 = w.scenarios[0] ?? null;
@@ -161,15 +164,7 @@ export default function App() {
         }}
         onSelectTrack={setTrackId}
         onBack={resetAll}
-        onStart={() => {
-          if (!world || !scenarioEntry) return;
-          const tid = trackId ?? scenarioEntry.tracks?.[0]?.id ?? null;
-          if (tid && !isDevMode()) {
-            const status = getTrackStatus(loadProgression(), worlds, world, scenarioEntry, tid);
-            if (status === "LOCKED") return;
-          }
-          setScreen("game");
-        }}
+        onStart={() => setScreen("game")}
         onQuickStart={() => {
           const w0 = worlds[0];
           const s0 = w0?.scenarios?.[0] ?? null;
@@ -185,14 +180,15 @@ export default function App() {
     );
   }
 
-  if (!scenarioEntry || !world) {
+  if (!scenarioEntry) {
     resetAll();
     return null;
   }
 
   return (
     <GameController
-      worldId={world.id}
+      worldId={worldId ?? "unknown"}
+      worlds={worlds}
       scenarioEntry={scenarioEntry}
       trackEntry={trackEntry}
       trackId={trackId}

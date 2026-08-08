@@ -1,4 +1,6 @@
-import { FORGOTTEN_CITADEL_THEME, FORGOTTEN_CITADEL_TRACKS } from "./tracks";
+import { FORGOTTEN_CITADEL_THEME, FORGOTTEN_CITADEL_TRACKS, PORTAL_FORK_TRACK } from "./tracks";
+
+const PORTAL_FORK_JSON = "worlds/forgotten_citadel/scenarios/track03.json";
 
 export default {
   id: "forgotten_citadel",
@@ -32,6 +34,60 @@ export default {
       scenarioJson: "worlds/forgotten_citadel/scenarios/track01.json",
       theme: FORGOTTEN_CITADEL_THEME,
       tracks: [...FORGOTTEN_CITADEL_TRACKS],
+    },
+    {
+      id: "citadel_fork_memory",
+      name: "Fork Memory",
+      desc: "Ember trail — visited tiles glow; legal moves at the edge show a gold hint",
+      visibilityMode: "memory",
+      scenarioJson: PORTAL_FORK_JSON,
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [PORTAL_FORK_TRACK],
+    },
+    {
+      id: "citadel_fork_lantern",
+      name: "Fork Lantern",
+      desc: "Candle light — bright pool around you, silhouettes at the edge, void beyond",
+      visibilityMode: "lantern",
+      scenarioJson: PORTAL_FORK_JSON,
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [PORTAL_FORK_TRACK],
+    },
+    {
+      id: "citadel_fork_echo",
+      name: "Fork Echo",
+      desc: "Ghost footprints — your recent steps linger as faint echoes",
+      visibilityMode: "echo",
+      scenarioJson: PORTAL_FORK_JSON,
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [PORTAL_FORK_TRACK],
+    },
+    {
+      id: "citadel_fork_night",
+      name: "Fork Night",
+      desc: "Every hex faded; only your current tile stays lit",
+      visibilityMode: "night",
+      scenarioJson: PORTAL_FORK_JSON,
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [PORTAL_FORK_TRACK],
+    },
+    {
+      id: "citadel_fork_invisible",
+      name: "Fork Invisible",
+      desc: "Only your current tile is visible",
+      visibilityMode: "invisible",
+      scenarioJson: PORTAL_FORK_JSON,
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [PORTAL_FORK_TRACK],
+    },
+    {
+      id: "citadel_fork_crystal_vision",
+      name: "Fork Crystal Vision",
+      desc: "Starfield void — goal and portals shine; terrain on sight-lines to beacons",
+      visibilityMode: "crystal_vision",
+      scenarioJson: PORTAL_FORK_JSON,
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [PORTAL_FORK_TRACK],
     },
   ],
 } as const;

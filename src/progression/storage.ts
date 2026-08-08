@@ -1,50 +1,83 @@
-import { emptyProgressionSave, migrateProgressionSave } from "./migration";
 import type { ProgressionSaveV1 } from "./types";
 
-export const PROGRESSION_STORAGE_KEY = "hexgame-progression-v1";
+export const PROGRESSION_STORAGE_KEY = "hexgame-progression";
 
-type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-
-function getStorage(): StorageLike | null {
-  if (typeof globalThis.localStorage === "undefined") return null;
-  return globalThis.localStorage;
+export function createDefaultProgression(): ProgressionSaveV1 {
+  return {
+    version: 1,
+    completedTracks: {},
+    seenMechanicIntroductions: [],
+  };
 }
 
-export function loadProgression(storage: StorageLike | null = getStorage()): ProgressionSaveV1 {
-  if (!storage) return emptyProgressionSave();
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+export function normalizeProgressionSave(raw: unknown): ProgressionSaveV1 {
+  const base = createDefaultProgression();
+  if (!isRecord(raw)) return base;
+
+  const version = raw.version;
+  if (version !== 1) return base;
+
+  const completedTracks: ProgressionSaveV1["completedTracks"] = {};
+  if (isRecord(raw.completedTracks)) {
+    for (const [key, value] of Object.entries(raw.completedTracks)) {
+      if (!isRecord(value)) continue;
+      const count = Number(value.completionCount);
+      const firstCompletedAt = value.firstCompletedAt;
+      if (!Number.isFinite(count) || count < 1) continue;
+      if (typeof firstCompletedAt !== "string" || !firstCompletedAt) continue;
+      completedTracks[key] = {
+        completionCount: Math.floor(count),
+        firstCompletedAt,
+      };
+    }
+  }
+
+  const seenMechanicIntroductions: string[] = [];
+  if (Array.isArray(raw.seenMechanicIntroductions)) {
+    for (const id of raw.seenMechanicIntroductions) {
+      if (typeof id === "string" && id) seenMechanicIntroductions.push(id);
+    }
+  }
+
+  return {
+    version: 1,
+    completedTracks,
+    seenMechanicIntroductions,
+  };
+}
+
+export function loadProgression(): ProgressionSaveV1 {
+  if (typeof localStorage === "undefined") return createDefaultProgression();
   try {
-    const raw = storage.getItem(PROGRESSION_STORAGE_KEY);
-    if (!raw) return emptyProgressionSave();
-    const parsed = JSON.parse(raw) as unknown;
-    return migrateProgressionSave(parsed) ?? emptyProgressionSave();
+    const raw = localStorage.getItem(PROGRESSION_STORAGE_KEY);
+    if (!raw) return createDefaultProgression();
+    return normalizeProgressionSave(JSON.parse(raw));
   } catch {
-    if (typeof console !== "undefined") {
+    if (typeof console !== "undefined" && console.warn) {
       console.warn("[progression] corrupt save — resetting to defaults");
     }
-    return emptyProgressionSave();
+    return createDefaultProgression();
   }
 }
 
-export function saveProgression(
-  save: ProgressionSaveV1,
-  storage: StorageLike | null = getStorage(),
-): void {
-  if (!storage) return;
+export function saveProgression(progress: ProgressionSaveV1): void {
+  if (typeof localStorage === "undefined") return;
   try {
-    storage.setItem(PROGRESSION_STORAGE_KEY, JSON.stringify(save));
+    localStorage.setItem(PROGRESSION_STORAGE_KEY, JSON.stringify(progress));
   } catch {
-    /* quota / private mode */
+    // quota / private mode
   }
 }
 
-export function resetProgression(storage: StorageLike | null = getStorage()): ProgressionSaveV1 {
-  const fresh = emptyProgressionSave();
-  if (storage) {
-    try {
-      storage.removeItem(PROGRESSION_STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
+export function resetProgression(): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.removeItem(PROGRESSION_STORAGE_KEY);
+  } catch {
+    // ignore
   }
-  return fresh;
 }

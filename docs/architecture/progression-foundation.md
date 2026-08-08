@@ -1,175 +1,140 @@
 # Progression Foundation (Step 2)
 
-Step 2 adds player progression infrastructure without replacing the existing content registry or puzzle engine.
+This document describes the player progression layer added in Step 2. It extends the existing content registry without replacing it.
 
-## Architecture diagram
+## Hierarchy (terminology)
 
-```text
-PRODUCTION CONTENT                         PLAYER PROGRESSION
-────────────────────                       ────────────────────
-
-World                                      ProgressionSaveV1
-│                                          │
-├── ScenarioEntry                          ├── completedTracks[worldId::trackId]
-│      │                                   │
-│      ├── Track                           └── seenMechanicIntroductions[]
-│      │     └── scenarioJson → Engine Scenario
-│      └── Track
-│
-└── ScenarioEntry
+```
+PRODUCTION CONTENT (static)          PLAYER STATE (mutable)
+────────────────────────────         ────────────────────────
+World                                  ProgressionSaveV1
+ └── ScenarioEntry (UI menu)              ├── completedTracks
+      └── Track (registry entry)          └── seenMechanicIntroductions
+           └── scenarioJson → Engine Scenario (board JSON)
 ```
 
-## Terminology
+### Critical distinction
 
 | Term | Meaning |
 |------|---------|
-| **World** | Top-level menu entry (`WorldEntry`) |
-| **ScenarioEntry** | Selectable scenario variant (clear / partly cloudy / full cloud) |
-| **Track** | Registered playable level within a scenario |
-| **Engine Scenario** | Board JSON loaded at runtime — not the same as ScenarioEntry |
+| **ScenarioEntry** | UI menu variant: theme, `cloudMode`, shared `tracks[]` |
+| **Scenario** (engine) | Board definition loaded from JSON (`src/engine/types.ts`) |
 
-Player-facing labels remain World → Scenario → Track.
+Player-facing labels remain **World → Scenario → Track**. Code comments use **ScenarioEntry** where the UI type is meant.
 
 ## Progression identity
 
-Canonical track key:
+### Track completion key (Model A)
 
-```text
-progressionTrackKey(worldId, trackId) → "{worldId}::{trackId}"
+```
+progressionTrackKey(worldId, trackId) → "forgotten_citadel|fc_t01"
 ```
 
-- Uses registry `Track.id`, not `scenarioJson`.
-- **Does not** include `scenarioEntryId` (Model A — see below).
-- Transform seed / layer combination is **not** part of identity.
+**Cloud variants share completion.** Completing `fc_t01` in Citadel Path also marks `fc_t01` complete in Partly Cloudy and Full Cloud variants within the same world.
 
-### Shared JSON (t5 / t6)
+**Rationale:** Variants share the same underlying `Track` registry and puzzle boards; cloud mode is a visibility overlay, not a separate challenge ladder.
 
-`rainbow_realm::t5` and `rainbow_realm::t6` are separate progression tracks even though both load `scenario5.json`.
+### Best score key (unchanged)
 
-### Cloud variant completion — Model A
+```
+hexgame-best:{scenarioEntryId}:{trackId}
+```
 
-**YES** — completing Track X in Clear also marks Track X completed in Partly Cloudy and Full Cloud within the same world.
+Best scores remain **per ScenarioEntry variant** because that was the pre-Step-2 behaviour.
 
-Rationale:
+### Shared JSON ≠ shared Track identity
 
-- Track arrays are shared across visibility variants.
-- Variants are presentation/visibility modes, not separate curriculum steps.
-- Best scores remain variant-specific via `hexgame-best:{scenarioId}:{trackId}`.
+`t5` and `t6` both reference `scenario5.json` but have distinct registry IDs (`t5`, `t6`). Progression keys use **registered track id**, not JSON path.
 
-## Content vs player state
+## Storage
 
-Static definitions in `src/worlds/` are never mutated for completion.
-
-Player state lives in `hexgame-progression-v1`:
+| Key | Purpose |
+|-----|---------|
+| `hexgame-progression` | Versioned progression save (`ProgressionSaveV1`) |
+| `hexgame-best:{scenarioId}:{trackId}` | Best move count (unchanged) |
 
 ```ts
 type ProgressionSaveV1 = {
   version: 1;
-  completedTracks: Record<string, TrackCompletionRecord>;
+  completedTracks: Record<string, { completionCount: number; firstCompletedAt: string }>;
   seenMechanicIntroductions: string[];
 };
 ```
 
+Corrupt saves reset to defaults without touching other localStorage keys.
+
 ## Unlock derivation
 
-Statuses are derived, not stored:
+Statuses are **derived**, not stored:
 
-```text
-COMPLETED → track in completedTracks
-AVAILABLE → unlocked and not completed
-LOCKED    → not unlocked
+```
+LOCKED | AVAILABLE | COMPLETED
 ```
 
-Completion is the fundamental stored fact. Unlocks derive from:
+### Default compatibility (`OPEN` mode)
 
-1. `progressionMode` (OPEN vs SEQUENTIAL)
-2. Array order (default track/scenario/world order)
-3. Optional explicit `requires` metadata
+Worlds/scenarios without `progression.mode` default to **OPEN**:
 
-## Progression modes
+- All tracks remain selectable (current production behaviour for Forgotten Citadel and Rainbow Realm)
+- Completion checkmarks still appear after wins
+- No new locks on existing content
 
-| Mode | Behavior |
-|------|----------|
-| **OPEN** (default) | All tracks available; completion still recorded |
-| **SEQUENTIAL** | Track N+1 requires Track N complete; first track always available |
+### Sequential mode (opt-in)
 
-Existing Forgotten Citadel and Rainbow Realm content has **no** progression metadata → **OPEN**. No production content was locked in Step 2.
+When `progression.mode: "SEQUENTIAL"` is set on a world or scenario:
 
-Future tutorial worlds can opt in with `progression: { progressionMode: "SEQUENTIAL" }` on World, ScenarioEntry, or Track.
+- First track in array order is available
+- Each subsequent required track unlocks when the previous required track is completed
+- Explicit `requires` arrays can override or add prerequisites
+
+## Completion rules
+
+| Level | Rule |
+|-------|------|
+| **Track** | Recorded on engine win (`won === true`) in `GameController.recordWin` |
+| **ScenarioEntry** | All non-optional tracks in that entry's `tracks[]` are completed (Model A: same track IDs across cloud variants) |
+| **World** | All scenarios complete (or all tracks complete when scenarios share track sets) |
+
+## Flow
+
+```
+attemptMoveToSlot → won
+  → GameController.recordWin
+      → saveBestScore (scenarioEntryId + trackId)
+      → recordTrackCompletion (worldId + trackId)
+      → markMechanicsIntroducedByTrack (if metadata)
+      → saveProgression
+  → Goal popup (Replay / Next Track / Menu)
+```
+
+`getNextAvailableTrack` skips **LOCKED** tracks when resolving "Play next level".
+
+## Developer bypass
+
+`?dev=true` sets `bypassProgressionLocks` on `MenuScreen` so Puzzle Studio / debug flows are unaffected. Track Planner was already ungated on the Start screen.
+
+## Mechanic introductions
+
+`src/progression/mechanicIntroductions.ts` holds metadata only. Tracks may declare `progression.introduces: MechanicId[]`. Seen state is stored; popup UI is deferred.
+
+## Story presentation hooks
+
+Optional `progression.intro` / `progression.completion` on worlds and scenarios, and `progression.story` on tracks. No story text authored in Step 2.
 
 ## Module layout
 
-```text
+```
 src/progression/
-  types.ts                  — shared types
-  progressionTrackKey.ts    — canonical identity helper
-  migration.ts              — versioned save normalization
-  storage.ts                — load/save/reset (hexgame-progression-v1)
-  progression.ts            — pure unlock/completion/next-track logic
-  validateProgression.ts    — metadata validation against registry
-  mechanicRegistry.ts       — mechanic introduction metadata (no UI yet)
-  mechanicIntroductions.ts  — seen-mechanic helpers
+  types.ts
+  keys.ts
+  storage.ts
+  progression.ts      # pure unlock/completion logic
+  validate.ts         # content metadata validation
+  mechanicIntroductions.ts
   index.ts
 ```
 
-## Integration points
+## Future Steps
 
-| Location | Role |
-|----------|------|
-| `GameController.recordWin` | Records track completion once per victory |
-| `GameController.nextTrack` | Uses `resolveNextAvailableTrack` |
-| `MenuScreen` | Shows ✓ / Locked; blocks locked track selection |
-| `app.tsx` | Guards Start for locked tracks; passes `worldId` to game |
-
-Developer tools (`?dev=true`, Puzzle Studio, Track Planner) bypass player-facing locks via `isDevMode()`.
-
-## Goal → completion flow
-
-```text
-attemptMoveToSlot
-  → engine reports win
-  → GameController recordWin
-  → saveBestScore (existing, variant-specific)
-  → recordTrackCompletion (new, world+track)
-  → saveProgression
-  → Goal popup (existing)
-```
-
-`recordTrackCompletion` is idempotent per run; replay resets the per-run guard but preserves completion.
-
-## Reset behavior
-
-Start-screen **Reset** clears navigation state only — it does **not** clear progression or best scores.
-
-Developers can reset progression via `resetProgression()` in `src/progression/storage.ts`.
-
-## Mechanic & story metadata
-
-Tracks may declare `progression.introduces: MechanicId[]`. Storage supports `seenMechanicIntroductions` — no popup UI in Step 2.
-
-Optional `story` presentation hooks exist on World / ScenarioEntry / Track progression metadata. No narrative text was authored.
-
-## Validation
-
-`validateProgressionMetadata(worlds)` checks requirement references, self-dependencies, and duplicate orders. Legacy content without metadata passes.
-
-## Future tutorial example (test fixture only)
-
-```text
-World: starter_world (SEQUENTIAL)
-  Scenario: movement_basics — t1 → t2 → t3
-  Scenario: broken_paths — requires movement_basics
-```
-
-See `src/progression/progression.test.ts` — not shipped as production content.
-
-## Step 3 readiness
-
-The pure progression engine can be queried by Track Planner for production track status. Track Planner draft content remains separate until explicitly promoted to `src/worlds/`.
-
-Preserve unchanged in Step 3:
-
-- `BoardView`, `FeaturesView`, `VisibilityView`, `AuditView`, `LayerPlaytestView`, `SimulatorView`
-- `TrackPlannerScreen.tsx` shell and existing draft storage
-
-Step 3 should extend authoring/production integration — not rebuild the planner.
+- **Step 3:** Harden existing Track Planner (`src/studio/trackPlanner/`) — do not rebuild
+- **Step 8:** Player-facing world map consumes `getContinueTarget` and completion state

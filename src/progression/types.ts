@@ -1,4 +1,11 @@
-/** Stable mechanic ids for future tutorial popups (metadata only in Step 2). */
+/**
+ * Player progression storage — separate from static World / ScenarioEntry / Track content.
+ *
+ * Terminology:
+ * - ScenarioEntry (UI): menu variant with theme, cloud mode, tracks[]
+ * - Scenario (engine): board JSON loaded at runtime
+ */
+
 export type MechanicId =
   | "basic_movement"
   | "missing_hexes"
@@ -7,20 +14,20 @@ export type MechanicId =
   | "partly_cloudy"
   | "encounter_cards";
 
-export type ProgressionPresentation = {
-  title?: string;
-  text?: string;
-  image?: string;
-};
+export type ProgressionMode = "OPEN" | "SEQUENTIAL";
 
 export type ProgressionRequirement =
   | { type: "TRACK_COMPLETE"; worldId: string; trackId: string }
   | { type: "SCENARIO_COMPLETE"; worldId: string; scenarioId: string }
   | { type: "WORLD_COMPLETE"; worldId: string };
 
-export type ProgressionMode = "OPEN" | "SEQUENTIAL";
+export type ProgressionPresentation = {
+  title?: string;
+  text?: string;
+  image?: string;
+};
 
-export type TrackProgressionDefinition = {
+export type TrackProgressionMeta = {
   order?: number;
   requires?: ProgressionRequirement[];
   optional?: boolean;
@@ -28,45 +35,38 @@ export type TrackProgressionDefinition = {
   story?: ProgressionPresentation;
 };
 
-export type ScenarioProgressionDefinition = {
+export type ScenarioProgressionMeta = {
   order?: number;
-  requiresScenarioIds?: string[];
-  requiredTrackIds?: string[];
-  optional?: boolean;
-  progressionMode?: ProgressionMode;
-  story?: ProgressionPresentation;
+  mode?: ProgressionMode;
+  requires?: ProgressionRequirement[];
+  intro?: ProgressionPresentation;
+  completion?: ProgressionPresentation;
 };
 
-export type WorldProgressionDefinition = {
+export type WorldProgressionMeta = {
   order?: number;
+  mode?: ProgressionMode;
   requiresWorldIds?: string[];
-  requiredScenarioIds?: string[];
-  progressionMode?: ProgressionMode;
-  story?: ProgressionPresentation;
+  intro?: ProgressionPresentation;
+  completion?: ProgressionPresentation;
 };
 
 export type TrackProgressStatus = "LOCKED" | "AVAILABLE" | "COMPLETED";
 
 export type TrackCompletionRecord = {
-  completed: true;
-  completionCount?: number;
-  firstCompletedAt?: string;
+  completionCount: number;
+  firstCompletedAt: string;
 };
 
 export type ProgressionSaveV1 = {
   version: 1;
+  /** Keys from `progressionTrackKey(worldId, trackId)` — variant-independent (Model A). */
   completedTracks: Record<string, TrackCompletionRecord>;
   seenMechanicIntroductions: string[];
 };
 
-export type ProgressionContext = {
-  worldId: string;
-  scenarioId: string;
-  trackId: string;
-};
-
 export type NextTrackResolution =
-  | { kind: "TRACK"; trackId: string }
-  | { kind: "SCENARIO_COMPLETE" }
-  | { kind: "WORLD_COMPLETE" }
-  | { kind: "NONE" };
+  | { kind: "track"; worldId: string; scenarioId: string; trackId: string; trackName: string }
+  | { kind: "scenario_complete"; worldId: string; scenarioId: string }
+  | { kind: "world_complete"; worldId: string }
+  | { kind: "none" };
