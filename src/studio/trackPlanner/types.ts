@@ -179,6 +179,8 @@ export interface PlannerDraftBundle {
   worlds: PlannerWorld[];
   scenarios: PlannerScenario[];
   tracks: PlannerTrack[];
+  /** Scenario-specific visibility keyed by visibilityDraftKey(worldId, scenarioId, trackId). */
+  visibilityDrafts?: Record<string, VisibilityOverlay[]>;
   updatedAt: string;
 }
 

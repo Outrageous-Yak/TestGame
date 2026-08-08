@@ -93,6 +93,7 @@ function normalizeWorldEntry(raw: any): WorldEntry | null {
         tracks: tracks && tracks.length ? tracks : undefined,
         cloudMode,
         ...(visibilityMode ? { visibilityMode } : {}),
+        ...(s.visibilityParams ? { visibilityParams: s.visibilityParams } : {}),
         ...(progression ? { progression } : {}),
       };
     })

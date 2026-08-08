@@ -44,7 +44,7 @@ export function AuditView({ track, world, scenario, onJumpToFeature }: AuditView
         <p className="tp-hint">Structural configuration only — not solvability or pathfinding.</p>
       </header>
 
-      {["start_goal", "portals", "cards", "encounters", "board", "runtime"].map((cat) => {
+      {["start_goal", "portals", "cards", "encounters", "visibility", "board", "runtime"].map((cat) => {
         const rows = grouped.get(cat);
         if (!rows?.length) return null;
         return (

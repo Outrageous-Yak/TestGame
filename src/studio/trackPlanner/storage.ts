@@ -1,5 +1,5 @@
-import type { PlannerDraftBundle, PlannerScenario, PlannerTrack, PlannerWorld } from "./types";
-import { boardDraftKey } from "./catalogKeys";
+import type { PlannerDraftBundle, PlannerScenario, PlannerTrack, PlannerWorld, VisibilityOverlay } from "./types";
+import { boardDraftKey, visibilityDraftKey } from "./catalogKeys";
 
 const STORAGE_KEY = "track_planner_drafts_v1";
 
@@ -61,6 +61,33 @@ export function upsertTrack(bundle: PlannerDraftBundle, track: PlannerTrack): Pl
     .filter((t) => boardDraftKey(t.worldId, t.trackId) !== key)
     .concat(toStore);
   return { ...bundle, tracks };
+}
+
+/** Upsert scenario-specific visibility presentation (does not affect board draft identity). */
+export function upsertVisibilityDraft(
+  bundle: PlannerDraftBundle,
+  worldId: string,
+  scenarioId: string,
+  trackId: string,
+  visibility: VisibilityOverlay[],
+): PlannerDraftBundle {
+  const key = visibilityDraftKey(worldId, scenarioId, trackId);
+  const visibilityDrafts = { ...(bundle.visibilityDrafts ?? {}) };
+  visibilityDrafts[key] = visibility.map((v) => ({ ...v, positions: v.positions.map((p) => ({ ...p })) }));
+  return { ...bundle, visibilityDrafts };
+}
+
+export function deleteVisibilityDraft(
+  bundle: PlannerDraftBundle,
+  worldId: string,
+  scenarioId: string,
+  trackId: string,
+): PlannerDraftBundle {
+  const key = visibilityDraftKey(worldId, scenarioId, trackId);
+  if (!bundle.visibilityDrafts?.[key]) return bundle;
+  const visibilityDrafts = { ...bundle.visibilityDrafts };
+  delete visibilityDrafts[key];
+  return { ...bundle, visibilityDrafts };
 }
 
 export function deleteBoardDraft(bundle: PlannerDraftBundle, worldId: string, trackId: string): PlannerDraftBundle {

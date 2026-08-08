@@ -79,6 +79,7 @@ export function TrackPlannerScreen({ themeVars, worlds, onBack }: TrackPlannerSc
     if (draftOverlay?.layers.length) {
       t = {
         ...draftOverlay,
+        visibility: track.visibility,
         scenarioId: track.scenarioId,
         sourceScenarioJson: track.sourceScenarioJson ?? draftOverlay.sourceScenarioJson,
         progression: draftOverlay.progression ?? track.progression,

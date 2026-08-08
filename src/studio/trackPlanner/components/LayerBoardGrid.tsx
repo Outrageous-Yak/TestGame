@@ -19,6 +19,10 @@ type LayerBoardGridProps = {
   showPlayer?: boolean;
   /** Allow clicking missing-slot positions (restore tool). */
   allowMissingClick?: boolean;
+  /** Positions in custom visibility mask on this layer. */
+  maskPositions?: Pos[];
+  /** All mask positions (for dimming non-mask on other layers hint — optional). */
+  allMaskPositions?: Pos[];
   layerRef?: (el: HTMLDivElement | null) => void;
 };
 
@@ -33,9 +37,19 @@ export function LayerBoardGrid({
   highlightFeatures = true,
   showPlayer = false,
   allowMissingClick = false,
+  maskPositions,
+  allMaskPositions,
   layerRef,
 }: LayerBoardGridProps) {
   const layerBoard = track.layers.find((l) => l.layer === layer);
+  const maskSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const m of maskPositions ?? []) {
+      s.add(`${m.row},${m.col}`);
+    }
+    return s;
+  }, [maskPositions]);
+
   const missingSet = useMemo(() => {
     const s = new Set<string>();
     for (const m of layerBoard?.missing ?? []) {
@@ -82,6 +96,7 @@ export function LayerBoardGrid({
                 const missing = missingSet.has(`${row},${col}`);
                 const hexId = missing ? null : posId({ layer, row, col });
                 const pos: Pos = { layer, row, col };
+                const inMask = maskSet.has(`${row},${col}`);
                 const selected =
                   selectedSlot?.layer === layer &&
                   selectedSlot.row === row &&
@@ -101,6 +116,7 @@ export function LayerBoardGrid({
                       "hexSlot",
                       "tp-hexSlot",
                       missing ? "tp-missing" : "",
+                      inMask ? "tp-visMask" : "",
                       selected ? "tp-selected" : "",
                       isPortalDest ? "tp-portalDest" : "",
                       onPath ? "tp-solution" : "",
@@ -115,6 +131,7 @@ export function LayerBoardGrid({
                   >
                     {missing ? <span className="tp-missingGhost" aria-hidden /> : null}
                     {!missing ? <span className="hex tp-hexFace" aria-hidden /> : null}
+                    {inMask ? <span className="tp-visMaskBadge" aria-hidden>V</span> : null}
                     {feat ? (
                       <span className="tp-featBadge">
                         {feat.kind === "portal" ? (feat.hidden ? "P*" : "P") : feat.kind[0].toUpperCase()}

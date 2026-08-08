@@ -5,7 +5,8 @@ import type { ScenarioMovementDefinition } from "../../../engine/rowMovement/typ
 import { assertScenario } from "../../../engine/scenario";
 import type { PlannerTrack, TrackFeature, CardFeature } from "../types";
 import { CARD_COLOR_TO_RUNTIME } from "../types";
-import type { CardTrigger } from "../../../ui/types";
+import type { CardTrigger, CloudMode, ExtendedVisibilityMode } from "../../../ui/types";
+import { visibilityOverlaysToRuntimeExport } from "../visibility/visibilityRuntimeMapping";
 
 function isMissing(track: PlannerTrack, p: Pos): boolean {
   const layer = track.layers.find((l) => l.layer === p.layer);
@@ -71,6 +72,13 @@ function buildVillains(track: PlannerTrack): VillainsSpec | undefined {
 
 export type RuntimeScenarioDocument = Scenario & {
   cardTriggers?: CardTrigger[];
+  /** Runtime visibility presentation — mirrors ScenarioEntry fields. */
+  cloudMode?: CloudMode;
+  visibilityMode?: ExtendedVisibilityMode;
+  visibilityParams?: {
+    lanternRadius?: number;
+    memoryRevealSec?: number;
+  };
   /** Planner metadata — ignored by game loader. */
   _plannerMeta?: {
     visibilityOverlays: PlannerTrack["visibility"];
@@ -118,6 +126,8 @@ export function authoredTrackToScenario(track: PlannerTrack): RuntimeScenarioDoc
   const revealOnEnterGuaranteedUp =
     transitions.length > 0 && [1, 2, 3, 4, 5, 6, 7].every((layer) => upLayers.has(layer));
 
+  const runtimeVis = visibilityOverlaysToRuntimeExport(track.visibility);
+
   const scenario: RuntimeScenarioDocument = {
     id: track.trackId,
     name: track.name,
@@ -131,8 +141,14 @@ export function authoredTrackToScenario(track: PlannerTrack): RuntimeScenarioDoc
     revealOnEnterGuaranteedUp,
     ...(cardTriggers.length ? { cardTriggers } : {}),
     ...(villains ? { villains } : {}),
+    ...(runtimeVis.cloudMode ? { cloudMode: runtimeVis.cloudMode } : {}),
+    ...(runtimeVis.visibilityMode ? { visibilityMode: runtimeVis.visibilityMode } : {}),
+    ...(runtimeVis.visibilityParams ? { visibilityParams: runtimeVis.visibilityParams } : {}),
     _plannerMeta: {
-      visibilityOverlays: track.visibility,
+      visibilityOverlays: track.visibility.map((v) => ({
+        ...v,
+        positions: v.positions.map((p) => ({ ...p })),
+      })),
       featureIds: track.features.map((f) => f.id),
       authoredFeatures: track.features.map((f) => ({ ...f })),
       ...(track.progression ? { progression: track.progression } : {}),

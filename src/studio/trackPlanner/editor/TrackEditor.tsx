@@ -8,7 +8,7 @@ import type {
   PlannerWorld,
 } from "../types";
 import { UndoStack, cloneTrack } from "../state/authoringState";
-import { saveDraftBundle, loadDraftBundle, upsertTrack, deleteBoardDraft } from "../storage";
+import { saveDraftBundle, loadDraftBundle, upsertTrack, deleteBoardDraft, upsertVisibilityDraft } from "../storage";
 import { hydrateTrackFromJson, scenarioJsonToTrack } from "../catalog";
 import { serializeScenarioExport } from "../serialization/scenarioBridge";
 import { BoardView } from "./BoardView";
@@ -97,7 +97,14 @@ export function TrackEditor({ track: initial, world, scenario, onTrackSaved, onB
 
   const saveDraft = () => {
     const toSave = { ...track, builtIn: undefined, catalogStatus: undefined };
-    const bundle = upsertTrack(loadDraftBundle(), toSave);
+    let bundle = upsertTrack(loadDraftBundle(), toSave);
+    bundle = upsertVisibilityDraft(
+      bundle,
+      track.worldId,
+      track.scenarioId,
+      track.trackId,
+      track.visibility,
+    );
     queueMicrotask(() => saveDraftBundle(bundle));
     onTrackSaved(toSave);
     setDirty(false);
@@ -306,11 +313,7 @@ export function TrackEditor({ track: initial, world, scenario, onTrackSaved, onB
           />
         ) : null}
         {selection.view === "visibility" ? (
-          <VisibilityView
-            track={track}
-            visibilityTool={selection.visibilityTool}
-            onTrackChange={applyTrack}
-          />
+          <VisibilityView track={track} scenario={scenario} onTrackChange={applyTrack} />
         ) : null}
         {selection.view === "audit" ? (
           <AuditView

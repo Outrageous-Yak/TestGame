@@ -18,7 +18,9 @@ import type {
 import { CARD_COLOR_TO_RUNTIME, createEmptyTrack, emptyLayerBoard } from "./types";
 import { parseCardTriggersFromScenario, parseVillainsFromScenario } from "../../ui/game/helpers";
 import type { CardKey } from "../../ui/types";
-import { boardDraftKey, catalogEntryKey } from "./catalogKeys";
+import { boardDraftKey, catalogEntryKey, visibilityDraftKey } from "./catalogKeys";
+import { scenarioEntryToDefaultOverlay, runtimeImportToOverlay } from "./visibility/visibilityRuntimeMapping";
+import type { VisibilityOverlay } from "./types";
 
 const RUNTIME_TO_CARD: Record<CardKey, CardFeature["cardType"]> = {
   cosmic: "RED",
@@ -58,7 +60,7 @@ export function seedBundleFromWorlds(worlds: WorldEntry[]): PlannerDraftBundle {
           name: tr.name,
           layers: [],
           features: [],
-          visibility: [{ id: "vis_default", state: "REGULAR", coverage: "FULL_BOARD", positions: [] }],
+          visibility: [scenarioEntryToDefaultOverlay(sc)],
           builtIn: true,
           sourceScenarioJson: tr.scenarioJson,
           progression: tr.progression,
@@ -99,8 +101,20 @@ export function scenarioJsonToTrack(base: PlannerTrack, raw: unknown): PlannerTr
   const s = raw as Scenario;
   assertScenario(s);
 
-  const meta = (raw as { _plannerMeta?: { authoredFeatures?: TrackFeature[]; progression?: PlannerTrack["progression"] } })
-    ._plannerMeta;
+  const meta = (
+    raw as {
+      _plannerMeta?: {
+        authoredFeatures?: TrackFeature[];
+        progression?: PlannerTrack["progression"];
+        visibilityOverlays?: VisibilityOverlay[];
+      };
+      cloudMode?: string;
+      visibilityMode?: string;
+      visibilityParams?: { lanternRadius?: number; memoryRevealSec?: number };
+    }
+  )._plannerMeta;
+
+  const importedVisibility = resolveImportedVisibility(raw, meta?.visibilityOverlays);
   if (meta?.authoredFeatures?.length) {
     const missingByLayer = buildMissingLayers(s);
     const movement = normalizeScenarioMovement((s.movement ?? {}) as ScenarioMovementDefinition);
@@ -110,6 +124,7 @@ export function scenarioJsonToTrack(base: PlannerTrack, raw: unknown): PlannerTr
       name: s.name || base.name,
       layers,
       features: meta.authoredFeatures.map((f) => ({ ...f })),
+      visibility: importedVisibility,
       sourceScenarioJson: base.sourceScenarioJson,
       progression: meta.progression ?? base.progression,
     };
@@ -166,11 +181,33 @@ export function scenarioJsonToTrack(base: PlannerTrack, raw: unknown): PlannerTr
     name: s.name || base.name,
     layers,
     features,
+    visibility: importedVisibility,
     sourceScenarioJson: base.sourceScenarioJson,
     progression:
       base.progression ??
       (raw as { _plannerMeta?: { progression?: PlannerTrack["progression"] } })._plannerMeta?.progression,
   };
+}
+
+function resolveImportedVisibility(
+  raw: unknown,
+  metaOverlays?: VisibilityOverlay[],
+): VisibilityOverlay[] {
+  if (metaOverlays?.length) {
+    return metaOverlays.map((v) => ({
+      ...v,
+      positions: v.positions.map((p) => ({ ...p })),
+    }));
+  }
+  const doc = raw as {
+    cloudMode?: string;
+    visibilityMode?: string;
+    visibilityParams?: { lanternRadius?: number; memoryRevealSec?: number };
+  };
+  if (doc.cloudMode || doc.visibilityMode) {
+    return [runtimeImportToOverlay(doc)];
+  }
+  return [{ id: "vis_default", state: "REGULAR", coverage: "FULL_BOARD", positions: [] }];
 }
 
 function buildMissingLayers(s: Scenario): Map<number, Set<string>> {
@@ -209,16 +246,39 @@ function buildLayersFromScenario(
   return layers;
 }
 
-function overlayDraftOntoCatalogEntry(production: PlannerTrack, draft: PlannerTrack): PlannerTrack {
+function overlayDraftOntoCatalogEntry(
+  production: PlannerTrack,
+  draft: PlannerTrack,
+  visibility: VisibilityOverlay[],
+): PlannerTrack {
   return {
     ...draft,
     scenarioId: production.scenarioId,
     name: draft.name || production.name,
+    visibility,
     sourceScenarioJson: production.sourceScenarioJson ?? draft.sourceScenarioJson,
     progression: draft.progression ?? production.progression,
     builtIn: false,
     catalogStatus: "modified_draft",
   };
+}
+
+function resolveCatalogVisibility(
+  prod: PlannerTrack,
+  visibilityDrafts: Record<string, VisibilityOverlay[]> | undefined,
+): VisibilityOverlay[] {
+  const draftKey = visibilityDraftKey(prod.worldId, prod.scenarioId, prod.trackId);
+  const draftVis = visibilityDrafts?.[draftKey];
+  if (draftVis?.length) {
+    return draftVis.map((v) => ({
+      ...v,
+      positions: v.positions.map((p) => ({ ...p })),
+    }));
+  }
+  return prod.visibility.map((v) => ({
+    ...v,
+    positions: v.positions.map((p) => ({ ...p })),
+  }));
 }
 
 function catalogStatusForTrack(track: PlannerTrack, hasBoardDraft: boolean): TrackCatalogStatus {
@@ -261,10 +321,11 @@ export function buildPlannerCatalog(
     const entryKey = catalogEntryKey(prod.worldId, prod.scenarioId, prod.trackId);
     catalogTrackKeys.add(entryKey);
     const overlay = draftByBoardKey.get(boardDraftKey(prod.worldId, prod.trackId));
+    const visibility = resolveCatalogVisibility(prod, drafts.visibilityDrafts);
     if (overlay) {
-      tracks.push(overlayDraftOntoCatalogEntry(prod, overlay));
+      tracks.push(overlayDraftOntoCatalogEntry(prod, overlay, visibility));
     } else {
-      tracks.push({ ...prod, catalogStatus: "production" });
+      tracks.push({ ...prod, visibility, catalogStatus: "production" });
     }
   }
 
@@ -279,6 +340,7 @@ export function buildPlannerCatalog(
     catalogTrackKeys.add(entryKey);
     tracks.push({
       ...draft,
+      visibility: resolveCatalogVisibility(draft, drafts.visibilityDrafts),
       catalogStatus: catalogStatusForTrack(draft, true),
     });
   }
