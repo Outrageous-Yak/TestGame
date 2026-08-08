@@ -478,6 +478,19 @@ describe("Step 3 board validation and preview", () => {
     expect(track).toEqual(before);
   });
 
+  it("preview works without Start/Goal features via placeholder anchors", () => {
+    const track = createEmptyTrack("t_new", "sc1", "w1", "New");
+    setRowMovement(track, 2, 1, { direction: "RIGHT", amount: 1 });
+    expect(track.features.some((f) => f.kind === "start")).toBe(false);
+    expect(buildMovementPreviewState(track, 1)).not.toBeNull();
+  });
+
+  it("preview supports layer 1 row movement per current engine rules", () => {
+    const track = createEmptyTrack("t_l1", "sc1", "w1", "L1 move");
+    setRowMovement(track, 1, 5, { direction: "LEFT", amount: 2 });
+    expect(buildMovementPreviewState(track, 1)).not.toBeNull();
+  });
+
   it("normalizeRowMovement sets NONE amount to 0", () => {
     const track = trackWithStartGoal();
     const next = setRowMovement(track, 3, 2, { direction: "NONE", amount: 5 });

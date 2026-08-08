@@ -5,7 +5,7 @@ import { AllLayersBoard, LayerBoardGrid } from "../components/LayerBoardGrid";
 import { RowMovementControls } from "../components/RowMovementControls";
 import { setRowMovement, toggleMissingHex } from "../state/authoringState";
 import { validateBoard } from "../boardValidation";
-import { buildMovementPreviewState } from "../boardMovementPreview";
+import { buildMovementPreviewState, canPreviewBoardMovement } from "../boardMovementPreview";
 
 type BoardViewProps = {
   track: PlannerTrack;
@@ -65,7 +65,7 @@ export function BoardView({
   };
 
   const layerBoard = track.layers.find((l) => l.layer === selectedLayer) ?? emptyLayerBoard(selectedLayer);
-  const canPreview = track.features.some((f) => f.kind === "start") && track.features.some((f) => f.kind === "goal");
+  const canPreview = canPreviewBoardMovement(track);
 
   return (
     <div className="tp-boardView">
