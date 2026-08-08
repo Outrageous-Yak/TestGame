@@ -27,6 +27,7 @@ export default defineConfig({
       "src/progression/**/*.test.ts",
       "src/studio/**/*.test.ts",
       "src/ui/**/*.test.ts",
+      "src/progression/**/*.test.ts",
     ],
   },
 });
