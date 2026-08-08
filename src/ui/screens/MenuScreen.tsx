@@ -46,6 +46,23 @@ function statusLabel(status: TrackProgressStatus): string {
   }
 }
 
+function isForkVisibilityScenario(scenario: ScenarioEntry): boolean {
+  return scenario.id.startsWith("citadel_fork_");
+}
+
+function partitionScenarios(scenarios: ScenarioEntry[]): {
+  main: ScenarioEntry[];
+  fork: ScenarioEntry[];
+} {
+  const main: ScenarioEntry[] = [];
+  const fork: ScenarioEntry[] = [];
+  for (const scenario of scenarios) {
+    if (isForkVisibilityScenario(scenario)) fork.push(scenario);
+    else main.push(scenario);
+  }
+  return { main, fork };
+}
+
 export function MenuScreen({
   themeVars,
   worlds,
@@ -118,6 +135,32 @@ export function MenuScreen({
     };
   }, [scenarioEntry?.id]);
 
+  const scenarioGroups = useMemo(
+    () => (world ? partitionScenarios(world.scenarios) : { main: [], fork: [] }),
+    [world]
+  );
+
+  const renderScenarioCard = (s: ScenarioEntry) => {
+    if (!world) return null;
+    const active = s.id === scenarioId;
+    const scenarioLocked =
+      !bypassProgressionLocks && !isScenarioUnlocked(progress, worlds, world, s);
+    return (
+      <button
+        key={s.id}
+        className={"card " + (active ? "active" : "") + (scenarioLocked ? " locked" : "")}
+        disabled={scenarioLocked}
+        onClick={() => onSelectScenario(s)}
+      >
+        <div className="cardTitle">
+          {s.name}
+          {scenarioLocked ? " · Locked" : ""}
+        </div>
+        <div className="cardDesc">{s.desc ?? ""}</div>
+      </button>
+    );
+  };
+
   return (
     <div className="appRoot" style={themeVars}>
       <div className="screen center menuScreenScroll">
@@ -150,28 +193,14 @@ export function MenuScreen({
           {world ? (
             <div style={{ marginTop: 16 }}>
               <div className="tracksTitle">Scenarios</div>
-              <div className="grid">
-                {world.scenarios.map((s) => {
-                  const active = s.id === scenarioId;
-                  const scenarioLocked =
-                    !bypassProgressionLocks &&
-                    !isScenarioUnlocked(progress, worlds, world, s);
-                  return (
-                    <button
-                      key={s.id}
-                      className={"card " + (active ? "active" : "") + (scenarioLocked ? " locked" : "")}
-                      disabled={scenarioLocked}
-                      onClick={() => onSelectScenario(s)}
-                    >
-                      <div className="cardTitle">
-                        {s.name}
-                        {scenarioLocked ? " · Locked" : ""}
-                      </div>
-                      <div className="cardDesc">{s.desc ?? ""}</div>
-                    </button>
-                  );
-                })}
-              </div>
+              <div className="grid">{scenarioGroups.main.map(renderScenarioCard)}</div>
+
+              {scenarioGroups.fork.length > 0 ? (
+                <div style={{ marginTop: 16 }}>
+                  <div className="tracksTitle">Portal Fork · visibility modes</div>
+                  <div className="grid">{scenarioGroups.fork.map(renderScenarioCard)}</div>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
