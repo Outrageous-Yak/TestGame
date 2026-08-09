@@ -31,7 +31,7 @@ export default {
       id: "citadel_partly_invisible",
       name: "Invisible",
       desc: "Mist drifts through the citadel. Your position, possible moves, and nearby stone paths remain visible.",
-      visibilityMode: "night",
+      visibilityMode: "invisible",
       scenarioJson: "worlds/forgotten_citadel/scenarios/track01.json",
       theme: FORGOTTEN_CITADEL_THEME,
       tracks: [...FORGOTTEN_CITADEL_TRACKS],
