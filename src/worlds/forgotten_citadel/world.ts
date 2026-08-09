@@ -19,7 +19,17 @@ export default {
     },
     {
       id: "citadel_partly_cloudynight",
-      name: "Partly night",
+      name: "Night",
+      desc: "Mist drifts through the citadel. Your position, possible moves, and nearby stone paths remain visible.",
+      visibilityMode: "night",
+      scenarioJson: "worlds/forgotten_citadel/scenarios/track01.json",
+      theme: FORGOTTEN_CITADEL_THEME,
+      tracks: [...FORGOTTEN_CITADEL_TRACKS],
+    },
+    
+    {
+      id: "citadel_partly_invisible",
+      name: "Invisible",
       desc: "Mist drifts through the citadel. Your position, possible moves, and nearby stone paths remain visible.",
       visibilityMode: "night",
       scenarioJson: "worlds/forgotten_citadel/scenarios/track01.json",
@@ -28,7 +38,7 @@ export default {
     },
     {
       id: "citadel_partly_cloudymemory",
-      name: "Partly Cloudymemory",
+      name: "Memory",
       desc: "Mist drifts through the citadel. Your position, possible moves, and nearby stone paths remain visible.",
       visibilityMode: "memory",
       scenarioJson: "worlds/forgotten_citadel/scenarios/track01.json",
