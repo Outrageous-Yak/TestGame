@@ -3,12 +3,18 @@ import type { WorldEntry } from "../ui/types";
 import type { ProgressionSaveV1 } from "../progression";
 import {
   isTrackNodePlayable,
+  markerFacingForNode,
   resolveMapCurrentTrackKey,
+  resolveMapPlayerMarkerNode,
   resolveNodeViewState,
   type CampaignMap,
   type CampaignNode,
   type CampaignNodeViewState,
 } from "./index";
+import {
+  DEFAULT_ANIMATED_SPRITE_ID,
+  resolveAnimatedSpriteSheet,
+} from "../features/sprite-builder/animatedSpriteSheets";
 import "./worldMap.css";
 
 export type CampaignMapViewMode = "player" | "authoring" | "preview";
@@ -73,6 +79,28 @@ export function CampaignMapView({
     if (mode === "authoring" || !progress) return null;
     return resolveMapCurrentTrackKey(progress, worlds, map, { bypassLocks: bypassProgressionLocks });
   }, [mode, progress, worlds, map, bypassProgressionLocks]);
+
+  const markerNode = useMemo(() => {
+    if (mode === "authoring") return null;
+    return resolveMapPlayerMarkerNode(progress, worlds, map, {
+      bypassLocks: bypassProgressionLocks,
+    });
+  }, [mode, progress, worlds, map, bypassProgressionLocks]);
+
+  const markerFacing = useMemo(() => {
+    if (!markerNode) return "down" as const;
+    return markerFacingForNode(markerNode, map);
+  }, [markerNode, map]);
+
+  const spriteSheet = useMemo(
+    () => resolveAnimatedSpriteSheet(DEFAULT_ANIMATED_SPRITE_ID),
+    [],
+  );
+  const spriteSheetUrl = useMemo(() => {
+    const base = import.meta.env.BASE_URL ?? "/";
+    const path = spriteSheet.path.replace(/^\//, "");
+    return `${base.endsWith("/") ? base : `${base}/`}${path}`;
+  }, [spriteSheet.path]);
 
   const nodeById = useMemo(() => {
     const m = new Map<string, CampaignNode>();
@@ -184,6 +212,28 @@ export function CampaignMapView({
             </button>
           );
         })}
+
+        {markerNode ? (
+          <div
+            className={`worldMapPlayerMarker worldMapPlayerMarker--${markerFacing}`}
+            style={{
+              left: `${markerNode.x}%`,
+              top: `${(markerNode.y / maxY) * 100}%`,
+              ["--spriteImg" as string]: `url(${JSON.stringify(spriteSheetUrl)})`,
+              ["--frameW" as string]: spriteSheet.frameWidth,
+              ["--frameH" as string]: spriteSheet.frameHeight,
+              ["--cols" as string]: spriteSheet.cols,
+              ["--rows" as string]: spriteSheet.rows,
+              ["--frameX" as string]: 0,
+              ["--frameY" as string]:
+                markerFacing === "left" ? 1 : markerFacing === "right" ? 2 : 0,
+            }}
+            aria-label="Your journey position"
+            role="img"
+          >
+            <span className="worldMapPlayerSprite" aria-hidden="true" />
+          </div>
+        ) : null}
 
         {mode === "authoring" && onNodeDragEnd ? (
           <div
