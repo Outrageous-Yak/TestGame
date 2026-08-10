@@ -1,4 +1,12 @@
-export type Screen = "start" | "world" | "characters" | "scenario" | "game" | "studio" | "trackPlanner";
+export type Screen =
+  | "start"
+  | "world"
+  | "worldMap"
+  | "characters"
+  | "scenario"
+  | "game"
+  | "studio"
+  | "trackPlanner";
 
 export type PlayerChoice =
   | { kind: "preset"; id: string; name: string }

@@ -15,6 +15,7 @@ import type { Screen, WorldEntry } from "./types";
 import { CharactersScreen } from "../features/sprite-builder/CharactersScreen";
 import { PuzzleStudioScreen, isDevMode, resolveInitialScreen } from "../features/puzzle-studio";
 import { TrackPlannerScreen } from "../studio/trackPlanner";
+import { WorldMapScreen } from "../campaign/WorldMapScreen";
 import {
   loadActiveSpriteId,
   loadSprites,
@@ -97,7 +98,7 @@ export default function App() {
         themeVars={themeVars}
         worldsCount={worlds.length}
         devMode={isDevMode()}
-        onStart={() => setScreen("world")}
+        onStart={() => setScreen("worldMap")}
         onCharacters={() => setScreen("characters")}
         onPuzzleStudio={() => setScreen("studio")}
         onTrackPlanner={() => setScreen("trackPlanner")}
@@ -136,6 +137,24 @@ export default function App() {
     );
   }
 
+  if (screen === "worldMap") {
+    return (
+      <WorldMapScreen
+        themeVars={themeVars}
+        worlds={worlds}
+        bypassProgressionLocks={devMode}
+        onBack={() => setScreen("start")}
+        onBrowseList={() => setScreen("world")}
+        onLaunchTrack={(target) => {
+          setWorldId(target.worldId);
+          setScenarioId(target.scenarioId);
+          setTrackId(target.trackId);
+          setScreen("game");
+        }}
+      />
+    );
+  }
+
   if (screen !== "game") {
     return (
       <MenuScreen
@@ -163,7 +182,7 @@ export default function App() {
           setScreen("scenario");
         }}
         onSelectTrack={setTrackId}
-        onBack={resetAll}
+        onBack={() => setScreen("worldMap")}
         onStart={() => setScreen("game")}
         onQuickStart={() => {
           const w0 = worlds[0];
@@ -181,7 +200,8 @@ export default function App() {
   }
 
   if (!scenarioEntry) {
-    resetAll();
+    // Missing launch target — return to map on next tick (avoid setState during render).
+    queueMicrotask(() => setScreen("worldMap"));
     return null;
   }
 
@@ -194,8 +214,8 @@ export default function App() {
       trackId={trackId}
       customSprite={customSprite}
       playerSpriteSheet={animatedSpriteSheet}
-      onExit={resetAll}
-      onGoHome={() => setScreen("scenario")}
+      onExit={() => setScreen("worldMap")}
+      onGoHome={() => setScreen("worldMap")}
       onPlayNextTrack={setTrackId}
     />
   );
