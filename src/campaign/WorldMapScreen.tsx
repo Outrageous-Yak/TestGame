@@ -1,24 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { WorldEntry } from "../ui/types";
-import {
-  loadProgression,
-  type ProgressionSaveV1,
-} from "../progression";
-import {
-  getDefaultCampaignMap,
-  resolveMapCurrentTrackKey,
-  resolveNodeViewState,
-  type CampaignMap,
-  type CampaignNode,
-  type CampaignNodeViewState,
-} from "./index";
+import { loadProgression, type ProgressionSaveV1 } from "../progression";
+import { resolvePlayableCampaignMap } from "./index";
+import { CampaignMapView, type CampaignLaunchTarget } from "./CampaignMapView";
 import "./worldMap.css";
 
-export type CampaignLaunchTarget = {
-  worldId: string;
-  scenarioId: string;
-  trackId: string;
-};
+export type { CampaignLaunchTarget };
 
 type WorldMapScreenProps = {
   themeVars: React.CSSProperties;
@@ -29,25 +16,6 @@ type WorldMapScreenProps = {
   onBrowseList?: () => void;
 };
 
-function pathD(from: CampaignNode, to: CampaignNode): string {
-  const mx = (from.x + to.x) / 2;
-  const my = (from.y + to.y) / 2 + (from.x < to.x ? 4 : -4);
-  return `M ${from.x} ${from.y} Q ${mx} ${my} ${to.x} ${to.y}`;
-}
-
-function statusLabel(state: CampaignNodeViewState): string {
-  switch (state) {
-    case "LOCKED":
-      return "Locked";
-    case "COMPLETED":
-      return "Done";
-    case "CURRENT":
-      return "Next";
-    default:
-      return "Play";
-  }
-}
-
 export function WorldMapScreen({
   themeVars,
   worlds,
@@ -56,48 +24,12 @@ export function WorldMapScreen({
   onLaunchTrack,
   onBrowseList,
 }: WorldMapScreenProps) {
-  const map: CampaignMap = useMemo(() => getDefaultCampaignMap(), []);
+  const map = useMemo(() => resolvePlayableCampaignMap(), []);
   const [progress, setProgress] = useState<ProgressionSaveV1>(() => loadProgression());
 
   useEffect(() => {
     setProgress(loadProgression());
   }, []);
-
-  const currentKey = useMemo(
-    () => resolveMapCurrentTrackKey(progress, worlds, map, { bypassLocks: bypassProgressionLocks }),
-    [progress, worlds, map, bypassProgressionLocks],
-  );
-
-  const nodeById = useMemo(() => {
-    const m = new Map<string, CampaignNode>();
-    for (const n of map.nodes) m.set(n.id, n);
-    return m;
-  }, [map.nodes]);
-
-  const edges = useMemo(() => {
-    const list: { from: CampaignNode; to: CampaignNode }[] = [];
-    for (const n of map.nodes) {
-      for (const cid of n.connections ?? []) {
-        const to = nodeById.get(cid);
-        if (to) list.push({ from: n, to });
-      }
-    }
-    return list;
-  }, [map.nodes, nodeById]);
-
-  const maxY = useMemo(
-    () => Math.max(100, ...map.nodes.map((n) => n.y)) + 12,
-    [map.nodes],
-  );
-
-  const handleNodeActivate = (node: CampaignNode, state: CampaignNodeViewState) => {
-    if (state === "LOCKED") return;
-    onLaunchTrack({
-      worldId: node.worldId,
-      scenarioId: node.scenarioId,
-      trackId: node.trackId,
-    });
-  };
 
   return (
     <div className="appRoot worldMapRoot" style={themeVars} data-theme={map.theme ?? "grasslands"}>
@@ -118,47 +50,14 @@ export function WorldMapScreen({
         )}
       </header>
 
-      <div className="worldMapScroll" role="region" aria-label="Campaign map">
-        <div className="worldMapCanvas" style={{ ["--map-height" as string]: `${maxY}%` }}>
-          <svg
-            className="worldMapPaths"
-            viewBox={`0 0 100 ${maxY}`}
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            {edges.map(({ from, to }) => (
-              <path
-                key={`${from.id}-${to.id}`}
-                className="worldMapPath"
-                d={pathD(from, to)}
-                fill="none"
-              />
-            ))}
-          </svg>
-
-          {map.nodes.map((node) => {
-            const state = resolveNodeViewState(progress, worlds, node, currentKey, {
-              bypassLocks: bypassProgressionLocks,
-            });
-            const interactive = state !== "LOCKED";
-            return (
-              <button
-                key={node.id}
-                type="button"
-                className={`worldMapNode worldMapNode--${state.toLowerCase()}`}
-                style={{ left: `${node.x}%`, top: `${(node.y / maxY) * 100}%` }}
-                disabled={!interactive}
-                aria-label={`${node.label ?? node.trackId}: ${statusLabel(state)}`}
-                onClick={() => handleNodeActivate(node, state)}
-              >
-                <span className="worldMapNodeDot" />
-                <span className="worldMapNodeLabel">{node.label ?? node.trackId}</span>
-                <span className="worldMapNodeStatus">{statusLabel(state)}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <CampaignMapView
+        map={map}
+        worlds={worlds}
+        mode="player"
+        progress={progress}
+        bypassProgressionLocks={bypassProgressionLocks}
+        onLaunchTrack={onLaunchTrack}
+      />
 
       <footer className="worldMapLegend" aria-hidden="true">
         <span className="worldMapLegendItem worldMapLegendItem--available">Available</span>

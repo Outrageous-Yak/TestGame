@@ -162,6 +162,22 @@
   opacity: 0.65;
 }
 
+.worldMapNode--author .worldMapNodeDot {
+  background: linear-gradient(145deg, #f0f4e8, #c5d4a8);
+  border-color: #fff;
+}
+
+.worldMapNode--selected .worldMapNodeDot {
+  box-shadow: 0 0 0 4px rgba(40, 90, 200, 0.45), 0 3px 12px rgba(0, 0, 0, 0.3);
+  border-color: #2a5fd4;
+}
+
+.worldMapDropLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
 @keyframes worldMapPulse {
   0%,
   100% {

@@ -8,6 +8,7 @@ type StartScreenProps = {
   onCharacters: () => void;
   onPuzzleStudio?: () => void;
   onTrackPlanner?: () => void;
+  onCampaignBuilder?: () => void;
   onReset: () => void;
 };
 
@@ -19,6 +20,7 @@ export function StartScreen({
   onCharacters,
   onPuzzleStudio,
   onTrackPlanner,
+  onCampaignBuilder,
   onReset,
 }: StartScreenProps) {
   return (
@@ -38,6 +40,11 @@ export function StartScreen({
             {onTrackPlanner ? (
               <button className="btn" onClick={onTrackPlanner}>
                 Track Planner
+              </button>
+            ) : null}
+            {onCampaignBuilder ? (
+              <button className="btn" onClick={onCampaignBuilder}>
+                Campaign Map Builder
               </button>
             ) : null}
             <button className="btn" onClick={onReset}>

@@ -6,7 +6,8 @@ export type Screen =
   | "scenario"
   | "game"
   | "studio"
-  | "trackPlanner";
+  | "trackPlanner"
+  | "campaignBuilder";
 
 export type PlayerChoice =
   | { kind: "preset"; id: string; name: string }
