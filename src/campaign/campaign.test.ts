@@ -4,11 +4,26 @@ import {
   resolveMapCurrentTrackKey,
   resolveNodeTrack,
   resolveNodeViewState,
+  resolvePlayableCampaignMap,
+  addTrackNode,
+  addConnection,
+  removeConnection,
+  removeNode,
+  nudgeNode,
+  validateCampaignMap,
+  upsertCampaignDraft,
+  saveCampaignDraftBundle,
+  loadCampaignDraftBundle,
+  emptyCampaignDraftBundle,
+  deleteCampaignDraft,
+  CAMPAIGN_MAP_DRAFTS_KEY,
+  cloneCampaignMap,
   type CampaignMap,
   type CampaignNodeViewState,
 } from "./index";
 import { createDefaultProgression } from "../progression/storage";
 import { recordTrackCompletion } from "../progression";
+import { PROGRESSION_STORAGE_KEY } from "../progression/storage";
 import type { WorldEntry } from "../ui/types";
 
 const mockWorlds: WorldEntry[] = [
@@ -34,6 +49,20 @@ const mockWorlds: WorldEntry[] = [
     ],
   },
 ];
+
+function memoryStorage(initial: Record<string, string> = {}) {
+  const store = { ...initial };
+  return {
+    getItem: (k: string) => store[k] ?? null,
+    setItem: (k: string, v: string) => {
+      store[k] = v;
+    },
+    removeItem: (k: string) => {
+      delete store[k];
+    },
+    _store: store,
+  };
+}
 
 describe("campaign map 6A", () => {
   it("default map references existing track ids without duplicating JSON", () => {
@@ -86,5 +115,78 @@ describe("campaign map 6A", () => {
     const mid = map.nodes[3];
     expect(mid.connections).toEqual(["n_fc_t05"]);
     expect(map.nodes.some((n) => (n.connections?.length ?? 0) === 0)).toBe(true);
+  });
+});
+
+describe("campaign builder 6B", () => {
+  it("mutates nodes/connections without touching production module identity", () => {
+    const prod = getDefaultCampaignMap();
+    const prodNode0 = prod.nodes[0];
+    let map = cloneCampaignMap(prod);
+    map = nudgeNode(map, map.nodes[0].id, 5, 0);
+    map = addConnection(map, map.nodes[0].id, map.nodes[2].id);
+    map = removeConnection(map, map.nodes[0].id, map.nodes[1].id);
+    expect(map.nodes[0].x).not.toBe(prodNode0.x);
+    expect(prod.nodes[0].x).toBe(prodNode0.x);
+    expect(map.nodes[0].connections).toContain(map.nodes[2].id);
+  });
+
+  it("add/remove track node", () => {
+    let map = getDefaultCampaignMap();
+    const before = map.nodes.length;
+    map = addTrackNode(map, {
+      worldId: "forgotten_citadel",
+      scenarioId: "citadel_path",
+      trackId: "fc_t02",
+      label: "Extra",
+    });
+    expect(map.nodes.length).toBe(before + 1);
+    const id = map.nodes[map.nodes.length - 1].id;
+    map = removeNode(map, id);
+    expect(map.nodes.length).toBe(before);
+  });
+
+  it("validates missing track refs and dangling connections", () => {
+    let map = getDefaultCampaignMap();
+    map = addTrackNode(map, { trackId: "nope", scenarioId: "citadel_path" });
+    map = addConnection(map, map.nodes[0].id, "missing_node");
+    const issues = validateCampaignMap(map, mockWorlds);
+    expect(issues.some((i) => i.code === "missing_track_ref")).toBe(true);
+    expect(issues.some((i) => i.code === "dangling_connection")).toBe(true);
+  });
+
+  it("draft save/reload round-trips and isolates storage keys", () => {
+    const ls = memoryStorage({
+      [PROGRESSION_STORAGE_KEY]: JSON.stringify(createDefaultProgression()),
+      track_planner_drafts_v1: '{"version":1,"worlds":[],"scenarios":[],"tracks":[],"updatedAt":"x"}',
+      "hexgame-best:prism_path:t5": "9",
+    });
+    const original = globalThis.localStorage;
+    Object.defineProperty(globalThis, "localStorage", { value: ls, configurable: true });
+
+    let map = getDefaultCampaignMap();
+    map = nudgeNode(map, map.nodes[0].id, 8, 0);
+    map.catalogStatus = "modified_draft";
+    saveCampaignDraftBundle(upsertCampaignDraft(emptyCampaignDraftBundle(), map));
+
+    const reloaded = loadCampaignDraftBundle();
+    expect(reloaded.maps[0].nodes[0].x).toBe(map.nodes[0].x);
+    expect(resolvePlayableCampaignMap(map.id).nodes[0].x).toBe(map.nodes[0].x);
+
+    expect(ls._store[PROGRESSION_STORAGE_KEY]).toContain("completedTracks");
+    expect(ls._store.track_planner_drafts_v1).toContain('"tracks":[]');
+    expect(ls._store["hexgame-best:prism_path:t5"]).toBe("9");
+    expect(ls._store[CAMPAIGN_MAP_DRAFTS_KEY]).toBeTruthy();
+
+    saveCampaignDraftBundle(deleteCampaignDraft(loadCampaignDraftBundle(), map.id));
+    Object.defineProperty(globalThis, "localStorage", { value: original, configurable: true });
+  });
+
+  it("opening map for play does not write progression", () => {
+    const progress = createDefaultProgression();
+    const before = JSON.stringify(progress);
+    resolvePlayableCampaignMap();
+    resolveMapCurrentTrackKey(progress, mockWorlds, getDefaultCampaignMap());
+    expect(JSON.stringify(progress)).toBe(before);
   });
 });

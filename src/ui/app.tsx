@@ -16,6 +16,7 @@ import { CharactersScreen } from "../features/sprite-builder/CharactersScreen";
 import { PuzzleStudioScreen, isDevMode, resolveInitialScreen } from "../features/puzzle-studio";
 import { TrackPlannerScreen } from "../studio/trackPlanner";
 import { WorldMapScreen } from "../campaign/WorldMapScreen";
+import { CampaignBuilderScreen } from "../campaign/builder/CampaignBuilderScreen";
 import {
   loadActiveSpriteId,
   loadSprites,
@@ -102,6 +103,7 @@ export default function App() {
         onCharacters={() => setScreen("characters")}
         onPuzzleStudio={() => setScreen("studio")}
         onTrackPlanner={() => setScreen("trackPlanner")}
+        onCampaignBuilder={() => setScreen("campaignBuilder")}
         onReset={resetAll}
       />
     );
@@ -130,6 +132,16 @@ export default function App() {
   if (screen === "trackPlanner") {
     return (
       <TrackPlannerScreen
+        themeVars={themeVars}
+        worlds={worlds}
+        onBack={() => setScreen("start")}
+      />
+    );
+  }
+
+  if (screen === "campaignBuilder") {
+    return (
+      <CampaignBuilderScreen
         themeVars={themeVars}
         worlds={worlds}
         onBack={() => setScreen("start")}
