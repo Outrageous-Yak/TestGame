@@ -14,6 +14,10 @@ type LayerBoardGridProps = {
   /** Highlight a portal landing hex (e.g. while editing). */
   portalDestination?: Pos | null;
   solutionOverlay?: Set<string>;
+  /** Optional move numbers for solution path hexes. */
+  solutionStepByHex?: Record<string, number>;
+  /** Portal landing hexes on the optimal path (distinct styling). */
+  portalLandingHexIds?: Set<string>;
   /** Hex ids currently reachable for playtest movement. */
   reachableIds?: Set<string>;
   onSlotClick?: (pos: Pos, hexId: string | null) => void;
@@ -41,6 +45,8 @@ export function LayerBoardGrid({
   selectedSlot,
   portalDestination,
   solutionOverlay,
+  solutionStepByHex,
+  portalLandingHexIds,
   reachableIds,
   onSlotClick,
   highlightFeatures = true,
@@ -133,7 +139,9 @@ export function LayerBoardGrid({
                   portalDestination.row === row &&
                   portalDestination.col === col;
                 const feat = featureByDisplaySlot.get(`${row},${col}`) ?? null;
-                const onPath = hexId && solutionOverlay?.has(hexId);
+                const onPath = !!(hexId && solutionOverlay?.has(hexId));
+                const pathStep = hexId ? solutionStepByHex?.[hexId] : undefined;
+                const onPortalLand = !!(hexId && portalLandingHexIds?.has(hexId));
                 const isPlayer = !!(state && hexId && state.playerHexId === hexId);
                 const isReach = !!(hexId && reachableIds?.has(hexId));
                 return (
@@ -148,6 +156,7 @@ export function LayerBoardGrid({
                       selected ? "tp-selected" : "",
                       isPortalDest ? "tp-portalDest" : "",
                       onPath ? "tp-solution" : "",
+                      onPortalLand ? "tp-solutionPortal" : "",
                       isPlayer ? "tp-player" : "",
                       isReach ? "tp-reachable" : "",
                     ]
@@ -167,7 +176,8 @@ export function LayerBoardGrid({
                       </span>
                     ) : null}
                     {isPortalDest ? <span className="tp-portalDestBadge">→</span> : null}
-                    {onPath ? <span className="tp-pathDot" /> : null}
+                    {onPath && pathStep == null ? <span className="tp-pathDot" /> : null}
+                    {pathStep != null ? <span className="tp-pathStep">{pathStep}</span> : null}
                   </button>
                 );
               })}

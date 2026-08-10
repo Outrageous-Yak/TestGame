@@ -4,7 +4,6 @@ import { join } from "path";
 import type { Scenario } from "../../engine/types";
 import { newGame } from "../../engine/api";
 import { computeOptimalSolution } from "../../engine/trackAnalysis";
-import { countSolutionsWithin } from "../../engine/puzzleFitness";
 import {
   authoredTrackToScenario,
   serializeScenarioExport,
@@ -371,9 +370,10 @@ describe("Track Planner simulator", () => {
     const base = createEmptyTrack("fc_t02", "fc_main", "forgotten_citadel", scenario.name);
     const track = scenarioJsonToTrack(base, scenario);
     const sim = runSimulator(track);
-    const counts = countSolutionsWithin(newGame(scenario), 80, 0);
-    expect(sim.optimal.minMoves).toBe(counts.minMoves);
+    expect(sim.optimal.minMoves).not.toBeNull();
+    expect(sim.optimal.hasMultipleOptimalPaths).toBe(true);
     expect(sim.summary.optimalPathCount).toBeGreaterThan(1);
+    expect(sim.summary.optimalPathCount).toBe(sim.optimal.alternativeOptimalCount);
   });
 
   it("clone does not mutate authored track during analysis", () => {

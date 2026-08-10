@@ -235,6 +235,22 @@
   box-shadow: inset 0 0 0 2px #22c55e;
 }
 
+.tp-solutionPortal {
+  box-shadow: inset 0 0 0 2px #38bdf8;
+}
+
+.tp-pathStep {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #ecfdf5;
+  pointer-events: none;
+  z-index: 2;
+}
+
 .tp-player {
   box-shadow: inset 0 0 0 3px #facc15;
 }
@@ -459,6 +475,60 @@
 
 .tp-simBad {
   color: #ef4444;
+}
+
+.tp-simToolbar {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tp-simResults {
+  margin: 8px 0 12px;
+  max-width: 100%;
+}
+
+.tp-simStats {
+  margin: 6px 0;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
+}
+
+.tp-simPath {
+  margin-top: 8px;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.tp-simPathTitle {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.tp-simPathList {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.tp-simPathMove {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+.tp-simPortalTag {
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.tp-simPathMeta {
+  opacity: 0.65;
+  font-size: 0.8rem;
+}
+
+.tp-simulatorView {
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .tp-trackBadge {
