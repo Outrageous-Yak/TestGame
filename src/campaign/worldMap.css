@@ -162,6 +162,18 @@
   opacity: 0.65;
 }
 
+.worldMapNode--invalid .worldMapNodeDot {
+  background: linear-gradient(145deg, #c07070, #7a3030);
+  border-color: rgba(255, 200, 200, 0.5);
+  opacity: 0.85;
+}
+
+.worldMapNode--invalid .worldMapNodeLabel,
+.worldMapNode--invalid .worldMapNodeStatus {
+  opacity: 0.7;
+  color: #3a1010;
+}
+
 .worldMapNode--author .worldMapNodeDot {
   background: linear-gradient(145deg, #f0f4e8, #c5d4a8);
   border-color: #fff;

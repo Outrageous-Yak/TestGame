@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import type { WorldEntry } from "../ui/types";
 import type { ProgressionSaveV1 } from "../progression";
 import {
+  isTrackNodePlayable,
   resolveMapCurrentTrackKey,
   resolveNodeViewState,
   type CampaignMap,
@@ -12,7 +13,11 @@ import "./worldMap.css";
 
 export type CampaignMapViewMode = "player" | "authoring" | "preview";
 
+/** Launch payload includes stable campaign/node IDs for return context. */
 export type CampaignLaunchTarget = {
+  campaignMapId: string;
+  areaId: string;
+  nodeId: string;
   worldId: string;
   scenarioId: string;
   trackId: string;
@@ -27,7 +32,6 @@ type CampaignMapViewProps = {
   selectedNodeId?: string | null;
   onSelectNode?: (nodeId: string) => void;
   onLaunchTrack?: (target: CampaignLaunchTarget) => void;
-  /** Desktop authoring drag end with normalized coords */
   onNodeDragEnd?: (nodeId: string, x: number, y: number) => void;
 };
 
@@ -37,7 +41,7 @@ function pathD(from: CampaignNode, to: CampaignNode): string {
   return `M ${from.x} ${from.y} Q ${mx} ${my} ${to.x} ${to.y}`;
 }
 
-function statusLabel(state: CampaignNodeViewState | "AUTHOR"): string {
+function statusLabel(state: CampaignNodeViewState | "AUTHOR" | "INVALID"): string {
   switch (state) {
     case "LOCKED":
       return "Locked";
@@ -47,6 +51,8 @@ function statusLabel(state: CampaignNodeViewState | "AUTHOR"): string {
       return "Next";
     case "AUTHOR":
       return "Node";
+    case "INVALID":
+      return "Broken";
     default:
       return "Play";
   }
@@ -90,17 +96,20 @@ export function CampaignMapView({
     [map.nodes],
   );
 
-  const handleActivate = (node: CampaignNode, state: CampaignNodeViewState | "AUTHOR") => {
-    if (mode === "authoring") {
+  const handleActivate = (
+    node: CampaignNode,
+    state: CampaignNodeViewState | "AUTHOR" | "INVALID",
+  ) => {
+    if (mode === "authoring" || mode === "preview") {
       onSelectNode?.(node.id);
       return;
     }
-    if (mode === "preview") {
-      onSelectNode?.(node.id);
-      return;
-    }
-    if (state === "LOCKED") return;
+    if (state === "LOCKED" || state === "INVALID") return;
+    if (!isTrackNodePlayable(worlds, node)) return;
     onLaunchTrack?.({
+      campaignMapId: map.id,
+      areaId: map.areaId,
+      nodeId: node.id,
       worldId: node.worldId,
       scenarioId: node.scenarioId,
       trackId: node.trackId,
@@ -127,16 +136,26 @@ export function CampaignMapView({
         </svg>
 
         {map.nodes.map((node) => {
-          const state: CampaignNodeViewState | "AUTHOR" =
-            mode === "authoring" || !progress
-              ? "AUTHOR"
-              : resolveNodeViewState(progress, worlds, node, currentKey, {
-                  bypassLocks: bypassProgressionLocks,
-                });
+          const playable = mode === "authoring" || isTrackNodePlayable(worlds, node);
+          let state: CampaignNodeViewState | "AUTHOR" | "INVALID";
+          if (mode === "authoring") {
+            state = "AUTHOR";
+          } else if (!playable) {
+            state = "INVALID";
+          } else if (!progress) {
+            state = "AVAILABLE";
+          } else {
+            state = resolveNodeViewState(progress, worlds, node, currentKey, {
+              bypassLocks: bypassProgressionLocks,
+            });
+          }
+
           const interactive =
-            mode === "authoring" || mode === "preview" || state !== "LOCKED";
+            mode === "authoring" ||
+            mode === "preview" ||
+            (state !== "LOCKED" && state !== "INVALID");
           const selected = selectedNodeId === node.id;
-          const classState = mode === "authoring" ? "author" : String(state).toLowerCase();
+          const classState = String(state).toLowerCase();
 
           return (
             <button
@@ -146,6 +165,11 @@ export function CampaignMapView({
               style={{ left: `${node.x}%`, top: `${(node.y / maxY) * 100}%` }}
               disabled={!interactive}
               draggable={mode === "authoring" && !!onNodeDragEnd}
+              title={
+                state === "INVALID"
+                  ? `Broken reference: ${node.worldId}/${node.scenarioId}/${node.trackId}`
+                  : undefined
+              }
               aria-label={`${node.label ?? node.trackId}: ${statusLabel(state)}`}
               onClick={() => handleActivate(node, state)}
               onDragStart={(e) => {

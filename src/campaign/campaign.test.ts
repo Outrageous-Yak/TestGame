@@ -18,9 +18,17 @@ import {
   deleteCampaignDraft,
   CAMPAIGN_MAP_DRAFTS_KEY,
   cloneCampaignMap,
+  isTrackNodePlayable,
   type CampaignMap,
   type CampaignNodeViewState,
 } from "./index";
+import {
+  buildCampaignOrigin,
+  collectInvalidTrackNodes,
+  resolveReturnCampaignMapId,
+  snapshotMapNodeStates,
+} from "./flow";
+import { isCampaignOrigin } from "./playOrigin";
 import { createDefaultProgression } from "../progression/storage";
 import { recordTrackCompletion } from "../progression";
 import { PROGRESSION_STORAGE_KEY } from "../progression/storage";
@@ -188,5 +196,64 @@ describe("campaign builder 6B", () => {
     resolvePlayableCampaignMap();
     resolveMapCurrentTrackKey(progress, mockWorlds, getDefaultCampaignMap());
     expect(JSON.stringify(progress)).toBe(before);
+  });
+});
+
+describe("campaign flow 6C", () => {
+  it("preserves originating campaign/map/node context across launch", () => {
+    const map = getDefaultCampaignMap();
+    const node = map.nodes[0];
+    const origin = buildCampaignOrigin({
+      campaignMapId: map.id,
+      areaId: map.areaId,
+      nodeId: node.id,
+      worldId: node.worldId,
+      scenarioId: node.scenarioId,
+      trackId: node.trackId,
+    });
+    expect(isCampaignOrigin(origin)).toBe(true);
+    expect(resolveReturnCampaignMapId(origin)).toBe(map.id);
+    expect(resolveReturnCampaignMapId({ kind: "list" }, map.id)).toBe(map.id);
+  });
+
+  it("completion refreshes DONE and NEXT from existing progression", () => {
+    let progress = createDefaultProgression();
+    const map = getDefaultCampaignMap();
+    const before = snapshotMapNodeStates(progress, mockWorlds, map);
+    expect(before[map.nodes[0].id]).toBe("CURRENT");
+    expect(before[map.nodes[1].id]).toBe("LOCKED");
+
+    progress = recordTrackCompletion(progress, "forgotten_citadel", "fc_t01");
+    const after = snapshotMapNodeStates(progress, mockWorlds, map);
+    expect(after[map.nodes[0].id]).toBe("COMPLETED");
+    expect(after[map.nodes[1].id]).toBe("CURRENT");
+  });
+
+  it("invalid Track references fail safely as INVALID", () => {
+    let map = getDefaultCampaignMap();
+    map = addTrackNode(map, {
+      id: "broken_node",
+      trackId: "does_not_exist",
+      scenarioId: "citadel_path",
+      worldId: "forgotten_citadel",
+    });
+    const invalid = collectInvalidTrackNodes(mockWorlds, map);
+    expect(invalid.some((n) => n.id === "broken_node")).toBe(true);
+    expect(isTrackNodePlayable(mockWorlds, map.nodes[0])).toBe(true);
+    const states = snapshotMapNodeStates(createDefaultProgression(), mockWorlds, map);
+    expect(states.broken_node).toBe("INVALID");
+  });
+
+  it("player renderer still consumes same CampaignMap / draft overlay", () => {
+    const ls = memoryStorage();
+    const original = globalThis.localStorage;
+    Object.defineProperty(globalThis, "localStorage", { value: ls, configurable: true });
+    let map = getDefaultCampaignMap();
+    map = nudgeNode(map, map.nodes[0].id, 6, 0);
+    saveCampaignDraftBundle(upsertCampaignDraft(emptyCampaignDraftBundle(), map));
+    const playable = resolvePlayableCampaignMap(map.id);
+    expect(playable.nodes[0].x).toBe(map.nodes[0].x);
+    expect(playable.id).toBe(map.id);
+    Object.defineProperty(globalThis, "localStorage", { value: original, configurable: true });
   });
 });

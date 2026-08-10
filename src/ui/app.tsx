@@ -18,6 +18,10 @@ import { TrackPlannerScreen } from "../studio/trackPlanner";
 import { WorldMapScreen } from "../campaign/WorldMapScreen";
 import { CampaignBuilderScreen } from "../campaign/builder/CampaignBuilderScreen";
 import {
+  isCampaignOrigin,
+  type CampaignPlayOrigin,
+} from "../campaign/playOrigin";
+import {
   loadActiveSpriteId,
   loadSprites,
   resolveActiveSprite,
@@ -51,6 +55,10 @@ export default function App() {
     return tracks.find((t) => t.id === trackId) ?? null;
   }, [scenarioEntry, trackId]);
 
+  /** Stable campaign return context (map/area/node IDs). */
+  const [playOrigin, setPlayOrigin] = useState<CampaignPlayOrigin | null>(null);
+  const [mapProgressRefreshKey, setMapProgressRefreshKey] = useState(0);
+
   const [sprites, setSprites] = useState<SavedPixelSprite[]>(() => loadSprites());
   const [activeSpriteId, setActiveSpriteId] = useState<string | null>(() => loadActiveSpriteId());
   const customSprite = useMemo(
@@ -70,7 +78,13 @@ export default function App() {
     setWorldId(null);
     setScenarioId(null);
     setTrackId(null);
+    setPlayOrigin(null);
     setScreen("start");
+  }, []);
+
+  const returnToWorldMap = useCallback(() => {
+    setMapProgressRefreshKey((k) => k + 1);
+    setScreen("worldMap");
   }, []);
 
   const handleActiveChange = useCallback((id: string | null) => {
@@ -92,6 +106,7 @@ export default function App() {
   }, [scenarioEntry]);
 
   const devMode = isDevMode();
+  const activeCampaignMapId = isCampaignOrigin(playOrigin) ? playOrigin.campaignMapId : null;
 
   if (screen === "start") {
     return (
@@ -99,7 +114,10 @@ export default function App() {
         themeVars={themeVars}
         worldsCount={worlds.length}
         devMode={isDevMode()}
-        onStart={() => setScreen("worldMap")}
+        onStart={() => {
+          setPlayOrigin(null);
+          setScreen("worldMap");
+        }}
         onCharacters={() => setScreen("characters")}
         onPuzzleStudio={() => setScreen("studio")}
         onTrackPlanner={() => setScreen("trackPlanner")}
@@ -155,9 +173,23 @@ export default function App() {
         themeVars={themeVars}
         worlds={worlds}
         bypassProgressionLocks={devMode}
+        campaignMapId={activeCampaignMapId}
+        progressRefreshKey={mapProgressRefreshKey}
         onBack={() => setScreen("start")}
-        onBrowseList={() => setScreen("world")}
+        onBrowseList={() => {
+          setPlayOrigin({ kind: "list" });
+          setScreen("world");
+        }}
         onLaunchTrack={(target) => {
+          setPlayOrigin({
+            kind: "campaign",
+            campaignMapId: target.campaignMapId,
+            areaId: target.areaId,
+            nodeId: target.nodeId,
+            worldId: target.worldId,
+            scenarioId: target.scenarioId,
+            trackId: target.trackId,
+          });
           setWorldId(target.worldId);
           setScenarioId(target.scenarioId);
           setTrackId(target.trackId);
@@ -180,6 +212,7 @@ export default function App() {
         trackEntry={trackEntry}
         bypassProgressionLocks={devMode}
         onSelectWorld={(w) => {
+          setPlayOrigin({ kind: "list" });
           setWorldId(w.id);
           const s0 = w.scenarios[0] ?? null;
           setScenarioId(s0 ? s0.id : null);
@@ -188,18 +221,23 @@ export default function App() {
           setScreen("scenario");
         }}
         onSelectScenario={(s) => {
+          setPlayOrigin({ kind: "list" });
           setScenarioId(s.id);
           const t0 = s.tracks?.[0] ?? null;
           setTrackId(t0 ? t0.id : null);
           setScreen("scenario");
         }}
         onSelectTrack={setTrackId}
-        onBack={() => setScreen("worldMap")}
-        onStart={() => setScreen("game")}
+        onBack={() => returnToWorldMap()}
+        onStart={() => {
+          if (!playOrigin) setPlayOrigin({ kind: "list" });
+          setScreen("game");
+        }}
         onQuickStart={() => {
           const w0 = worlds[0];
           const s0 = w0?.scenarios?.[0] ?? null;
           if (w0 && s0) {
+            setPlayOrigin({ kind: "list" });
             setWorldId(w0.id);
             setScenarioId(s0.id);
             const t0 = s0.tracks?.[0] ?? null;
@@ -212,8 +250,7 @@ export default function App() {
   }
 
   if (!scenarioEntry) {
-    // Missing launch target — return to map on next tick (avoid setState during render).
-    queueMicrotask(() => setScreen("worldMap"));
+    queueMicrotask(() => returnToWorldMap());
     return null;
   }
 
@@ -226,8 +263,8 @@ export default function App() {
       trackId={trackId}
       customSprite={customSprite}
       playerSpriteSheet={animatedSpriteSheet}
-      onExit={() => setScreen("worldMap")}
-      onGoHome={() => setScreen("worldMap")}
+      onExit={returnToWorldMap}
+      onGoHome={returnToWorldMap}
       onPlayNextTrack={setTrackId}
     />
   );

@@ -1517,7 +1517,7 @@ export function GameController({
         <div className="spacer" />
 
         <button className="btn" onClick={onExit}>
-          Reset
+          Map
         </button>
       </div>
 
@@ -2171,7 +2171,7 @@ export function GameController({
                 Play next level
               </button>
               <button type="button" className="btn" onClick={onGoHome}>
-                Home
+                Map
               </button>
             </div>
           </div>
