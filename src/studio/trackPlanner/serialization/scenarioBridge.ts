@@ -99,7 +99,7 @@ export function authoredTrackToScenario(track: PlannerTrack): RuntimeScenarioDoc
   const missing: Pos[] = [];
   for (const layer of track.layers) {
     for (const p of layer.missing) {
-      missing.push({ ...p });
+      missing.push({ layer: layer.layer, row: p.row, col: p.col });
     }
   }
 
