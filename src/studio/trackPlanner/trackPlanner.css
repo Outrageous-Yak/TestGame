@@ -239,6 +239,24 @@
   box-shadow: inset 0 0 0 3px #facc15;
 }
 
+.tp-reachable:not(.tp-player) {
+  box-shadow: inset 0 0 0 2px rgba(74, 222, 128, 0.85);
+}
+
+.tp-playtestToolbar {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tp-playtestMeta,
+.tp-playtestStatus {
+  margin: 6px 0;
+}
+
+.tp-playtestError {
+  color: #fca5a5;
+}
+
 .tp-portalDest {
   outline: 2px dashed #60a5fa;
   box-shadow: inset 0 0 0 2px rgba(96, 165, 250, 0.45);

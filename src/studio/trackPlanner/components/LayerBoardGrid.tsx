@@ -1,9 +1,10 @@
 import React, { useMemo } from "react";
 import type { GameState } from "../../../engine/types";
 import { ROW_LENS, posId } from "../../../engine/board";
+import { hexIdAtSlot, findSlot } from "../../../engine/layout";
 import { hexGridPlacement, layerCssVar } from "../../../ui/game/helpers";
-import { freshPlaytestState } from "../simulation/runSimulator";
-import type { PlannerTrack, Pos } from "../types";
+import { freshLayerPlaytestState } from "../simulation/layerPlaytest";
+import type { PlannerTrack, Pos, TrackFeature } from "../types";
 
 type LayerBoardGridProps = {
   track: PlannerTrack;
@@ -13,6 +14,8 @@ type LayerBoardGridProps = {
   /** Highlight a portal landing hex (e.g. while editing). */
   portalDestination?: Pos | null;
   solutionOverlay?: Set<string>;
+  /** Hex ids currently reachable for playtest movement. */
+  reachableIds?: Set<string>;
   onSlotClick?: (pos: Pos, hexId: string | null) => void;
   highlightFeatures?: boolean;
   /** When false, skip building runtime game state (faster board editing). */
@@ -21,10 +24,15 @@ type LayerBoardGridProps = {
   allowMissingClick?: boolean;
   /** Positions in custom visibility mask on this layer. */
   maskPositions?: Pos[];
-  /** All mask positions (for dimming non-mask on other layers hint — optional). */
   allMaskPositions?: Pos[];
   layerRef?: (el: HTMLDivElement | null) => void;
 };
+
+function featureLogicalId(f: TrackFeature): string | null {
+  if (f.kind === "portal") return posId(f.source);
+  if ("position" in f) return posId(f.position);
+  return null;
+}
 
 export function LayerBoardGrid({
   track,
@@ -33,12 +41,12 @@ export function LayerBoardGrid({
   selectedSlot,
   portalDestination,
   solutionOverlay,
+  reachableIds,
   onSlotClick,
   highlightFeatures = true,
   showPlayer = false,
   allowMissingClick = false,
   maskPositions,
-  allMaskPositions,
   layerRef,
 }: LayerBoardGridProps) {
   const layerBoard = track.layers.find((l) => l.layer === layer);
@@ -58,26 +66,35 @@ export function LayerBoardGrid({
     return s;
   }, [layerBoard]);
 
-  const featureAt = (row: number, col: number) => {
-    if (!highlightFeatures) return null;
+  /** Feature badge keyed by display slot when playState maps logical → display. */
+  const featureByDisplaySlot = useMemo(() => {
+    const map = new Map<string, TrackFeature>();
+    if (!highlightFeatures) return map;
     for (const f of track.features) {
-      const p =
-        f.kind === "portal"
-          ? f.source.layer === layer
-            ? f.source
-            : null
-          : "position" in f && f.position.layer === layer
-            ? f.position
-            : null;
-      if (p && p.row === row && p.col === col) return f;
+      const logicalId = featureLogicalId(f);
+      if (!logicalId) continue;
+      if (playState) {
+        const slot = findSlot(playState, layer, logicalId);
+        if (slot) map.set(`${slot.row},${slot.col}`, f);
+      } else {
+        const p =
+          f.kind === "portal"
+            ? f.source.layer === layer
+              ? f.source
+              : null
+            : "position" in f && f.position.layer === layer
+              ? f.position
+              : null;
+        if (p) map.set(`${p.row},${p.col}`, f);
+      }
     }
-    return null;
-  };
+    return map;
+  }, [track.features, highlightFeatures, playState, layer]);
 
   let state = playState ?? null;
   if (!state && showPlayer) {
     try {
-      state = freshPlaytestState(track);
+      state = freshLayerPlaytestState(track);
     } catch {
       state = null;
     }
@@ -93,8 +110,18 @@ export function LayerBoardGrid({
           {ROW_LENS.map((cols, row) => (
             <div key={row} className="hexRow" style={{ ["--cols" as string]: cols }}>
               {Array.from({ length: cols }, (_, col) => {
-                const missing = missingSet.has(`${row},${col}`);
-                const hexId = missing ? null : posId({ layer, row, col });
+                const authoredMissing = missingSet.has(`${row},${col}`);
+                let hexId: string | null;
+                let missing: boolean;
+                if (state) {
+                  hexId = hexIdAtSlot(state, layer, row, col);
+                  const hex = hexId ? state.hexesById.get(hexId) : null;
+                  missing = !hexId || !!hex?.missing;
+                  if (missing) hexId = null;
+                } else {
+                  missing = authoredMissing;
+                  hexId = missing ? null : posId({ layer, row, col });
+                }
                 const pos: Pos = { layer, row, col };
                 const inMask = maskSet.has(`${row},${col}`);
                 const selected =
@@ -105,9 +132,10 @@ export function LayerBoardGrid({
                   portalDestination?.layer === layer &&
                   portalDestination.row === row &&
                   portalDestination.col === col;
-                const feat = featureAt(row, col);
+                const feat = featureByDisplaySlot.get(`${row},${col}`) ?? null;
                 const onPath = hexId && solutionOverlay?.has(hexId);
-                const isPlayer = state?.playerHexId === hexId;
+                const isPlayer = !!(state && hexId && state.playerHexId === hexId);
+                const isReach = !!(hexId && reachableIds?.has(hexId));
                 return (
                   <button
                     key={col}
@@ -121,6 +149,7 @@ export function LayerBoardGrid({
                       isPortalDest ? "tp-portalDest" : "",
                       onPath ? "tp-solution" : "",
                       isPlayer ? "tp-player" : "",
+                      isReach ? "tp-reachable" : "",
                     ]
                       .filter(Boolean)
                       .join(" ")}
