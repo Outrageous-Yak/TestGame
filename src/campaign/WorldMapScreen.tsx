@@ -11,6 +11,10 @@ type WorldMapScreenProps = {
   themeVars: React.CSSProperties;
   worlds: WorldEntry[];
   bypassProgressionLocks?: boolean;
+  /** Stable CampaignMap.id to reopen after Track return */
+  campaignMapId?: string | null;
+  /** Bump to force progression reload without full remount */
+  progressRefreshKey?: number;
   onBack: () => void;
   onLaunchTrack: (target: CampaignLaunchTarget) => void;
   onBrowseList?: () => void;
@@ -20,16 +24,22 @@ export function WorldMapScreen({
   themeVars,
   worlds,
   bypassProgressionLocks = false,
+  campaignMapId = null,
+  progressRefreshKey = 0,
   onBack,
   onLaunchTrack,
   onBrowseList,
 }: WorldMapScreenProps) {
-  const map = useMemo(() => resolvePlayableCampaignMap(), []);
+  const map = useMemo(
+    () => resolvePlayableCampaignMap(campaignMapId ?? undefined),
+    [campaignMapId],
+  );
   const [progress, setProgress] = useState<ProgressionSaveV1>(() => loadProgression());
 
   useEffect(() => {
+    // Re-read existing progression on mount and whenever returning from a Track.
     setProgress(loadProgression());
-  }, []);
+  }, [progressRefreshKey, campaignMapId]);
 
   return (
     <div className="appRoot worldMapRoot" style={themeVars} data-theme={map.theme ?? "grasslands"}>

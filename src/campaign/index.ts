@@ -73,6 +73,14 @@ export function resolveNodeTrack(
   return { world, scenario, track: tracks[trackIndex], trackIndex };
 }
 
+/** TRACK nodes need a resolvable registry identity; other types are placeholders. */
+export function isTrackNodePlayable(worlds: WorldEntry[], node: CampaignNode): boolean {
+  const kind = node.type ?? "track";
+  if (kind !== "track" && kind !== "start") return false;
+  if (!node.trackId?.trim()) return false;
+  return resolveNodeTrack(worlds, node) != null;
+}
+
 export function resolveNodeViewState(
   progress: ProgressionSaveV1,
   worlds: WorldEntry[],
@@ -157,3 +165,5 @@ export {
   createEmptyCampaignMap,
   newCampaignNodeId,
 } from "./mutate";
+export type { CampaignPlayOrigin } from "./playOrigin";
+export { isCampaignOrigin } from "./playOrigin";

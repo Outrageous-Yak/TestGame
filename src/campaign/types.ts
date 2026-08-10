@@ -42,6 +42,12 @@ export type CampaignMap = {
   subtitle?: string;
   /** Optional recommended entry node id */
   entryNodeId?: string;
+  /**
+   * Future area/world journey hooks (presentation/navigation metadata only).
+   * Unlock authority remains in progression — these do not create unlock rules.
+   */
+  nextCampaignMapId?: string;
+  nextWorldId?: string;
   /** Visual theme hint — CSS only */
   theme?: "grasslands" | "citadel" | "ruins" | "forest";
   nodes: CampaignNode[];
