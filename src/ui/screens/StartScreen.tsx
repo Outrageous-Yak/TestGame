@@ -26,7 +26,7 @@ export function StartScreen({
       <div className="screen center">
         <div className="panel">
           <div className="title">Hex Game</div>
-          <div className="sub">Start → World → Character → Scenario → Game</div>
+          <div className="sub">Start → World Map → Track → Game</div>
 
           <div className="row">
             <button className="btn primary" onClick={onStart}>

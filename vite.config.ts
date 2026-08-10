@@ -25,6 +25,7 @@ export default defineConfig({
       "src/features/sprite-builder/**/*.test.ts",
       "src/features/puzzle-studio/**/*.test.ts",
       "src/progression/**/*.test.ts",
+      "src/campaign/**/*.test.ts",
       "src/studio/**/*.test.ts",
       "src/ui/**/*.test.ts",
       "src/progression/**/*.test.ts",
