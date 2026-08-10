@@ -41,13 +41,42 @@ export type OptimalSolution = {
   minMoves: number | null;
   pathHexIds: string[];
   replay: ReplayStep[];
+  /**
+   * Total optimal path count when counting is enabled (capped at 1000).
+   * 0 when unsolved or when `countAlternativePaths: false`.
+   */
   alternativeOptimalCount: number;
+  /** True when more than one equally optimal path exists. */
+  hasMultipleOptimalPaths: boolean;
+  /** True when path count hit the internal cap (1000). */
+  optimalPathCountCapped: boolean;
   stats: SolverStats;
 };
 
 export type OptimalSolutionOptions = {
   countAlternativePaths?: boolean;
 };
+
+/**
+ * Canonical solver state key for BFS deduplication.
+ * Includes player hex, active movement layers, and per-row rotation
+ * (first hex id per row). Excludes turn, visibility, and cosmetic state.
+ */
+export function solverStateKey(dto: GameStateLiteDTO): string {
+  let rows = "";
+  const layerEntries = dto.rows.slice().sort((a, b) => a.layer - b.layer);
+  for (const entry of layerEntries) {
+    rows += `|L${entry.layer}`;
+    for (let i = 0; i < entry.rows.length; i++) {
+      // Rows only rotate; the first unique hex id fully identifies the rotation.
+      rows += `|${entry.rows[i][0] ?? ""}`;
+    }
+  }
+  const activeLayers = [...(dto.movementActiveLayers ?? [])]
+    .sort((a, b) => a - b)
+    .join(",");
+  return `p=${dto.playerHexId}|active=${activeLayers}${rows}`;
+}
 
 export type SimilarityBreakdown = {
   geometryPercent: number;
@@ -85,19 +114,12 @@ export type TrackQualityReport = {
 };
 
 function stateSignature(dto: GameStateLiteDTO): string {
-  let rows = "";
-  const layerEntries = dto.rows.slice().sort((a, b) => a.layer - b.layer);
-  for (const entry of layerEntries) {
-    rows += `|L${entry.layer}`;
-    for (let i = 0; i < entry.rows.length; i++) {
-      // Rows only rotate; the first unique hex id fully identifies the rotation.
-      rows += `|${entry.rows[i][0] ?? ""}`;
-    }
-  }
-  const activeLayers = [...(dto.movementActiveLayers ?? [])]
-    .sort((a, b) => a - b)
-    .join(",");
-  return `p=${dto.playerHexId}|active=${activeLayers}${rows}`;
+  return solverStateKey(dto);
+}
+
+/** Stable neighbor order for deterministic BFS / canonical path. */
+function sortedNeighborIds(state: GameState, playerHexId: string): string[] {
+  return neighborIdsSameLayer(state, playerHexId).slice().sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
 function goalIdFromState(state: GameState): string | null {
@@ -204,8 +226,51 @@ type BfsNode = {
   moveTarget: string | null;
 };
 
+function emptySolution(partialStats: Partial<SolverStats> = {}): OptimalSolution {
+  return {
+    minMoves: null,
+    pathHexIds: [],
+    replay: [],
+    alternativeOptimalCount: 0,
+    hasMultipleOptimalPaths: false,
+    optimalPathCountCapped: false,
+    stats: {
+      exploredNodes: 0,
+      visitedStates: 0,
+      maxQueueDepth: 0,
+      maxTurnsSearched: 0,
+      branchingFactor: 0,
+      searchAborted: false,
+      runtimeMs: 0,
+      ...partialStats,
+    },
+  };
+}
+
+function reconstructPath(
+  startSig: string,
+  goalSig: string,
+  parentMap: Map<string, { parentSig: string; moveTarget: string }>
+): string[] {
+  const pathTargets: string[] = [];
+  let cur: string | undefined = goalSig;
+  while (cur && cur !== startSig) {
+    const p = parentMap.get(cur);
+    if (!p) break;
+    pathTargets.unshift(p.moveTarget);
+    cur = p.parentSig;
+  }
+  return pathTargets;
+}
+
 /**
  * BFS optimal solver with path reconstruction, alternative-path counting, and stats.
+ *
+ * Explores successful `attemptMove` actions only (production move + portal + endTurn).
+ * Failed/wrong taps are excluded: they consume a turn without row movement in production
+ * but are not useful for shortest-path search.
+ *
+ * Canonical path tie-break: lexicographically sorted neighbor hex ids; first BFS discovery wins.
  */
 export function computeOptimalSolution(
   base: GameState,
@@ -215,27 +280,14 @@ export function computeOptimalSolution(
 ): OptimalSolution {
   const start = performance.now();
   const goalId = goalIdFromState(base);
-  const empty: OptimalSolution = {
-    minMoves: null,
-    pathHexIds: [],
-    replay: [],
-    alternativeOptimalCount: 0,
-    stats: {
-      exploredNodes: 0,
-      visitedStates: 0,
-      maxQueueDepth: 0,
-      maxTurnsSearched: 0,
-      branchingFactor: 0,
-      searchAborted: false,
-      runtimeMs: 0,
-    },
-  };
 
-  if (!goalId) return { ...empty, stats: { ...empty.stats, runtimeMs: performance.now() - start } };
+  if (!goalId) {
+    return emptySolution({ runtimeMs: performance.now() - start });
+  }
 
   const startHex = base.hexesById.get(base.playerHexId);
   if (!startHex || startHex.missing || startHex.blocked) {
-    return { ...empty, stats: { ...empty.stats, runtimeMs: performance.now() - start } };
+    return emptySolution({ runtimeMs: performance.now() - start });
   }
 
   if (base.playerHexId === goalId) {
@@ -244,6 +296,8 @@ export function computeOptimalSolution(
       pathHexIds: [],
       replay: [],
       alternativeOptimalCount: 1,
+      hasMultipleOptimalPaths: false,
+      optimalPathCountCapped: false,
       stats: {
         exploredNodes: 1,
         visitedStates: 1,
@@ -272,30 +326,26 @@ export function computeOptimalSolution(
   let branchNodes = 0;
   let goalSig: string | null = null;
   let minMoves: number | null = null;
+  let hitNodeLimit = false;
+  let hitTurnLimit = false;
 
   while (head < q.length) {
     if (explored >= maxNodes) {
-      const stats = finalizeStats(
-        explored,
-        seen.size,
-        maxDepth,
-        maxDepth,
-        totalBranches,
-        branchNodes,
-        true,
-        performance.now() - start
-      );
-      return { ...empty, stats };
+      hitNodeLimit = true;
+      break;
     }
 
     const node = q[head++];
     explored++;
     maxDepth = Math.max(maxDepth, node.turns);
 
-    if (node.turns >= maxTurns) continue;
+    if (node.turns >= maxTurns) {
+      hitTurnLimit = true;
+      continue;
+    }
 
     const st = restoreStateLite(base, node.dto);
-    const neighbors = neighborIdsSameLayer(st, st.playerHexId);
+    const neighbors = sortedNeighborIds(st, st.playerHexId);
     let validBranches = 0;
 
     for (const nid of neighbors) {
@@ -310,22 +360,19 @@ export function computeOptimalSolution(
       const turnsUsed = node.turns + 1;
       const dto2 = snapshotStateLite(st2);
       const sig2 = stateSignature(dto2);
+      const parentSig = stateSignature(node.dto);
 
       if (!depthMap.has(sig2)) depthMap.set(sig2, turnsUsed);
 
       if (st2.playerHexId === goalId) {
+        // First discovery at this depth wins (neighbors sorted → deterministic).
         if (minMoves === null || turnsUsed < minMoves) {
           minMoves = turnsUsed;
           goalSig = sig2;
-          parentMap.set(sig2, {
-            parentSig: stateSignature(node.dto),
-            moveTarget: nid,
-          });
-        } else if (turnsUsed === minMoves) {
-          parentMap.set(sig2, {
-            parentSig: stateSignature(node.dto),
-            moveTarget: nid,
-          });
+          parentMap.set(sig2, { parentSig, moveTarget: nid });
+        } else if (turnsUsed === minMoves && !parentMap.has(sig2)) {
+          parentMap.set(sig2, { parentSig, moveTarget: nid });
+          if (sig2 < (goalSig ?? sig2)) goalSig = sig2;
         }
         continue;
       }
@@ -334,11 +381,8 @@ export function computeOptimalSolution(
 
       if (seen.has(sig2)) continue;
       seen.add(sig2);
-      parentMap.set(sig2, {
-        parentSig: stateSignature(node.dto),
-        moveTarget: nid,
-      });
-      q.push({ dto: dto2, turns: turnsUsed, parentSig: stateSignature(node.dto), moveTarget: nid });
+      parentMap.set(sig2, { parentSig, moveTarget: nid });
+      q.push({ dto: dto2, turns: turnsUsed, parentSig, moveTarget: nid });
     }
 
     if (validBranches > 0) {
@@ -346,6 +390,8 @@ export function computeOptimalSolution(
       branchNodes++;
     }
   }
+
+  const searchAborted = hitNodeLimit || (hitTurnLimit && minMoves === null);
 
   if (minMoves === null || !goalSig) {
     const stats = finalizeStats(
@@ -355,27 +401,20 @@ export function computeOptimalSolution(
       maxDepth,
       totalBranches,
       branchNodes,
-      false,
+      searchAborted,
       performance.now() - start
     );
-    return { ...empty, stats };
+    return emptySolution(stats);
   }
 
-  // Reconstruct primary path
-  const pathTargets: string[] = [];
-  let cur: string | undefined = goalSig;
-  while (cur && cur !== startSig) {
-    const p = parentMap.get(cur);
-    if (!p) break;
-    pathTargets.unshift(p.moveTarget);
-    cur = p.parentSig;
-  }
+  const pathTargets = reconstructPath(startSig, goalSig, parentMap);
 
-  // Count alternative optimal paths via layered DP
-  const altCount =
-    options.countAlternativePaths === false
-      ? 0
-      : countOptimalPaths(base, startDto, goalId, minMoves, maxTurns);
+  let altCount = 0;
+  let capped = false;
+  if (options.countAlternativePaths !== false) {
+    altCount = countOptimalPaths(base, startDto, goalId, minMoves, maxTurns);
+    capped = altCount >= 1000;
+  }
 
   const replay = buildReplay(base, pathTargets);
   const stats = finalizeStats(
@@ -394,6 +433,8 @@ export function computeOptimalSolution(
     pathHexIds: pathTargets,
     replay,
     alternativeOptimalCount: altCount,
+    hasMultipleOptimalPaths: altCount > 1,
+    optimalPathCountCapped: capped,
     stats,
   };
 }
@@ -442,7 +483,7 @@ function countOptimalPaths(
       if (waysHere === 0) continue;
 
       const st = restoreStateLite(base, dto);
-      const neighbors = neighborIdsSameLayer(st, st.playerHexId);
+      const neighbors = sortedNeighborIds(st, st.playerHexId);
 
       for (const nid of neighbors) {
         const nh = st.hexesById.get(nid);
