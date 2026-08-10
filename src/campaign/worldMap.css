@@ -131,8 +131,8 @@
 }
 
 .worldMapPlayerMarker .miniSprite {
-  width: 22px;
-  height: 22px;
+  width: 128px;
+  height: 128px;
   image-rendering: pixelated;
   background-image: var(--spriteImg);
   background-repeat: no-repeat;
@@ -142,8 +142,9 @@
   background-position:
     calc(var(--frameW) * -1px * var(--frameX))
     calc(var(--frameH) * -1px * var(--frameY));
-  transform: scale(0.28);
+  transform: scale(0.32);
   transform-origin: center;
+  display: block;
 }
 
 @media (max-width: 420px) {

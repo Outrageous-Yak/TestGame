@@ -225,7 +225,11 @@ export function CampaignMapView({
               isWalking={false}
               walkFrame={0}
               playerFacing={markerFacing}
-              spriteSheetUrl={spriteSheet.path}
+              spriteSheetUrl={
+                spriteSheet.path.startsWith("/") || spriteSheet.path.startsWith("http")
+                  ? spriteSheet.path
+                  : `/${spriteSheet.path}`
+              }
               frameW={spriteSheet.frameWidth}
               frameH={spriteSheet.frameHeight}
               cols={spriteSheet.cols}
