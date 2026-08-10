@@ -106,33 +106,34 @@
   z-index: 3;
   pointer-events: none;
   /* Offset from node center so the node dot stays visible/tappable */
-  --marker-dx: 28px;
-  --marker-dy: -36px;
+  --marker-dx: 30px;
+  --marker-dy: -42px;
   transform: translate(calc(-50% + var(--marker-dx)), calc(-50% + var(--marker-dy)));
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
 .worldMapPlayerMarker--left {
-  --marker-dx: -28px;
+  --marker-dx: -30px;
 }
 
 .worldMapPlayerMarker--right {
-  --marker-dx: 28px;
+  --marker-dx: 30px;
 }
 
 .worldMapPlayerMarker--down {
-  --marker-dx: 22px;
-  --marker-dy: -40px;
+  --marker-dx: 24px;
+  --marker-dy: -46px;
 }
 
-.worldMapPlayerMarker .miniSprite {
+.worldMapPlayerSprite {
   width: 128px;
   height: 128px;
+  flex-shrink: 0;
   image-rendering: pixelated;
   background-image: var(--spriteImg);
   background-repeat: no-repeat;
@@ -142,18 +143,18 @@
   background-position:
     calc(var(--frameW) * -1px * var(--frameX))
     calc(var(--frameH) * -1px * var(--frameY));
-  transform: scale(0.32);
+  transform: scale(0.34);
   transform-origin: center;
   display: block;
 }
 
 @media (max-width: 420px) {
   .worldMapPlayerMarker {
-    --marker-dx: 24px;
-    --marker-dy: -32px;
+    --marker-dx: 26px;
+    --marker-dy: -38px;
   }
   .worldMapPlayerMarker--left {
-    --marker-dx: -24px;
+    --marker-dx: -26px;
   }
 }
 
