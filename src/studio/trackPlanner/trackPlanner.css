@@ -686,6 +686,18 @@
   margin-bottom: 16px;
 }
 
+.tp-strandingSection {
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.tp-strandingResults {
+  margin-top: 8px;
+}
+
 .tp-auditCards {
   display: flex;
   flex-direction: column;

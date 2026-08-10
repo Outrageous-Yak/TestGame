@@ -98,4 +98,4 @@ Default: `maxTurns=80`, `maxNodes=400000`. Stats expose `visitedStates` and `run
 
 ## Next step
 
-**Stranding analysis** — reachable states from which Goal becomes impossible. Not implemented here.
+**Stranding analysis** — see `docs/track-planner/stranding-analysis.md`.
