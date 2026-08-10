@@ -135,6 +135,74 @@ export function resolveMapCurrentTrackKey(
   return null;
 }
 
+/**
+ * Resolve which campaign node the player journey marker should sit beside.
+ * Derives from node coordinates + progression only (does not write save).
+ *
+ * Priority:
+ * 1. Canonical recommended AVAILABLE node (`resolveMapCurrentTrackKey`)
+ * 2. Last COMPLETED playable node on the map (campaign finished)
+ * 3. First playable node (fallback / invalid current)
+ * 4. null if nothing usable
+ */
+export function resolveMapPlayerMarkerNode(
+  progress: ProgressionSaveV1 | null,
+  worlds: WorldEntry[],
+  map: CampaignMap,
+  options?: { bypassLocks?: boolean },
+): CampaignNode | null {
+  if (!map.nodes.length) return null;
+
+  const progressSafe = progress ?? {
+    version: 1 as const,
+    completedTracks: {},
+    seenMechanicIntroductions: [],
+  };
+
+  const currentKey = resolveMapCurrentTrackKey(progressSafe, worlds, map, options);
+  if (currentKey) {
+    const match = map.nodes.find((n) => `${n.worldId}|${n.trackId}` === currentKey);
+    if (match && isTrackNodePlayable(worlds, match)) return match;
+  }
+
+  let lastCompleted: CampaignNode | null = null;
+  for (const node of map.nodes) {
+    if (!isTrackNodePlayable(worlds, node)) continue;
+    const resolved = resolveNodeTrack(worlds, node);
+    if (!resolved) continue;
+    const status = getTrackStatus(
+      progressSafe,
+      worlds,
+      resolved.world,
+      resolved.scenario,
+      resolved.track,
+      resolved.trackIndex,
+      options,
+    );
+    if (status === "COMPLETED") lastCompleted = node;
+  }
+  if (lastCompleted) return lastCompleted;
+
+  for (const node of map.nodes) {
+    if (isTrackNodePlayable(worlds, node)) return node;
+  }
+  return null;
+}
+
+/** Cheap facing hint from node → first connection (optional flip). */
+export function markerFacingForNode(
+  node: CampaignNode,
+  map: CampaignMap,
+): "left" | "right" | "down" {
+  const nextId = node.connections?.[0];
+  if (!nextId) return "down";
+  const next = map.nodes.find((n) => n.id === nextId);
+  if (!next) return "down";
+  if (next.x > node.x + 2) return "right";
+  if (next.x < node.x - 2) return "left";
+  return "down";
+}
+
 export type {
   CampaignMap,
   CampaignNode,

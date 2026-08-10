@@ -100,6 +100,62 @@
   touch-action: manipulation;
 }
 
+/* Journey marker — beside/above node; does not intercept taps */
+.worldMapPlayerMarker {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  /* Offset from node center so the node dot stays visible/tappable */
+  --marker-dx: 28px;
+  --marker-dy: -36px;
+  transform: translate(calc(-50% + var(--marker-dx)), calc(-50% + var(--marker-dy)));
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+}
+
+.worldMapPlayerMarker--left {
+  --marker-dx: -28px;
+}
+
+.worldMapPlayerMarker--right {
+  --marker-dx: 28px;
+}
+
+.worldMapPlayerMarker--down {
+  --marker-dx: 22px;
+  --marker-dy: -40px;
+}
+
+.worldMapPlayerMarker .miniSprite {
+  width: 22px;
+  height: 22px;
+  image-rendering: pixelated;
+  background-image: var(--spriteImg);
+  background-repeat: no-repeat;
+  background-size:
+    calc(var(--frameW) * var(--cols) * 1px)
+    calc(var(--frameH) * var(--rows) * 1px);
+  background-position:
+    calc(var(--frameW) * -1px * var(--frameX))
+    calc(var(--frameH) * -1px * var(--frameY));
+  transform: scale(0.28);
+  transform-origin: center;
+}
+
+@media (max-width: 420px) {
+  .worldMapPlayerMarker {
+    --marker-dx: 24px;
+    --marker-dy: -32px;
+  }
+  .worldMapPlayerMarker--left {
+    --marker-dx: -24px;
+  }
+}
+
 .worldMapNode:disabled {
   cursor: not-allowed;
 }

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   getDefaultCampaignMap,
   resolveMapCurrentTrackKey,
+  resolveMapPlayerMarkerNode,
   resolveNodeTrack,
   resolveNodeViewState,
   resolvePlayableCampaignMap,
@@ -10,6 +11,7 @@ import {
   removeConnection,
   removeNode,
   nudgeNode,
+  setNodePosition,
   validateCampaignMap,
   upsertCampaignDraft,
   saveCampaignDraftBundle,
@@ -254,6 +256,96 @@ describe("campaign flow 6C", () => {
     const playable = resolvePlayableCampaignMap(map.id);
     expect(playable.nodes[0].x).toBe(map.nodes[0].x);
     expect(playable.id).toBe(map.id);
+    Object.defineProperty(globalThis, "localStorage", { value: original, configurable: true });
+  });
+});
+
+describe("world map player sprite marker", () => {
+  it("1. no progression → marker resolves to initial/current node", () => {
+    const map = getDefaultCampaignMap();
+    const marker = resolveMapPlayerMarkerNode(null, mockWorlds, map);
+    expect(marker?.id).toBe(map.nodes[0].id);
+    expect(marker?.trackId).toBe("fc_t01");
+  });
+
+  it("2. progress completion → marker resolver updates", () => {
+    let progress = createDefaultProgression();
+    const map = getDefaultCampaignMap();
+    expect(resolveMapPlayerMarkerNode(progress, mockWorlds, map)?.trackId).toBe("fc_t01");
+    progress = recordTrackCompletion(progress, "forgotten_citadel", "fc_t01");
+    expect(resolveMapPlayerMarkerNode(progress, mockWorlds, map)?.trackId).toBe("fc_t02");
+  });
+
+  it("3. all complete → final node selected", () => {
+    let progress = createDefaultProgression();
+    progress = recordTrackCompletion(progress, "forgotten_citadel", "fc_t01");
+    progress = recordTrackCompletion(progress, "forgotten_citadel", "fc_t02");
+    const map = getDefaultCampaignMap();
+    const marker = resolveMapPlayerMarkerNode(progress, mockWorlds, map);
+    expect(marker?.trackId).toBe("fc_t02");
+    expect(resolveMapCurrentTrackKey(progress, mockWorlds, map)).toBeNull();
+  });
+
+  it("4. invalid current node fails safely", () => {
+    const map: CampaignMap = {
+      id: "tiny",
+      worldId: "forgotten_citadel",
+      areaId: "citadel_path",
+      title: "T",
+      nodes: [
+        {
+          id: "broken",
+          worldId: "forgotten_citadel",
+          scenarioId: "citadel_path",
+          trackId: "missing_track",
+          x: 10,
+          y: 10,
+          type: "track",
+          connections: [],
+        },
+        {
+          id: "ok",
+          worldId: "forgotten_citadel",
+          scenarioId: "citadel_path",
+          trackId: "fc_t01",
+          x: 40,
+          y: 20,
+          type: "track",
+          connections: [],
+        },
+      ],
+    };
+    const marker = resolveMapPlayerMarkerNode(createDefaultProgression(), mockWorlds, map);
+    expect(marker?.id).toBe("ok");
+  });
+
+  it("5. marker uses CampaignNode coordinates", () => {
+    const map = getDefaultCampaignMap();
+    const marker = resolveMapPlayerMarkerNode(createDefaultProgression(), mockWorlds, map);
+    expect(marker).toBeTruthy();
+    expect(marker!.x).toBe(map.nodes[0].x);
+    expect(marker!.y).toBe(map.nodes[0].y);
+  });
+
+  it("6. moving node changes marker location automatically", () => {
+    let map = getDefaultCampaignMap();
+    const before = resolveMapPlayerMarkerNode(createDefaultProgression(), mockWorlds, map)!;
+    const oldX = before.x;
+    map = setNodePosition(map, before.id, oldX + 12, before.y + 5);
+    const after = resolveMapPlayerMarkerNode(createDefaultProgression(), mockWorlds, map)!;
+    expect(after.id).toBe(before.id);
+    expect(after.x).toBe(oldX + 12);
+    expect(after.y).toBe(before.y + 5);
+  });
+
+  it("7. resolving marker does not write progression", () => {
+    const ls = memoryStorage({ [PROGRESSION_STORAGE_KEY]: JSON.stringify(createDefaultProgression()) });
+    const original = globalThis.localStorage;
+    Object.defineProperty(globalThis, "localStorage", { value: ls, configurable: true });
+    const before = ls.getItem(PROGRESSION_STORAGE_KEY);
+    resolveMapPlayerMarkerNode(null, mockWorlds, getDefaultCampaignMap());
+    resolveMapPlayerMarkerNode(createDefaultProgression(), mockWorlds, getDefaultCampaignMap());
+    expect(ls.getItem(PROGRESSION_STORAGE_KEY)).toBe(before);
     Object.defineProperty(globalThis, "localStorage", { value: original, configurable: true });
   });
 });
