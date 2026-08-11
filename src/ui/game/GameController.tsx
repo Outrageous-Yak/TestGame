@@ -7,7 +7,10 @@ import type { MoveResult } from "../../engine/api";
 
 import { ROW_LENS, enterLayer, revealHex } from "../../engine/board";
 import { neighborIdsSameLayer } from "../../engine/neighbors";
-import { facingFromMove, hexIdAtSlot, rowShiftLabel, clockwiseOrderFrom } from "../../engine/layout";
+import { facingFromMove, hexIdAtSlot, clockwiseOrderFrom } from "../../engine/layout";
+import {
+  playerRowShiftWarning,
+} from "./rowShiftPlayerWarning";
 
 import { resolveTileVisualType, tileArtRelPath } from "../tileArt";
 import { getBestScore, saveBestScore } from "../bestScore";
@@ -297,17 +300,11 @@ export function GameController({
     }
 
     return (
-      <div className="barWrap barLeft">
-        <div className="layerBar rowShiftBar">
-          {rows.map((r) => {
-            const label = state ? rowShiftLabel(state, currentLayerLocal, r) : "";
-
-            return (
-              <div key={"rowSeg-" + r} className="barSeg rowSeg">
-                {label ? <span className="rowShiftLabel">{label}</span> : null}
-              </div>
-            );
-          })}
+      <div className="barWrap barLeft" aria-hidden="true">
+        <div className="layerBar rowShiftBar rowShiftBar--playerSilent">
+          {rows.map((r) => (
+            <div key={"rowSeg-" + r} className="barSeg rowSeg" />
+          ))}
         </div>
       </div>
     );
@@ -454,6 +451,11 @@ export function GameController({
   }, [state, playerId, playerLayer, currentLayer, reachable]);
 
   const reachableKey = reachableOrdered.join("|");
+
+  const rowShiftWarn = useMemo(
+    () => playerRowShiftWarning(state, currentLayer),
+    [state, currentLayer]
+  );
 
   const [reachPulseIdx, setReachPulseIdx] = useState(0);
 
@@ -1532,6 +1534,12 @@ export function GameController({
             ) : null}
             <SideBar side="top" currentLayer={currentLayer} />
             <SideBar side="left" currentLayer={currentLayer} />
+            {rowShiftWarn ? (
+              <div className="rowShiftPlayerWarn" role="status" aria-live="polite">
+                <span className="rowShiftPlayerWarnIcon" aria-hidden="true" />
+                <span className="rowShiftPlayerWarnText">{rowShiftWarn}</span>
+              </div>
+            ) : null}
 
             <div
               key={currentLayer}
