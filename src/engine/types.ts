@@ -84,6 +84,12 @@ export type GameState = {
 
   /** Player action log for replay/debug (moves and failed attempts). */
   moveHistory?: PlayerAction[];
+
+  /**
+   * When true, hex cosmetic mutations (reveal) are skipped.
+   * Set on lite-restored analysis branches so shared hex maps stay immutable.
+   */
+  analysisSafe?: boolean;
 };
 
 // Optional: centralize reachability typing here (recommended)

@@ -10,10 +10,10 @@ import { snapshotStateLite, restoreStateLite } from "./snapshot";
 import { attemptMove } from "./rules";
 import { neighborIdsSameLayer } from "./neighbors";
 import { analyzeStranding } from "./strandingAnalysis";
+import { revealHex, inBounds, ROW_LENS } from "./board";
 import { runSimulator } from "../studio/trackPlanner/simulation/runSimulator";
 import { createEmptyTrack } from "../studio/trackPlanner/types";
 import { scenarioJsonToTrack } from "../studio/trackPlanner/catalog";
-import { inBounds, ROW_LENS } from "./board";
 import { findSlot, neighborSlots } from "./layout";
 
 function noneMovement(): Scenario["movement"] {
@@ -229,7 +229,7 @@ describe("1A diagnosis — zero-outgoing / isolation", () => {
     expect(sol.minMoves).toBe(1);
   });
 
-  it("D8: shared hex map mutation via reveal does not crash BFS (documents shared-ref)", () => {
+  it("D8: analysisSafe lite restore — revealHex does not mutate shared hex flags", () => {
     const s = scenario({
       revealOnEnterGuaranteedUp: true,
       transitions: [
@@ -242,8 +242,10 @@ describe("1A diagnosis — zero-outgoing / isolation", () => {
     const dto = snapshotStateLite(base);
     const a = restoreStateLite(base, dto);
     const b = restoreStateLite(base, dto);
-    a.hexesById.get(a.playerHexId)!.revealed = true;
-    expect(b.hexesById.get(b.playerHexId)!.revealed).toBe(true);
+    expect(a.analysisSafe).toBe(true);
+    const before = b.hexesById.get(b.playerHexId)!.revealed;
+    revealHex(a, a.playerHexId);
+    expect(b.hexesById.get(b.playerHexId)!.revealed).toBe(before);
     const sol = computeOptimalSolution(base);
     expect(sol.stats.exploredNodes).toBeGreaterThanOrEqual(0);
   });
