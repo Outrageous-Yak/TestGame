@@ -2279,6 +2279,41 @@ body{
   margin-top: 18px;
 }
 
+/* =========================================================
+   STRANDED FAILURE SCENE (same family as Goal Achieved)
+========================================================= */
+.strandedScene{
+  z-index: 2300;
+}
+
+.strandedScenePanel{
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(255,72,72,.20), transparent 55%),
+    linear-gradient(160deg, rgba(32,14,16,.96), rgba(10,8,12,.94));
+  border-color: rgba(255,120,120,.28);
+}
+
+.strandedSceneBadge{
+  color: #ff6b6b;
+  background: rgba(255,80,80,.14);
+  border-color: rgba(255,100,100,.40);
+  box-shadow: 0 0 28px rgba(255,70,70,.18);
+}
+
+.strandedSceneMessage{
+  margin: 10px 0 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: rgba(255, 230, 230, 0.88);
+}
+
+.strandedScene .goalScoreGrid{
+  grid-template-columns: 1fr;
+  max-width: 180px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 @media (max-width: 860px){
   .encounterScene{
     place-items: start center;
