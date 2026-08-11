@@ -186,18 +186,8 @@ describe("runtime STRANDED terminal", () => {
   });
 
   it("E. row movement causes isolation → STRANDED after resolution", () => {
-    // Two present hexes on row 3 (c1,c2). Goal elsewhere disconnected.
-    // After move c1→c2, LEFT shift of row 3 by 1: still adjacent to each other typically.
-    // Build isolation: only c2 present on row 3; start on row 2 adjacent to c2; after move to c2,
-    // shift row 2 away so return adjacency breaks — complex.
-    // Simpler: only one hex on entire board for player after shift empties neighbors.
-    // Fixture: start R3C1 and R3C2 present. Move to R3C2. Row 3 LEFT 3 (full wrap) — still two hexes adjacent.
-    // Use missing on all other layers/rows; after moving to C2, C1 remains neighbor.
-    // True row-isolation: player on R3C3; neighbors are R2 slots; row 2 shifts so those hexes move away and
-    // player slot's neighbors become missing hexes.
-    // Create: present hexes: L1-R3-C3 (start) and L1-R2-C3 (only neighbor). Goal far.
-    // Movement: row 2 LEFT 1. After pass/move onto R2C3? Start at R3C3, move to R2C3, then row shift —
-    // R2 moves; R3C3 may no longer be adjacent to player's hex.
+    // Present: start L1-R3-C3 and only neighbour L1-R2-C3 (plus unreachable Goal).
+    // Move onto R2C3; row 2 LEFT 1 shifts the return adjacency away → zero exits.
     const missing = allBoardPositions(1).filter((p) => {
       const keep =
         (p.row === 3 && p.col === 3) ||
@@ -227,16 +217,11 @@ describe("runtime STRANDED terminal", () => {
     const state = newGame(s);
     expect(evaluateAttemptTerminal(state).kind).toBe("playing");
     const targets = listLegalSuccessfulMoveTargets(state);
-    expect(targets.length).toBeGreaterThan(0);
-    expect(attemptMove(state, targets[0]!).ok).toBe(true);
-    // After move+row shift, check terminal — may be stranded depending on geometry
-    const term = evaluateAttemptTerminal(state);
-    expect(["playing", "stranded"]).toContain(term.kind);
-    // If still playing, force another endTurn-style isolation isn't required —
-    // assert that when zero legal moves, kind is stranded:
-    if (listLegalSuccessfulMoveTargets(state).length === 0) {
-      expect(term.kind).toBe("stranded");
-    }
+    expect(targets).toEqual(["L1-R2-C3"]);
+    expect(attemptMove(state, "L1-R2-C3").ok).toBe(true);
+    expect(state.playerHexId).toBe("L1-R2-C3");
+    expect(listLegalSuccessfulMoveTargets(state)).toEqual([]);
+    expect(evaluateAttemptTerminal(state).kind).toBe("stranded");
   });
 
   it("F. portal transition into isolated layer → STRANDED", () => {
