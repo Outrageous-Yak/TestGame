@@ -35,12 +35,12 @@
   border-radius: 50%;
   background: var(--sparkleColor, #fff);
   box-shadow:
-    0 0 6px var(--sparkleColor, #fff),
-    0 0 12px color-mix(in srgb, var(--sparkleColor, #fff) 60%, transparent);
+    0 0 5px var(--sparkleColor, #fff),
+    0 0 9px color-mix(in srgb, var(--sparkleColor, #fff) 45%, transparent);
   left: var(--sparkleX, 50%);
   top: var(--sparkleY, 50%);
   transform: translate(-50%, -50%) scale(var(--sparkleScale, 1));
-  opacity: var(--sparkleOpacity, 0.85);
+  opacity: calc(var(--sparkleOpacity, 0.85) * 0.82);
   animation: reachSparkleTwinkle var(--sparkleDur, 1.4s) ease-in-out infinite;
   animation-delay: var(--sparkleDelay, 0s);
 }
