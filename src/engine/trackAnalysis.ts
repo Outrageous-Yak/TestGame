@@ -6,6 +6,7 @@ import { ROW_LENS, posId } from "./board";
 import { newGame } from "./api";
 import { neighborIdsSameLayer } from "./neighbors";
 import { attemptMove } from "./rules";
+import { isAuthoritativeStranded, playerOnGoal } from "./legalMoves";
 import { getRuntimeMovement, layerHasMovement, normalizeScenarioMovement, shiftingLayersInMovement } from "./rowMovement";
 import {
   restoreStateLite,
@@ -345,6 +346,12 @@ export function computeOptimalSolution(
     }
 
     const st = restoreStateLite(base, node.dto);
+    const onGoal = playerOnGoal(st);
+    const stranded = !onGoal && isAuthoritativeStranded(st);
+    if (onGoal || stranded) {
+      continue;
+    }
+
     const neighbors = sortedNeighborIds(st, st.playerHexId);
     let validBranches = 0;
 
@@ -483,6 +490,10 @@ function countOptimalPaths(
       if (waysHere === 0) continue;
 
       const st = restoreStateLite(base, dto);
+      const onGoal = playerOnGoal(st);
+      const stranded = !onGoal && isAuthoritativeStranded(st);
+      if (onGoal || stranded) continue;
+
       const neighbors = sortedNeighborIds(st, st.playerHexId);
 
       for (const nid of neighbors) {

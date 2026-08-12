@@ -25,6 +25,7 @@ export function runStrandingAnalysis(
       goalReachingStateCount: 0,
       safeStateCount: 0,
       strandedStateCount: 0,
+      doomedLiveStateCount: 0,
       riskyPositionCount: 0,
       startCanReachGoal: false,
       hasOptionalStranding: false,

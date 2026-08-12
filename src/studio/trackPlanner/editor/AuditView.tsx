@@ -23,10 +23,10 @@ const STATUS_LABEL = {
 } as const;
 
 const STRAND_LABEL = {
-  green: "STRANDING: GREEN — no reachable stranded states",
-  amber: "STRANDING: AMBER — optional stranding (safe path remains)",
-  red: "STRANDING: RED — Goal unreachable from Start",
-  unknown: "STRANDING: UNKNOWN — search limit",
+  green: "STRANDING: GREEN — no runtime stranded states",
+  amber: "STRANDING: AMBER — stranding possible (safe Goal route remains)",
+  red: "STRANDING: RED — unsolvable (no route reaches Goal)",
+  unknown: "STRANDING: UNKNOWN — analysis incomplete (search limit)",
 } as const;
 
 function strandClass(sev: StrandingReport["severity"]): string {
@@ -121,7 +121,10 @@ export function AuditView({ track, world, scenario, onJumpToFeature }: AuditView
               <ul className="tp-simStats">
                 <li>Reachable states: {stranding.reachableStateCount}</li>
                 <li>Safe (Goal-reaching) states: {stranding.safeStateCount}</li>
-                <li>Stranded states: {stranding.strandedStateCount}</li>
+                <li>Runtime stranded states: {stranding.strandedStateCount}</li>
+                {stranding.doomedLiveStateCount > 0 ? (
+                  <li>Doomed live states (moves remain): {stranding.doomedLiveStateCount}</li>
+                ) : null}
                 <li>Risky positions: {stranding.riskyPositionCount}</li>
                 <li>
                   Optional stranding: {stranding.hasOptionalStranding ? "YES" : "NO"}
