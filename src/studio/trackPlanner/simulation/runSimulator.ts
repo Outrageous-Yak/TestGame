@@ -210,6 +210,41 @@ export function runSimulator(
     maxTurns: budget.maxTurns,
     maxNodes: Math.min(budget.maxSolverNodes, 25_000),
   });
+  // Structural failures must surface as STRUCTURAL ERROR — do not enter Solver.
+  if (!validation.valid) {
+    const message =
+      validation.issues.find((i) => i.severity === "error")?.message ??
+      "Track failed structural validation";
+    const optimal = emptyOptimal();
+    return {
+      summary: {
+        status: "invalid",
+        shortestMoves: null,
+        optimalPathCount: 0,
+        warningCount: validation.issues.filter((i) => i.severity === "warning").length,
+        errorCount: Math.max(
+          1,
+          validation.issues.filter((i) => i.severity === "error").length
+        ),
+        strandedStateCount: 0,
+      },
+      optimal,
+      validation,
+      scenario,
+      solutionPathHexIds: [],
+      solutionStepByHex: {},
+      portalLandingHexIds: [],
+      optimalPathIndex: 0,
+      optimalPathTotal: 0,
+      solverOutcome: "structural_error",
+      structuralMessage: message,
+      pathSteps: [],
+      strandingOutcome: null,
+      strandingSummaryLabel: null,
+      strandingBudgetLimited: false,
+    };
+  }
+
   const base = newGame(scenario);
 
   const solverNodeCap = Math.min(budget.maxSolverNodes, budget.maxTotalNodes);

@@ -15,7 +15,8 @@ import { CI_STRESS_BUDGET, DEFAULT_SIMULATOR_BUDGET } from "./simulation/analysi
 import { startSimulatorRun } from "./simulation/startSimulatorRun";
 import { PROGRESSION_STORAGE_KEY } from "../../progression/storage";
 import { bestScoreKey } from "../../ui/bestScore";
-import { cloneTrack } from "./state/authoringState";
+import { cloneTrack, toggleMissingHex } from "./state/authoringState";
+import { createFeatureAt } from "./features/featurePlacement";
 
 const root = join(import.meta.dirname, "..", "..", "..");
 const sevenfoldPath = join(
@@ -335,6 +336,44 @@ describe("Simulator resource safety", () => {
 
   it("20. malformed track → STRUCTURAL ERROR", () => {
     const track = createEmptyTrack("empty", "sc", "w", "Empty");
+    const result = runSimulator(track);
+    expect(result.solverOutcome).toBe("structural_error");
+  });
+
+  it("20b. Start on missing → STRUCTURAL ERROR (not INTERNAL ERROR)", () => {
+    let track = trackOf(scenario());
+    track = toggleMissingHex(track, { layer: 1, row: 3, col: 1 }, true);
+    const result = runSimulator(track);
+    expect(result.solverOutcome).toBe("structural_error");
+    expect(result.structuralMessage).toMatch(/Start|missing|blocked/i);
+  });
+
+  it("20c. Goal on missing → STRUCTURAL ERROR", () => {
+    let track = trackOf(scenario());
+    track = toggleMissingHex(track, { layer: 1, row: 3, col: 3 }, true);
+    const result = runSimulator(track);
+    expect(result.solverOutcome).toBe("structural_error");
+    expect(result.structuralMessage).toMatch(/Goal|missing|blocked/i);
+  });
+
+  it("20d. portal destination out of bounds → STRUCTURAL ERROR", () => {
+    let track = trackOf(scenario());
+    track = createFeatureAt(track, "portal", { layer: 1, row: 3, col: 2 });
+    const portal = track.features.find((f) => f.kind === "portal");
+    expect(portal?.kind).toBe("portal");
+    if (portal?.kind === "portal") {
+      track = {
+        ...track,
+        features: track.features.map((f) =>
+          f.id === portal.id
+            ? {
+                ...portal,
+                destination: { layer: 9, row: 0, col: 0 },
+              }
+            : f
+        ),
+      };
+    }
     const result = runSimulator(track);
     expect(result.solverOutcome).toBe("structural_error");
   });
