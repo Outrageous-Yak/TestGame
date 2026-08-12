@@ -17,6 +17,7 @@ import { VisibilityView } from "./VisibilityView";
 import { AuditView } from "./AuditView";
 import { LayerPlaytestView } from "./LayerPlaytestView";
 import { SimulatorView } from "./SimulatorView";
+import { SimulatorErrorBoundary } from "../components/SimulatorErrorBoundary";
 
 const VIEWS: { id: EditorView; label: string }[] = [
   { id: "board", label: "Board" },
@@ -331,7 +332,9 @@ export function TrackEditor({ track: initial, world, scenario, onTrackSaved, onB
           />
         ) : null}
         {selection.view === "simulator" ? (
-          <SimulatorView track={track} />
+          <SimulatorErrorBoundary>
+            <SimulatorView track={track} />
+          </SimulatorErrorBoundary>
         ) : null}
       </main>
     </div>
