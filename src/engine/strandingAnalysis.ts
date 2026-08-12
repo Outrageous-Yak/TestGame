@@ -183,9 +183,18 @@ function emptyReport(
 export function analyzeStranding(
   base: GameState,
   maxTurns = 80,
-  maxNodes = 400000
+  maxNodes = 400000,
+  options: {
+    maxMs?: number;
+    maxFrontier?: number;
+    isCancelled?: () => boolean;
+  } = {}
 ): StrandingReport {
   const t0 = performance.now();
+  const maxMs = options.maxMs ?? Number.POSITIVE_INFINITY;
+  const maxFrontier = options.maxFrontier ?? Number.POSITIVE_INFINITY;
+  const isCancelled = options.isCancelled;
+  const deadline = t0 + maxMs;
   const goalId = goalIdFromState(base);
   if (!goalId) {
     return emptyReport({
@@ -234,10 +243,28 @@ export function analyzeStranding(
   let explored = 0;
   let hitNodeLimit = false;
   let hitTurnLimit = false;
+  let hitTimeLimit = false;
+  let hitFrontierLimit = false;
+  let cancelled = false;
+  let maxQueueDepth = startClass === "live" ? 1 : 0;
 
   while (head < q.length) {
+    if (isCancelled?.()) {
+      cancelled = true;
+      break;
+    }
     if (explored >= maxNodes) {
       hitNodeLimit = true;
+      break;
+    }
+    if (performance.now() >= deadline) {
+      hitTimeLimit = true;
+      break;
+    }
+    const frontier = q.length - head;
+    if (frontier > maxQueueDepth) maxQueueDepth = frontier;
+    if (frontier > maxFrontier) {
+      hitFrontierLimit = true;
       break;
     }
 
@@ -299,7 +326,8 @@ export function analyzeStranding(
     edges.set(node.sig, out);
   }
 
-  const searchAborted = hitNodeLimit || hitTurnLimit;
+  const searchAborted =
+    hitNodeLimit || hitTurnLimit || hitTimeLimit || hitFrontierLimit || cancelled;
 
   const preds = new Map<string, string[]>();
   for (const [from, outs] of edges) {

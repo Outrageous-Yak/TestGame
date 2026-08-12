@@ -15,6 +15,14 @@ import {
 } from "./snapshot";
 import { geometryFingerprint } from "./trackValidator";
 
+export type SolverAbortReason =
+  | "nodes"
+  | "time"
+  | "frontier"
+  | "cancelled"
+  | "turns"
+  | null;
+
 export type SolverStats = {
   exploredNodes: number;
   visitedStates: number;
@@ -22,6 +30,8 @@ export type SolverStats = {
   maxTurnsSearched: number;
   branchingFactor: number;
   searchAborted: boolean;
+  /** Why search aborted (null when completed normally). */
+  abortReason: SolverAbortReason;
   runtimeMs: number;
 };
 
@@ -56,6 +66,14 @@ export type OptimalSolution = {
 
 export type OptimalSolutionOptions = {
   countAlternativePaths?: boolean;
+  /** Wall-clock limit for the Solver BFS (ms). */
+  maxMs?: number;
+  /** Max BFS frontier / queue length. */
+  maxFrontier?: number;
+  /** Node budget for alternative-path counting (default 40000). */
+  maxPathCountNodes?: number;
+  /** Cooperative cancel checked each iteration. */
+  isCancelled?: () => boolean;
 };
 
 /**
@@ -242,6 +260,7 @@ function emptySolution(partialStats: Partial<SolverStats> = {}): OptimalSolution
       maxTurnsSearched: 0,
       branchingFactor: 0,
       searchAborted: false,
+      abortReason: null,
       runtimeMs: 0,
       ...partialStats,
     },
@@ -306,10 +325,16 @@ export function computeOptimalSolution(
         maxTurnsSearched: 0,
         branchingFactor: 0,
         searchAborted: false,
+        abortReason: null,
         runtimeMs: performance.now() - start,
       },
     };
   }
+
+  const maxMs = options.maxMs ?? Number.POSITIVE_INFINITY;
+  const maxFrontier = options.maxFrontier ?? Number.POSITIVE_INFINITY;
+  const isCancelled = options.isCancelled;
+  const deadline = performance.now() + maxMs;
 
   const startDto = snapshotStateLite(base);
   const startSig = stateSignature(startDto);
@@ -323,16 +348,30 @@ export function computeOptimalSolution(
   const seen = new Set<string>([startSig]);
   let explored = 0;
   let maxDepth = 0;
+  let maxQueueDepth = 1;
   let totalBranches = 0;
   let branchNodes = 0;
   let goalSig: string | null = null;
   let minMoves: number | null = null;
-  let hitNodeLimit = false;
-  let hitTurnLimit = false;
+  let abortReason: SolverAbortReason = null;
 
   while (head < q.length) {
+    if (isCancelled?.()) {
+      abortReason = "cancelled";
+      break;
+    }
     if (explored >= maxNodes) {
-      hitNodeLimit = true;
+      abortReason = "nodes";
+      break;
+    }
+    if (performance.now() >= deadline) {
+      abortReason = "time";
+      break;
+    }
+    const frontier = q.length - head;
+    if (frontier > maxQueueDepth) maxQueueDepth = frontier;
+    if (frontier > maxFrontier) {
+      abortReason = "frontier";
       break;
     }
 
@@ -341,7 +380,7 @@ export function computeOptimalSolution(
     maxDepth = Math.max(maxDepth, node.turns);
 
     if (node.turns >= maxTurns) {
-      hitTurnLimit = true;
+      if (abortReason === null && minMoves === null) abortReason = "turns";
       continue;
     }
 
@@ -398,40 +437,63 @@ export function computeOptimalSolution(
     }
   }
 
-  const searchAborted = hitNodeLimit || (hitTurnLimit && minMoves === null);
+  const searchAborted =
+    abortReason === "nodes" ||
+    abortReason === "time" ||
+    abortReason === "frontier" ||
+    abortReason === "cancelled" ||
+    (abortReason === "turns" && minMoves === null);
 
   if (minMoves === null || !goalSig) {
     const stats = finalizeStats(
       explored,
       seen.size,
-      maxDepth,
+      maxQueueDepth,
       maxDepth,
       totalBranches,
       branchNodes,
       searchAborted,
+      abortReason === "turns" && minMoves === null ? "turns" : abortReason,
       performance.now() - start
     );
     return emptySolution(stats);
   }
 
-  const pathTargets = reconstructPath(startSig, goalSig, parentMap);
-
   let altCount = 0;
   let capped = false;
-  if (options.countAlternativePaths !== false) {
-    altCount = countOptimalPaths(base, startDto, goalId, minMoves, maxTurns);
-    capped = altCount >= 1000;
+  if (options.countAlternativePaths !== false && !isCancelled?.()) {
+    const pathCountBudget = options.maxPathCountNodes ?? 400_000;
+    const pathCountMs =
+      options.maxMs !== undefined
+        ? Math.max(0, Math.min(deadline - performance.now(), options.maxMs))
+        : Number.POSITIVE_INFINITY;
+    const counted = countOptimalPaths(
+      base,
+      startDto,
+      goalId,
+      minMoves,
+      maxTurns,
+      {
+        maxNodes: pathCountBudget,
+        maxMs: pathCountMs,
+        isCancelled,
+      }
+    );
+    altCount = counted.count;
+    capped = counted.capped || altCount >= 1000;
   }
 
+  const pathTargets = reconstructPath(startSig, goalSig, parentMap);
   const replay = buildReplay(base, pathTargets);
   const stats = finalizeStats(
     explored,
     seen.size,
-    maxDepth,
+    maxQueueDepth,
     minMoves,
     totalBranches,
     branchNodes,
     false,
+    null,
     performance.now() - start
   );
 
@@ -454,6 +516,7 @@ function finalizeStats(
   totalBranches: number,
   branchNodes: number,
   searchAborted: boolean,
+  abortReason: SolverAbortReason,
   runtimeMs: number
 ): SolverStats {
   return {
@@ -463,6 +526,7 @@ function finalizeStats(
     maxTurnsSearched,
     branchingFactor: branchNodes > 0 ? totalBranches / branchNodes : 0,
     searchAborted,
+    abortReason,
     runtimeMs,
   };
 }
@@ -472,9 +536,18 @@ function countOptimalPaths(
   startDto: GameStateLiteDTO,
   goalId: string,
   optimalDepth: number,
-  maxTurns: number
-): number {
-  if (optimalDepth === 0) return 1;
+  maxTurns: number,
+  limits: {
+    maxNodes?: number;
+    maxMs?: number;
+    isCancelled?: () => boolean;
+  } = {}
+): { count: number; capped: boolean } {
+  if (optimalDepth === 0) return { count: 1, capped: false };
+
+  const maxNodes = limits.maxNodes ?? 40000;
+  const deadline = performance.now() + (limits.maxMs ?? Number.POSITIVE_INFINITY);
+  let explored = 0;
 
   type Frame = { dto: GameStateLiteDTO };
   let layer: Frame[] = [{ dto: startDto }];
@@ -482,10 +555,17 @@ function countOptimalPaths(
   layerWays.set(stateSignature(startDto), 1);
 
   for (let d = 0; d < optimalDepth; d++) {
+    if (limits.isCancelled?.() || performance.now() >= deadline || explored >= maxNodes) {
+      return { count: Math.min(layerWays.get("__goal__") ?? 1, 1000), capped: true };
+    }
     const nextLayerMap = new Map<string, GameStateLiteDTO>();
     const nextWays = new Map<string, number>();
 
     for (const { dto } of layer) {
+      if (limits.isCancelled?.() || performance.now() >= deadline || explored >= maxNodes) {
+        return { count: Math.min(nextWays.get("__goal__") ?? layerWays.get("__goal__") ?? 1, 1000), capped: true };
+      }
+      explored++;
       const waysHere = layerWays.get(stateSignature(dto)) ?? 0;
       if (waysHere === 0) continue;
 
@@ -506,7 +586,7 @@ function countOptimalPaths(
 
         if (d + 1 === optimalDepth && st2.playerHexId === goalId) {
           const goalWays = (nextWays.get("__goal__") ?? 0) + waysHere;
-          if (goalWays > 1000) return 1000;
+          if (goalWays > 1000) return { count: 1000, capped: true };
           nextWays.set("__goal__", goalWays);
         } else if (d + 1 < optimalDepth) {
           const dto2 = snapshotStateLite(st2);
@@ -521,7 +601,7 @@ function countOptimalPaths(
     layerWays = nextWays;
   }
 
-  return Math.min(layerWays.get("__goal__") ?? 1, 1000);
+  return { count: Math.min(layerWays.get("__goal__") ?? 1, 1000), capped: false };
 }
 
 function jaccard(a: Set<string>, b: Set<string>): number {
