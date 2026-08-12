@@ -124,6 +124,8 @@ export function buildInitialState(scenario: Scenario): GameState {
 ========================================================= */
 
 export function revealHex(state: GameState, id: string): void {
+  // Analysis branches may share hex maps — do not mutate cosmetic flags there.
+  if (state.analysisSafe) return;
   const h = state.hexesById.get(id);
   if (!h) return;
   h.revealed = true;

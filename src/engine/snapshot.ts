@@ -156,6 +156,8 @@ export function restoreStateLite(base: GameState, dto: GameStateLiteDTO): GameSt
     transitionsByFromId,
     lastGuaranteedUpId: dto.lastGuaranteedUpId,
     lastGuaranteedUpTurn: dto.lastGuaranteedUpTurn,
+    // Shared hex map must not receive reveal mutations across BFS branches.
+    analysisSafe: true,
   };
 }
 

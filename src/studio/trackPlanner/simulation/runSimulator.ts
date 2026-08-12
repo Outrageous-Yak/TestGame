@@ -6,7 +6,12 @@ import { authoredTrackToScenario } from "../serialization/scenarioBridge";
 import type { PlannerTrack, TrackValidationSummary } from "../types";
 
 /** Simulator/solver outcome — distinct from Audit GREEN/RED. */
-export type SolverOutcome = "solvable" | "unsolvable" | "search_limit" | "structural_error";
+export type SolverOutcome =
+  | "solvable"
+  | "unsolvable"
+  | "search_limit"
+  | "structural_error"
+  | "internal_error";
 
 export interface SimulatorResult {
   summary: TrackValidationSummary;
@@ -106,7 +111,35 @@ export function runSimulator(track: PlannerTrack): SimulatorResult {
 
   const validation = validateTrack(scenario);
   const base = newGame(scenario);
-  const optimal = computeOptimalSolution(base, 80, 400000, { countAlternativePaths: true });
+
+  let optimal: OptimalSolution;
+  try {
+    optimal = computeOptimalSolution(base, 80, 400000, { countAlternativePaths: true });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    const failed = emptyOptimal();
+    return {
+      summary: {
+        status: "invalid",
+        shortestMoves: null,
+        optimalPathCount: 0,
+        warningCount: 0,
+        errorCount: 1,
+        strandedStateCount: 0,
+      },
+      optimal: failed,
+      validation,
+      scenario,
+      solutionPathHexIds: [],
+      solutionStepByHex: {},
+      portalLandingHexIds: [],
+      optimalPathIndex: 0,
+      optimalPathTotal: 0,
+      solverOutcome: "internal_error",
+      structuralMessage: `Internal solver error: ${message}`,
+      pathSteps: [],
+    };
+  }
 
   const warnings = validation.warnings?.length ?? 0;
   const errors = validation.errors?.length ?? 0;

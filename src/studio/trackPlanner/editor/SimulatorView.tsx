@@ -16,12 +16,19 @@ function solverLabel(outcome: SolverOutcome, minMoves: number | null): string {
   if (outcome === "solvable") return `SOLVER: SOLVABLE — ${minMoves} moves`;
   if (outcome === "search_limit") return "SOLVER: SEARCH LIMIT";
   if (outcome === "structural_error") return "SOLVER: STRUCTURAL ERROR";
+  if (outcome === "internal_error") return "SOLVER: INTERNAL ERROR";
   return "SOLVER: NO SOLUTION FOUND";
 }
 
 function outcomeClass(outcome: SolverOutcome): string {
   if (outcome === "solvable") return "tp-simOk";
-  if (outcome === "search_limit" || outcome === "structural_error") return "tp-simWarn";
+  if (
+    outcome === "search_limit" ||
+    outcome === "structural_error" ||
+    outcome === "internal_error"
+  ) {
+    return "tp-simWarn";
+  }
   return "tp-simBad";
 }
 
@@ -105,6 +112,11 @@ export function SimulatorView({ track }: SimulatorViewProps) {
             <p className="tp-hint">
               Search hit a safety ceiling before proving reachability. This is not the same as
               unsolvable.
+            </p>
+          ) : null}
+          {result.solverOutcome === "internal_error" ? (
+            <p className="tp-simWarn">
+              Solver hit an unexpected internal error. This is not the same as NO SOLUTION.
             </p>
           ) : null}
           {result.solverOutcome === "unsolvable" ? (

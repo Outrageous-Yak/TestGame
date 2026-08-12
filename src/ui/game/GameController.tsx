@@ -92,11 +92,16 @@ import { preloadThunderSound } from "../audio/stormAudio";
 import { ReachSparkle } from "./ReachSparkle";
 import { startBackgroundMusic, stopBackgroundMusic } from "../audio/backgroundMusic";
 import type { MoveAttemptResult } from "../../engine/moveAttempt";
+import { evaluateAttemptTerminal } from "../../engine/attemptTerminal";
 
 type GoalAchievedState = {
   moves: number;
   least: number | null;
   best: number | null;
+};
+
+type StrandedState = {
+  moves: number;
 };
 
 export type GameControllerProps = {
@@ -129,7 +134,10 @@ export function GameController({
   const pendingEncounterMoveIdRef = useRef<string | null>(null);
   const encounterActive = !!encounter;
   const [goalAchieved, setGoalAchieved] = useState<GoalAchievedState | null>(null);
+  const [stranded, setStranded] = useState<StrandedState | null>(null);
   const goalAchievedActive = !!goalAchieved;
+  const strandedActive = !!stranded;
+  const attemptTerminalActive = goalAchievedActive || strandedActive;
   const startScenarioOptionsRef = useRef<{
     intent?: import("../../engine/layerTransform").TrackRunIntent;
   }>({});
@@ -995,7 +1003,12 @@ export function GameController({
       setOptimalFromNow(computeOptimalMoves(nextState));
 
       pushLog("Encounter cleared — moved to " + pidAfter, "ok");
-      if (goalId && pidAfter === goalId) recordWin(newMoveCount);
+      if (goalId && pidAfter === goalId) {
+        recordWin(newMoveCount);
+      } else if (evaluateAttemptTerminal(nextState).kind === "stranded") {
+        pushLog("STRANDED — no paths remain.", "bad");
+        setStranded({ moves: newMoveCount });
+      }
     } catch (err: any) {
       console.error("Encounter resolution crashed:", err);
       pushLog("Encounter crashed: " + String(err?.message ?? err), "bad");
@@ -1168,6 +1181,7 @@ export function GameController({
     const chosenJson = hasTracks ? trackEntry?.scenarioJson ?? scenarioEntry.scenarioJson : scenarioEntry.scenarioJson;
 
     setGoalAchieved(null);
+    setStranded(null);
     completionRecordedRef.current = false;
     setMemoryVisitedHexIds(new Set());
     setEchoHexIds(new Set());
@@ -1288,6 +1302,13 @@ export function GameController({
     window.setTimeout(() => {
       if (scrollRef.current) scrollRef.current.scrollLeft = 0;
     }, 0);
+
+    // After authoritative init settle: isolated Start must not leave the player trapped.
+    const initialTerminal = evaluateAttemptTerminal(st);
+    if (initialTerminal.kind === "stranded") {
+      pushLog("STRANDED — no paths remain.", "bad");
+      setStranded({ moves: 0 });
+    }
   }, [scenarioEntry, trackEntry, trackId, revealWholeLayer, computeOptimalMoves, pushLog]);
 
   useEffect(() => {
@@ -1296,13 +1317,22 @@ export function GameController({
 
   const handleGoalReplay = useCallback(() => {
     setGoalAchieved(null);
+    setStranded(null);
     startScenarioOptionsRef.current = { intent: "replayAfterWin" };
+    void startScenario();
+  }, [startScenario]);
+
+  const handleStrandedRetry = useCallback(() => {
+    setStranded(null);
+    setGoalAchieved(null);
+    startScenarioOptionsRef.current = { intent: "fresh" };
     void startScenario();
   }, [startScenario]);
 
   const handleGoalNext = useCallback(() => {
     if (!nextTrack) return;
     setGoalAchieved(null);
+    setStranded(null);
     onPlayNextTrack(nextTrack.id);
   }, [nextTrack, onPlayNextTrack]);
 
@@ -1320,7 +1350,7 @@ export function GameController({
   const attemptMoveAtSlot = useCallback(
     (row: number, col: number) => {
       if (!state) return;
-      if (boardInputLockedRef.current || encounterActive || goalAchievedActive) return;
+      if (boardInputLockedRef.current || encounterActive || attemptTerminalActive) return;
 
       const hexId = hexIdAtSlot(state, currentLayer, row, col);
       if (!hexId) return;
@@ -1384,7 +1414,12 @@ export function GameController({
         }
 
         pushLog("Moved to " + landedId, "ok");
-        if (goalId && landedId === goalId) recordWin(newMoveCount);
+        if (goalId && landedId === goalId) {
+          recordWin(newMoveCount);
+        } else if (evaluateAttemptTerminal(state).kind === "stranded") {
+          pushLog("STRANDED — no paths remain.", "bad");
+          setStranded({ moves: newMoveCount });
+        }
         releaseBoardInput(420);
         return;
       }
@@ -1410,6 +1445,8 @@ export function GameController({
       state,
       encounterActive,
       goalAchievedActive,
+      strandedActive,
+      attemptTerminalActive,
       currentLayer,
       goalId,
       movesTaken,
@@ -2180,6 +2217,39 @@ export function GameController({
               </button>
               <button type="button" className="btn" onClick={onGoHome}>
                 Map
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {stranded ? (
+        <div
+          className="encounterScene goalScene strandedScene"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="strandedTitle"
+        >
+          <div className="goalScenePanel strandedScenePanel">
+            <div className="goalSceneBadge strandedSceneBadge" aria-hidden="true">
+              ✕
+            </div>
+            <div className="encounterTitle" id="strandedTitle">
+              Stranded
+            </div>
+            <p className="strandedSceneMessage">No paths remain.</p>
+            <div className="goalScoreGrid">
+              <div className="goalScoreItem">
+                <span className="goalScoreLabel">Moves</span>
+                <span className="goalScoreValue">{stranded.moves}</span>
+              </div>
+            </div>
+            <div className="encounterButtons goalSceneButtons">
+              <button type="button" className="btn primary" onClick={handleStrandedRetry}>
+                Try Again
+              </button>
+              <button type="button" className="btn" onClick={onGoHome}>
+                Exit
               </button>
             </div>
           </div>
