@@ -1,12 +1,17 @@
 /**
- * Stranding analysis: reachable states from which Goal is no longer reachable.
+ * Stranding analysis aligned with runtime STRANDED (PR #99).
  *
  * Method:
  * 1. Forward BFS of legal successful moves (same as optimal solver).
- * 2. Reverse BFS from Goal states along recorded edges.
- * 3. Stranded = reachable − Goal-reaching.
+ * 2. Classify each resolved state: GOAL | STRANDED (zero legal exits) | LIVE.
+ * 3. STRANDED states are terminal — no expansion (matches runtime).
+ * 4. Reverse BFS from Goal states for canReachGoal on LIVE states.
  *
- * Assumptions (match simulator-solver.md):
+ * Track-level:
+ * - optional_stranding: Start→Goal exists AND some reachable state is runtime STRANDED.
+ * - unsolvable: Goal unreachable from Start.
+ *
+ * Assumptions:
  * - successful attemptMove only (wrong taps excluded)
  * - solverStateKey identity (player + active layers + row rotation)
  * - cards / encounters / visibility excluded
@@ -15,6 +20,10 @@ import type { GameState } from "./types";
 import { posId } from "./board";
 import { neighborIdsSameLayer } from "./neighbors";
 import { attemptMove } from "./rules";
+import {
+  isAuthoritativeStranded,
+  playerOnGoal,
+} from "./legalMoves";
 import {
   restoreStateLite,
   snapshotStateLite,
@@ -30,6 +39,8 @@ export type StrandingOutcome =
   | "structural_error";
 
 export type HexStrandingClass = "safe" | "risky" | "stranded" | "unknown";
+
+export type AuthoritativeStateClass = "goal" | "stranded" | "live";
 
 export type StrandingPathStep = {
   moveNumber: number;
@@ -76,8 +87,12 @@ export type StrandingReport = {
   structuralMessage: string | null;
   reachableStateCount: number;
   goalReachingStateCount: number;
+  /** LIVE states that can reach Goal (includes Goal states). */
   safeStateCount: number;
+  /** Runtime-authoritative STRANDED states (zero legal successful exits, not Goal). */
   strandedStateCount: number;
+  /** LIVE states with moves but Goal unreachable — not runtime STRANDED. */
+  doomedLiveStateCount: number;
   riskyPositionCount: number;
   startCanReachGoal: boolean;
   hasOptionalStranding: boolean;
@@ -85,9 +100,9 @@ export type StrandingReport = {
   searchAborted: boolean;
   runtimeMs: number;
   exploredNodes: number;
-  /** Full set of Goal-reaching state keys (for tests). */
+  /** Full set of Goal-reaching state keys (reverse BFS from Goal). */
   goalReachingKeys: string[];
-  /** Full set of stranded state keys (for tests; may be large). */
+  /** Runtime STRANDED state keys (authoritative zero-exit states). */
   strandedKeys: string[];
   hexSummaries: HexStrandingSummary[];
   layerSummaries: LayerStrandingSummary[];
@@ -129,6 +144,13 @@ function rowPhaseHint(dto: GameStateLiteDTO, layer: number): string {
   return entry.rows.map((row) => row[0] ?? "").join(",");
 }
 
+/** Classify a fully resolved state using the same rule as runtime STRANDED. */
+export function classifyAuthoritativeState(state: GameState): AuthoritativeStateClass {
+  if (playerOnGoal(state)) return "goal";
+  if (isAuthoritativeStranded(state)) return "stranded";
+  return "live";
+}
+
 function emptyReport(
   partial: Partial<StrandingReport> & Pick<StrandingReport, "outcome" | "severity">
 ): StrandingReport {
@@ -138,6 +160,7 @@ function emptyReport(
     goalReachingStateCount: 0,
     safeStateCount: 0,
     strandedStateCount: 0,
+    doomedLiveStateCount: 0,
     riskyPositionCount: 0,
     startCanReachGoal: false,
     hasOptionalStranding: false,
@@ -185,8 +208,10 @@ export function analyzeStranding(
 
   const startDto = snapshotStateLite(base);
   const startSig = solverStateKey(startDto);
+  const startClass = classifyAuthoritativeState(base);
 
   const dtoBySig = new Map<string, GameStateLiteDTO>();
+  const stateClassBySig = new Map<string, AuthoritativeStateClass>();
   const edges = new Map<string, Edge[]>();
   const parent = new Map<
     string,
@@ -195,11 +220,16 @@ export function analyzeStranding(
   const depth = new Map<string, number>();
 
   dtoBySig.set(startSig, startDto);
+  stateClassBySig.set(startSig, startClass);
   edges.set(startSig, []);
   depth.set(startSig, 0);
 
   type QNode = { sig: string; turns: number };
-  const q: QNode[] = [{ sig: startSig, turns: 0 }];
+  const q: QNode[] = [];
+  if (startClass === "live") {
+    q.push({ sig: startSig, turns: 0 });
+  }
+
   let head = 0;
   let explored = 0;
   let hitNodeLimit = false;
@@ -222,10 +252,16 @@ export function analyzeStranding(
     const dto = dtoBySig.get(node.sig);
     if (!dto) continue;
 
-    // Completed puzzle — do not expand further from Goal.
-    if (dto.playerHexId === goalId) continue;
-
     const st = restoreStateLite(base, dto);
+    const cls = classifyAuthoritativeState(st);
+    stateClassBySig.set(node.sig, cls);
+
+    // Goal and runtime STRANDED are terminal — do not expand.
+    if (cls === "goal" || cls === "stranded") {
+      edges.set(node.sig, []);
+      continue;
+    }
+
     const neighbors = sortedNeighborIds(st, st.playerHexId);
     const out: Edge[] = [];
 
@@ -239,6 +275,7 @@ export function analyzeStranding(
 
       const dto2 = snapshotStateLite(st2);
       const sig2 = solverStateKey(dto2);
+      const cls2 = classifyAuthoritativeState(st2);
       const tr = st.transitionsByFromId.get(nid);
       const portalType =
         result.triggeredTransition && tr ? (tr.type as "UP" | "DOWN") : undefined;
@@ -249,10 +286,13 @@ export function analyzeStranding(
 
       if (!dtoBySig.has(sig2)) {
         dtoBySig.set(sig2, dto2);
+        stateClassBySig.set(sig2, cls2);
         edges.set(sig2, []);
         depth.set(sig2, node.turns + 1);
         parent.set(sig2, { parentSig: node.sig, moveTarget: nid, portalType });
-        q.push({ sig: sig2, turns: node.turns + 1 });
+        if (cls2 === "live") {
+          q.push({ sig: sig2, turns: node.turns + 1 });
+        }
       }
     }
 
@@ -271,8 +311,8 @@ export function analyzeStranding(
   }
 
   const goalStates: string[] = [];
-  for (const [sig, dto] of dtoBySig) {
-    if (dto.playerHexId === goalId) goalStates.push(sig);
+  for (const [sig, cls] of stateClassBySig) {
+    if (cls === "goal") goalStates.push(sig);
   }
 
   const canReachGoal = new Set<string>();
@@ -289,20 +329,33 @@ export function analyzeStranding(
   }
 
   const reachable = [...dtoBySig.keys()];
-  const strandedKeys = reachable.filter((s) => !canReachGoal.has(s));
+  const strandedKeys = reachable.filter(
+    (s) => stateClassBySig.get(s) === "stranded"
+  );
+  const doomedLiveKeys = reachable.filter(
+    (s) =>
+      stateClassBySig.get(s) === "live" && !canReachGoal.has(s)
+  );
   const startCanReachGoal = canReachGoal.has(startSig);
 
-  const byHex = new Map<string, { safe: number; stranded: number; layer: number }>();
+  const byHex = new Map<
+    string,
+    { canReach: number; stranded: number; doomed: number; layer: number }
+  >();
   for (const sig of reachable) {
     const dto = dtoBySig.get(sig)!;
     const hex = dto.playerHexId;
+    const cls = stateClassBySig.get(sig)!;
     const bucket = byHex.get(hex) ?? {
-      safe: 0,
+      canReach: 0,
       stranded: 0,
+      doomed: 0,
       layer: layerFromHexId(hex),
     };
-    if (canReachGoal.has(sig)) bucket.safe++;
-    else bucket.stranded++;
+    if (cls === "stranded") bucket.stranded++;
+    else if (cls === "live" && canReachGoal.has(sig)) bucket.canReach++;
+    else if (cls === "live") bucket.doomed++;
+    else if (cls === "goal") bucket.canReach++;
     byHex.set(hex, bucket);
   }
 
@@ -310,18 +363,28 @@ export function analyzeStranding(
   for (const [hexId, b] of [...byHex.entries()].sort((a, c) => a[0].localeCompare(c[0]))) {
     let classification: HexStrandingClass;
     if (searchAborted) {
-      if (b.safe > 0 && b.stranded > 0) classification = "risky";
-      else if (b.safe > 0) classification = "safe";
+      if (b.canReach > 0 && (b.stranded > 0 || b.doomed > 0)) classification = "risky";
+      else if (b.canReach > 0) classification = "safe";
       else classification = "unknown";
-    } else if (b.stranded === 0) classification = "safe";
-    else if (b.safe === 0) classification = "stranded";
-    else classification = "risky";
+    } else if (b.stranded > 0 && b.canReach === 0 && b.doomed === 0) {
+      classification = "stranded";
+    } else if (b.stranded > 0 && b.canReach > 0) {
+      classification = "risky";
+    } else if (b.doomed > 0 && b.canReach > 0) {
+      classification = "risky";
+    } else if (b.canReach > 0) {
+      classification = "safe";
+    } else if (b.stranded > 0 || b.doomed > 0) {
+      classification = "stranded";
+    } else {
+      classification = "safe";
+    }
 
     hexSummaries.push({
       hexId,
       layer: b.layer,
       classification,
-      safeStateCount: b.safe,
+      safeStateCount: b.canReach,
       strandedStateCount: b.stranded,
     });
   }
@@ -341,7 +404,12 @@ export function analyzeStranding(
     layerMap.set(h.layer, L);
   }
   const layerSummaries = [...layerMap.values()]
-    .filter((L) => L.strandedStateCount > 0 || L.riskyPositionCount > 0 || L.strandedPositionCount > 0)
+    .filter(
+      (L) =>
+        L.strandedStateCount > 0 ||
+        L.riskyPositionCount > 0 ||
+        L.strandedPositionCount > 0
+    )
     .sort((a, b) => a.layer - b.layer);
 
   const strandedSamples: StrandedStateFinding[] = strandedKeys
@@ -366,7 +434,7 @@ export function analyzeStranding(
   for (const [, outs] of edges) {
     for (const e of outs) {
       if (!e.portalType || !e.portalDest) continue;
-      if (canReachGoal.has(e.toSig)) continue;
+      if (stateClassBySig.get(e.toSig) !== "stranded") continue;
       const destDto = dtoBySig.get(e.toSig);
       if (!destDto) continue;
       const k = `${e.portalType}:${e.moveTarget}->${e.portalDest}`;
@@ -438,6 +506,7 @@ export function analyzeStranding(
     goalReachingStateCount: canReachGoal.size,
     safeStateCount: canReachGoal.size,
     strandedStateCount: strandedKeys.length,
+    doomedLiveStateCount: doomedLiveKeys.length,
     riskyPositionCount,
     startCanReachGoal,
     hasOptionalStranding: startCanReachGoal && strandedKeys.length > 0 && !searchAborted,

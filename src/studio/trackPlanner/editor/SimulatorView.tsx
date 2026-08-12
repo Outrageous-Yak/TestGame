@@ -122,6 +122,15 @@ export function SimulatorView({ track }: SimulatorViewProps) {
           {result.solverOutcome === "unsolvable" ? (
             <p className="tp-simBad">Goal is unreachable under current solver model.</p>
           ) : null}
+          {result.strandingSummaryLabel ? (
+            <p className="tp-hint">{result.strandingSummaryLabel}</p>
+          ) : null}
+          {result.solverOutcome === "solvable" &&
+          result.strandingOutcome === "optional_stranding" ? (
+            <p className="tp-hint">
+              Track is solvable — optional stranding branches exist (runtime STRANDED traps).
+            </p>
+          ) : null}
 
           {result.pathSteps.length > 0 ? (
             <div className="tp-simPath">

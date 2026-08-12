@@ -3,6 +3,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { newGame } from "../../engine/api";
 import { analyzeStranding } from "../../engine/strandingAnalysis";
+import { isAuthoritativeStranded } from "../../engine/legalMoves";
 import { applyLayerRowMovement, getRuntimeMovement } from "../../engine/rowMovement";
 import { snapshotStateLite } from "../../engine/snapshot";
 import { solverStateKey } from "../../engine/trackAnalysis";
@@ -338,13 +339,14 @@ describe("Stranding analysis", () => {
       const r = attemptMove(st, target);
       expect(r.ok).toBe(true);
     }
+    expect(isAuthoritativeStranded(st)).toBe(true);
     expect(report.strandedKeys.some((k) => k.includes(st.playerHexId))).toBe(true);
     expect(report.goalReachingKeys.includes(solverStateKey(snapshotStateLite(st)))).toBe(false);
   });
 
   it("14. reverse-reachability classification", () => {
     const report = analyzeStranding(newGame(optionalDeadEnd()), 40, 50000);
-    expect(report.reachableStateCount).toBe(
+    expect(report.reachableStateCount).toBeGreaterThanOrEqual(
       report.goalReachingStateCount + report.strandedStateCount
     );
     for (const k of report.strandedKeys) {

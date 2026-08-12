@@ -1,5 +1,6 @@
 import type { Scenario } from "../../../engine/types";
 import { newGame } from "../../../engine/api";
+import { analyzeStranding, type StrandingOutcome } from "../../../engine/strandingAnalysis";
 import { computeOptimalSolution, type OptimalSolution, type ReplayStep } from "../../../engine/trackAnalysis";
 import { validateTrack } from "../../../engine/trackValidator";
 import { authoredTrackToScenario } from "../serialization/scenarioBridge";
@@ -30,6 +31,27 @@ export interface SimulatorResult {
   /** Human-readable structural failure (missing Start/Goal, etc.). */
   structuralMessage: string | null;
   pathSteps: ReplayStep[];
+  /** Aligned stranding analysis (runtime STRANDED semantics). */
+  strandingOutcome: StrandingOutcome | null;
+  strandingSummaryLabel: string | null;
+}
+
+function strandingSummaryLabel(outcome: StrandingOutcome | null): string | null {
+  if (!outcome) return null;
+  switch (outcome) {
+    case "safe":
+      return "Stranding: None found";
+    case "optional_stranding":
+      return "Stranding: Possible";
+    case "unsolvable":
+      return "Stranding: Unavoidable";
+    case "search_limit":
+      return "Stranding: Unknown (search limit)";
+    case "structural_error":
+      return "Stranding: Cannot analyze";
+    default:
+      return null;
+  }
 }
 
 function emptyOptimal(): OptimalSolution {
@@ -106,6 +128,8 @@ export function runSimulator(track: PlannerTrack): SimulatorResult {
       solverOutcome: "structural_error",
       structuralMessage: message,
       pathSteps: [],
+      strandingOutcome: null,
+      strandingSummaryLabel: null,
     };
   }
 
@@ -138,7 +162,16 @@ export function runSimulator(track: PlannerTrack): SimulatorResult {
       solverOutcome: "internal_error",
       structuralMessage: `Internal solver error: ${message}`,
       pathSteps: [],
+      strandingOutcome: null,
+      strandingSummaryLabel: null,
     };
+  }
+
+  let strandingReport: ReturnType<typeof analyzeStranding> | null = null;
+  try {
+    strandingReport = analyzeStranding(base, 80, 400000);
+  } catch {
+    strandingReport = null;
   }
 
   const warnings = validation.warnings?.length ?? 0;
@@ -168,10 +201,11 @@ export function runSimulator(track: PlannerTrack): SimulatorResult {
     optimalPathCount: pathCount,
     warningCount: warnings + (solverOutcome === "search_limit" ? 1 : 0),
     errorCount: errors + (solverOutcome === "unsolvable" ? 1 : 0),
-    strandedStateCount: 0,
+    strandedStateCount: strandingReport?.strandedStateCount ?? 0,
   };
 
   const { solutionStepByHex, portalLandingHexIds } = buildStepOverlay(optimal.replay);
+  const strandingOutcome = strandingReport?.outcome ?? null;
 
   return {
     summary,
@@ -186,6 +220,8 @@ export function runSimulator(track: PlannerTrack): SimulatorResult {
     solverOutcome,
     structuralMessage: null,
     pathSteps: optimal.replay,
+    strandingOutcome,
+    strandingSummaryLabel: strandingSummaryLabel(strandingOutcome),
   };
 }
 
