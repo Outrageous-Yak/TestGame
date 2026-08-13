@@ -1,0 +1,51 @@
+{
+  "id": "verify_red_adjacent",
+  "name": "Verify Red Adjacent",
+  "layers": 7,
+  "start": {
+    "layer": 1,
+    "row": 6,
+    "col": 3
+  },
+  "goal": {
+    "layer": 1,
+    "row": 0,
+    "col": 3
+  },
+  "missing": [],
+  "blocked": [],
+  "transitions": [],
+  "movement": {
+    "1": "NONE",
+    "2": "NONE",
+    "3": "NONE",
+    "4": "NONE",
+    "5": "NONE",
+    "6": "NONE",
+    "7": "NONE"
+  },
+  "revealOnEnterGuaranteedUp": false,
+  "cardTriggers": [
+    {
+      "id": "red_A",
+      "card": "cosmic",
+      "layer": 1,
+      "row": 5,
+      "col": 3
+    },
+    {
+      "id": "red_B",
+      "card": "cosmic",
+      "layer": 1,
+      "row": 6,
+      "col": 4
+    },
+    {
+      "id": "zb_marker",
+      "card": "terrain",
+      "layer": 1,
+      "row": 0,
+      "col": 0
+    }
+  ]
+}

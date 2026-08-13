@@ -367,6 +367,26 @@ export function FeaturesView({
                       <option value="specific">Specific</option>
                     </select>
                   </label>
+                  <label>
+                    Tier (optional — Step 5C)
+                    <select
+                      value={selected.encounterTier ? String(selected.encounterTier) : ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        onTrackChange(
+                          updateFeatureInTrack(track, selected.id, {
+                            encounterTier: v ? (Number(v) as 1 | 2 | 3 | 4) : undefined,
+                          }),
+                        );
+                      }}
+                    >
+                      <option value="">Unset (no silent default)</option>
+                      <option value="1">Tier 1</option>
+                      <option value="2">Tier 2</option>
+                      <option value="3">Tier 3</option>
+                      <option value="4">Tier 4</option>
+                    </select>
+                  </label>
                   {(selected.contentMode ?? "random") === "specific" ? (
                     <label>
                       Villain

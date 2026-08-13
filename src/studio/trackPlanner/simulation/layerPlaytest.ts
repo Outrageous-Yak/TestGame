@@ -85,7 +85,14 @@ export function cardFeedbackAtPlayer(track: PlannerTrack, state: GameState): Pla
   if (!feat) return { kind: "none", message: "" };
   if (feat.kind === "card") {
     if (feat.cardType === "RED") {
-      return { kind: "red", message: "Entered RED card hex (encounter trigger — production parity)" };
+      const consumed = state.consumedEncounterIds?.has(feat.id) ?? false;
+      if (consumed) {
+        return { kind: "red", message: "RED encounter already resolved this attempt (one-shot)" };
+      }
+      return {
+        kind: "red",
+        message: "Entered RED encounter hex — foundation modal in gameplay (Continue consumes)",
+      };
     }
     if (feat.cardType === "RANDOM") {
       return { kind: "deferred", message: "? RANDOM — authoring only; runtime resolution deferred" };

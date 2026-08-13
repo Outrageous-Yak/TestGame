@@ -132,4 +132,18 @@ export type VillainKey = "bad1" | "bad2" | "bad3" | "bad4";
 export type VillainTrigger = { key: VillainKey; layer: number; row: number; cols?: "any" | number[] };
 export type Encounter = null | { villainKey: VillainKey; tries: number };
 export type CardKey = "cosmic" | "risk" | "terrain" | "shadow";
-export type CardTrigger = { card: CardKey; layer: number; row: number; col: number };
+
+/**
+ * Runtime card/encounter placement.
+ * `id` is the stable encounter/feature identity (Step 5A).
+ * Legacy JSON without `id` receives a deterministic `legacy_card_L*_R*_C*` at parse time.
+ */
+export type CardTrigger = {
+  id: string;
+  card: CardKey;
+  layer: number;
+  row: number;
+  col: number;
+  /** Optional Red encounter tier (1–4). Resolution deferred to Step 5C. */
+  encounterTier?: 1 | 2 | 3 | 4;
+};

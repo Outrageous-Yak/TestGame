@@ -109,7 +109,8 @@ export function buildInitialState(scenario: Scenario): GameState {
     playerHexId: posId(scenario.start),
     hexesById,
     rows,
-    transitionsByFromId
+    transitionsByFromId,
+    consumedEncounterIds: new Set<string>(),
   };
 
   // Enter starting layer and reveal starting hex

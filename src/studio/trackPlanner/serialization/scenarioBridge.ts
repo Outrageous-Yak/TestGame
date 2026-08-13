@@ -7,6 +7,7 @@ import type { PlannerTrack, TrackFeature, CardFeature } from "../types";
 import { CARD_COLOR_TO_RUNTIME } from "../types";
 import type { CardTrigger, CloudMode, ExtendedVisibilityMode } from "../../../ui/types";
 import { visibilityOverlaysToRuntimeExport } from "../visibility/visibilityRuntimeMapping";
+import { isEncounterTier } from "../../../engine/encounters/redEncounter";
 
 function isMissing(track: PlannerTrack, p: Pos): boolean {
   const layer = track.layers.find((l) => l.layer === p.layer);
@@ -34,11 +35,15 @@ function cardToRuntimeTrigger(card: CardFeature): CardTrigger | null {
     card.cardType === "HIDDEN" ? card.resolvedType : card.cardType;
   if (!resolved || resolved === "RANDOM" || resolved === "HIDDEN") return null;
   const runtime = CARD_COLOR_TO_RUNTIME[resolved];
+  const tier =
+    resolved === "RED" && isEncounterTier(card.encounterTier) ? card.encounterTier : undefined;
   return {
+    id: card.id,
     card: runtime,
     layer: card.position.layer,
     row: card.position.row,
     col: card.position.col,
+    ...(tier ? { encounterTier: tier } : {}),
   };
 }
 
