@@ -67,6 +67,22 @@ export type Hex = {
   revealed: boolean;
 };
 
+/**
+ * Restorable world/game state at the most recent entry to a layer
+ * during the current attempt (Step 5B). Does not include attempt history
+ * (consumedEncounterIds, turn, moveHistory, timers).
+ */
+export type LayerEntryWorldSnapshot = {
+  layer: number;
+  playerHexId: string;
+  visibleLayers: number[];
+  movementActiveLayers: number[];
+  rows: Array<{ layer: number; rows: string[][] }>;
+  revealedHexIds: string[];
+  lastGuaranteedUpId?: string;
+  lastGuaranteedUpTurn?: number;
+};
+
 export type GameState = {
   scenario: Scenario;
   turn: number;
@@ -95,8 +111,16 @@ export type GameState = {
    * Attempt-local Red encounter consumption (Step 5A).
    * Not part of solverStateKey / lite analysis DTO.
    * Cleared on newGame / retry / fresh attempt — never persisted to localStorage.
+   * Attempt history: MUST survive layer-entry restoration (Step 5B).
    */
   consumedEncounterIds?: Set<string>;
+
+  /**
+   * Attempt-local most-recent layer-entry world snapshots (Step 5B).
+   * Re-entering a layer replaces only that layer's snapshot.
+   * Not part of solverStateKey / lite analysis DTO. Never persisted.
+   */
+  layerEntrySnapshots?: Map<number, LayerEntryWorldSnapshot>;
 };
 
 // Optional: centralize reachability typing here (recommended)

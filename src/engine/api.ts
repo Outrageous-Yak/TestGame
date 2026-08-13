@@ -12,6 +12,13 @@ export type ReachMap = Record<string, ReachInfo>;
 export type { MoveResult, BoardSlotRef, MoveAttemptResponse, MoveAttemptResult };
 
 export { attemptMoveToSlot };
+export {
+  captureLayerEntrySnapshot,
+  restoreLayerEntrySnapshot,
+  getLayerEntrySnapshot,
+  listLayerEntrySnapshotLayers,
+} from "./layerEntrySnapshot";
+export type { LayerRestoreResult, LayerRestoreStatus } from "./layerEntrySnapshot";
 
 export function newGame(scenario: Scenario): GameState {
   return buildInitialState(scenario);

@@ -2,7 +2,8 @@
  * Step 5A — Red Encounter Foundation (domain helpers).
  *
  * RED / runtime `cosmic` cards are encounters.
- * Dice, banishment, rewind, and snapshots are deferred to Steps 5B/5C.
+ * Dice, banishment, and attaching restoration to Continue are deferred to Step 5C.
+ * Layer-entry snapshots (Step 5B) must preserve consumedEncounterIds.
  */
 
 import type { GameState } from "../types";
