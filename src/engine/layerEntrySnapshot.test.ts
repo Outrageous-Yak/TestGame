@@ -10,7 +10,7 @@ import { newGame } from "./api";
 import { attemptMove } from "./rules";
 import { attemptMoveToSlot } from "./moveAttempt";
 import { enterLayer, posId, ROW_LENS } from "./board";
-import { snapshotState, snapshotStateLite, restoreStateLite } from "./snapshot";
+import { snapshotState, restoreState, snapshotStateLite, restoreStateLite } from "./snapshot";
 import { solverStateKey } from "./trackAnalysis";
 import { evaluateAttemptTerminal } from "./attemptTerminal";
 import { listLegalSuccessfulMoveTargets } from "./legalMoves";
@@ -312,7 +312,10 @@ describe("Step 5B Layer-entry snapshot foundation", () => {
     enterL3FromL1(state);
     markEncounterConsumed(state, "red_A");
     restoreLayerEntrySnapshot(state, 3);
+    expect(isEncounterConsumed(state, "red_A")).toBe(true);
+    expect(getLayerEntrySnapshot(state, 3)).not.toHaveProperty("consumedEncounterIds");
     sameRowStep(state, 2);
+    expect(isEncounterConsumed(state, "red_A")).toBe(true);
     expect(
       shouldActivateRedEncounter({
         cardKey: "cosmic",
@@ -321,6 +324,14 @@ describe("Step 5B Layer-entry snapshot foundation", () => {
         landedOnGoal: false,
       })
     ).toBe(false);
+    expect(
+      shouldActivateRedEncounter({
+        cardKey: "cosmic",
+        encounterId: "red_B",
+        consumed: state.consumedEncounterIds,
+        landedOnGoal: false,
+      })
+    ).toBe(true);
   });
 
   it("TEST 15 — UP portal entry snapshot correct", () => {
@@ -601,5 +612,131 @@ describe("Step 5B Layer-entry snapshot foundation", () => {
     const state = newGame(openBoard());
     endTurn(state);
     expect(listLayerEntrySnapshotLayers(state)).toEqual([1]);
+  });
+
+  it("verification — snapshot does not recursively capture the snapshot map", () => {
+    const state = newGame(portalBoard());
+    enterL3FromL1(state);
+    attemptMove(state, posId({ layer: 3, row: 6, col: 4 }));
+    const layers = listLayerEntrySnapshotLayers(state);
+    expect(layers).toEqual([1, 2, 3]);
+    for (const layer of layers) {
+      const snap = getLayerEntrySnapshot(state, layer)!;
+      expect(snap).not.toHaveProperty("layerEntrySnapshots");
+      expect(snap).not.toHaveProperty("consumedEncounterIds");
+      expect(snap).not.toHaveProperty("turn");
+      expect(snap).not.toHaveProperty("moveHistory");
+      expect(JSON.stringify(snap)).not.toContain("layerEntrySnapshots");
+    }
+    expect(state.layerEntrySnapshots!.size).toBe(layers.length);
+  });
+
+  it("verification — restoring one layer preserves the snapshot map", () => {
+    const state = newGame(portalBoard());
+    enterL3FromL1(state);
+    attemptMove(state, posId({ layer: 3, row: 6, col: 4 }));
+    const l1 = getLayerEntrySnapshot(state, 1);
+    const l2 = getLayerEntrySnapshot(state, 2);
+    const l3 = getLayerEntrySnapshot(state, 3);
+    restoreLayerEntrySnapshot(state, 3);
+    expect(listLayerEntrySnapshotLayers(state)).toEqual([1, 2, 3]);
+    expect(getLayerEntrySnapshot(state, 1)).toEqual(l1);
+    expect(getLayerEntrySnapshot(state, 2)).toEqual(l2);
+    expect(getLayerEntrySnapshot(state, 3)).toEqual(l3);
+    expect(state.playerHexId).toBe(l3!.playerHexId);
+  });
+
+  it("verification — DOWN from L4 captures L3 after full entry", () => {
+    const state = newGame(
+      openBoard({
+        start: { layer: 4, row: 6, col: 3 },
+        goal: { layer: 3, row: 0, col: 3 },
+        movement: shiftingLayer3(),
+        transitions: [
+          {
+            type: "DOWN",
+            from: { layer: 4, row: 5, col: 3 },
+            to: { layer: 3, row: 6, col: 3 },
+          },
+        ],
+      })
+    );
+    expect(listLayerEntrySnapshotLayers(state)).toEqual([4]);
+    expect(attemptMove(state, posId({ layer: 4, row: 5, col: 3 })).ok).toBe(true);
+    expect(state.playerHexId).toBe(posId({ layer: 3, row: 6, col: 3 }));
+    const snap = getLayerEntrySnapshot(state, 3);
+    expect(snap).not.toBeNull();
+    expect(snap!.playerHexId).toBe(posId({ layer: 3, row: 6, col: 3 }));
+    expect(snap!.movementActiveLayers).toContain(3);
+    expect(rowPhase(state, 3)).toEqual(
+      snap!.rows.find((e) => e.layer === 3)!.rows.map((row) => row.join("|"))
+    );
+    const identityRow6 = Array.from({ length: 7 }, (_, c) => posId({ layer: 3, row: 6, col: c })).join("|");
+    expect(rowPhase(state, 3)[6]).not.toBe(identityRow6);
+  });
+
+  it("verification — portal entry snapshot includes the entering move row shift", () => {
+    const state = newGame(portalBoard());
+    const identityL3 = rowPhase(state, 3);
+    enterL3FromL1(state);
+    const live = rowPhase(state, 3);
+    const snap = getLayerEntrySnapshot(state, 3)!;
+    expect(live).not.toEqual(identityL3);
+    expect(snap.rows.find((e) => e.layer === 3)!.rows.map((row) => row.join("|"))).toEqual(live);
+    expect(state.turn).toBe(1);
+  });
+
+  it("verification — nested clone isolation (getter + hex.revealed)", () => {
+    const state = newGame(openBoard());
+    const clone = getLayerEntrySnapshot(state, 1)!;
+    clone.rows[0]!.rows[6]![0] = "MUTATED";
+    clone.revealedHexIds.push("fake");
+    clone.visibleLayers.push(99);
+    clone.movementActiveLayers.push(99);
+    const stored = getLayerEntrySnapshot(state, 1)!;
+    expect(stored.rows[0]!.rows[6]![0]).not.toBe("MUTATED");
+    expect(stored.revealedHexIds).not.toContain("fake");
+    expect(stored.visibleLayers).not.toContain(99);
+
+    const extra = posId({ layer: 1, row: 0, col: 0 });
+    const beforeReveal = [...stored.revealedHexIds].sort();
+    state.hexesById.get(extra)!.revealed = true;
+    expect([...getLayerEntrySnapshot(state, 1)!.revealedHexIds].sort()).toEqual(beforeReveal);
+  });
+
+  it("verification — solverStateKey follows restored world, not post-move world", () => {
+    const state = newGame(portalBoard());
+    enterL3FromL1(state);
+    const entryKey = solverStateKey(snapshotStateLite(state));
+    passTurn(state);
+    passTurn(state);
+    const movedKey = solverStateKey(snapshotStateLite(state));
+    expect(movedKey).not.toBe(entryKey);
+    restoreLayerEntrySnapshot(state, 3);
+    expect(solverStateKey(snapshotStateLite(state))).toBe(entryKey);
+    expect(state.turn).toBe(3);
+  });
+
+  it("verification — moveHistory array identity is preserved", () => {
+    const state = newGame(portalBoard());
+    enterL3FromL1(state);
+    const hist = state.moveHistory;
+    expect(hist?.length).toBeGreaterThan(0);
+    const copy = hist!.slice();
+    restoreLayerEntrySnapshot(state, 3);
+    expect(state.moveHistory).toBe(hist);
+    expect(state.moveHistory).toEqual(copy);
+  });
+
+  it("verification — full analysis DTO omits layer-entry snapshots", () => {
+    const state = newGame(portalBoard());
+    enterL3FromL1(state);
+    expect(listLayerEntrySnapshotLayers(state)).toEqual([1, 3]);
+    const dto = snapshotState(state);
+    expect(dto).not.toHaveProperty("layerEntrySnapshots");
+    const viaDto = restoreState(dto);
+    expect(viaDto.layerEntrySnapshots).toBeUndefined();
+    expect(restoreLayerEntrySnapshot(viaDto, 3).status).toBe("no_snapshot");
+    expect(restoreLayerEntrySnapshot(state, 3).status).toBe("restored");
   });
 });
