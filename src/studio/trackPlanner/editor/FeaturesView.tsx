@@ -368,7 +368,7 @@ export function FeaturesView({
                     </select>
                   </label>
                   <label>
-                    Tier (optional — Step 5C)
+                    Tier (optional — 1 easiest … 4 hardest)
                     <select
                       value={selected.encounterTier ? String(selected.encounterTier) : ""}
                       onChange={(e) => {

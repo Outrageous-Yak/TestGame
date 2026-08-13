@@ -2331,6 +2331,32 @@ body{
   word-break: break-all;
 }
 
+.redEncounterResultLabel{
+  margin: 10px 0 0;
+  font-size: 1.15rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.redEncounterResultLabel--success{
+  color: rgba(150, 255, 200, 0.95);
+}
+
+.redEncounterResultLabel--banish{
+  color: rgba(255, 170, 160, 0.95);
+}
+
+.redEncounterRollText{
+  margin: 8px 0 0;
+  font-size: 1rem;
+}
+
+.redEncounterDiceRow{
+  display: flex;
+  justify-content: center;
+  margin: 14px 0 4px;
+}
+
 .cardBadge.cardSpent,
 .hexDeckCard.cardSpent{
   opacity: 0.42;
