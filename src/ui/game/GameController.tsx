@@ -88,11 +88,18 @@ import {
 import { playGoalLandSound, playPlayerMoveSound, playPortalLandSound, playFailedMoveSound, playRedCardEvilLaughSound, preloadSoundEffects } from "../audio/soundEffects";
 import { unlockGameAudio } from "../audio/gameAudioContext";
 import { playVillainVoice, preloadVillainVoices, villainDisplayName } from "../audio/villainVoice";
+import {
+  isRedEncounterCardKey,
+  markEncounterConsumed,
+  shouldActivateRedEncounter,
+  type EncounterActivation,
+} from "../../engine/encounters/redEncounter";
+import { evaluateAttemptTerminal } from "../../engine/attemptTerminal";
+import { RedEncounterPanel } from "./RedEncounterPanel";
 import { preloadThunderSound } from "../audio/stormAudio";
 import { ReachSparkle } from "./ReachSparkle";
 import { startBackgroundMusic, stopBackgroundMusic } from "../audio/backgroundMusic";
 import type { MoveAttemptResult } from "../../engine/moveAttempt";
-import { evaluateAttemptTerminal } from "../../engine/attemptTerminal";
 
 type GoalAchievedState = {
   moves: number;
@@ -132,7 +139,12 @@ export function GameController({
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
   const pendingEncounterMoveIdRef = useRef<string | null>(null);
+  const [redEncounter, setRedEncounter] = useState<
+    null | (EncounterActivation & { pendingStrandedMoves: number | null })
+  >(null);
   const encounterActive = !!encounter;
+  const redEncounterActive = !!redEncounter;
+  const boardEventActive = encounterActive || redEncounterActive;
   const [goalAchieved, setGoalAchieved] = useState<GoalAchievedState | null>(null);
   const [stranded, setStranded] = useState<StrandedState | null>(null);
   const goalAchievedActive = !!goalAchieved;
@@ -1078,16 +1090,31 @@ export function GameController({
   }, [encounter]);
 
   const findCardTriggerAt = useCallback(
-    (id: string): CardKey | null => {
+    (id: string): CardTrigger | null => {
       const c = idToCoord(id);
       if (!c) return null;
       for (const t of cardTriggers) {
-        if (t.layer === c.layer && t.row === c.row && t.col === c.col) return t.card;
+        if (t.layer === c.layer && t.row === c.row && t.col === c.col) return t;
       }
       return null;
     },
     [cardTriggers]
   );
+
+  const acknowledgeRedEncounter = useCallback(() => {
+    if (!state || !redEncounter) return;
+    markEncounterConsumed(state, redEncounter.encounterId);
+    setState(state);
+    forceRender((n) => n + 1);
+    const pendingStranded = redEncounter.pendingStrandedMoves;
+    setRedEncounter(null);
+    pushLog("Encounter acknowledged — consumed for this attempt.", "info");
+    if (pendingStranded != null) {
+      pushLog("STRANDED — no paths remain.", "bad");
+      setStranded({ moves: pendingStranded });
+    }
+    boardInputLockedRef.current = false;
+  }, [state, redEncounter, pushLog]);
 
   type FlyCard = {
     key: number;
@@ -1243,6 +1270,7 @@ export function GameController({
     }
 
     setEncounter(null);
+    setRedEncounter(null);
     pendingEncounterMoveIdRef.current = null;
     boardInputLockedRef.current = false;
     setFailedSlotFeedback(null);
@@ -1350,7 +1378,7 @@ export function GameController({
   const attemptMoveAtSlot = useCallback(
     (row: number, col: number) => {
       if (!state) return;
-      if (boardInputLockedRef.current || encounterActive || attemptTerminalActive) return;
+      if (boardInputLockedRef.current || boardEventActive || attemptTerminalActive) return;
 
       const hexId = hexIdAtSlot(state, currentLayer, row, col);
       if (!hexId) return;
@@ -1407,14 +1435,47 @@ export function GameController({
           revealWholeLayer(state, finalLayer);
         }
 
-        const landedCard = findCardTriggerAt(landedId);
-        if (landedCard) {
+        const landedTrig = findCardTriggerAt(landedId);
+        const landedCard = landedTrig?.card ?? null;
+        const landedOnGoal = !!(goalId && landedId === goalId);
+
+        if (
+          landedTrig &&
+          shouldActivateRedEncounter({
+            cardKey: landedTrig.card,
+            encounterId: landedTrig.id,
+            consumed: state.consumedEncounterIds,
+            landedOnGoal,
+          })
+        ) {
+          void unlockGameAudio().then(async () => {
+            await playRedCardEvilLaughSound();
+            window.setTimeout(() => void playVillainVoice("bad1"), 500);
+          });
+          const strandedNow = evaluateAttemptTerminal(state).kind === "stranded";
+          setRedEncounter({
+            encounterId: landedTrig.id,
+            layer: landedTrig.layer,
+            row: landedTrig.row,
+            col: landedTrig.col,
+            tier: landedTrig.encounterTier,
+            pendingStrandedMoves: strandedNow && !landedOnGoal ? newMoveCount : null,
+          });
+          pushLog("Red encounter: " + landedTrig.id, "bad");
+          // Keep board locked until Continue — do not releaseBoardInput here.
+          return;
+        }
+
+        if (landedCard && !isRedEncounterCardKey(landedCard)) {
           triggerCardFlyout(landedCard, landedCard === "risk" ? { then: "encounter" } : undefined);
           pushLog("Card triggered: " + landedCard, landedCard === "risk" ? "bad" : "info");
+        } else if (landedCard && isRedEncounterCardKey(landedCard)) {
+          // Consumed Red encounter — visual only, no retrigger.
+          pushLog("Red encounter already resolved this attempt.", "info");
         }
 
         pushLog("Moved to " + landedId, "ok");
-        if (goalId && landedId === goalId) {
+        if (landedOnGoal) {
           recordWin(newMoveCount);
         } else if (evaluateAttemptTerminal(state).kind === "stranded") {
           pushLog("STRANDED — no paths remain.", "bad");
@@ -1444,6 +1505,8 @@ export function GameController({
     [
       state,
       encounterActive,
+      redEncounterActive,
+      boardEventActive,
       goalAchievedActive,
       strandedActive,
       attemptTerminalActive,
@@ -1500,7 +1563,7 @@ export function GameController({
             <button
               key={it.id}
               className={"itemBtn " + (it.charges <= 0 ? "off" : "")}
-              disabled={it.charges <= 0 || !state || goalAchievedActive || (encounterActive && it.id !== "reroll")}
+              disabled={it.charges <= 0 || !state || goalAchievedActive || (boardEventActive && it.id !== "reroll")}
               onClick={() => useItem(it.id)}
               title={it.name + " (" + it.charges + ")"}
             >
@@ -1517,7 +1580,7 @@ export function GameController({
 
         <button
           className="btn"
-          disabled={!state || !canGoDown || encounterActive || goalAchievedActive}
+          disabled={!state || !canGoDown || boardEventActive || goalAchievedActive}
           onClick={() => {
             if (!state) return;
             const next = Math.max(1, currentLayer - 1);
@@ -1536,7 +1599,7 @@ export function GameController({
 
         <button
           className="btn"
-          disabled={!state || !canGoUp || encounterActive || goalAchievedActive}
+          disabled={!state || !canGoUp || boardEventActive || goalAchievedActive}
           onClick={() => {
             if (!state) return;
             const next = Math.min(scenarioLayerCount, currentLayer + 1);
@@ -1646,7 +1709,7 @@ export function GameController({
                                 type="button"
                                 className={["hex", "missingSlot", failedClass].filter(Boolean).join(" ")}
                                 onPointerUp={(e) => handleSlotPointerUp(e, r, c)}
-                                disabled={!state || encounterActive || goalAchievedActive}
+                                disabled={!state || boardEventActive || goalAchievedActive}
                                 aria-label="Missing hex. Selecting this space consumes a move."
                                 title="Missing hex"
                               />
@@ -1669,7 +1732,12 @@ export function GameController({
                         const isStart = startHexId === id;
                         const showStartPortal = isStart && movesTaken === 0;
 
-                        const cardHere = findCardTriggerAt(id);
+                        const cardTrig = findCardTriggerAt(id);
+                        const cardHere = cardTrig?.card ?? null;
+                        const cardSpent =
+                          !!cardTrig &&
+                          isRedEncounterCardKey(cardTrig.card) &&
+                          !!state?.consumedEncounterIds?.has(cardTrig.id);
                         const reachHintsEnabled = shouldShowReachHints(visibilityMode);
                         const isReach =
                           reachHintsEnabled &&
@@ -1808,7 +1876,7 @@ export function GameController({
                                 isPortalDown ? "portalDown" : "",
                               ].join(" ")}
                               onPointerUp={(e) => handleSlotPointerUp(e, r, c)}
-                              disabled={!state || encounterActive || goalAchievedActive}
+                              disabled={!state || boardEventActive || goalAchievedActive}
                               style={
                                 {
                                   ["--hexGlow" as any]: useReachPulse
@@ -1843,7 +1911,14 @@ export function GameController({
                                   .filter(Boolean)
                                   .join(" ")}
                               >
-                                <div className={"cardBadge hexDeckCard " + cardHere} title={cardHere}>
+                                <div
+                                  className={
+                                    "cardBadge hexDeckCard " +
+                                    cardHere +
+                                    (cardSpent ? " cardSpent" : "")
+                                  }
+                                  title={cardSpent ? cardHere + " (resolved)" : cardHere}
+                                >
                                   <div className="deckFx" />
                                 </div>
                               </div>
@@ -2102,6 +2177,14 @@ export function GameController({
             <div className="cardFlipLabel">{cardFlip.card}</div>
           </div>
         </div>
+      ) : null}
+
+      {redEncounter ? (
+        <RedEncounterPanel
+          encounterId={redEncounter.encounterId}
+          tier={redEncounter.tier}
+          onContinue={acknowledgeRedEncounter}
+        />
       ) : null}
 
       {/* Encounter overlay (villain hex triggers — not risk card Step B) */}

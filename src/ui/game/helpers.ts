@@ -1,6 +1,7 @@
 import type { GameState, Scenario, Hex } from "../../engine/types";
 import { assertScenario } from "../../engine/scenario";
 import { ROW_LENS } from "../../engine/board";
+import { isEncounterTier, resolveEncounterId } from "../../engine/encounters/redEncounter";
 import type {
   Coord,
   CardKey,
@@ -141,11 +142,12 @@ export function parseCardTriggersFromScenario(s: any): CardTrigger[] {
   const toZeroBasedCol = (c: number) => (c >= 1 && c <= 7 ? c - 1 : c);
 
   const out: CardTrigger[] = [];
+  const usedIds = new Set<string>();
 
   for (const raw of src) {
     if (!raw || typeof raw !== "object") continue;
 
-    const cardRaw = String(raw.card ?? raw.key ?? raw.id ?? "cosmic");
+    const cardRaw = String(raw.card ?? raw.key ?? "cosmic");
     const card = (allowed.includes(cardRaw as any) ? cardRaw : "cosmic") as CardKey;
 
     const layer = Number(raw.layer ?? 1);
@@ -153,7 +155,27 @@ export function parseCardTriggersFromScenario(s: any): CardTrigger[] {
     let col = toZeroBasedCol(Number(raw.col ?? 0));
 
     if (!Number.isFinite(layer) || !Number.isFinite(row) || !Number.isFinite(col)) continue;
-    out.push({ card, layer, row, col });
+
+    let id = resolveEncounterId(raw.id, layer, row, col);
+    // Avoid collisions when multiple legacy rows somehow share coords after bad data.
+    if (usedIds.has(id)) {
+      let n = 2;
+      while (usedIds.has(`${id}__${n}`)) n += 1;
+      id = `${id}__${n}`;
+    }
+    usedIds.add(id);
+
+    const tierRaw = raw.encounterTier ?? raw.tier;
+    const encounterTier = isEncounterTier(Number(tierRaw)) ? (Number(tierRaw) as 1 | 2 | 3 | 4) : undefined;
+
+    out.push({
+      id,
+      card,
+      layer,
+      row,
+      col,
+      ...(encounterTier ? { encounterTier } : {}),
+    });
   }
 
   return out;

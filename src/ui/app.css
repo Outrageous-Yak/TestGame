@@ -2307,6 +2307,36 @@ body{
   color: rgba(255, 230, 230, 0.88);
 }
 
+.redEncounterScene .redEncounterPanel{
+  max-width: min(440px, 92vw);
+}
+
+.redEncounterBadge{
+  color: #ff8a8a;
+  background: rgba(255,80,80,.16);
+  border-color: rgba(255,100,100,.42);
+  box-shadow: 0 0 28px rgba(255,70,70,.18);
+}
+
+.redEncounterTier{
+  margin: 8px 0 0;
+  opacity: 0.85;
+  font-size: 0.95rem;
+}
+
+.redEncounterIdHint{
+  font-size: 0.7rem;
+  opacity: 0.35;
+  margin: 8px 0 0;
+  word-break: break-all;
+}
+
+.cardBadge.cardSpent,
+.hexDeckCard.cardSpent{
+  opacity: 0.42;
+  filter: grayscale(0.35);
+}
+
 .strandedScene .goalScoreGrid{
   grid-template-columns: 1fr;
   max-width: 180px;
