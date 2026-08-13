@@ -5,6 +5,12 @@ import { computeOptimalSolution, type OptimalSolution, type ReplayStep } from ".
 import { validateTrack } from "../../../engine/trackValidator";
 import { authoredTrackToScenario } from "../serialization/scenarioBridge";
 import type { PlannerTrack, TrackValidationSummary } from "../types";
+import {
+  DEFAULT_SIMULATOR_BUDGET,
+  type AnalysisBudget,
+  makeDeadline,
+  remainingMs,
+} from "./analysisBudget";
 
 /** Simulator/solver outcome — distinct from Audit GREEN/RED. */
 export type SolverOutcome =
@@ -12,7 +18,8 @@ export type SolverOutcome =
   | "unsolvable"
   | "search_limit"
   | "structural_error"
-  | "internal_error";
+  | "internal_error"
+  | "cancelled";
 
 export interface SimulatorResult {
   summary: TrackValidationSummary;
@@ -34,9 +41,22 @@ export interface SimulatorResult {
   /** Aligned stranding analysis (runtime STRANDED semantics). */
   strandingOutcome: StrandingOutcome | null;
   strandingSummaryLabel: string | null;
+  /** True when stranding was skipped/truncated by shared budget. */
+  strandingBudgetLimited: boolean;
 }
 
-function strandingSummaryLabel(outcome: StrandingOutcome | null): string | null {
+export type RunSimulatorOptions = {
+  budget?: Partial<AnalysisBudget>;
+  isCancelled?: () => boolean;
+};
+
+function strandingSummaryLabel(
+  outcome: StrandingOutcome | null,
+  budgetLimited: boolean
+): string | null {
+  if (budgetLimited && (!outcome || outcome === "search_limit")) {
+    return "Stranding: Unknown (analysis limit)";
+  }
   if (!outcome) return null;
   switch (outcome) {
     case "safe":
@@ -69,6 +89,7 @@ function emptyOptimal(): OptimalSolution {
       maxTurnsSearched: 0,
       branchingFactor: 0,
       searchAborted: false,
+      abortReason: null,
       runtimeMs: 0,
     },
   };
@@ -97,11 +118,57 @@ function buildStepOverlay(replay: ReplayStep[]): {
   return { solutionStepByHex, portalLandingHexIds };
 }
 
+function mergeBudget(partial?: Partial<AnalysisBudget>): AnalysisBudget {
+  return { ...DEFAULT_SIMULATOR_BUDGET, ...partial };
+}
+
+function cancelledResult(
+  validation: ReturnType<typeof validateTrack> | null,
+  scenario: Scenario | null,
+  message: string
+): SimulatorResult {
+  const optimal = emptyOptimal();
+  optimal.stats.searchAborted = true;
+  optimal.stats.abortReason = "cancelled";
+  return {
+    summary: {
+      status: "warning",
+      shortestMoves: null,
+      optimalPathCount: 0,
+      warningCount: 1,
+      errorCount: 0,
+      strandedStateCount: 0,
+    },
+    optimal,
+    validation,
+    scenario,
+    solutionPathHexIds: [],
+    solutionStepByHex: {},
+    portalLandingHexIds: [],
+    optimalPathIndex: 0,
+    optimalPathTotal: 0,
+    solverOutcome: "cancelled",
+    structuralMessage: message,
+    pathSteps: [],
+    strandingOutcome: null,
+    strandingSummaryLabel: null,
+    strandingBudgetLimited: false,
+  };
+}
+
 /**
  * Read-only full-track simulator. Does not mutate the planner draft.
- * Uses authoritative engine BFS (`computeOptimalSolution` + `attemptMove`).
+ * Uses authoritative engine BFS (`computeOptimalSolution` + `attemptMove`)
+ * under a shared resource budget so heavy tracks cannot OOM/crash the app.
  */
-export function runSimulator(track: PlannerTrack): SimulatorResult {
+export function runSimulator(
+  track: PlannerTrack,
+  options: RunSimulatorOptions = {}
+): SimulatorResult {
+  const budget = mergeBudget(options.budget);
+  const isCancelled = options.isCancelled;
+  const runDeadline = makeDeadline(budget.maxTotalMs);
+
   let scenario: Scenario;
   try {
     scenario = authoredTrackToScenario(track);
@@ -130,15 +197,68 @@ export function runSimulator(track: PlannerTrack): SimulatorResult {
       pathSteps: [],
       strandingOutcome: null,
       strandingSummaryLabel: null,
+      strandingBudgetLimited: false,
     };
   }
 
-  const validation = validateTrack(scenario);
+  if (isCancelled?.()) {
+    return cancelledResult(null, scenario, "Analysis cancelled.");
+  }
+
+  const validation = validateTrack(scenario, {
+    structuralOnly: true,
+    maxTurns: budget.maxTurns,
+    maxNodes: Math.min(budget.maxSolverNodes, 25_000),
+  });
+  // Structural failures must surface as STRUCTURAL ERROR — do not enter Solver.
+  if (!validation.valid) {
+    const message =
+      validation.issues.find((i) => i.severity === "error")?.message ??
+      "Track failed structural validation";
+    const optimal = emptyOptimal();
+    return {
+      summary: {
+        status: "invalid",
+        shortestMoves: null,
+        optimalPathCount: 0,
+        warningCount: validation.issues.filter((i) => i.severity === "warning").length,
+        errorCount: Math.max(
+          1,
+          validation.issues.filter((i) => i.severity === "error").length
+        ),
+        strandedStateCount: 0,
+      },
+      optimal,
+      validation,
+      scenario,
+      solutionPathHexIds: [],
+      solutionStepByHex: {},
+      portalLandingHexIds: [],
+      optimalPathIndex: 0,
+      optimalPathTotal: 0,
+      solverOutcome: "structural_error",
+      structuralMessage: message,
+      pathSteps: [],
+      strandingOutcome: null,
+      strandingSummaryLabel: null,
+      strandingBudgetLimited: false,
+    };
+  }
+
   const base = newGame(scenario);
+
+  const solverNodeCap = Math.min(budget.maxSolverNodes, budget.maxTotalNodes);
+  const solverMsCap = Math.min(budget.maxSolverMs, remainingMs(runDeadline));
 
   let optimal: OptimalSolution;
   try {
-    optimal = computeOptimalSolution(base, 80, 400000, { countAlternativePaths: true });
+    optimal = computeOptimalSolution(base, budget.maxTurns, solverNodeCap, {
+      countAlternativePaths: budget.countAlternativePaths,
+      maxMs: solverMsCap,
+      maxFrontier: budget.maxFrontier,
+      maxPathCountNodes: budget.maxPathCountNodes,
+      isCancelled,
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     const failed = emptyOptimal();
@@ -164,21 +284,56 @@ export function runSimulator(track: PlannerTrack): SimulatorResult {
       pathSteps: [],
       strandingOutcome: null,
       strandingSummaryLabel: null,
+      strandingBudgetLimited: false,
     };
   }
 
+  if (isCancelled?.() || optimal.stats.abortReason === "cancelled") {
+    return cancelledResult(validation, scenario, "Analysis cancelled.");
+  }
+
+  const solverNodesUsed = optimal.stats.exploredNodes;
+  const remainingNodes = Math.max(0, budget.maxTotalNodes - solverNodesUsed);
+  const strandingNodeCap = Math.min(budget.maxStrandingNodes, remainingNodes);
+  const strandingMsCap = Math.min(budget.maxStrandingMs, remainingMs(runDeadline));
+
   let strandingReport: ReturnType<typeof analyzeStranding> | null = null;
-  try {
-    strandingReport = analyzeStranding(base, 80, 400000);
-  } catch {
-    strandingReport = null;
+  let strandingBudgetLimited = false;
+
+  const skipStranding =
+    strandingNodeCap < 64 ||
+    strandingMsCap < 50 ||
+    (optimal.stats.searchAborted && optimal.minMoves === null);
+
+  if (skipStranding) {
+    strandingBudgetLimited = true;
+  } else {
+    try {
+      strandingReport = analyzeStranding(base, budget.maxTurns, strandingNodeCap, {
+        maxMs: strandingMsCap,
+        maxFrontier: budget.maxFrontier,
+        isCancelled,
+      });
+      if (strandingReport.searchAborted) {
+        strandingBudgetLimited = true;
+      }
+    } catch {
+      strandingReport = null;
+      strandingBudgetLimited = true;
+    }
+  }
+
+  if (isCancelled?.()) {
+    return cancelledResult(validation, scenario, "Analysis cancelled.");
   }
 
   const warnings = validation.warnings?.length ?? 0;
   const errors = validation.errors?.length ?? 0;
 
   let solverOutcome: SolverOutcome;
-  if (optimal.stats.searchAborted && optimal.minMoves === null) {
+  if (optimal.stats.abortReason === "cancelled") {
+    solverOutcome = "cancelled";
+  } else if (optimal.stats.searchAborted && optimal.minMoves === null) {
     solverOutcome = "search_limit";
   } else if (optimal.minMoves === null) {
     solverOutcome = "unsolvable";
@@ -187,7 +342,7 @@ export function runSimulator(track: PlannerTrack): SimulatorResult {
   }
 
   let status: TrackValidationSummary["status"] = "valid";
-  if (solverOutcome === "search_limit") status = "warning";
+  if (solverOutcome === "search_limit" || solverOutcome === "cancelled") status = "warning";
   else if (solverOutcome === "unsolvable") status = "invalid";
   else if (errors > 0) status = "warning";
   else if (warnings > 0) status = "warning";
@@ -195,17 +350,22 @@ export function runSimulator(track: PlannerTrack): SimulatorResult {
   const pathCount =
     optimal.minMoves === null ? 0 : Math.max(1, optimal.alternativeOptimalCount || 1);
 
+  const strandingOutcome: StrandingOutcome | null = skipStranding
+    ? "search_limit"
+    : strandingReport?.outcome ?? null;
+
   const summary: TrackValidationSummary = {
     status,
     shortestMoves: optimal.minMoves,
     optimalPathCount: pathCount,
-    warningCount: warnings + (solverOutcome === "search_limit" ? 1 : 0),
+    warningCount:
+      warnings +
+      (solverOutcome === "search_limit" || strandingBudgetLimited ? 1 : 0),
     errorCount: errors + (solverOutcome === "unsolvable" ? 1 : 0),
     strandedStateCount: strandingReport?.strandedStateCount ?? 0,
   };
 
   const { solutionStepByHex, portalLandingHexIds } = buildStepOverlay(optimal.replay);
-  const strandingOutcome = strandingReport?.outcome ?? null;
 
   return {
     summary,
@@ -221,7 +381,8 @@ export function runSimulator(track: PlannerTrack): SimulatorResult {
     structuralMessage: null,
     pathSteps: optimal.replay,
     strandingOutcome,
-    strandingSummaryLabel: strandingSummaryLabel(strandingOutcome),
+    strandingSummaryLabel: strandingSummaryLabel(strandingOutcome, strandingBudgetLimited),
+    strandingBudgetLimited,
   };
 }
 

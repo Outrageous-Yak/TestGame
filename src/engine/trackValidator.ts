@@ -7,10 +7,12 @@ import { join } from "path";
 import type { Pos, Scenario } from "./types";
 import { ROW_LENS, posId } from "./board";
 import { assertScenario } from "./scenario";
-import { newGame, getMinMovesToGoal } from "./api";
+import { newGame } from "./api";
 import { restoreStateLite, snapshotStateLite } from "./snapshot";
 import { attemptMove } from "./rules";
 import { neighborIdsSameLayer } from "./neighbors";
+import { computeOptimalSolution } from "./trackAnalysis";
+import type { GameState } from "./types";
 
 export type TrackValidationIssue = {
   code: string;
@@ -36,7 +38,25 @@ export type ValidateTrackOptions = {
   intendedSolutionHexIds?: string[];
   referenceFingerprints?: Set<string>;
   maxTurns?: number;
+  /** Cap BFS nodes for reachability helpers (default 400000 — legacy fitness parity). */
+  maxNodes?: number;
+  /**
+   * When true, only schema/coord checks run — no Solver-style BFS.
+   * Used by Track Planner Simulator (which runs its own bounded analysis).
+   */
+  structuralOnly?: boolean;
 };
+
+function getMinMovesToGoalBounded(
+  state: GameState,
+  maxTurns: number,
+  maxNodes: number
+): number | null {
+  const sol = computeOptimalSolution(state, maxTurns, maxNodes, {
+    countAlternativePaths: false,
+  });
+  return sol.minMoves;
+}
 
 function inBounds(p: Pos, layers: number): boolean {
   if (p.layer < 1 || p.layer > layers) return false;
@@ -153,7 +173,11 @@ function validateCoords(s: Scenario, issues: TrackValidationIssue[]) {
   }
 }
 
-function layersReachableFromStart(s: Scenario, maxTurns = 60): { reachable: number[]; unreachable: number[] } {
+function layersReachableFromStart(
+  s: Scenario,
+  maxTurns = 60,
+  maxNodes = 50_000
+): { reachable: number[]; unreachable: number[] } {
   const base = newGame(s);
   const startDto = snapshotStateLite(base);
   const seen = new Set<string>();
@@ -167,8 +191,11 @@ function layersReachableFromStart(s: Scenario, maxTurns = 60): { reachable: numb
   if (startHex) layers.add(startHex.pos.layer);
 
   let head = 0;
+  let explored = 0;
   while (head < q.length) {
+    if (explored >= maxNodes) break;
     const node = q[head++];
+    explored++;
     const st = restoreStateLite(base, node.dto);
     const ph = st.hexesById.get(st.playerHexId);
     if (ph) layers.add(ph.pos.layer);
@@ -236,6 +263,7 @@ function simulateIntendedSolution(
 export function validateTrack(scenario: Scenario, opts: ValidateTrackOptions = {}): TrackValidationReport {
   const issues: TrackValidationIssue[] = [];
   const maxTurns = opts.maxTurns ?? 80;
+  const maxNodes = opts.maxNodes ?? 400_000;
 
   try {
     assertScenario(scenario);
@@ -273,45 +301,50 @@ export function validateTrack(scenario: Scenario, opts: ValidateTrackOptions = {
   let minMoves: number | null = null;
   let intendedMoves: number | null = null;
   let shortcutDetected = false;
+  let reachable: number[] = [];
+  let unreachable: number[] = [];
 
-  try {
-    const st = newGame(scenario);
-    minMoves = getMinMovesToGoal(st, maxTurns);
-    if (minMoves === null) {
+  if (!opts.structuralOnly) {
+    try {
+      const st = newGame(scenario);
+      // Bound the legacy helper via turns only is insufficient — wrap with node-capped solver.
+      minMoves = getMinMovesToGoalBounded(st, maxTurns, maxNodes);
+      if (minMoves === null) {
+        issues.push({
+          code: "UNSOLVABLE",
+          message: "Goal is not reachable within search limit",
+          severity: "error",
+        });
+      }
+    } catch (e) {
       issues.push({
-        code: "UNSOLVABLE",
-        message: "Goal is not reachable within search limit",
+        code: "SOLVER_ERROR",
+        message: e instanceof Error ? e.message : String(e),
         severity: "error",
       });
     }
-  } catch (e) {
-    issues.push({
-      code: "SOLVER_ERROR",
-      message: e instanceof Error ? e.message : String(e),
-      severity: "error",
-    });
-  }
 
-  const { reachable, unreachable } = layersReachableFromStart(scenario, maxTurns);
-  for (const l of unreachable) {
-    // Layers with only missing hexes (L6/L7 empty in some tracks) are OK if unused
-    const hasPlayable = scenario.layers >= l;
-    if (hasPlayable) {
-      const layerHasHex = ROW_LENS.some((_, row) => {
-        const len = ROW_LENS[row];
-        for (let col = 0; col < len; col++) {
-          const id = posId({ layer: l, row, col });
-          const missing = (scenario.missing ?? []).some((p) => posId(p) === id);
-          if (!missing) return true;
-        }
-        return false;
-      });
-      if (layerHasHex) {
-        issues.push({
-          code: "LAYER_UNREACHABLE",
-          message: `Layer ${l} has playable hexes but is unreachable from start`,
-          severity: "warning",
+    ({ reachable, unreachable } = layersReachableFromStart(scenario, maxTurns, maxNodes));
+    for (const l of unreachable) {
+      // Layers with only missing hexes (L6/L7 empty in some tracks) are OK if unused
+      const hasPlayable = scenario.layers >= l;
+      if (hasPlayable) {
+        const layerHasHex = ROW_LENS.some((_, row) => {
+          const len = ROW_LENS[row];
+          for (let col = 0; col < len; col++) {
+            const id = posId({ layer: l, row, col });
+            const missing = (scenario.missing ?? []).some((p) => posId(p) === id);
+            if (!missing) return true;
+          }
+          return false;
         });
+        if (layerHasHex) {
+          issues.push({
+            code: "LAYER_UNREACHABLE",
+            message: `Layer ${l} has playable hexes but is unreachable from start`,
+            severity: "warning",
+          });
+        }
       }
     }
   }
