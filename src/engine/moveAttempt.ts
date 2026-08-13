@@ -2,6 +2,7 @@ import { inBounds, posId, revealHex, enterLayer } from "./board";
 import { hexIdAtSlot } from "./layout";
 import { neighborIdsSameLayer } from "./neighbors";
 import { activateLayerMovement, endTurn } from "./endTurn";
+import { captureLayerEntrySnapshot } from "./layerEntrySnapshot";
 import type { GameState, Pos } from "./types";
 
 export type BoardSlotRef = Pick<Pos, "layer" | "row" | "col">;
@@ -102,6 +103,7 @@ export function attemptMoveToSlot(state: GameState, slot: BoardSlotRef): MoveAtt
   }
 
   const fromHexId = state.playerHexId;
+  const fromLayer = player.pos.layer;
   state.playerHexId = targetId;
   revealHex(state, targetId);
 
@@ -123,6 +125,15 @@ export function attemptMoveToSlot(state: GameState, slot: BoardSlotRef): MoveAtt
   const won = !!now && now.kind === "GOAL";
 
   endTurn(state);
+
+  // Capture after portal dest + enterLayer + dest reveal + endTurn (row shift).
+  // Same-layer movement / wrong taps / UI layer browse must not capture.
+  if (triggered) {
+    const destLayer = now?.pos.layer;
+    if (destLayer != null && destLayer !== fromLayer) {
+      captureLayerEntrySnapshot(state, destLayer);
+    }
+  }
 
   const action: SuccessfulMoveAction = {
     type: "MOVE",

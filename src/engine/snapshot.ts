@@ -29,6 +29,8 @@ export type GameStateDTO = {
  * Lite DTO (fast turn-search where only the shifting layout + player position changes)
  * - Does NOT copy hexes/transitions (they are stable across turns)
  * - Only stores rows layout, player id, turn, and visible layers
+ * - Intentionally omits consumedEncounterIds and layerEntrySnapshots
+ *   (attempt-local runtime; Solver must not branch on them)
  */
 export type GameStateLiteDTO = {
   turn: number;
@@ -71,6 +73,7 @@ export function snapshotState(state: GameState): GameStateDTO {
     lastGuaranteedUpId: state.lastGuaranteedUpId,
     lastGuaranteedUpTurn: state.lastGuaranteedUpTurn,
     consumedEncounterIds: Array.from(state.consumedEncounterIds ?? []),
+    // layerEntrySnapshots omitted — runtime restoration primitive, not analysis/save DTO.
   };
 }
 
@@ -164,8 +167,9 @@ export function restoreStateLite(base: GameState, dto: GameStateLiteDTO): GameSt
     lastGuaranteedUpTurn: dto.lastGuaranteedUpTurn,
     // Shared hex map must not receive reveal mutations across BFS branches.
     analysisSafe: true,
-    // Fresh Set — never share mutable consumption with base (Step 5A / future 5B).
+    // Fresh Set — never share mutable consumption with base (Step 5A / 5B).
     consumedEncounterIds: cloneConsumedEncounterIds(base.consumedEncounterIds),
+    // layerEntrySnapshots omitted on analysis branches (capture is a no-op when analysisSafe).
   };
 }
 

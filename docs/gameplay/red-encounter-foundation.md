@@ -2,9 +2,9 @@
 
 ## Status
 
-Foundation only. **No dice. No banishment. No layer-entry snapshots. No rewind/rollback.**
-
-Those belong to Steps **5B** (snapshots) and **5C** (dice + banishment).
+Foundation only. **No dice. No banishment.** Layer-entry snapshots are Step **5B**
+(see `docs/gameplay/layer-entry-snapshot-foundation.md`) and are **not** attached
+to Encounter Continue.
 
 ## Terminology
 
@@ -96,5 +96,5 @@ Encounter activation/consumption must not:
 
 ## Future hooks (not implemented)
 
-- **5B** — layer-entry snapshots / history (clone-safe Sets already)
+- **5B** — layer-entry snapshots / restoration primitive (does **not** rewind `consumedEncounterIds`; not wired to Continue)
 - **5C** — dice resolution / V1–V4 punishments / banishment via extending `EncounterResolution` beyond `{ kind: "acknowledge" }`

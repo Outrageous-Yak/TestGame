@@ -1,6 +1,10 @@
-import type { GameState, Pos } from "../../../engine/types";
+import type { GameState, Pos, LayerEntryWorldSnapshot } from "../../../engine/types";
 import { posId } from "../../../engine/board";
 import { newGame } from "../../../engine/api";
+import {
+  getLayerEntrySnapshot,
+  listLayerEntrySnapshotLayers,
+} from "../../../engine/layerEntrySnapshot";
 import { activateLayerMovement } from "../../../engine/endTurn";
 import { passTurn } from "../../../engine/endTurn";
 import { tryMove } from "../../../engine/api";
@@ -132,4 +136,16 @@ export function playtestVisibilitySummary(track: PlannerTrack): string {
 
 export function logicalPosFromHexId(state: GameState, hexId: string): Pos | null {
   return state.hexesById.get(hexId)?.pos ?? null;
+}
+
+/** Read-only inspect of Step 5B layer-entry snapshots (dev/playtest; not a Restore control). */
+export function playtestLayerEntrySnapshot(
+  state: GameState,
+  layer: number
+): LayerEntryWorldSnapshot | null {
+  return getLayerEntrySnapshot(state, layer);
+}
+
+export function playtestLayerEntrySnapshotLayers(state: GameState): number[] {
+  return listLayerEntrySnapshotLayers(state);
 }

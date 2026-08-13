@@ -1,5 +1,6 @@
 // src/engine/board.ts
 import type { GameState, Hex, Pos, Scenario, Transition } from "./types";
+import { captureLayerEntrySnapshot } from "./layerEntrySnapshot";
 
 /* =========================================================
    Board shape
@@ -116,6 +117,7 @@ export function buildInitialState(scenario: Scenario): GameState {
   // Enter starting layer and reveal starting hex
   enterLayer(state, scenario.start.layer);
   revealHex(state, state.playerHexId);
+  captureLayerEntrySnapshot(state, scenario.start.layer);
 
   return state;
 }
