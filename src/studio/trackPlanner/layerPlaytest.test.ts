@@ -14,6 +14,8 @@ import {
   snapshotTrackDraft,
   cardFeedbackAtPlayer,
   playtestVisibilitySummary,
+  playtestLayerEntrySnapshot,
+  playtestLayerEntrySnapshotLayers,
 } from "./simulation/layerPlaytest";
 import { PROGRESSION_STORAGE_KEY } from "../../progression/storage";
 import { CAMPAIGN_MAP_DRAFTS_KEY } from "../../campaign/storage";
@@ -205,6 +207,21 @@ describe("Layer Playtest", () => {
     const fb = cardFeedbackAtPlayer(track, state);
     expect(fb.kind).toBe("red");
     expect(playtestVisibilitySummary(track)).toContain("Partly Cloudy");
+    expect(snapshotTrackDraft(track)).toBe(before);
+  });
+
+  it("captures an initial layer-entry snapshot without mutating the draft", () => {
+    const track = sampleTrack();
+    const before = snapshotTrackDraft(track);
+    const state = freshLayerPlaytestState(track);
+    expect(playtestLayerEntrySnapshotLayers(state)).toEqual([1]);
+    const snap = playtestLayerEntrySnapshot(state, 1);
+    expect(snap?.playerHexId).toBe(posId({ layer: 1, row: 3, col: 1 }));
+    const portalRes = playtestTryMove(state, posId({ layer: 1, row: 3, col: 2 }));
+    expect(portalRes.ok).toBe(true);
+    expect(playtestLayerEntrySnapshot(state, 2)?.playerHexId).toBe(
+      posId({ layer: 2, row: 3, col: 2 })
+    );
     expect(snapshotTrackDraft(track)).toBe(before);
   });
 });
