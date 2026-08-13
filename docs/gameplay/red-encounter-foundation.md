@@ -96,5 +96,10 @@ Encounter activation/consumption must not:
 
 ## Future hooks (not implemented)
 
-- **5B** — layer-entry snapshots / restoration primitive (does **not** rewind `consumedEncounterIds`; not wired to Continue)
-- **5C** — dice resolution / V1–V4 punishments / banishment via extending `EncounterResolution` beyond `{ kind: "acknowledge" }`
+- Dice / banishment / layer restore on failed rolls → **Step 5C**
+  (`docs/gameplay/red-encounter-dice-banishment.md`)
+
+## Related
+
+- **5B** — layer-entry snapshots (`docs/gameplay/layer-entry-snapshot-foundation.md`)
+- **5C** — dice + banishment (extends `EncounterResolution`; Continue commits roll outcome)
