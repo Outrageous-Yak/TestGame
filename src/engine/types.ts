@@ -90,6 +90,13 @@ export type GameState = {
    * Set on lite-restored analysis branches so shared hex maps stay immutable.
    */
   analysisSafe?: boolean;
+
+  /**
+   * Attempt-local Red encounter consumption (Step 5A).
+   * Not part of solverStateKey / lite analysis DTO.
+   * Cleared on newGame / retry / fresh attempt — never persisted to localStorage.
+   */
+  consumedEncounterIds?: Set<string>;
 };
 
 // Optional: centralize reachability typing here (recommended)

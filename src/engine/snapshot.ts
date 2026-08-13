@@ -1,5 +1,6 @@
 // src/engine/snapshot.ts
 import type { GameState, Hex, Scenario, Transition } from "./types";
+import { cloneConsumedEncounterIds } from "./encounters/redEncounter";
 
 /**
  * Full DTO (save/load, debugging)
@@ -19,6 +20,9 @@ export type GameStateDTO = {
 
   lastGuaranteedUpId?: string;
   lastGuaranteedUpTurn?: number;
+
+  /** Attempt-local Red encounter consumption (Step 5A). Not used by Solver lite DTO. */
+  consumedEncounterIds?: string[];
 };
 
 /**
@@ -66,6 +70,7 @@ export function snapshotState(state: GameState): GameStateDTO {
 
     lastGuaranteedUpId: state.lastGuaranteedUpId,
     lastGuaranteedUpTurn: state.lastGuaranteedUpTurn,
+    consumedEncounterIds: Array.from(state.consumedEncounterIds ?? []),
   };
 }
 
@@ -98,6 +103,7 @@ export function restoreState(dto: GameStateDTO): GameState {
     transitionsByFromId,
     lastGuaranteedUpId: dto.lastGuaranteedUpId,
     lastGuaranteedUpTurn: dto.lastGuaranteedUpTurn,
+    consumedEncounterIds: cloneConsumedEncounterIds(dto.consumedEncounterIds),
   };
 }
 
@@ -158,6 +164,8 @@ export function restoreStateLite(base: GameState, dto: GameStateLiteDTO): GameSt
     lastGuaranteedUpTurn: dto.lastGuaranteedUpTurn,
     // Shared hex map must not receive reveal mutations across BFS branches.
     analysisSafe: true,
+    // Fresh Set — never share mutable consumption with base (Step 5A / future 5B).
+    consumedEncounterIds: cloneConsumedEncounterIds(base.consumedEncounterIds),
   };
 }
 
