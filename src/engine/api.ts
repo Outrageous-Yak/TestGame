@@ -19,6 +19,20 @@ export {
   listLayerEntrySnapshotLayers,
 } from "./layerEntrySnapshot";
 export type { LayerRestoreResult, LayerRestoreStatus } from "./layerEntrySnapshot";
+export {
+  resolveRedEncounterRoll,
+  resolveEffectiveRedTier,
+  rollD6,
+  redEncounterEscapeHint,
+  RED_TIER_SUCCESS_AT_OR_ABOVE,
+} from "./encounters/redEncounterDice";
+export type {
+  RedEncounterOutcome,
+  RedEncounterRollResult,
+  D6RollSource,
+} from "./encounters/redEncounterDice";
+export { applyRedEncounterBanishment } from "./encounters/redEncounterBanishment";
+export type { RedBanishmentResult } from "./encounters/redEncounterBanishment";
 
 export function newGame(scenario: Scenario): GameState {
   return buildInitialState(scenario);

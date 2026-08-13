@@ -2,8 +2,8 @@
  * Step 5A — Red Encounter Foundation (domain helpers).
  *
  * RED / runtime `cosmic` cards are encounters.
- * Dice, banishment, and attaching restoration to Continue are deferred to Step 5C.
- * Layer-entry snapshots (Step 5B) must preserve consumedEncounterIds.
+ * Step 5C adds dice resolution + banishment (see redEncounterDice / redEncounterBanishment).
+ * Layer-entry snapshots (Step 5B) must preserve consumedEncounterIds across banishment.
  */
 
 import type { GameState } from "../types";
@@ -11,7 +11,7 @@ import type { GameState } from "../types";
 /** Stable authored encounter identity (prefer planner CardFeature.id). */
 export type EncounterId = string;
 
-/** Forward-compatible tier; optional until Step 5C resolution profiles. */
+/** Optional authored encounter tier (1–4). Runtime resolves unset → Tier 1. */
 export type EncounterTier = 1 | 2 | 3 | 4;
 
 export function isEncounterTier(value: unknown): value is EncounterTier {
@@ -56,10 +56,13 @@ export type EncounterActivation = {
 };
 
 /**
- * Step 5A resolution is acknowledgement only.
- * Step 5C may extend with dice / punishment outcomes.
+ * Encounter resolution outcomes.
+ * Step 5A used acknowledge-only; Step 5C adds dice-driven success / banishment.
  */
-export type EncounterResolution = { kind: "acknowledge" };
+export type EncounterResolution =
+  | { kind: "acknowledge" }
+  | { kind: "success"; roll: number; tier: EncounterTier }
+  | { kind: "banishment"; roll: number; tier: EncounterTier; restoreStatus: string };
 
 export function emptyConsumedEncounterIds(): Set<EncounterId> {
   return new Set();
