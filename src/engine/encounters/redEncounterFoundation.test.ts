@@ -7,6 +7,11 @@ import { join } from "path";
 import { newGame } from "../api";
 import { attemptMoveToSlot } from "../moveAttempt";
 import { snapshotState, restoreState, snapshotStateLite, restoreStateLite } from "../snapshot";
+import { solverStateKey } from "../trackAnalysis";
+import { assertScenario } from "../scenario";
+import { listLegalSuccessfulMoveTargets } from "../legalMoves";
+import { evaluateAttemptTerminal } from "../attemptTerminal";
+import { applyLayerTransformsToScenario } from "../layerTransform/applyTrackVariation";
 import type { Scenario } from "../types";
 import {
   cloneConsumedEncounterIds,
@@ -322,6 +327,122 @@ describe("Step 5A Red Encounter Foundation", () => {
     for (const c of cosmic) {
       expect(c.id.length).toBeGreaterThan(0);
     }
+    // Legacy fallback is deterministic for zero-based authored coords.
+    expect(cosmic[0].id).toBe(legacyEncounterId(cosmic[0].layer, cosmic[0].row, cosmic[0].col));
+  });
+
+  it("verification — activation decision does not mutate consumed set", () => {
+    const state = newGame(openBoard());
+    const before = Array.from(state.consumedEncounterIds ?? []);
+    expect(
+      shouldActivateRedEncounter({
+        cardKey: "cosmic",
+        encounterId: "pending",
+        consumed: state.consumedEncounterIds,
+        landedOnGoal: false,
+      })
+    ).toBe(true);
+    expect(Array.from(state.consumedEncounterIds ?? [])).toEqual(before);
+    expect(isEncounterConsumed(state, "pending")).toBe(false);
+  });
+
+  it("verification — double consume is idempotent (single id once)", () => {
+    const state = newGame(openBoard());
+    markEncounterConsumed(state, "A");
+    markEncounterConsumed(state, "A");
+    expect(Array.from(state.consumedEncounterIds ?? [])).toEqual(["A"]);
+  });
+
+  it("verification — invalid tier rejected by audit", () => {
+    let track = createFeatureAt(createEmptyTrack("t", "sc", "w", "T"), "card", { layer: 1, row: 2, col: 2 }, {
+      cardType: "RED",
+    });
+    const card = track.features.find((f) => f.kind === "card")!;
+    track = {
+      ...track,
+      features: track.features.map((f) =>
+        f.id === card.id ? ({ ...f, encounterTier: 9 } as typeof f) : f
+      ),
+    };
+    const items = auditTrack(track);
+    expect(items.some((x) => /tier must be 1/.test(x.message))).toBe(true);
+  });
+
+  it("verification — solverStateKey ignores consumedEncounterIds", () => {
+    const a = newGame(openBoard());
+    const keyBefore = solverStateKey(snapshotStateLite(a));
+    markEncounterConsumed(a, "enc");
+    const keyAfter = solverStateKey(snapshotStateLite(a));
+    expect(keyAfter).toBe(keyBefore);
+    expect(JSON.stringify(snapshotStateLite(a))).not.toContain("consumed");
+  });
+
+  it("verification — adjacent fixture lands on red; stranded fixture terminals after move", () => {
+    const adj = JSON.parse(
+      readFileSync(join(root, "src/engine/encounters/fixtures/redAdjacent.json"), "utf8")
+    );
+    assertScenario(adj);
+    const st = newGame(adj);
+    const legal = listLegalSuccessfulMoveTargets(st);
+    expect(legal).toContain("L1-R5-C3");
+    attemptMoveToSlot(st, { layer: 1, row: 5, col: 3 });
+    expect(st.playerHexId).toBe("L1-R5-C3");
+    // Domain: not consumed until Continue (UI); state still empty here.
+    expect(st.consumedEncounterIds?.size ?? 0).toBe(0);
+
+    const strandedDoc = JSON.parse(
+      readFileSync(join(root, "src/engine/encounters/fixtures/redThenStranded.json"), "utf8")
+    );
+    assertScenario(strandedDoc);
+    const st2 = newGame(strandedDoc);
+    attemptMoveToSlot(st2, { layer: 1, row: 5, col: 3 });
+    expect(evaluateAttemptTerminal(st2).kind).toBe("stranded");
+    expect(st2.consumedEncounterIds?.size ?? 0).toBe(0);
+  });
+
+  it("verification — transformExtras preserves authored encounter id", () => {
+    const base = {
+      id: "t",
+      name: "t",
+      layers: 7,
+      start: { layer: 1, row: 6, col: 3 },
+      goal: { layer: 1, row: 0, col: 3 },
+      missing: [],
+      blocked: [],
+      transitions: [],
+      movement: {
+        "1": "NONE",
+        "2": "NONE",
+        "3": "NONE",
+        "4": "NONE",
+        "5": "NONE",
+        "6": "NONE",
+        "7": "NONE",
+      },
+      revealOnEnterGuaranteedUp: false,
+      cardTriggers: [{ id: "feat_stable", card: "cosmic", layer: 1, row: 3, col: 3 }],
+    };
+    const out = applyLayerTransformsToScenario(
+      base as any,
+      {
+        seed: "verify",
+        layerTransforms: { 1: "reflect-horizontal" },
+      },
+      { validateScenario: false },
+    );
+    const trig = (out as any).cardTriggers[0];
+    expect(trig.id).toBe("feat_stable");
+    expect(trig.card).toBe("cosmic");
+    expect(typeof trig.row).toBe("number");
+  });
+  it("verification — 0-based card coords are not remapped when document has row/col 0", () => {
+    const parsed = parseCardTriggersFromScenario({
+      cardTriggers: [
+        { id: "a", card: "cosmic", layer: 1, row: 0, col: 0 },
+        { id: "b", card: "cosmic", layer: 1, row: 5, col: 3 },
+      ],
+    });
+    expect(parsed.find((t) => t.id === "b")).toMatchObject({ row: 5, col: 3 });
   });
 });
 

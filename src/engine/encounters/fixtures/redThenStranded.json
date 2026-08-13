@@ -1,0 +1,291 @@
+{
+  "id": "verify_red_stranded",
+  "name": "Verify Red then Stranded",
+  "layers": 7,
+  "start": {
+    "layer": 1,
+    "row": 6,
+    "col": 3
+  },
+  "goal": {
+    "layer": 1,
+    "row": 0,
+    "col": 0
+  },
+  "missing": [
+    {
+      "layer": 1,
+      "row": 0,
+      "col": 1
+    },
+    {
+      "layer": 1,
+      "row": 0,
+      "col": 2
+    },
+    {
+      "layer": 1,
+      "row": 0,
+      "col": 3
+    },
+    {
+      "layer": 1,
+      "row": 0,
+      "col": 4
+    },
+    {
+      "layer": 1,
+      "row": 0,
+      "col": 5
+    },
+    {
+      "layer": 1,
+      "row": 0,
+      "col": 6
+    },
+    {
+      "layer": 1,
+      "row": 1,
+      "col": 0
+    },
+    {
+      "layer": 1,
+      "row": 1,
+      "col": 1
+    },
+    {
+      "layer": 1,
+      "row": 1,
+      "col": 2
+    },
+    {
+      "layer": 1,
+      "row": 1,
+      "col": 3
+    },
+    {
+      "layer": 1,
+      "row": 1,
+      "col": 4
+    },
+    {
+      "layer": 1,
+      "row": 1,
+      "col": 5
+    },
+    {
+      "layer": 1,
+      "row": 2,
+      "col": 0
+    },
+    {
+      "layer": 1,
+      "row": 2,
+      "col": 1
+    },
+    {
+      "layer": 1,
+      "row": 2,
+      "col": 2
+    },
+    {
+      "layer": 1,
+      "row": 2,
+      "col": 3
+    },
+    {
+      "layer": 1,
+      "row": 2,
+      "col": 4
+    },
+    {
+      "layer": 1,
+      "row": 2,
+      "col": 5
+    },
+    {
+      "layer": 1,
+      "row": 2,
+      "col": 6
+    },
+    {
+      "layer": 1,
+      "row": 3,
+      "col": 0
+    },
+    {
+      "layer": 1,
+      "row": 3,
+      "col": 1
+    },
+    {
+      "layer": 1,
+      "row": 3,
+      "col": 2
+    },
+    {
+      "layer": 1,
+      "row": 3,
+      "col": 3
+    },
+    {
+      "layer": 1,
+      "row": 3,
+      "col": 4
+    },
+    {
+      "layer": 1,
+      "row": 3,
+      "col": 5
+    },
+    {
+      "layer": 1,
+      "row": 4,
+      "col": 0
+    },
+    {
+      "layer": 1,
+      "row": 4,
+      "col": 1
+    },
+    {
+      "layer": 1,
+      "row": 4,
+      "col": 2
+    },
+    {
+      "layer": 1,
+      "row": 4,
+      "col": 3
+    },
+    {
+      "layer": 1,
+      "row": 4,
+      "col": 4
+    },
+    {
+      "layer": 1,
+      "row": 4,
+      "col": 5
+    },
+    {
+      "layer": 1,
+      "row": 4,
+      "col": 6
+    },
+    {
+      "layer": 1,
+      "row": 5,
+      "col": 0
+    },
+    {
+      "layer": 1,
+      "row": 5,
+      "col": 1
+    },
+    {
+      "layer": 1,
+      "row": 5,
+      "col": 2
+    },
+    {
+      "layer": 1,
+      "row": 5,
+      "col": 4
+    },
+    {
+      "layer": 1,
+      "row": 5,
+      "col": 5
+    },
+    {
+      "layer": 1,
+      "row": 6,
+      "col": 0
+    },
+    {
+      "layer": 1,
+      "row": 6,
+      "col": 1
+    },
+    {
+      "layer": 1,
+      "row": 6,
+      "col": 2
+    },
+    {
+      "layer": 1,
+      "row": 6,
+      "col": 4
+    },
+    {
+      "layer": 1,
+      "row": 6,
+      "col": 5
+    },
+    {
+      "layer": 1,
+      "row": 6,
+      "col": 6
+    }
+  ],
+  "blocked": [],
+  "transitions": [],
+  "movement": {
+    "1": {
+      "rows": {
+        "0": {
+          "direction": "NONE",
+          "amount": 0
+        },
+        "1": {
+          "direction": "NONE",
+          "amount": 0
+        },
+        "2": {
+          "direction": "NONE",
+          "amount": 0
+        },
+        "3": {
+          "direction": "NONE",
+          "amount": 0
+        },
+        "4": {
+          "direction": "NONE",
+          "amount": 0
+        },
+        "5": {
+          "direction": "LEFT",
+          "amount": 3
+        },
+        "6": {
+          "direction": "RIGHT",
+          "amount": 3
+        }
+      }
+    },
+    "2": "NONE",
+    "3": "NONE",
+    "4": "NONE",
+    "5": "NONE",
+    "6": "NONE",
+    "7": "NONE"
+  },
+  "revealOnEnterGuaranteedUp": false,
+  "cardTriggers": [
+    {
+      "id": "red_A",
+      "card": "cosmic",
+      "layer": 1,
+      "row": 5,
+      "col": 3
+    },
+    {
+      "id": "zb_marker",
+      "card": "terrain",
+      "layer": 1,
+      "row": 0,
+      "col": 0
+    }
+  ]
+}

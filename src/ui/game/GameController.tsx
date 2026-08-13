@@ -142,6 +142,7 @@ export function GameController({
   const [redEncounter, setRedEncounter] = useState<
     null | (EncounterActivation & { pendingStrandedMoves: number | null })
   >(null);
+  const redEncounterAckRef = useRef(false);
   const encounterActive = !!encounter;
   const redEncounterActive = !!redEncounter;
   const boardEventActive = encounterActive || redEncounterActive;
@@ -1103,15 +1104,21 @@ export function GameController({
 
   const acknowledgeRedEncounter = useCallback(() => {
     if (!state || !redEncounter) return;
+    // Guard double-Continue / rapid re-entry before React clears panel state.
+    if (redEncounterAckRef.current) return;
+    redEncounterAckRef.current = true;
+
+    const pendingStranded = redEncounter.pendingStrandedMoves;
     markEncounterConsumed(state, redEncounter.encounterId);
     setState(state);
     forceRender((n) => n + 1);
-    const pendingStranded = redEncounter.pendingStrandedMoves;
     setRedEncounter(null);
     pushLog("Encounter acknowledged — consumed for this attempt.", "info");
     if (pendingStranded != null) {
       pushLog("STRANDED — no paths remain.", "bad");
       setStranded({ moves: pendingStranded });
+      // Keep board locked; stranded terminal modal owns the lock thereafter.
+      return;
     }
     boardInputLockedRef.current = false;
   }, [state, redEncounter, pushLog]);
@@ -1271,6 +1278,7 @@ export function GameController({
 
     setEncounter(null);
     setRedEncounter(null);
+    redEncounterAckRef.current = false;
     pendingEncounterMoveIdRef.current = null;
     boardInputLockedRef.current = false;
     setFailedSlotFeedback(null);
@@ -1453,6 +1461,7 @@ export function GameController({
             window.setTimeout(() => void playVillainVoice("bad1"), 500);
           });
           const strandedNow = evaluateAttemptTerminal(state).kind === "stranded";
+          redEncounterAckRef.current = false;
           setRedEncounter({
             encounterId: landedTrig.id,
             layer: landedTrig.layer,

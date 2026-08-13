@@ -138,8 +138,18 @@ export function parseCardTriggersFromScenario(s: any): CardTrigger[] {
   const src = (Array.isArray(s?.cardTriggers) && s.cardTriggers) || [];
   const allowed: CardKey[] = ["cosmic", "risk", "terrain", "shadow"];
 
-  const toZeroBasedRow = (r: number) => (r >= 1 && r <= 7 ? r - 1 : r);
-  const toZeroBasedCol = (c: number) => (c >= 1 && c <= 7 ? c - 1 : c);
+  // Production JSON is 0-based. Some older files used 1-based rows/cols.
+  // Only remap when the document looks 1-based (never touches row/col 0).
+  const looksZeroBased = src.some((raw: any) => {
+    if (!raw || typeof raw !== "object") return false;
+    const row = Number(raw.row);
+    const col = Number(raw.col);
+    return row === 0 || col === 0;
+  });
+  const toZeroBasedRow = (r: number) =>
+    looksZeroBased ? r : r >= 1 && r <= 7 ? r - 1 : r;
+  const toZeroBasedCol = (c: number) =>
+    looksZeroBased ? c : c >= 1 && c <= 7 ? c - 1 : c;
 
   const out: CardTrigger[] = [];
   const usedIds = new Set<string>();
