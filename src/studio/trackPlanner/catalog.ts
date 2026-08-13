@@ -158,10 +158,11 @@ export function scenarioJsonToTrack(base: PlannerTrack, raw: unknown): PlannerTr
   cards.forEach((c, i) => {
     features.push({
       kind: "card",
-      id: `card_${i + 1}`,
+      id: c.id || `card_${i + 1}`,
       position: { layer: c.layer, row: c.row, col: c.col },
       cardType: RUNTIME_TO_CARD[c.card],
       contentMode: "specific",
+      ...(c.encounterTier ? { encounterTier: c.encounterTier } : {}),
     });
   });
 

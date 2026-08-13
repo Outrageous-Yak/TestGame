@@ -126,6 +126,28 @@ export function auditTrack(
     items.push(...auditFeature(track, f, slotDupes, allowedVillains, allowedEncounters));
   }
 
+  const idCounts = new Map<string, number>();
+  for (const f of track.features) {
+    idCounts.set(f.id, (idCounts.get(f.id) ?? 0) + 1);
+  }
+  for (const [fid, count] of idCounts) {
+    if (count > 1) {
+      items.push(
+        mk({
+          featureId: fid,
+          featureLabel: "Feature ID",
+          layer: 0,
+          position: "—",
+          configuration: `Duplicate id ×${count}`,
+          level: "error",
+          category: "encounters",
+          message: `Duplicate feature id "${fid}" — encounter identity must be unique`,
+          notes: "",
+        }),
+      );
+    }
+  }
+
   items.push(...auditVisibility(track));
 
   return items;
@@ -403,6 +425,17 @@ function auditCard(
   }
 
   if (f.cardType === "RED") {
+    if (f.encounterTier != null && ![1, 2, 3, 4].includes(f.encounterTier)) {
+      items.push(
+        mk({
+          ...base,
+          level: "error",
+          category: "encounters",
+          message: `Red encounter tier must be 1–4 (got ${String(f.encounterTier)})`,
+          notes: "",
+        }),
+      );
+    }
     if (f.contentMode === "specific") {
       if (f.villainKey && !allowedVillains.has(f.villainKey)) {
         items.push(

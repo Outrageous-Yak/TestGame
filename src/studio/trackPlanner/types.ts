@@ -111,6 +111,11 @@ export interface CardFeature {
   contentMode?: CardContentMode;
   encounterId?: string;
   villainKey?: VillainKey;
+  /**
+   * Optional Red encounter tier (1–4). Authoring-only until Step 5C.
+   * Omitted on legacy tracks — do not invent a silent default for resolution.
+   */
+  encounterTier?: 1 | 2 | 3 | 4;
 }
 
 export interface EncounterFeature {
