@@ -94,12 +94,31 @@ import {
   shouldActivateRedEncounter,
   type EncounterActivation,
 } from "../../engine/encounters/redEncounter";
+import {
+  resolveEffectiveRedTier,
+  resolveRedEncounterRoll,
+  rollD6,
+  type RedEncounterOutcome,
+} from "../../engine/encounters/redEncounterDice";
+import { applyRedEncounterBanishment } from "../../engine/encounters/redEncounterBanishment";
 import { evaluateAttemptTerminal } from "../../engine/attemptTerminal";
-import { RedEncounterPanel } from "./RedEncounterPanel";
+import { RedEncounterPanel, type RedEncounterPhase } from "./RedEncounterPanel";
+import { DiceCube } from "./DiceCube";
+import { useDiceRoll } from "./useDiceRoll";
+import { BASE_DICE_VIEW, rotForRoll } from "./diceGeometry";
 import { preloadThunderSound } from "../audio/stormAudio";
 import { ReachSparkle } from "./ReachSparkle";
 import { startBackgroundMusic, stopBackgroundMusic } from "../audio/backgroundMusic";
 import type { MoveAttemptResult } from "../../engine/moveAttempt";
+
+type RedEncounterSession = EncounterActivation & {
+  pendingStrandedMoves: number | null;
+  phase: RedEncounterPhase;
+  /** Authoritative face — set once when Roll is pressed. */
+  roll?: number;
+  outcome?: RedEncounterOutcome;
+  resolutionCommitted: boolean;
+};
 
 type GoalAchievedState = {
   moves: number;
@@ -139,10 +158,14 @@ export function GameController({
   const [villainTriggers, setVillainTriggers] = useState<VillainTrigger[]>([]);
   const [encounter, setEncounter] = useState<Encounter>(null);
   const pendingEncounterMoveIdRef = useRef<string | null>(null);
-  const [redEncounter, setRedEncounter] = useState<
-    null | (EncounterActivation & { pendingStrandedMoves: number | null })
-  >(null);
+  const [redEncounter, setRedEncounter] = useState<RedEncounterSession | null>(null);
   const redEncounterAckRef = useRef(false);
+  /** Forced d6 for deterministic browser/dev tests: window.__HEX_FORCE_D6 = 1..6 */
+  const redD6SourceRef = useRef<() => number>(() => {
+    const w = typeof window !== "undefined" ? (window as unknown as { __HEX_FORCE_D6?: number }) : null;
+    if (w && typeof w.__HEX_FORCE_D6 === "number") return rollD6(() => w.__HEX_FORCE_D6 as number);
+    return rollD6();
+  });
   const encounterActive = !!encounter;
   const redEncounterActive = !!redEncounter;
   const boardEventActive = encounterActive || redEncounterActive;
@@ -181,6 +204,10 @@ export function GameController({
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
+
+  const redDice = useDiceRoll({ reducedMotion });
+  const redDiceApiRef = useRef(redDice);
+  redDiceApiRef.current = redDice;
 
   const visibilityMode = resolveScenarioVisibilityMode(scenarioEntry);
   const isVisibilityScenario = visibilityMode != null;
@@ -690,17 +717,6 @@ export function GameController({
     return toPublicUrl(VILLAINS_BASE + "/" + key + ".png");
   }
 
-  function DiceCorners() {
-    return (
-      <>
-        <span className="diceCorner tl" />
-        <span className="diceCorner tr" />
-        <span className="diceCorner bl" />
-        <span className="diceCorner br" />
-      </>
-    );
-  }
-
   /* =========================
      Sprite
   ========================= */
@@ -770,9 +786,8 @@ export function GameController({
   }
 
   /* =========================
-     Dice
+     Dice (Green risk / villain — shared geometry; own roll lifecycle)
   ========================= */
-  const BASE_DICE_VIEW = { x: -28, y: -36 };
   const [diceValue, setDiceValue] = useState<number>(2);
   const [diceRolling, setDiceRolling] = useState(false);
   const [diceRot, setDiceRot] = useState<{ x: number; y: number }>(BASE_DICE_VIEW);
@@ -785,25 +800,6 @@ export function GameController({
       if (diceTimer.current) window.clearTimeout(diceTimer.current);
     };
   }, []);
-
-  function rotForRoll(n: number) {
-    switch (n) {
-      case 1:
-        return { x: -90, y: 0 };
-      case 2:
-        return { x: 0, y: 0 };
-      case 3:
-        return { x: 0, y: -90 };
-      case 4:
-        return { x: 0, y: 90 };
-      case 5:
-        return { x: 0, y: 180 };
-      case 6:
-        return { x: 90, y: 0 };
-      default:
-        return { x: 0, y: 0 };
-    }
-  }
 
   const rollDice = useCallback(() => {
     if (diceRolling) return;
@@ -1102,26 +1098,153 @@ export function GameController({
     [cardTriggers]
   );
 
-  const acknowledgeRedEncounter = useCallback(() => {
+  const beginRedEncounterRoll = useCallback(() => {
     if (!state || !redEncounter) return;
-    // Guard double-Continue / rapid re-entry before React clears panel state.
-    if (redEncounterAckRef.current) return;
+    if (redEncounter.phase !== "intro") return;
+    if (redEncounter.roll != null) return;
+    if (redEncounter.resolutionCommitted) return;
+    if (redDiceApiRef.current.rolling) return;
+
+    let face: number;
+    try {
+      face = redD6SourceRef.current();
+    } catch {
+      face = rollD6();
+    }
+    const classified = resolveRedEncounterRoll(redEncounter.tier, face);
+    if (!classified.ok) return;
+
+    setRedEncounter({
+      ...redEncounter,
+      phase: "rolling",
+      roll: classified.roll,
+      outcome: classified.outcome,
+    });
+
+    const started = redDiceApiRef.current.roll(classified.roll, () => {
+      setRedEncounter((prev) => {
+        if (!prev || prev.roll !== classified.roll) return prev;
+        if (prev.phase !== "rolling") return prev;
+        return {
+          ...prev,
+          phase: classified.outcome === "success" ? "result_success" : "result_banish",
+        };
+      });
+    });
+    if (!started) {
+      setRedEncounter({ ...redEncounter, phase: "intro", roll: undefined, outcome: undefined });
+    }
+  }, [state, redEncounter]);
+
+  const commitRedEncounterResolution = useCallback(() => {
+    if (!state || !redEncounter) return;
+    if (redEncounterAckRef.current || redEncounter.resolutionCommitted) return;
+    if (
+      redEncounter.phase !== "result_success" &&
+      redEncounter.phase !== "result_banish" &&
+      redEncounter.phase !== "banish_failed"
+    ) {
+      return;
+    }
     redEncounterAckRef.current = true;
 
     const pendingStranded = redEncounter.pendingStrandedMoves;
+    const outcome = redEncounter.outcome;
+    const layer = redEncounter.layer;
+
+    // Consume once at commit — before banishment restore — so restore preserves spent state.
     markEncounterConsumed(state, redEncounter.encounterId);
+
+    if (redEncounter.phase === "result_banish" && outcome === "banishment") {
+      const banished = applyRedEncounterBanishment(state, layer);
+      if (!banished.restored) {
+        // Keep live world unchanged; show contained failure (do not Start-reload).
+        setState(state);
+        forceRender((n) => n + 1);
+        setRedEncounter({
+          ...redEncounter,
+          phase: "banish_failed",
+          resolutionCommitted: false,
+        });
+        redEncounterAckRef.current = false;
+        pushLog(
+          "Banishment failed (" + banished.status + ") — checkpoint could not be restored.",
+          "bad"
+        );
+        return;
+      }
+      const player = state.hexesById.get(state.playerHexId);
+      const restoredLayer = player?.pos.layer ?? layer;
+      setCurrentLayer(restoredLayer);
+      setSelectedId(state.playerHexId);
+      setState(state);
+      forceRender((n) => n + 1);
+      pushLog(
+        "Banished — restored layer " + layer + " entry (roll " + (redEncounter.roll ?? "?") + ").",
+        "bad"
+      );
+
+      setRedEncounter(null);
+      redDiceApiRef.current.cancel();
+
+      // Recompute terminal from RESTORED world (not pre-banishment position).
+      const terminal = evaluateAttemptTerminal(state);
+      if (terminal.kind === "success") {
+        // Goal on restored hex is unexpected but authoritative.
+        recordWin(movesTaken);
+        return;
+      }
+      if (terminal.kind === "stranded") {
+        pushLog("STRANDED — no paths remain.", "bad");
+        setStranded({ moves: movesTaken });
+        return;
+      }
+      boardInputLockedRef.current = false;
+      return;
+    }
+
+    if (redEncounter.phase === "banish_failed") {
+      setRedEncounter(null);
+      redDiceApiRef.current.cancel();
+      pushLog("Encounter closed after banishment failure — live state unchanged.", "info");
+      // Prefer Exit-safe unlock; stranded from pre-banish landing may still apply.
+      if (pendingStranded != null) {
+        pushLog("STRANDED — no paths remain.", "bad");
+        setStranded({ moves: pendingStranded });
+        return;
+      }
+      boardInputLockedRef.current = false;
+      return;
+    }
+
+    // Success path
     setState(state);
     forceRender((n) => n + 1);
     setRedEncounter(null);
-    pushLog("Encounter acknowledged — consumed for this attempt.", "info");
+    redDiceApiRef.current.cancel();
+    pushLog(
+      "Escaped encounter (roll " +
+        (redEncounter.roll ?? "?") +
+        ", Tier " +
+        resolveEffectiveRedTier(redEncounter.tier) +
+        ") — consumed for this attempt.",
+      "ok"
+    );
     if (pendingStranded != null) {
       pushLog("STRANDED — no paths remain.", "bad");
       setStranded({ moves: pendingStranded });
-      // Keep board locked; stranded terminal modal owns the lock thereafter.
+      return;
+    }
+    // Recompute in case board changed (should be same as pending for success).
+    if (evaluateAttemptTerminal(state).kind === "stranded") {
+      pushLog("STRANDED — no paths remain.", "bad");
+      setStranded({ moves: movesTaken });
       return;
     }
     boardInputLockedRef.current = false;
-  }, [state, redEncounter, pushLog]);
+  }, [state, redEncounter, pushLog, movesTaken, setCurrentLayer, recordWin]);
+
+  // Legacy name kept out — Step 5C uses beginRedEncounterRoll / commitRedEncounterResolution.
 
   type FlyCard = {
     key: number;
@@ -1279,6 +1402,7 @@ export function GameController({
     setEncounter(null);
     setRedEncounter(null);
     redEncounterAckRef.current = false;
+    redDiceApiRef.current.cancel();
     pendingEncounterMoveIdRef.current = null;
     boardInputLockedRef.current = false;
     setFailedSlotFeedback(null);
@@ -1462,6 +1586,8 @@ export function GameController({
           });
           const strandedNow = evaluateAttemptTerminal(state).kind === "stranded";
           redEncounterAckRef.current = false;
+          redDiceApiRef.current.cancel();
+          redDiceApiRef.current.settle(2);
           setRedEncounter({
             encounterId: landedTrig.id,
             layer: landedTrig.layer,
@@ -1469,9 +1595,11 @@ export function GameController({
             col: landedTrig.col,
             tier: landedTrig.encounterTier,
             pendingStrandedMoves: strandedNow && !landedOnGoal ? newMoveCount : null,
+            phase: "intro",
+            resolutionCommitted: false,
           });
           pushLog("Red encounter: " + landedTrig.id, "bad");
-          // Keep board locked until Continue — do not releaseBoardInput here.
+          // Keep board locked until encounter resolution — do not releaseBoardInput here.
           return;
         }
 
@@ -2114,28 +2242,12 @@ export function GameController({
 
             <div className="riskEncounterControls">
               <div className="encounterActionRow">
-                <div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
-                  <div className="cube" style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}>
-                    <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                  </div>
-                </div>
+                <DiceCube
+                  value={diceValue}
+                  rot={diceRot}
+                  rolling={diceRolling}
+                  faceUrl={diceImg}
+                />
 
                 <div className="encounterInfo">
                   <div className="encounterTitle">ENCOUNTER!</div>
@@ -2192,7 +2304,18 @@ export function GameController({
         <RedEncounterPanel
           encounterId={redEncounter.encounterId}
           tier={redEncounter.tier}
-          onContinue={acknowledgeRedEncounter}
+          phase={redEncounter.phase}
+          roll={redEncounter.roll}
+          outcome={redEncounter.outcome}
+          diceValue={redDice.value}
+          diceRot={redDice.rot}
+          diceRolling={redDice.rolling}
+          faceUrl={diceImg}
+          diceBorderCss={
+            DICE_BORDER_IMG ? "url(" + toPublicUrl(DICE_BORDER_IMG) + ")" : undefined
+          }
+          onRoll={beginRedEncounterRoll}
+          onContinue={commitRedEncounterResolution}
         />
       ) : null}
 
@@ -2216,28 +2339,12 @@ export function GameController({
 
             <div className="encounterRight">
               <div className="encounterActionRow">
-                <div className={"dice3d diceLg " + (diceRolling ? "rolling" : "")}>
-                  <div className="cube" style={{ transform: "rotateX(" + diceRot.x + "deg) rotateY(" + diceRot.y + "deg)" }}>
-                    <div className="face face-front" style={{ backgroundImage: "url(" + diceImg(diceValue) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-back" style={{ backgroundImage: "url(" + diceImg(5) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-right" style={{ backgroundImage: "url(" + diceImg(3) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-left" style={{ backgroundImage: "url(" + diceImg(4) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-top" style={{ backgroundImage: "url(" + diceImg(1) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                    <div className="face face-bottom" style={{ backgroundImage: "url(" + diceImg(6) + ")" }}>
-                      <DiceCorners />
-                    </div>
-                  </div>
-                </div>
+                <DiceCube
+                  value={diceValue}
+                  rot={diceRot}
+                  rolling={diceRolling}
+                  faceUrl={diceImg}
+                />
 
                 <div className="encounterInfo">
                   <div className="encounterTitle">ENCOUNTER!</div>

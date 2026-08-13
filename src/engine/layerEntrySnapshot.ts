@@ -3,11 +3,7 @@
  *
  * RESTORE WORLD STATE. PRESERVE ATTEMPT HISTORY.
  *
- * This is infrastructure only: capture / restore primitives.
- * Step 5C decides WHEN restoration occurs (dice / banishment).
- *
- * Explicitly not implemented here:
- * dice, RNG, banishment, V1–V4 punishments, auto-restore on Red Continue.
+ * Capture / restore primitives. Step 5C wires restoration to Red dice banishment.
  */
 
 import type { GameState, LayerEntryWorldSnapshot } from "./types";
