@@ -7,6 +7,7 @@ import "./cloud/cloudAtmosphere.css";
 import "./cloud/forkVisibility.css";
 import "./cloud/stormWeather.css";
 import "./game/reachSparkle.css";
+import "./game/goalSceneCenter.css";
 import { StartScreen } from "./screens/StartScreen";
 import { MenuScreen } from "./screens/MenuScreen";
 import { GameController } from "./game/GameController";
