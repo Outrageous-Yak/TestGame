@@ -1,4 +1,5 @@
 import React from "react";
+import "./StartScreen.css";
 
 type StartScreenProps = {
   themeVars: React.CSSProperties;
@@ -24,13 +25,13 @@ export function StartScreen({
   onReset,
 }: StartScreenProps) {
   return (
-    <div className="appRoot" style={themeVars}>
+    <div className="appRoot startScreen" style={themeVars}>
       <div className="screen center">
         <div className="panel">
           <div className="title">Hex Game</div>
           <div className="sub">Start → World Map → Track → Game</div>
 
-          <div className="row">
+          <div className="row startMenuButtons">
             <button className="btn primary" onClick={onStart}>
               Start
             </button>
