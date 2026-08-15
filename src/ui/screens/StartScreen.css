@@ -7,22 +7,113 @@
   background-repeat: no-repeat;
 }
 
-.startScreen .screen.center {
+.startScreen .startScreenCenter {
   min-height: 100dvh;
   height: auto;
+  padding: max(24px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.startScreen .panel {
-  width: min(420px, 88vw);
+.startMenuPanel {
+  width: min(380px, 82vw);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 18px;
+  transform: translateY(16vh);
 }
 
 .startMenuButtons {
+  width: 100%;
+  display: flex;
   flex-direction: column;
   align-items: stretch;
-  justify-content: flex-start;
+  gap: 12px;
 }
 
 .startMenuButtons .btn {
   width: 100%;
-  min-height: 48px;
+  min-height: 58px;
+  padding: 10px 22px;
+  border-radius: 15px;
+  display: grid;
+  grid-template-columns: 38px 1fr 38px;
+  align-items: center;
+  text-align: left;
+  background: rgba(13, 17, 27, .88);
+  border: 1px solid rgba(255,255,255,.20);
+  box-shadow: 0 8px 24px rgba(0,0,0,.30);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+}
+
+.startMenuButtons .btn span {
+  grid-column: 2;
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.startMenuButtons .btn.primary {
+  background: rgba(13, 17, 27, .91);
+  border-color: rgba(93, 211, 255, .72);
+  box-shadow: 0 0 0 1px rgba(93,211,255,.12), 0 8px 24px rgba(0,0,0,.32);
+}
+
+.startMenuIcon {
+  grid-column: 1;
+  width: 27px;
+  height: 27px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: rgba(255,255,255,.94);
+}
+
+.startMenuButtons .btn:first-child .startMenuIcon {
+  fill: currentColor;
+  stroke: none;
+}
+
+.startMenuIcon path,
+.startMenuIcon circle,
+.startMenuIcon rect {
+  vector-effect: non-scaling-stroke;
+}
+
+.startWorldCount {
+  align-self: center;
+  color: rgba(255,255,255,.70);
+  font-size: 17px;
+  text-shadow: 0 2px 8px rgba(0,0,0,.85);
+}
+
+.startWorldCount b {
+  color: var(--accent, #5dd3ff);
+}
+
+.startDevMenu {
+  background: rgba(7,8,20,.82);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+@media (max-height: 720px) {
+  .startMenuPanel {
+    transform: translateY(10vh);
+    gap: 12px;
+  }
+  .startMenuButtons { gap: 8px; }
+  .startMenuButtons .btn { min-height: 50px; }
+}
+
+@media (min-width: 700px) {
+  .startMenuPanel {
+    width: 390px;
+    transform: translateY(10vh);
+  }
 }
