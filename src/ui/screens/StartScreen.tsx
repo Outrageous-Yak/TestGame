@@ -1,5 +1,5 @@
 import React from "react";
-import startScreenBackground from "../../assets/start-screen-background.jpeg";
+import "./StartScreen.css";
 
 type StartScreenProps = {
   themeVars: React.CSSProperties;
@@ -25,13 +25,7 @@ export function StartScreen({
   onReset,
 }: StartScreenProps) {
   return (
-    <div
-      className="appRoot startScreen"
-      style={{
-        ...themeVars,
-        backgroundImage: `url(${startScreenBackground})`,
-      }}
-    >
+    <div className="appRoot startScreen" style={themeVars}>
       <div className="screen center">
         <div className="panel">
           <div className="title">Hex Game</div>
