@@ -1,0 +1,28 @@
+.startScreen {
+  min-height: 100dvh;
+  background-color: var(--bg0);
+  background-image: url("/TestGame/start-screen-background.jpeg");
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+.startScreen .screen.center {
+  min-height: 100dvh;
+  height: auto;
+}
+
+.startScreen .panel {
+  width: min(420px, 88vw);
+}
+
+.startMenuButtons {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.startMenuButtons .btn {
+  width: 100%;
+  min-height: 48px;
+}
