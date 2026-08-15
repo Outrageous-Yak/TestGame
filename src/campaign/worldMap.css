@@ -168,7 +168,7 @@
   background-position:
     calc(var(--frameW) * -1px * var(--frameX))
     calc(var(--frameH) * -1px * var(--frameY));
-  transform: scale(0.34);
+  transform: scale(0.74);
   transform-origin: center;
   display: block;
 }
