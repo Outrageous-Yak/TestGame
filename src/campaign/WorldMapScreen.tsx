@@ -42,7 +42,12 @@ export function WorldMapScreen({
   }, [progressRefreshKey, campaignMapId]);
 
   return (
-    <div className="appRoot worldMapRoot" style={themeVars} data-theme={map.theme ?? "grasslands"}>
+    <div
+      className="appRoot worldMapRoot"
+      style={themeVars}
+      data-theme={map.theme ?? "grasslands"}
+      data-world-id={map.worldId}
+    >
       <header className="worldMapHeader">
         <button type="button" className="btn" onClick={onBack}>
           Back

@@ -12,12 +12,32 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Forgotten Citadel uses its own world artwork while other campaign maps keep the default theme. */
+.worldMapRoot[data-world-id="forgotten_citadel"] {
+  background-color: #0b1118;
+  background-image:
+    linear-gradient(rgba(5, 10, 16, 0.16), rgba(5, 10, 16, 0.34)),
+    url("/TestGame/worlds/forgotten_citadel/assets/backgrounds/citadel-bg.png");
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-attachment: local;
+  color: #f4f7fb;
+}
+
 .worldMapHeader {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
   flex-shrink: 0;
+}
+
+.worldMapRoot[data-world-id="forgotten_citadel"] .worldMapHeader {
+  background: rgba(5, 10, 16, 0.38);
+  text-shadow: 0 2px 7px rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .worldMapTitles {
@@ -81,6 +101,11 @@
   stroke-width: 1.4;
   stroke-linecap: round;
   stroke-dasharray: 2.2 1.6;
+}
+
+.worldMapRoot[data-world-id="forgotten_citadel"] .worldMapPath {
+  stroke: rgba(220, 231, 238, 0.68);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.75));
 }
 
 .worldMapNode {
@@ -171,6 +196,21 @@
   background: #d4e8a8;
 }
 
+/* Small board-style hex nodes for Forgotten Citadel. The existing button remains the tap target. */
+.worldMapRoot[data-world-id="forgotten_citadel"] .worldMapNodeDot {
+  width: 48px;
+  height: 42px;
+  border: 0;
+  border-radius: 0;
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  background-image: url("/TestGame/worlds/forgotten_citadel/assets/tiles/hex-normal.png");
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: none;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55));
+}
+
 .worldMapNodeLabel {
   font-size: 0.68rem;
   font-weight: 650;
@@ -186,6 +226,12 @@
   opacity: 0.9;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.worldMapRoot[data-world-id="forgotten_citadel"] .worldMapNodeLabel,
+.worldMapRoot[data-world-id="forgotten_citadel"] .worldMapNodeStatus {
+  color: #f3f7fb;
+  text-shadow: 0 2px 4px #000, 0 0 8px rgba(0, 0, 0, 0.95);
 }
 
 .worldMapNode--available .worldMapNodeDot {
@@ -205,14 +251,40 @@
   border-color: #e8f4ff;
 }
 
+/* Re-apply the tile art after generic progression fills, then distinguish states without hiding the art. */
+.worldMapRoot[data-world-id="forgotten_citadel"] .worldMapNodeDot {
+  background-image: url("/TestGame/worlds/forgotten_citadel/assets/tiles/hex-normal.png");
+}
+
+.worldMapRoot[data-world-id="forgotten_citadel"] .worldMapNode--available .worldMapNodeDot,
+.worldMapRoot[data-world-id="forgotten_citadel"] .worldMapNode--author .worldMapNodeDot {
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55));
+}
+
+.worldMapRoot[data-world-id="forgotten_citadel"] .worldMapNode--current .worldMapNodeDot {
+  filter: drop-shadow(0 0 7px rgba(255, 220, 80, 0.95)) drop-shadow(0 3px 5px rgba(0, 0, 0, 0.65));
+}
+
+.worldMapRoot[data-world-id="forgotten_citadel"] .worldMapNode--completed .worldMapNodeDot {
+  filter: sepia(.18) hue-rotate(155deg) saturate(1.5) brightness(.92) drop-shadow(0 0 5px rgba(90, 185, 255, .75));
+}
+
 .worldMapNode--completed .worldMapNodeStatus {
   color: #0d3a5c;
+}
+
+.worldMapRoot[data-world-id="forgotten_citadel"] .worldMapNode--completed .worldMapNodeStatus {
+  color: #8fd5ff;
 }
 
 .worldMapNode--locked .worldMapNodeDot {
   background: linear-gradient(145deg, #8a8a8a, #5c5c5c);
   border-color: rgba(255, 255, 255, 0.35);
   opacity: 0.75;
+}
+
+.worldMapRoot[data-world-id="forgotten_citadel"] .worldMapNode--locked .worldMapNodeDot {
+  filter: grayscale(1) brightness(.48) drop-shadow(0 3px 5px rgba(0, 0, 0, .55));
 }
 
 .worldMapNode--locked .worldMapNodeLabel,
@@ -224,6 +296,10 @@
   background: linear-gradient(145deg, #c07070, #7a3030);
   border-color: rgba(255, 200, 200, 0.5);
   opacity: 0.85;
+}
+
+.worldMapRoot[data-world-id="forgotten_citadel"] .worldMapNode--invalid .worldMapNodeDot {
+  filter: sepia(1) saturate(2.4) hue-rotate(315deg) brightness(.65) drop-shadow(0 3px 5px rgba(0, 0, 0, .55));
 }
 
 .worldMapNode--invalid .worldMapNodeLabel,
@@ -240,6 +316,10 @@
 .worldMapNode--selected .worldMapNodeDot {
   box-shadow: 0 0 0 4px rgba(40, 90, 200, 0.45), 0 3px 12px rgba(0, 0, 0, 0.3);
   border-color: #2a5fd4;
+}
+
+.worldMapRoot[data-world-id="forgotten_citadel"] .worldMapNode--selected .worldMapNodeDot {
+  filter: drop-shadow(0 0 7px rgba(80, 150, 255, .95)) drop-shadow(0 3px 5px rgba(0, 0, 0, .65));
 }
 
 .worldMapDropLayer {
@@ -276,6 +356,11 @@
   font-weight: 600;
   flex-shrink: 0;
   background: rgba(30, 50, 20, 0.18);
+}
+
+.worldMapRoot[data-world-id="forgotten_citadel"] .worldMapLegend {
+  background: rgba(5, 10, 16, 0.7);
+  color: #edf3f8;
 }
 
 .worldMapLegendItem::before {
@@ -315,6 +400,11 @@
   .worldMapNodeDot {
     width: 52px;
     height: 52px;
+  }
+
+  .worldMapRoot[data-world-id="forgotten_citadel"] .worldMapNodeDot {
+    width: 56px;
+    height: 49px;
   }
 
   .worldMapNodeLabel {
