@@ -1,0 +1,12 @@
+/* Keep Goal Achieved / Stranded result dialogs centered on phones.
+   app.css intentionally top-aligns generic encounter scenes below 860px,
+   but result dialogs should remain centered in the visible viewport. */
+@media (max-width: 860px) {
+  .encounterScene.goalScene {
+    place-items: center;
+    align-content: center;
+    min-height: 100dvh;
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
