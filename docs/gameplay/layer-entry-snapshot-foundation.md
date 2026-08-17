@@ -2,14 +2,15 @@
 
 ## Status
 
-Infrastructure only. **STEP 5B DOES NOT IMPLEMENT BANISHMENT.**
+Infrastructure only for capture/restore. **STEP 5B DOES NOT IMPLEMENT BANISHMENT.**
 
 No dice. No RNG. No V1–V4 punishments. No Restore button in normal play.
-Restoration is **not** attached to Red Encounter Continue.
+Restoration is **not** attached to Red Encounter Continue in 5B.
 
 **LAYER RESTORE DOES NOT RESET CONSUMED ENCOUNTERS.**
 
-Step 5C will decide *when* restoration occurs.
+Step **5C** wires restoration to failed Red dice rolls
+(`docs/gameplay/red-encounter-dice-banishment.md`).
 
 ## Purpose
 
